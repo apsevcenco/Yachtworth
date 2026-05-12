@@ -1,0 +1,377 @@
+Yachtworth — Valuation Questionnaire (full specification)
+This is the complete questionnaire for the Yachtworth mobile app valuation flow, ported from the working PDYE web platform and optimized for mobile (one screen = one section, swipeable).
+
+All field names, dropdown options, validation rules, required-field logic, and server-side multipliers below are already battle-tested in production on PDYE (pdyeplatform.com). Don't re-invent — adapt the UX to mobile but keep the data model and pricing math identical.
+
+1. Form modes
+The user picks ONE of two modes at the top:
+
+Mode	When to use	Extra required fields
+By Manufacturer (builder)	User knows the builder + model	builder, model become required
+Specs Only (specs)	Custom build, unknown brand, owner doesn't remember	builder and model hidden
+Mobile UX: Two big tappable cards on the first screen. Default = builder.
+
+2. Units toggle
+Units	Length / Beam / Draft	Displacement	Range
+Metric (default)	metres (m)	tonnes (t)	nautical miles (nm)
+Imperial	feet (ft)	long tonnes (lt)	nautical miles (nm)
+Conversion factors (apply on toggle so user doesn't lose data):
+
+m ↔ ft: × 3.28084
+t ↔ lt: × 0.984207
+nm ↔ km: × 1.852 (rarely used, keep nm everywhere)
+Mobile UX: Small switch in top-right of form, label "m" or "ft".
+
+3. SECTION 1 — General Information
+3.1 Yacht Class * (required, dropdown)
+Motor Yacht
+Sailing Yacht
+Catamaran
+Superyacht
+
+Hint text: "Step 1: pick the broad class. Specific style (Flybridge, Trawler, Sloop, Explorer...) comes next."
+
+3.2 Build Year * (required, number input)
+Min: 1940
+Max: current year
+Placeholder: "e.g. 2012"
+3.3 Refit Year (optional, number input)
+Min: 1940
+Max: current year
+Placeholder: "e.g. 2019"
+3.4 Configuration / Style * (required, dropdown — appears AFTER yacht class is chosen)
+Options depend on the chosen class. When user changes the class, clear this field (old value may be invalid).
+
+For "Motor Yacht":
+
+Flybridge
+Open / Express
+Hard Top
+Coupé
+Sport Yacht
+Sport Bridge
+Pilothouse
+Sedan
+Convertible (Sportfish)
+Trawler
+Long Range / Explorer
+Motor Gulet
+Classic Motor
+
+For "Sailing Yacht":
+
+Sloop
+Ketch
+Cutter
+Schooner
+Yawl
+Cruiser-Racer
+Performance Cruiser
+Bluewater Cruiser
+Classic Sailing
+Sailing Gulet
+
+For "Catamaran":
+
+Sail Catamaran (Cruising)
+Sail Catamaran (Performance)
+Power Catamaran
+Charter Catamaran
+
+For "Superyacht":
+
+Tri-deck Motor
+Quad-deck Motor
+Explorer / Expedition
+Sport Superyacht
+Classic Motor Superyacht
+Sailing Superyacht
+
+Hint: "Same length and year, different configuration = very different price (e.g. Flybridge vs Open)."
+
+3.5 Builder / Manufacturer * (required only in builder mode, text input)
+Placeholder: "e.g. Ferretti, Sunseeker, Azimut..."
+
+3.6 Model / Range * (required only in builder mode, text input)
+Placeholder: "e.g. Predator 60, Manhattan 66, F62..."
+
+3.7 Condition * (required, dropdown)
+New              ← multiplier 1.05 (+5%)
+Excellent        ← multiplier 1.00 (baseline)
+Good             ← multiplier 0.93 (−7%)
+Fair             ← multiplier 0.83 (−17%)
+Needs Refit      ← multiplier 0.70 (−30%)
+Project          ← multiplier 0.50 (−50%)
+
+Important: condition is the second-strongest price driver after length+year. The multiplier is applied server-side, not by the AI.
+
+4. SECTION 2 — Market Context
+4.1 Sale Region * (always required, dropdown)
+Mediterranean (FR · IT · ES · MC · GR · HR · TR · MT)
+Northern Europe incl. UK (UK · NL · DE · DK · NO · SE · FI · BE)
+North America & Caribbean (US · CA · BS · KY · BVI · USVI)
+Asia-Pacific & Middle East (AE · SG · HK · TH · AU · NZ · JP · CN)
+Global — no regional restriction
+
+Internal values: mediterranean, northern_europe, north_america_caribbean, asia_pacific_me, global.
+
+Hint: "Drives which brokerage market the AI samples. Med vs US asking prices typically differ by 5–15% for equivalent tonnage."
+
+This field is NOT bypassable, even if user checks the "I don't have all the data" box.
+
+4.2 Tax Status * (conditionally required — only if region is mediterranean, northern_europe, or global)
+Tax Paid (EU free circulation)
+Tax Not Paid (offshore / not in EU free circulation)
+
+Internal values: paid, not_paid.
+
+Hint: "Tax-paid vs not-paid are structurally different EU markets — not a discount line."
+
+For US/Caribbean and APAC/ME — hide this field (would only confuse).
+
+5. SECTION 3 — Hull & Dimensions
+5.1 Length (LOA) * (required, number with unit badge)
+Unit: m or ft (depends on units toggle). Placeholder metric: "e.g. 24.5", imperial: "e.g. 80.4"
+
+5.2 Beam * (required, number with unit badge)
+Unit: m or ft.
+
+5.3 Draft * (required, number with unit badge)
+Unit: m or ft.
+
+5.4 Hull Material (optional, dropdown)
+GRP / Fiberglass
+Steel
+Aluminium
+Carbon Fibre
+Wood / Composite
+Ferro-Cement
+
+5.5 Displacement (optional, number with unit badge)
+Unit: t or lt.
+
+5.6 Gross Tonnage (optional, number, GT — no unit toggle)
+6. SECTION 4 — Engines
+6.1 Engine Manufacturer * (required, text input)
+Placeholder: "e.g. MAN, Caterpillar, Volvo Penta, MTU..."
+
+6.2 Engine Model (optional, text input)
+Placeholder: "e.g. V12-1800, C32 ACERT..."
+
+6.3 Engine Configuration * (required, dropdown)
+Single diesel
+Twin diesel
+Triple diesel
+Quad diesel
+IPS drives
+Sail (auxiliary)
+Electric / Hybrid
+Waterjet
+
+6.4 Engine Count * (required, number)
+Min 1, Max 4. Placeholder: "e.g. 2"
+
+6.5 Total Horsepower * (required, number, hp)
+Placeholder: "e.g. 2700"
+
+7. SECTION 5 — Capacity & Range
+7.1 Range (optional, number with unit badge)
+Unit: nm. Placeholder: "e.g. 3500"
+
+7.2 Guest Cabins * (required, number)
+Min 0. Placeholder: "e.g. 4"
+
+7.3 Heads (WC) * (required, number)
+Min 0. Placeholder: "e.g. 5"
+
+7.4 Berths (optional, number)
+Min 0. Placeholder: "e.g. 8"
+
+7.5 Crew * (required, number)
+Min 0 (owner-operated boats are valid). Placeholder: "e.g. 4"
+
+8. "I don't have all the data" bypass
+A single checkbox at the bottom of the form, label:
+
+"I don't have all the data — give me an indicative estimate"
+
+When checked:
+
+All "*" required fields become optional EXCEPT the three hard requirements (Yacht Class, Build Year, Length) and the two market-context fields (Sale Region, and Tax Status when region requires it).
+Server applies condition multiplier of 1.00 (no adjustment) when condition is missing
+Server caps confidence at "medium" so the user understands the estimate is rougher
+When unchecked (default), the user MUST fill all fields marked * above.
+
+9. Server-side scoring & multipliers (DO NOT EXPOSE TO USER, but implement identically)
+9.1 Condition multiplier table
+Applied AFTER the AI returns its Excellent-baseline price, BEFORE distressed/quick-sale derivation. Single source of truth — the AI is told NOT to factor condition into its number.
+
+const CONDITION_MULTIPLIERS = {
+  "New":         1.05,
+  "Excellent":   1.00,
+  "Good":        0.93,
+  "Fair":        0.83,
+  "Needs Refit": 0.70,
+  "Project":     0.50,
+};
+
+9.2 Distressed price (auto-derived, shown in result)
+distressed_price = market_price × 0.80 (−20%)
+
+9.3 Quick-sale price (auto-derived, shown in result)
+quick_sale_price = market_price × 0.70 (−30%)
+
+9.4 Completeness score weights
+Used to compute a 0–100 score showing the user how much data they provided:
+
+const COMPLETENESS_WEIGHTS = {
+  type: 15, year: 15, length: 15,
+  builder: 10, model: 8, configuration: 6,
+  engine_maker: 4, engine_model: 2, horse_power: 5, engines: 2, engine_count: 2,
+  gross_tonnage: 4, hull_material: 3, displacement: 3, beam: 2,
+  condition: 5, refit: 3,
+  draft: 1, range: 2, cabins: 1, heads: 0, berths: 0, crew: 1,
+};
+
+Score = (sum of weights of filled fields) / (sum of all possible weights for current mode) × 100, rounded.
+
+9.5 Sanity-check (€/m) ranges per class+config
+The AI's number is checked against a reasonable EUR-per-meter range. If outside the range — clamp to boundary, drop confidence to "low". See full table in pdye_estimate_logic_REFERENCE.txt (search for PRICE_PER_METER_EUR). Don't change the numbers — they're calibrated against real broker data.
+
+9.6 Premium-segment overrides
+For boats ≥18–20m, per-meter economics shift dramatically. Override the base ranges with PREMIUM_PRICE_PER_METER_EUR table from the reference file.
+
+9.7 Region guidance for AI prompt
+When sending the prompt to OpenAI, inject the region-specific guidance string so the AI restricts comparables to that market:
+
+Mediterranean: "Restrict to FR/IT/ES/MC/GR/HR/TR/MT. Med asking ~5–15% above US for equivalent tonnage."
+Northern Europe: "Restrict to UK/NL/DE/DK/NO/SE/FI/BE. Sunseeker, Princess, Burgess, De Valk are primary refs."
+North America & Caribbean: "Restrict to US/CA/BS/KY/BVI/USVI/ATG. USD listings expected; convert to EUR at spot."
+Asia-Pacific & ME: "Restrict to AE/SA/QA/SG/HK/TH/AU/NZ/JP/CN. Thinner volume — if <5 comparables found, may include up to 2 Med + drop confidence to low."
+Global: "No regional restriction — note in reasoning which markets the comparables came from."
+Full strings in reference file (REGION_GUIDANCE constant).
+
+10. Mobile UX recommendations
+The PDYE web form is a single long page. For mobile, I recommend:
+
+Option A (recommended): Wizard with 5 swipeable screens, one per section, with a progress bar:
+
+General Info (Class → Year → Refit → Configuration → Builder/Model → Condition)
+Market Context (Region → Tax Status)
+Hull & Dimensions (Length → Beam → Draft → Hull → Displacement → GT)
+Engines (Maker → Model → Config → Count → HP)
+Capacity (Range → Cabins → Heads → Berths → Crew) + bypass checkbox + Submit
+Benefits: less overwhelming, native-feeling, easier to validate per-step.
+
+Option B: Single scrolling form with collapsible sections (like PDYE web). Faster but less mobile-native.
+
+Pick A for v1.
+
+Per-screen "Continue" button
+On each wizard screen, validate only that screen's required fields. Block "Continue" with inline red errors if missing. Final "Get Valuation" button on the last screen.
+
+Error display
+Red banner above the field, not toast — easier to read on mobile.
+
+Free-tier limit
+Show a small badge at top: "1 of 1 free valuations this month" or "Pro — unlimited". Tapping it opens paywall.
+
+11. Result screen (what to show after submit)
+Server response shape:
+
+{
+  estimated_price: "€ 2,450,000",       // headline (after condition multiplier)
+  market_price?: string,                 // same as estimated for now
+  distressed_price?: "€ 1,960,000",      // -20%
+  quick_sale_price?: "€ 1,715,000",      // -30%
+  confidence: "high" | "medium" | "low",
+  reasoning: string,                     // 2-3 sentences citing comparables
+  comparables: Array<{
+    builder, model, year, length, condition, price, note
+  }>,
+  completeness_score: number,            // 0-100
+  completeness_filled: number,
+  completeness_total: number,
+  completeness_missing_critical: string[],
+  sale_region_label: string,             // e.g. "Mediterranean (FR, IT, ES, ...)"
+  vat_status: "paid" | "not_paid" | null,
+  condition: string,                     // e.g. "Good"
+  condition_multiplier: number,          // e.g. 0.93
+  condition_adjustment_pct: number,      // e.g. -7
+  condition_baseline_eur: number,        // e.g. 2634000
+  sanity_adjusted: boolean,              // true if AI hallucinated a price outside reasonable per-m range
+  sanity_band_label: string | null,
+  sanity_per_meter_eur: number | null,
+}
+
+Mobile result screen layout:
+
+Big headline price (gold, large font)
+Confidence badge (green/yellow/orange) + label
+Three small price cards in a row: Market / Distressed (-20%) / Quick Sale (-30%)
+"Condition adjustment: Good (−7%) applied off Excellent baseline" — small line, only show if multiplier ≠ 1.00
+Reasoning paragraph
+Comparables list (collapsible)
+Data quality block: "X/Y fields filled (Z%)"
+CTAs:
+"Save to history" (Pro feature — show paywall if free)
+"Export PDF" (Pro feature)
+"List on PDYE for brokerage" — only show if estimated_price > €5M OR user picked quick-sale derivation (this is the cross-sell hook back to PDYE)
+"New valuation" (start over)
+12. API contract
+The mobile app calls Yachtworth's own API, not PDYE's. New endpoint:
+
+POST /api/valuation
+
+Request body:
+
+{
+  mode: "builder" | "specs",
+  units: "metric" | "imperial",
+  bypass_required: boolean,
+  type: string,                  // yacht class
+  configuration: string,
+  builder?: string,
+  model?: string,
+  year: string,
+  refit?: string,
+  condition: string,
+  sale_region: string,           // internal value
+  vat_status?: "paid" | "not_paid",
+  length: string, beam: string, draft: string,
+  hull_material?: string,
+  displacement?: string,
+  gross_tonnage?: string,
+  engine_maker: string,
+  engine_model?: string,
+  engines: string,               // engine config dropdown value
+  engine_count: string,
+  horse_power: string,
+  range?: string,
+  cabins: string, heads: string, berths?: string, crew: string,
+}
+
+Response: see Section 11 above.
+
+The server should internally call OpenAI (gpt-5-mini, web-search-enabled) with the region-restricted prompt, parse the JSON, run sanity check, apply condition multiplier, derive distressed/quick-sale, log to valuation_requests table for future ML dataset, and return the full response object.
+
+13. Reference implementation
+The full working PDYE server-side implementation is in the file pdye_estimate_logic_REFERENCE.txt (already shared with you). Read it for:
+
+Exact OpenAI prompt structure
+Sanity check algorithm with premium overrides
+Comparable-finding logic (findComparables)
+Robust price parsing (handles €/$/comma/dot in various locales)
+JSON extraction from AI response (handles markdown fences)
+Adapt, don't blindly copy:
+
+Drop the findComparables DB lookup — Yachtworth starts with empty DB. Add later in v1.1 once we have valuation history.
+Drop the valuation_requests migration auto-run pattern — use proper migrations for Yachtworth.
+Shorten reasoning to 2 sentences max for mobile.
+Skip the EstimateMarketPriceBody zod schema from @workspace/api-zod — Yachtworth has no shared schemas package, define inline.
+TL;DR for the new agent
+Build a 5-screen wizard with the fields and options listed in Sections 3–7
+Validate per Section 8 (bypass logic) and Sections 3.4 / 4.1 / 4.2 (region/tax conditional logic)
+POST to your own API, which calls OpenAI with region-restricted prompt
+Apply Section 9 multipliers SERVER-SIDE before returning
+Render result per Section 11 with the cross-sell to PDYE for high-value yachts
