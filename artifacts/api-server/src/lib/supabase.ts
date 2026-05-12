@@ -14,9 +14,27 @@ export function getSupabase(): SupabaseClient | null {
     cached = null;
     return cached;
   }
-  cached = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (!/^https?:\/\//i.test(url)) {
+    logger.error(
+      { urlPrefix: url.slice(0, 12) },
+      "SUPABASE_URL is not an HTTPS project URL (looks like a Postgres connection string). " +
+        "Set SUPABASE_URL to the project URL from Supabase dashboard → Project Settings → API → Project URL " +
+        "(format: https://<ref>.supabase.co). History persistence disabled until fixed.",
+    );
+    cached = null;
+    return cached;
+  }
+  try {
+    cached = createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  } catch (err) {
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      "Failed to construct Supabase client — history persistence disabled.",
+    );
+    cached = null;
+  }
   return cached;
 }
 
