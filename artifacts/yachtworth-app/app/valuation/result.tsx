@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   heroPrice: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 38,
     letterSpacing: -0.6,
   },
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_500Medium",
+    fontFamily: "Gilroy-Regular",
     fontSize: 19,
     marginTop: 20,
     marginBottom: 12,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   tierValue: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_500Medium",
+    fontFamily: "Gilroy-Regular",
     fontSize: 17,
   },
   barTrack: {
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   compPrice: {
     color: GOLD,
-    fontFamily: "PlayfairDisplay_500Medium",
+    fontFamily: "Gilroy-Regular",
     fontSize: 14,
   },
   poweredBy: {

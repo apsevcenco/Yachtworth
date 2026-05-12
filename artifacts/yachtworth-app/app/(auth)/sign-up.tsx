@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 36,
     letterSpacing: -0.3,
   },

@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 32,
     letterSpacing: -0.3,
   },
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_500Medium",
+    fontFamily: "Gilroy-Regular",
     fontSize: 20,
     marginBottom: 8,
   },

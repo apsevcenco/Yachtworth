@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 32,
     letterSpacing: -0.3,
     marginBottom: 28,
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_500Medium",
+    fontFamily: "Gilroy-Regular",
     fontSize: 18,
     marginBottom: 10,
   },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   poweredTitle: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 24,
     letterSpacing: 2,
     marginBottom: 8,

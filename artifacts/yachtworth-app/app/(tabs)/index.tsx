@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 40,
     lineHeight: 46,
     letterSpacing: -0.5,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 22,
   },
   statLabel: {
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: IVORY,
-    fontFamily: "PlayfairDisplay_500Medium",
+    fontFamily: "Gilroy-Regular",
     fontSize: 20,
     marginTop: 40,
     marginBottom: 14,

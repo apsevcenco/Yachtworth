@@ -6,7 +6,7 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
 
 - **Audience:** yacht owners + brokers/surveyors
 - **Core flow:** user enters yacht parameters (length, year, shipyard, condition, etc.) → AI returns valuation with price range + chart + PDF report
-- **Branding:** luxury minimalism — deep navy `#0B1E3F` + champagne gold `#C9A961`. Fonts: Playfair Display (display) + Inter (body)
+- **Branding:** luxury minimalism — deep navy `#0B1E3F` + champagne gold `#C9A961`. Fonts: **Gilroy** (headings, owner-provided .otf in `assets/fonts/` — `Gilroy-Regular` + `Gilroy-ExtraBold`) + Inter (body)
 - **Cross-link with PDYE:** clean Yachtworth logo, but inside the app:
   - Onboarding: "by the team behind PDYE"
   - Settings/About: "Powered by PDYE" block
