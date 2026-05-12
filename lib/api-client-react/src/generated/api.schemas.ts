@@ -34,36 +34,129 @@ export const YachtCondition = {
   Project: "Project",
 } as const;
 
+export type ValuationMode = (typeof ValuationMode)[keyof typeof ValuationMode];
+
+export const ValuationMode = {
+  builder: "builder",
+  specs: "specs",
+} as const;
+
+export type SaleRegion = (typeof SaleRegion)[keyof typeof SaleRegion];
+
+export const SaleRegion = {
+  mediterranean: "mediterranean",
+  northern_europe: "northern_europe",
+  north_america_caribbean: "north_america_caribbean",
+  asia_pacific_me: "asia_pacific_me",
+  global: "global",
+} as const;
+
+export type VatStatus = (typeof VatStatus)[keyof typeof VatStatus];
+
+export const VatStatus = {
+  paid: "paid",
+  not_paid: "not_paid",
+} as const;
+
+export type EngineConfig = (typeof EngineConfig)[keyof typeof EngineConfig];
+
+export const EngineConfig = {
+  single_diesel: "single_diesel",
+  twin_diesel: "twin_diesel",
+  triple_diesel: "triple_diesel",
+  quad_diesel: "quad_diesel",
+  ips_drives: "ips_drives",
+  sail_auxiliary: "sail_auxiliary",
+  electric_hybrid: "electric_hybrid",
+  waterjet: "waterjet",
+} as const;
+
 export interface ValuationInput {
+  mode: ValuationMode;
+  /** When true, only hard requirements are enforced */
+  bypass_required: boolean;
   type: YachtType;
   /**
-   * e.g. "flybridge", "sport yacht", "sloop"
+   * e.g. "Flybridge", "Sport Yacht", "Sloop"
    * @nullable
    */
   configuration?: string | null;
+  /**
+   * Yacht builder/manufacturer (required when mode=builder unless bypass)
+   * @nullable
+   */
+  builder?: string | null;
+  /**
+   * Model/range (required when mode=builder unless bypass)
+   * @nullable
+   */
+  model?: string | null;
+  /**
+   * @minimum 1940
+   * @maximum 2100
+   */
+  year_built: number;
+  /**
+   * @minimum 1940
+   * @maximum 2100
+   * @nullable
+   */
+  refit_year?: number | null;
+  /** Required unless bypass; defaults to Excellent multiplier when missing */
+  condition?: YachtCondition | null;
+  sale_region: SaleRegion;
+  /** Required when sale_region in [mediterranean, northern_europe, global] */
+  vat_status?: VatStatus | null;
   /**
    * @minimum 1
    * @maximum 200
    */
   length_meters: number;
-  /**
-   * @minimum 1900
-   * @maximum 2100
-   */
-  year_built: number;
-  condition: YachtCondition;
-  /** @nullable */
-  shipyard?: string | null;
-  /** @nullable */
-  model?: string | null;
   /** @nullable */
   beam_meters?: number | null;
   /** @nullable */
+  draft_meters?: number | null;
+  /** @nullable */
   hull_material?: string | null;
   /** @nullable */
-  engines_hp?: number | null;
+  displacement_tonnes?: number | null;
   /** @nullable */
-  notes?: string | null;
+  gross_tonnage?: number | null;
+  /** @nullable */
+  engine_maker?: string | null;
+  /** @nullable */
+  engine_model?: string | null;
+  engine_config?: EngineConfig | null;
+  /**
+   * @minimum 1
+   * @maximum 4
+   * @nullable
+   */
+  engine_count?: number | null;
+  /** @nullable */
+  horse_power?: number | null;
+  /** @nullable */
+  range_nm?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  cabins?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  heads?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  berths?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  crew?: number | null;
 }
 
 export interface Comparable {
@@ -103,9 +196,18 @@ export interface Valuation {
   condition_baseline_eur: number;
   condition_multiplier: number;
   condition_adjustment_pct: number;
+  /** @nullable */
+  condition_label?: string | null;
   completeness_score: number;
+  completeness_filled: number;
+  completeness_total: number;
+  completeness_missing_critical?: string[];
   sanity_adjusted: boolean;
   /** @nullable */
   sanity_band_label?: string | null;
+  /** @nullable */
+  sanity_per_meter_eur?: number | null;
+  sale_region_label: string;
+  vat_status?: VatStatus | null;
   currency: string;
 }

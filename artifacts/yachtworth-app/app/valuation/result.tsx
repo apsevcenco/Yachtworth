@@ -107,6 +107,36 @@ export default function ValuationResultScreen() {
           </View>
         </View>
 
+        {/* Sale region + tax */}
+        {result.sale_region_label ? (
+          <View style={styles.metaCard}>
+            <View style={styles.metaRow}>
+              <Feather name="map-pin" size={13} color={GOLD} />
+              <Text style={styles.metaText}>{result.sale_region_label}</Text>
+            </View>
+            {result.vat_status ? (
+              <View style={styles.metaRow}>
+                <Feather name="file-text" size={13} color={GOLD} />
+                <Text style={styles.metaText}>
+                  {result.vat_status === "paid"
+                    ? "Tax paid (EU free circulation)"
+                    : "Tax not paid (offshore)"}
+                </Text>
+              </View>
+            ) : null}
+            {result.completeness_filled != null &&
+            result.completeness_total != null ? (
+              <View style={styles.metaRow}>
+                <Feather name="check-circle" size={13} color={GOLD} />
+                <Text style={styles.metaText}>
+                  {result.completeness_filled}/{result.completeness_total} fields
+                  filled · {result.completeness_score}% data quality
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* Sanity adjusted notice */}
         {result.sanity_adjusted ? (
           <View style={styles.notice}>
@@ -298,6 +328,21 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "rgba(247,243,236,0.75)",
     fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  metaCard: {
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+    marginBottom: 14,
+  },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  metaText: {
+    flex: 1,
+    color: "rgba(247,243,236,0.85)",
+    fontFamily: "Inter_500Medium",
     fontSize: 12,
     lineHeight: 17,
   },

@@ -90,37 +90,119 @@ components:
         - Fair
         - Needs Refit
         - Project
+    ValuationMode:
+      type: string
+      enum: [builder, specs]
+    SaleRegion:
+      type: string
+      enum:
+        - mediterranean
+        - northern_europe
+        - north_america_caribbean
+        - asia_pacific_me
+        - global
+    VatStatus:
+      type: string
+      enum: [paid, not_paid]
+    EngineConfig:
+      type: string
+      enum:
+        - single_diesel
+        - twin_diesel
+        - triple_diesel
+        - quad_diesel
+        - ips_drives
+        - sail_auxiliary
+        - electric_hybrid
+        - waterjet
     ValuationInput:
       type: object
-      required: [type, length_meters, year_built, condition]
+      required:
+        - mode
+        - bypass_required
+        - type
+        - year_built
+        - length_meters
+        - sale_region
       properties:
+        mode:
+          $ref: "#/components/schemas/ValuationMode"
+        bypass_required:
+          type: boolean
+          description: When true, only hard requirements are enforced
         type:
           $ref: "#/components/schemas/YachtType"
         configuration:
           type: ["string", "null"]
-          description: e.g. "flybridge", "sport yacht", "sloop"
+          description: e.g. "Flybridge", "Sport Yacht", "Sloop"
+        builder:
+          type: ["string", "null"]
+          description: Yacht builder/manufacturer (required when mode=builder unless bypass)
+        model:
+          type: ["string", "null"]
+          description: Model/range (required when mode=builder unless bypass)
+        year_built:
+          type: integer
+          minimum: 1940
+          maximum: 2100
+        refit_year:
+          type: ["integer", "null"]
+          minimum: 1940
+          maximum: 2100
+        condition:
+          oneOf:
+            - $ref: "#/components/schemas/YachtCondition"
+            - type: "null"
+          description: Required unless bypass; defaults to Excellent multiplier when missing
+        sale_region:
+          $ref: "#/components/schemas/SaleRegion"
+        vat_status:
+          oneOf:
+            - $ref: "#/components/schemas/VatStatus"
+            - type: "null"
+          description: Required when sale_region in [mediterranean, northern_europe, global]
         length_meters:
           type: number
           minimum: 1
           maximum: 200
-        year_built:
-          type: integer
-          minimum: 1900
-          maximum: 2100
-        condition:
-          $ref: "#/components/schemas/YachtCondition"
-        shipyard:
-          type: ["string", "null"]
-        model:
-          type: ["string", "null"]
         beam_meters:
+          type: ["number", "null"]
+        draft_meters:
           type: ["number", "null"]
         hull_material:
           type: ["string", "null"]
-        engines_hp:
-          type: ["integer", "null"]
-        notes:
+        displacement_tonnes:
+          type: ["number", "null"]
+        gross_tonnage:
+          type: ["number", "null"]
+        engine_maker:
           type: ["string", "null"]
+        engine_model:
+          type: ["string", "null"]
+        engine_config:
+          oneOf:
+            - $ref: "#/components/schemas/EngineConfig"
+            - type: "null"
+        engine_count:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 4
+        horse_power:
+          type: ["integer", "null"]
+        range_nm:
+          type: ["integer", "null"]
+        cabins:
+          type: ["integer", "null"]
+          minimum: 0
+        heads:
+          type: ["integer", "null"]
+          minimum: 0
+        berths:
+          type: ["integer", "null"]
+          minimum: 0
+        crew:
+          type: ["integer", "null"]
+          minimum: 0
     Comparable:
       type: object
       required: [price]
@@ -154,8 +236,11 @@ components:
         - condition_multiplier
         - condition_adjustment_pct
         - completeness_score
+        - completeness_filled
+        - completeness_total
         - sanity_adjusted
         - currency
+        - sale_region_label
       properties:
         estimated_price_eur:
           type: number
@@ -182,11 +267,29 @@ components:
           type: number
         condition_adjustment_pct:
           type: integer
+        condition_label:
+          type: ["string", "null"]
         completeness_score:
           type: integer
+        completeness_filled:
+          type: integer
+        completeness_total:
+          type: integer
+        completeness_missing_critical:
+          type: array
+          items:
+            type: string
         sanity_adjusted:
           type: boolean
         sanity_band_label:
           type: ["string", "null"]
+        sanity_per_meter_eur:
+          type: ["number", "null"]
+        sale_region_label:
+          type: string
+        vat_status:
+          oneOf:
+            - $ref: "#/components/schemas/VatStatus"
+            - type: "null"
         currency:
           type: string

@@ -7,6 +7,7 @@
  */
 import type { Comparable } from "./comparable";
 import type { ValuationConfidence } from "./valuationConfidence";
+import type { VatStatus } from "./vatStatus";
 
 export interface Valuation {
   estimated_price_eur: number;
@@ -20,9 +21,18 @@ export interface Valuation {
   condition_baseline_eur: number;
   condition_multiplier: number;
   condition_adjustment_pct: number;
+  /** @nullable */
+  condition_label?: string | null;
   completeness_score: number;
+  completeness_filled: number;
+  completeness_total: number;
+  completeness_missing_critical?: string[];
   sanity_adjusted: boolean;
   /** @nullable */
   sanity_band_label?: string | null;
+  /** @nullable */
+  sanity_per_meter_eur?: number | null;
+  sale_region_label: string;
+  vat_status?: VatStatus | null;
   currency: string;
 }

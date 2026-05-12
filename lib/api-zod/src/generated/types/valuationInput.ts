@@ -5,37 +5,97 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EngineConfig } from "./engineConfig";
+import type { SaleRegion } from "./saleRegion";
+import type { ValuationMode } from "./valuationMode";
+import type { VatStatus } from "./vatStatus";
 import type { YachtCondition } from "./yachtCondition";
 import type { YachtType } from "./yachtType";
 
 export interface ValuationInput {
+  mode: ValuationMode;
+  /** When true, only hard requirements are enforced */
+  bypass_required: boolean;
   type: YachtType;
   /**
-   * e.g. "flybridge", "sport yacht", "sloop"
+   * e.g. "Flybridge", "Sport Yacht", "Sloop"
    * @nullable
    */
   configuration?: string | null;
+  /**
+   * Yacht builder/manufacturer (required when mode=builder unless bypass)
+   * @nullable
+   */
+  builder?: string | null;
+  /**
+   * Model/range (required when mode=builder unless bypass)
+   * @nullable
+   */
+  model?: string | null;
+  /**
+   * @minimum 1940
+   * @maximum 2100
+   */
+  year_built: number;
+  /**
+   * @minimum 1940
+   * @maximum 2100
+   * @nullable
+   */
+  refit_year?: number | null;
+  /** Required unless bypass; defaults to Excellent multiplier when missing */
+  condition?: YachtCondition | null;
+  sale_region: SaleRegion;
+  /** Required when sale_region in [mediterranean, northern_europe, global] */
+  vat_status?: VatStatus | null;
   /**
    * @minimum 1
    * @maximum 200
    */
   length_meters: number;
-  /**
-   * @minimum 1900
-   * @maximum 2100
-   */
-  year_built: number;
-  condition: YachtCondition;
-  /** @nullable */
-  shipyard?: string | null;
-  /** @nullable */
-  model?: string | null;
   /** @nullable */
   beam_meters?: number | null;
   /** @nullable */
+  draft_meters?: number | null;
+  /** @nullable */
   hull_material?: string | null;
   /** @nullable */
-  engines_hp?: number | null;
+  displacement_tonnes?: number | null;
   /** @nullable */
-  notes?: string | null;
+  gross_tonnage?: number | null;
+  /** @nullable */
+  engine_maker?: string | null;
+  /** @nullable */
+  engine_model?: string | null;
+  engine_config?: EngineConfig | null;
+  /**
+   * @minimum 1
+   * @maximum 4
+   * @nullable
+   */
+  engine_count?: number | null;
+  /** @nullable */
+  horse_power?: number | null;
+  /** @nullable */
+  range_nm?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  cabins?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  heads?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  berths?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  crew?: number | null;
 }

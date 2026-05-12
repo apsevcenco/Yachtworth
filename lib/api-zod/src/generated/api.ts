@@ -21,36 +21,109 @@ plus deterministic sanity check + condition multiplier.
 
  * @summary Create AI yacht valuation
  */
-export const createValuationBodyLengthMetersMax = 200;
-
-export const createValuationBodyYearBuiltMin = 1900;
+export const createValuationBodyYearBuiltMin = 1940;
 export const createValuationBodyYearBuiltMax = 2100;
 
+export const createValuationBodyRefitYearMin = 1940;
+export const createValuationBodyRefitYearMax = 2100;
+
+export const createValuationBodyLengthMetersMax = 200;
+
+export const createValuationBodyEngineCountMax = 4;
+
+export const createValuationBodyCabinsMin = 0;
+
+export const createValuationBodyHeadsMin = 0;
+
+export const createValuationBodyBerthsMin = 0;
+
+export const createValuationBodyCrewMin = 0;
+
 export const CreateValuationBody = zod.object({
+  mode: zod.enum(["builder", "specs"]),
+  bypass_required: zod
+    .boolean()
+    .describe("When true, only hard requirements are enforced"),
   type: zod.enum(["motor_yacht", "sailing_yacht", "catamaran", "superyacht"]),
   configuration: zod
     .string()
     .nullish()
-    .describe('e.g. \"flybridge\", \"sport yacht\", \"sloop\"'),
-  length_meters: zod.number().min(1).max(createValuationBodyLengthMetersMax),
+    .describe('e.g. \"Flybridge\", \"Sport Yacht\", \"Sloop\"'),
+  builder: zod
+    .string()
+    .nullish()
+    .describe(
+      "Yacht builder\/manufacturer (required when mode=builder unless bypass)",
+    ),
+  model: zod
+    .string()
+    .nullish()
+    .describe("Model\/range (required when mode=builder unless bypass)"),
   year_built: zod
     .number()
     .min(createValuationBodyYearBuiltMin)
     .max(createValuationBodyYearBuiltMax),
-  condition: zod.enum([
-    "New",
-    "Excellent",
-    "Good",
-    "Fair",
-    "Needs Refit",
-    "Project",
+  refit_year: zod
+    .number()
+    .min(createValuationBodyRefitYearMin)
+    .max(createValuationBodyRefitYearMax)
+    .nullish(),
+  condition: zod
+    .union([
+      zod.enum(["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"]),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "Required unless bypass; defaults to Excellent multiplier when missing",
+    ),
+  sale_region: zod.enum([
+    "mediterranean",
+    "northern_europe",
+    "north_america_caribbean",
+    "asia_pacific_me",
+    "global",
   ]),
-  shipyard: zod.string().nullish(),
-  model: zod.string().nullish(),
+  vat_status: zod
+    .union([zod.enum(["paid", "not_paid"]), zod.null()])
+    .optional()
+    .describe(
+      "Required when sale_region in [mediterranean, northern_europe, global]",
+    ),
+  length_meters: zod.number().min(1).max(createValuationBodyLengthMetersMax),
   beam_meters: zod.number().nullish(),
+  draft_meters: zod.number().nullish(),
   hull_material: zod.string().nullish(),
-  engines_hp: zod.number().nullish(),
-  notes: zod.string().nullish(),
+  displacement_tonnes: zod.number().nullish(),
+  gross_tonnage: zod.number().nullish(),
+  engine_maker: zod.string().nullish(),
+  engine_model: zod.string().nullish(),
+  engine_config: zod
+    .union([
+      zod.enum([
+        "single_diesel",
+        "twin_diesel",
+        "triple_diesel",
+        "quad_diesel",
+        "ips_drives",
+        "sail_auxiliary",
+        "electric_hybrid",
+        "waterjet",
+      ]),
+      zod.null(),
+    ])
+    .optional(),
+  engine_count: zod
+    .number()
+    .min(1)
+    .max(createValuationBodyEngineCountMax)
+    .nullish(),
+  horse_power: zod.number().nullish(),
+  range_nm: zod.number().nullish(),
+  cabins: zod.number().min(createValuationBodyCabinsMin).nullish(),
+  heads: zod.number().min(createValuationBodyHeadsMin).nullish(),
+  berths: zod.number().min(createValuationBodyBerthsMin).nullish(),
+  crew: zod.number().min(createValuationBodyCrewMin).nullish(),
 });
 
 export const CreateValuationResponse = zod.object({
@@ -75,8 +148,17 @@ export const CreateValuationResponse = zod.object({
   condition_baseline_eur: zod.number(),
   condition_multiplier: zod.number(),
   condition_adjustment_pct: zod.number(),
+  condition_label: zod.string().nullish(),
   completeness_score: zod.number(),
+  completeness_filled: zod.number(),
+  completeness_total: zod.number(),
+  completeness_missing_critical: zod.array(zod.string()).optional(),
   sanity_adjusted: zod.boolean(),
   sanity_band_label: zod.string().nullish(),
+  sanity_per_meter_eur: zod.number().nullish(),
+  sale_region_label: zod.string(),
+  vat_status: zod
+    .union([zod.enum(["paid", "not_paid"]), zod.null()])
+    .optional(),
   currency: zod.string(),
 });

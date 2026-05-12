@@ -7,10 +7,14 @@
  */
 
 export * from "./comparable";
+export * from "./engineConfig";
 export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./saleRegion";
 export * from "./valuation";
 export * from "./valuationConfidence";
 export * from "./valuationInput";
+export * from "./valuationMode";
+export * from "./vatStatus";
 export * from "./yachtCondition";
 export * from "./yachtType";
