@@ -13,6 +13,7 @@ import { ClerkProvider, ClerkLoaded } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { setBaseUrl } from "@workspace/api-client-react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -30,6 +31,11 @@ const queryClient = new QueryClient();
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 
+const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
+if (apiDomain) {
+  setBaseUrl(`https://${apiDomain}`);
+}
+
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -37,6 +43,14 @@ function RootLayoutNav() {
       <Stack.Screen
         name="(auth)"
         options={{ headerShown: false, presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="valuation/new"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="valuation/result"
+        options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>
   );

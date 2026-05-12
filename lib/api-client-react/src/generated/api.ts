@@ -5,18 +5,26 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ErrorResponse,
+  HealthStatus,
+  Valuation,
+  ValuationInput,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +107,92 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Estimates fair market value of a yacht using AI comparable search
+plus deterministic sanity check + condition multiplier.
+
+ * @summary Create AI yacht valuation
+ */
+export const getCreateValuationUrl = () => {
+  return `/api/valuations`;
+};
+
+export const createValuation = async (
+  valuationInput: ValuationInput,
+  options?: RequestInit,
+): Promise<Valuation> => {
+  return customFetch<Valuation>(getCreateValuationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(valuationInput),
+  });
+};
+
+export const getCreateValuationMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createValuation>>,
+    TError,
+    { data: BodyType<ValuationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createValuation>>,
+  TError,
+  { data: BodyType<ValuationInput> },
+  TContext
+> => {
+  const mutationKey = ["createValuation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createValuation>>,
+    { data: BodyType<ValuationInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createValuation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateValuationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createValuation>>
+>;
+export type CreateValuationMutationBody = BodyType<ValuationInput>;
+export type CreateValuationMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create AI yacht valuation
+ */
+export const useCreateValuation = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createValuation>>,
+    TError,
+    { data: BodyType<ValuationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createValuation>>,
+  TError,
+  { data: BodyType<ValuationInput> },
+  TContext
+> => {
+  return useMutation(getCreateValuationMutationOptions(options));
+};

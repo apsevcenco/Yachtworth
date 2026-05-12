@@ -8,3 +8,104 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export type YachtType = (typeof YachtType)[keyof typeof YachtType];
+
+export const YachtType = {
+  motor_yacht: "motor_yacht",
+  sailing_yacht: "sailing_yacht",
+  catamaran: "catamaran",
+  superyacht: "superyacht",
+} as const;
+
+export type YachtCondition =
+  (typeof YachtCondition)[keyof typeof YachtCondition];
+
+export const YachtCondition = {
+  New: "New",
+  Excellent: "Excellent",
+  Good: "Good",
+  Fair: "Fair",
+  Needs_Refit: "Needs Refit",
+  Project: "Project",
+} as const;
+
+export interface ValuationInput {
+  type: YachtType;
+  /**
+   * e.g. "flybridge", "sport yacht", "sloop"
+   * @nullable
+   */
+  configuration?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  length_meters: number;
+  /**
+   * @minimum 1900
+   * @maximum 2100
+   */
+  year_built: number;
+  condition: YachtCondition;
+  /** @nullable */
+  shipyard?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  beam_meters?: number | null;
+  /** @nullable */
+  hull_material?: string | null;
+  /** @nullable */
+  engines_hp?: number | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface Comparable {
+  /** @nullable */
+  builder?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year?: number | null;
+  /** @nullable */
+  length?: string | null;
+  /** @nullable */
+  condition?: string | null;
+  price: string;
+  /** @nullable */
+  note?: string | null;
+}
+
+export type ValuationConfidence =
+  (typeof ValuationConfidence)[keyof typeof ValuationConfidence];
+
+export const ValuationConfidence = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface Valuation {
+  estimated_price_eur: number;
+  distressed_price_eur: number;
+  quick_sale_price_eur: number;
+  range_low_eur: number;
+  range_high_eur: number;
+  confidence: ValuationConfidence;
+  reasoning: string;
+  comparables: Comparable[];
+  condition_baseline_eur: number;
+  condition_multiplier: number;
+  condition_adjustment_pct: number;
+  completeness_score: number;
+  sanity_adjusted: boolean;
+  /** @nullable */
+  sanity_band_label?: string | null;
+  currency: string;
+}

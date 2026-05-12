@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./comparable";
+export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./valuation";
+export * from "./valuationConfidence";
+export * from "./valuationInput";
+export * from "./yachtCondition";
+export * from "./yachtType";

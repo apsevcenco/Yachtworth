@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: valuations
+    description: Yacht valuation operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /valuations:
+    post:
+      operationId: createValuation
+      tags: [valuations]
+      summary: Create AI yacht valuation
+      description: |
+        Estimates fair market value of a yacht using AI comparable search
+        plus deterministic sanity check + condition multiplier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValuationInput"
+      responses:
+        "200":
+          description: Valuation produced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Valuation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Estimation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +68,125 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    YachtType:
+      type: string
+      enum:
+        - motor_yacht
+        - sailing_yacht
+        - catamaran
+        - superyacht
+    YachtCondition:
+      type: string
+      enum:
+        - New
+        - Excellent
+        - Good
+        - Fair
+        - Needs Refit
+        - Project
+    ValuationInput:
+      type: object
+      required: [type, length_meters, year_built, condition]
+      properties:
+        type:
+          $ref: "#/components/schemas/YachtType"
+        configuration:
+          type: ["string", "null"]
+          description: e.g. "flybridge", "sport yacht", "sloop"
+        length_meters:
+          type: number
+          minimum: 1
+          maximum: 200
+        year_built:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+        condition:
+          $ref: "#/components/schemas/YachtCondition"
+        shipyard:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        beam_meters:
+          type: ["number", "null"]
+        hull_material:
+          type: ["string", "null"]
+        engines_hp:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+    Comparable:
+      type: object
+      required: [price]
+      properties:
+        builder:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        year:
+          type: ["integer", "null"]
+        length:
+          type: ["string", "null"]
+        condition:
+          type: ["string", "null"]
+        price:
+          type: string
+        note:
+          type: ["string", "null"]
+    Valuation:
+      type: object
+      required:
+        - estimated_price_eur
+        - distressed_price_eur
+        - quick_sale_price_eur
+        - range_low_eur
+        - range_high_eur
+        - confidence
+        - reasoning
+        - comparables
+        - condition_baseline_eur
+        - condition_multiplier
+        - condition_adjustment_pct
+        - completeness_score
+        - sanity_adjusted
+        - currency
+      properties:
+        estimated_price_eur:
+          type: number
+        distressed_price_eur:
+          type: number
+        quick_sale_price_eur:
+          type: number
+        range_low_eur:
+          type: number
+        range_high_eur:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        reasoning:
+          type: string
+        comparables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comparable"
+        condition_baseline_eur:
+          type: number
+        condition_multiplier:
+          type: number
+        condition_adjustment_pct:
+          type: integer
+        completeness_score:
+          type: integer
+        sanity_adjusted:
+          type: boolean
+        sanity_band_label:
+          type: ["string", "null"]
+        currency:
+          type: string

@@ -14,3 +14,69 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Estimates fair market value of a yacht using AI comparable search
+plus deterministic sanity check + condition multiplier.
+
+ * @summary Create AI yacht valuation
+ */
+export const createValuationBodyLengthMetersMax = 200;
+
+export const createValuationBodyYearBuiltMin = 1900;
+export const createValuationBodyYearBuiltMax = 2100;
+
+export const CreateValuationBody = zod.object({
+  type: zod.enum(["motor_yacht", "sailing_yacht", "catamaran", "superyacht"]),
+  configuration: zod
+    .string()
+    .nullish()
+    .describe('e.g. \"flybridge\", \"sport yacht\", \"sloop\"'),
+  length_meters: zod.number().min(1).max(createValuationBodyLengthMetersMax),
+  year_built: zod
+    .number()
+    .min(createValuationBodyYearBuiltMin)
+    .max(createValuationBodyYearBuiltMax),
+  condition: zod.enum([
+    "New",
+    "Excellent",
+    "Good",
+    "Fair",
+    "Needs Refit",
+    "Project",
+  ]),
+  shipyard: zod.string().nullish(),
+  model: zod.string().nullish(),
+  beam_meters: zod.number().nullish(),
+  hull_material: zod.string().nullish(),
+  engines_hp: zod.number().nullish(),
+  notes: zod.string().nullish(),
+});
+
+export const CreateValuationResponse = zod.object({
+  estimated_price_eur: zod.number(),
+  distressed_price_eur: zod.number(),
+  quick_sale_price_eur: zod.number(),
+  range_low_eur: zod.number(),
+  range_high_eur: zod.number(),
+  confidence: zod.enum(["high", "medium", "low"]),
+  reasoning: zod.string(),
+  comparables: zod.array(
+    zod.object({
+      builder: zod.string().nullish(),
+      model: zod.string().nullish(),
+      year: zod.number().nullish(),
+      length: zod.string().nullish(),
+      condition: zod.string().nullish(),
+      price: zod.string(),
+      note: zod.string().nullish(),
+    }),
+  ),
+  condition_baseline_eur: zod.number(),
+  condition_multiplier: zod.number(),
+  condition_adjustment_pct: zod.number(),
+  completeness_score: zod.number(),
+  sanity_adjusted: zod.boolean(),
+  sanity_band_label: zod.string().nullish(),
+  currency: zod.string(),
+});
