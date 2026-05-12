@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Z92VDftYmLTWjJ7riXpkf"
+uri = "file://artifacts/yachtworth-app/assets/images/icon.png"
+type = "image"
+title = "yachtworth icon"
