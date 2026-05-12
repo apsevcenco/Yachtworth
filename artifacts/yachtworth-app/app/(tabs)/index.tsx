@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import React from "react";
 import {
@@ -68,12 +69,19 @@ export default function HomeScreen() {
         <Pressable
           onPress={onPressNew}
           style={({ pressed }) => [
-            styles.cta,
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
+            styles.ctaWrap,
+            { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
           ]}
         >
-          <Text style={styles.ctaText}>New valuation</Text>
-          <Feather name="arrow-up-right" size={20} color={NAVY} />
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.ctaInner}>
+            <Text style={styles.ctaText}>New valuation</Text>
+            <Feather name="arrow-up-right" size={20} color={GOLD} />
+          </View>
         </Pressable>
 
         <View style={styles.statsRow}>
@@ -183,9 +191,14 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 28,
   },
-  cta: {
-    backgroundColor: GOLD,
+  ctaWrap: {
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.06)",
+    overflow: "hidden",
+  },
+  ctaInner: {
     paddingVertical: 18,
     paddingHorizontal: 22,
     flexDirection: "row",
@@ -193,7 +206,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   ctaText: {
-    color: NAVY,
+    color: GOLD,
     fontFamily: "Inter_600SemiBold",
     fontSize: 16,
     letterSpacing: 0.2,
