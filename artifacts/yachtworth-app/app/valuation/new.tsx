@@ -516,8 +516,43 @@ export default function NewValuationScreen() {
             {STEP_TITLES[step]}{" "}
             <Text style={{ color: MUTED }}>· {step + 1}/5</Text>
           </Text>
-          <Pressable onPress={toggleUnits} hitSlop={12} style={styles.unitsBadge}>
-            <Text style={styles.unitsText}>{lengthUnit}</Text>
+          <Pressable
+            onPress={toggleUnits}
+            hitSlop={10}
+            style={styles.unitsToggle}
+            accessibilityRole="switch"
+            accessibilityLabel={`Units: ${form.units === "metric" ? "Metric" : "Imperial"}. Tap to switch.`}
+          >
+            <View
+              style={[
+                styles.unitsSeg,
+                form.units === "metric" && styles.unitsSegActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.unitsSegText,
+                  form.units === "metric" && styles.unitsSegTextActive,
+                ]}
+              >
+                M
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.unitsSeg,
+                form.units === "imperial" && styles.unitsSegActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.unitsSegText,
+                  form.units === "imperial" && styles.unitsSegTextActive,
+                ]}
+              >
+                FT
+              </Text>
+            </View>
           </Pressable>
         </View>
 
@@ -1180,18 +1215,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 0.3,
   },
-  unitsBadge: {
+  unitsToggle: {
+    flexDirection: "row",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.55)",
+    padding: 2,
+    backgroundColor: "rgba(201,169,97,0.08)",
+  },
+  unitsSeg: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: GOLD,
+    borderRadius: 999,
+    minWidth: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  unitsText: {
+  unitsSegActive: {
+    backgroundColor: GOLD,
+  },
+  unitsSegText: {
     color: GOLD,
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+  },
+  unitsSegTextActive: {
+    color: NAVY,
   },
   progressTrack: {
     height: 2,
