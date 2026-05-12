@@ -21,16 +21,16 @@ export default function HistoryScreen() {
     >
       <View style={styles.headerBlock}>
         <Text style={styles.kicker}>HISTORY</Text>
-        <Text style={styles.title}>История оценок</Text>
+        <Text style={styles.title}>Your valuations</Text>
       </View>
 
       <View style={styles.empty}>
         <View style={styles.emptyIcon}>
           <Feather name="archive" size={26} color={GOLD} />
         </View>
-        <Text style={styles.emptyTitle}>Пока пусто</Text>
+        <Text style={styles.emptyTitle}>Nothing here yet</Text>
         <Text style={styles.emptyText}>
-          Здесь появятся ваши оценки яхт. История доступна на тарифе Pro.
+          Your yacht valuations will appear here. History is available on the Pro plan.
         </Text>
       </View>
     </View>

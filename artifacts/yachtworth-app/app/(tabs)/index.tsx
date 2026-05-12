@@ -58,11 +58,11 @@ export default function HomeScreen() {
 
         <Text style={styles.kicker}>AI valuation, the discreet way</Text>
         <Text style={styles.hero}>
-          Точная оценка{"\n"}вашей яхты.
+          Know your{"\n"}yacht's worth.
         </Text>
         <Text style={styles.subhero}>
-          Профессиональный AI-расчёт стоимости за минуту — для владельцев,
-          брокеров и сюрвейеров.
+          A professional AI valuation in under a minute — built for owners,
+          brokers and surveyors.
         </Text>
 
         <Pressable
@@ -72,32 +72,32 @@ export default function HomeScreen() {
             { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
           ]}
         >
-          <Text style={styles.ctaText}>Новая оценка</Text>
+          <Text style={styles.ctaText}>New valuation</Text>
           <Feather name="arrow-up-right" size={20} color={NAVY} />
         </Pressable>
 
         <View style={styles.statsRow}>
-          <StatCard label="Оценок" value="—" />
-          <StatCard label="План" value="Free" />
-          <StatCard label="Осталось" value="1" />
+          <StatCard label="Valuations" value="—" />
+          <StatCard label="Plan" value="Free" />
+          <StatCard label="Remaining" value="1" />
         </View>
 
-        <Text style={styles.sectionTitle}>Возможности</Text>
+        <Text style={styles.sectionTitle}>What you get</Text>
 
         <FeatureCard
           icon="trending-up"
-          title="Диапазон рыночной цены"
-          subtitle="Базовая, оптимистичная и быстрой продажи."
+          title="Market price range"
+          subtitle="Base, optimistic and quick-sale estimates."
         />
         <FeatureCard
           icon="file-text"
-          title="PDF отчёт"
-          subtitle="Подходит для презентации брокеру или покупателю."
+          title="PDF report"
+          subtitle="Ready to share with a broker or buyer."
         />
         <FeatureCard
           icon="archive"
-          title="История оценок"
-          subtitle="Все ваши яхты в одном месте, в Pro плане."
+          title="Valuation history"
+          subtitle="All your yachts in one place, on the Pro plan."
         />
 
         <View style={styles.footerNote}>

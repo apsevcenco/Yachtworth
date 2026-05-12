@@ -30,15 +30,15 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.kicker}>ACCOUNT</Text>
-        <Text style={styles.title}>Профиль</Text>
+        <Text style={styles.title}>Profile</Text>
 
         <View style={styles.userCard}>
           <View style={styles.avatar}>
             <Feather name="user" size={22} color={GOLD} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.userName}>Гость</Text>
-            <Text style={styles.userMeta}>Free план · 1 оценка / месяц</Text>
+            <Text style={styles.userName}>Guest</Text>
+            <Text style={styles.userMeta}>Free plan · 1 valuation / month</Text>
           </View>
         </View>
 
@@ -49,28 +49,28 @@ export default function ProfileScreen() {
           ]}
         >
           <View style={{ flex: 1 }}>
-            <Text style={styles.upgradeTitle}>Перейти на Pro</Text>
+            <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
             <Text style={styles.upgradeSubtitle}>
-              Безлимит оценок, история и PDF · €49,99/мес
+              Unlimited valuations, history and PDF · €49.99/mo
             </Text>
           </View>
           <Feather name="arrow-up-right" size={20} color={NAVY} />
         </Pressable>
 
-        <Text style={styles.sectionTitle}>Настройки</Text>
+        <Text style={styles.sectionTitle}>Settings</Text>
 
-        <Row icon="user" label="Аккаунт" />
-        <Row icon="credit-card" label="Подписка" />
-        <Row icon="bell" label="Уведомления" />
-        <Row icon="shield" label="Приватность" />
-        <Row icon="help-circle" label="Поддержка" />
+        <Row icon="user" label="Account" />
+        <Row icon="credit-card" label="Subscription" />
+        <Row icon="bell" label="Notifications" />
+        <Row icon="shield" label="Privacy" />
+        <Row icon="help-circle" label="Support" />
 
         <View style={styles.poweredBlock}>
           <Text style={styles.poweredKicker}>POWERED BY</Text>
           <Text style={styles.poweredTitle}>PDYE</Text>
           <Text style={styles.poweredText}>
-            Yachtworth создан командой PDYE — ведущей платформы оценки и
-            брокерского сопровождения суперъяхт.
+            Yachtworth is built by the team behind PDYE — a leading platform
+            for superyacht valuation and brokerage.
           </Text>
         </View>
 

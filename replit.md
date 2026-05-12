@@ -31,7 +31,7 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
 
 ## 7-day Build Plan
 
-- **Day 1 (current):** App skeleton + design system + tabs (Главная / История / Профиль) + DB schema (users, valuations, subscriptions)
+- **Day 1 (current):** App skeleton + design system + tabs (Home / History / Profile) + DB schema (users, valuations, subscriptions)
 - **Day 2:** Clerk auth (Apple + Google + Email)
 - **Days 3–4:** Yacht valuation form + AI estimation + result screen (price range / chart / PDF)
 - **Day 5:** History + Profile + Settings with "Powered by PDYE"
@@ -52,7 +52,7 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
 ## Where things live
 
 - `artifacts/yachtworth-app/` — Expo mobile app (frontend)
-  - `app/(tabs)/` — Главная, История, Профиль
+  - `app/(tabs)/` — Home, History, Profile
   - `constants/colors.ts` — brand palette (navy + gold, light + dark)
   - `app.json` — splash background `#0B1E3F`
 - `artifacts/api-server/` — shared Express backend (will hold valuation AI + Clerk webhooks + Supabase calls)
@@ -67,7 +67,8 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
 
 ## User preferences
 
-- Russian-language conversation, simple words, no jargon
+- Russian-language conversation with the owner, simple words, no jargon
+- **App UI must be in English** (not Russian) — owner serves international yacht owners and brokers
 - Owner is non-technical
 - Do not re-ask questions already answered in the original briefing — full context is in this file
 - Brand visual: deep navy `#0B1E3F` + champagne gold `#C9A961`, Playfair Display + Inter
