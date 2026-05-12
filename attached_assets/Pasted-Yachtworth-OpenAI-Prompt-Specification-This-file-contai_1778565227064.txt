@@ -1,0 +1,349 @@
+Yachtworth — OpenAI Prompt Specification
+This file contains the complete, battle-tested AI prompt that PDYE uses for yacht valuation, ready to be ported into the Yachtworth API server.
+
+Note about the OpenAI API key: the key is just an authentication token to call OpenAI's servers. The prompt itself lives in YOUR server code — you build it dynamically on every request, injecting the user's yacht specs into the template below. Nothing about the prompt is stored "on OpenAI's side".
+
+Model & API endpoint
+Model: gpt-5-mini (fast + cheap + supports web search)
+API: OpenAI /v1/responses endpoint (NOT /v1/chat/completions)
+Reason: /responses supports the web_search_preview tool, which is essential — the AI needs to search YachtWorld, RightBoat etc. to find real comparable listings
+Tools to enable: [{ type: "web_search_preview" }]
+Fallback: if /responses fails (rare), retry on /chat/completions with the shorter fallback prompt below (no web search, uses model's training-data knowledge)
+async function aiResponses(input: string, model = "gpt-5-mini", tools: any[]) {
+  const resp = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({ model, input, tools }),
+  });
+  const data = await resp.json();
+  // Response shape: try output_text first, then dig into output[].message.content[]
+  if (data.output_text) return data.output_text;
+  const msg = data.output?.find((o: any) => o.type === "message");
+  return msg?.content?.find((c: any) => c.type === "output_text")?.text || "";
+}
+
+How the prompt is assembled
+The full prompt is built from these blocks, glued together at request time:
+
+[BASE PROMPT]
+   ↓
++ TARGET VESSEL SPECS         ← from form input
++ DATA COMPLETENESS BLOCK      ← server computes from filled fields
++ REGIONAL COHORT FILTER       ← injected if sale_region present
++ VAT/TAX COHORT FILTER        ← injected if vat_status present
++ STEP 1 — SEARCH instructions
++ STEP 2 — STRICT MATCHING
++ STEP 3 — VISIT LISTING PAGES
++ STEP 4 — VALUATION & OUTPUT
++ JSON OUTPUT SCHEMA
++ RULES
+
+Each block is below.
+
+BLOCK 1 — Specs string (built from form input)
+const unitNote = units === "imperial" ? " ft" : " m";
+const specs = [
+  b.type            && `Yacht type: ${b.type}`,
+  b.configuration   && `Configuration / style: ${b.configuration}`,
+  mode === "builder" && b.builder ? `Builder: ${b.builder}` : null,
+  mode === "builder" && b.model   ? `Model: ${b.model}` : null,
+  b.year            && `Build year: ${b.year}`,
+  b.refit           && `Refit year: ${b.refit}`,
+  b.condition       && `Condition: ${b.condition}`,
+  b.length          && `Length (LOA): ${b.length}${unitNote}`,
+  b.beam            && `Beam: ${b.beam}${unitNote}`,
+  b.draft           && `Draft: ${b.draft}${unitNote}`,
+  b.displacement    && `Displacement: ${b.displacement}${units === "imperial" ? " LT" : " tonnes"}`,
+  b.gross_tonnage   && `Gross tonnage: ${b.gross_tonnage} GT`,
+  b.hull_material   && `Hull material: ${b.hull_material}`,
+  b.engines         && `Engine configuration: ${b.engines}`,
+  b.engine_count    && `Number of engines: ${b.engine_count}`,
+  b.engine_maker    && `Engine manufacturer: ${b.engine_maker}`,
+  b.engine_model    && `Engine model/series: ${b.engine_model}`,
+  b.horse_power     && `Total horsepower: ${b.horse_power} HP`,
+  b.range           && `Range: ${b.range} nm`,
+  b.cabins          && `Guest cabins: ${b.cabins}`,
+  b.heads           && `Heads (WC): ${b.heads}`,
+  b.berths          && `Total berths: ${b.berths}`,
+  b.crew            && `Crew capacity: ${b.crew}`,
+  b.sale_region     && `Intended sale region: ${REGION_LABELS[b.sale_region]}`,
+  b.vat_status      && `VAT / Tax status: ${b.vat_status === "paid" ? "VAT PAID (EU free circulation)" : "VAT NOT PAID (offshore / not in EU free circulation)"}`,
+].filter(Boolean).join("\n");
+
+BLOCK 2 — Region labels & guidance
+const REGION_LABELS = {
+  mediterranean:           "Mediterranean (FR, IT, ES, MC, GR, HR, TR, MT)",
+  northern_europe:         "Northern Europe incl. UK (UK, NL, DE, DK, NO, SE, FI, BE)",
+  north_america_caribbean: "North America & Caribbean (US, CA, BS, KY, BVI, USVI, ATG)",
+  asia_pacific_me:         "Asia-Pacific & Middle East (AE, SG, HK, TH, AU, NZ, JP, CN)",
+  global:                  "Global (no regional restriction)",
+};
+const REGION_GUIDANCE = {
+  mediterranean:
+    "Restrict comparables to vessels currently asking, listed in, or recently sold inside the Mediterranean basin (France incl. French Riviera, Italy, Spain incl. Balearics, Monaco, Greece, Croatia, Turkey, Malta). Mediterranean asking prices typically run 5–15% above US asking prices for equivalent tonnage; do NOT cross-substitute US-located listings into a Mediterranean valuation.",
+  northern_europe:
+    "Restrict comparables to vessels asking, listed, or recently sold in Northern Europe (UK, Netherlands, Germany, Denmark, Norway, Sweden, Finland, Belgium). UK & NL brokerages (Sunseeker, Princess, Burgess, Edmiston UK, De Valk) are the primary reference. Do NOT substitute Mediterranean or US listings into the cohort.",
+  north_america_caribbean:
+    "Restrict comparables to vessels asking, listed, or recently sold in the United States, Canada, or the Caribbean (Bahamas, Cayman, BVI, USVI, Antigua, St Maarten). USD-denominated listings are expected — convert to EUR at the current spot rate. Do NOT cross-substitute Mediterranean or Northern European listings; US asking prices are typically 5–15% lower than Med asking for equivalent tonnage.",
+  asia_pacific_me:
+    "Restrict comparables to vessels asking, listed, or recently sold in the UAE (Dubai, Abu Dhabi), Saudi, Qatar, Singapore, Hong Kong, Thailand (Phuket), Australia, New Zealand, Japan, or China. This region trades thinner volumes — if you cannot find 5 region-matched comparables after 2 search refinements, you may include up to 2 Mediterranean comparables AND mark confidence as 'low'.",
+  global:
+    "No regional restriction — accept comparables from any major brokerage market (Med, Northern Europe, US/Caribbean, APAC/ME). Note in the reasoning which markets your comparables came from.",
+};
+
+BLOCK 3 — Regional cohort filter (injected when sale_region present)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGIONAL COHORT FILTER — {REGION_LABEL_UPPERCASE}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user is valuing this vessel for sale in: {region_label}.
+{region_guidance_string}
+This is NOT advisory — it is a HARD FILTER on which listings you may use as comparables. A vessel located in Florida is NOT a comparable for a Mediterranean valuation, even if its specs match perfectly. Search with region-specific queries (e.g. "[builder] [model] for sale Monaco|France|Italy|Spain" for Mediterranean; "[builder] [model] for sale Florida|California|Newport" for North America). In your reasoning, explicitly state the regional market your final price reflects (e.g. "Based on 5 Mediterranean asking prices…").
+
+BLOCK 4 — VAT/Tax cohort filter (injected when vat_status present)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VAT / TAX STATUS COHORT FILTER — {PAID_OR_NOT_PAID_UPPERCASE}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The target vessel is {VAT PAID — i.e. it has cleared EU import VAT and trades in free circulation inside the EU customs union | NOT VAT PAID — i.e. it is offshore-flagged or otherwise not in EU free circulation, so an EU buyer would owe import VAT (typically ~17–22% depending on jurisdiction) on top of the asking price}.
+These are STRUCTURALLY DIFFERENT markets — not a percentage discount. Match comparables to the target's VAT status:
+- Listings on EU brokerages (yachtworld.it, yachtall.com, de Valk NL, Berthon UK, Camper & Nicholsons EU) almost always state "VAT paid" or "VAT not paid" in the spec sheet — read it.
+- Common indicators of VAT NOT PAID: vessel currently in non-EU waters (Caribbean, US, Turkey non-EU territory, UAE, Singapore), flagged Cayman / Marshall Islands / BVI / Jersey / Isle of Man with no "EU VAT paid" line.
+- Common indicators of VAT PAID: vessel currently in EU waters with EU flag (FR, IT, ES, NL, DE, MT) AND listing explicitly states "VAT paid" or "EU VAT paid".
+When selecting comparables, {USE ONLY listings explicitly tagged 'VAT paid' / 'EU VAT paid'. Listings with no VAT info or tagged 'VAT not paid' must NOT be used as comparables — their asking prices reflect a structurally different market and would distort the estimate. | USE ONLY listings explicitly tagged 'VAT not paid' / 'offshore' / 'ex-VAT'. Listings tagged 'VAT paid' must NOT be used — their asking prices already include the ~20% VAT and would inflate your estimate.}
+This is a HARD COHORT FILTER, not a percentage adjustment. Do NOT take an opposite-VAT-status listing and "adjust it" by ±VAT — those are different markets with different liquidity, different buyer pools, and different ask-to-sale spreads.
+If after 2 search refinements you cannot find at least 4 same-VAT-status comparables, you must:
+  1. Set overall confidence to "low",
+  2. State explicitly in the "reasoning" field that the cohort was thin, and
+  3. Use whatever same-VAT-status comparables you did find — do NOT pad the cohort with opposite-VAT-status listings.
+Mention the VAT status of your cohort explicitly in the "reasoning" field.
+
+BLOCK 5 — Data completeness instruction (always injected)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATA COMPLETENESS: {SCORE}% ({FILLED}/{TOTAL} fields)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user filled {FILLED} of {TOTAL} possible specification fields ({SCORE}% completeness).
+Use this to calibrate your confidence honestly:
+- < 30% → confidence MUST be "low" and reasoning MUST acknowledge the data is too thin for a precise estimate
+- 30–49% → confidence at most "medium"; reasoning should mention which specs are missing
+- 50–69% → confidence "medium"; "high" is acceptable only if comparable listings cluster tightly
+- ≥ 70% → "high" is acceptable when comparables agree
+ALWAYS mention completeness explicitly in your reasoning, e.g. "Based on {SCORE}% data completeness…".
+
+BLOCK 6 — Mode note
+const modeNote = mode === "builder"
+  ? "Factor in this builder's specific brand premium and reputation in the current market."
+  : "Assess purely on technical specifications — do not infer or assume any brand.";
+
+BLOCK 7 — Year range
+const yearNum = parseInt(b.year);
+const yearRange = `${yearNum - 3}–${yearNum + 3}`;
+
+★★★ MAIN PROMPT TEMPLATE ★★★
+This is the actual prompt sent to OpenAI. All {PLACEHOLDERS} are filled in by the server.
+
+You are a professional superyacht market appraiser with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to determine its fair market value. Use web search iteratively — refine your queries as you learn more about this vessel's segment, and verify data on actual listing pages before using it.
+TARGET VESSEL SPECIFICATIONS:
+{SPECS_BLOCK}
+{COMPLETENESS_BLOCK}{REGION_BLOCK}{VAT_BLOCK}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — SEARCH INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Perform multiple targeted web searches on the following platforms. Search each one:
+- YachtWorld (yachtworld.com)
+- Boat Trader / boats.com
+- RightBoat (rightboat.com)
+- Boat24 (boat24.com)
+- YachtBroker (yachtbroker.com)
+- Apollo Duck (apolloduck.com)
+- YachtCharterFleet / YachtSales
+Use search queries like:
+- "[builder] [model] for sale [year]" — this is the STRONGEST query when both are known
+- "[builder] [model] [configuration] for sale" (e.g. "Sunseeker Manhattan flybridge for sale")
+- "[type] [configuration] for sale [year range] [length]" (e.g. "motor yacht flybridge 22m 2018")
+- "[length]m [type] [year] for sale EUR"
+- "[engine maker] [engine model] yacht for sale"
+CRITICAL: when builder + model are provided, those define the vessel uniquely. A "Sunseeker Predator 60" and a "Sunseeker Manhattan 60" are different products with different prices (Sport vs Flybridge). Configuration / style (Flybridge / Open / Coupé / Sloop / etc.) is similarly price-defining — never substitute one configuration for another in your comparables.
+If your initial searches don't return strong matches, refine your queries (try different builders in the same tier, adjust length range, switch language, search broker websites directly).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — STRICT MATCHING CRITERIA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Only include a vessel as a comparable if it meets ALL of these criteria:
+✓ Same vessel type (or closely related category)
+✓ Build year within {YEAR_RANGE} (±3 years maximum)
+✓ Length within ±15% of the target vessel's length
+✓ Similar engine configuration, power range, or fuel type (if specified)
+✓ Similar accommodation layout (cabins ±1–2) — if specified
+✓ Price is confirmed: listed asking price OR confirmed recent sale price
+✗ DO NOT include vessels that don't match on year AND length simultaneously
+✗ DO NOT fabricate or estimate vessel data — only use what you actually found on the listing page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — VISIT LISTING PAGES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For each candidate you find in search results, visit the actual listing page to verify:
+- Exact year, length, engine specs and condition
+- Confirmed asking price (or sold price)
+- Any recent refit or known issues that affect value
+If a listing page's specs don't match the target criteria strictly, discard it and search for another.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — VALUATION & OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{MODE_NOTE}
+Based on the 5 verified comparable listings, determine the fair market value of the target vessel.
+⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
+Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would be listed at on YachtWorld / RightBoat / TheYachtMarket today, alongside the comparables you found. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target vessel's specific spec advantages or disadvantages vs the cohort (newer/older, more/fewer engines, refit history, hull material, etc.).
+⚠ CRITICAL — DO NOT FACTOR CONDITION INTO YOUR PRICE:
+The "Condition" field (New / Excellent / Good / Fair / Needs Refit / Project) in the target specs is informational ONLY. The downstream system applies a separate, deterministic multiplier off your number to handle condition. Therefore: PRICE THE TARGET AS IF IT WERE IN "EXCELLENT" CONDITION regardless of what the Condition field says. Do not discount or premium-adjust your number for condition. Do not mention a condition adjustment in your "reasoning" — it will be added by the system. (You may still mention condition of the comparables, e.g. "comp #2 was a Fair-condition listing at €X, so I weighted it lower" — that is comp normalisation, not target adjustment.)
+The downstream system applies separate, well-documented discounts off this number to derive Discreet Sale (≈ −20%) and Quick Sale (≈ −30%) tiers, so your job is just the open-market Excellent-condition headline.
+The price must reflect actual market evidence — not a theoretical estimate.
+Return ONLY this JSON (absolutely no markdown, no text before or after):
+{
+  "estimated_price": "€ X,XXX,XXX",
+  "confidence": "high|medium|low",
+  "reasoning": "3–4 sentences: cite the comparable listings found, explain how the target vessel's specs compare to them (newer/older, more/fewer engines, refit history, hull material etc.) — but DO NOT mention condition adjustment for the target (system handles that) — and justify the final Excellent-baseline price.",
+  "comparables": [
+    {
+      "builder": "Exact builder name from listing",
+      "model": "Exact model/series from listing",
+      "year": 2018,
+      "length": "28.5m",
+      "condition": "Good",
+      "price": "€ 2,850,000",
+      "note": "Specific spec differences vs target vessel — e.g. twin MTU 1800HP, recent 2022 refit, 5 cabins"
+    }
+  ]
+}
+RULES:
+- The comparables array must have EXACTLY 5 entries from real listings you visited
+- If you cannot find 5 real matches within the strict criteria, widen year range by ±1 year and search again
+- Set confidence to "low" if you had to widen search criteria significantly
+- DO NOT include vessel names, owner names, flag, or registration country
+- DO NOT include brokerage / broker / listing-agent / dealer names anywhere in the output (not in "builder", not in "model", not in "note", not in "reasoning"). The "builder" field MUST contain ONLY the shipyard name (e.g. "Sunseeker", "Azimut", "Princess") — NEVER prefixes/suffixes like "(listed by …)", "via …", "broker …", or names of platforms (YachtWorld, RightBoat, boats.com, TheYachtMarket, etc.). The "note" may reference geography only at country level (e.g. "US market", "Mediterranean") if relevant.
+- DO NOT invent pricing — every price must come from a real listing or confirmed sale
+
+★★★ FALLBACK PROMPT (used if /responses fails) ★★★
+Sent via /v1/chat/completions (no web search, model uses training knowledge):
+
+System message:
+
+You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown.
+
+User message:
+
+You are an expert superyacht market appraiser with deep knowledge of the global brokerage market.
+TARGET VESSEL:
+{SPECS_BLOCK}
+{REGION_BLOCK}{VAT_BLOCK}
+{MODE_NOTE}
+Based on your knowledge of comparable vessels sold or listed on YachtWorld, RightBoat, Boat24 and similar platforms, provide 5 real comparable examples that closely match the target vessel (same type, ±3 years, ±15% length, similar engines if specified).
+⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
+Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would currently be listed at on YachtWorld / RightBoat / TheYachtMarket alongside the comparables. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. The downstream system applies separate discounts to derive Discreet Sale (≈ −20%) and Quick Sale (≈ −30%) tiers, so do NOT bake those into your number.
+All prices (estimated_price and each comparable's price) MUST be returned in canonical EUR format: "€ X,XXX,XXX" (e.g. "€ 5,200,000"). Do NOT use shorthand like "€ 5.2M", "5200K", or currency codes like "EUR 5200000".
+Return ONLY valid JSON, no markdown:
+{
+  "estimated_price": "€ X,XXX,XXX",
+  "confidence": "low",
+  "reasoning": "3–4 sentences citing comparable vessels and explaining how the target's specs affect its value relative to them.",
+  "comparables": [
+    {
+      "builder": "Builder name",
+      "model": "Model/Series",
+      "year": 2018,
+      "length": "28m",
+      "condition": "Good",
+      "price": "€ 2,800,000",
+      "note": "Key spec differences vs target vessel"
+    }
+  ]
+}
+Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag. DO NOT include brokerage / broker / listing-agent / dealer / platform names anywhere — "builder" must contain ONLY the shipyard name (e.g. "Sunseeker"), never "(listed by …)" or similar.
+
+Server-side post-processing pipeline (after AI returns JSON)
+The AI's response is just the starting point — the server applies these steps in order:
+
+Step 1: Parse the JSON
+Strip ```json fences, find first {, walk depth until matching }, JSON.parse. (See extractJson() in the reference file pdye_estimate_logic_REFERENCE.txt for robust implementation.)
+
+Step 2: Parse the price string into a number
+The AI returns "€ 2,450,000" — convert to 2450000. Handle both EU (. thousand, , decimal) and US (, thousand, . decimal) formats. (See parsePriceEur() in reference file.)
+
+Step 3: Sanity check (€/meter band)
+If AI's price falls outside reasonable €/meter for the (class, configuration), clamp to the band boundary and force confidence = "low". The full per-meter ranges table is in pdye_estimate_logic_REFERENCE.txt (search PRICE_PER_METER_EUR and PREMIUM_PRICE_PER_METER_EUR).
+
+Step 4: Confidence floor based on completeness
+const rank = { low: 0, medium: 1, high: 2 };
+const cap = (max) => { if (rank[confidence] > rank[max]) confidence = max; };
+if (completeness.score < 30) cap("low");
+else if (completeness.score < 50) cap("medium");
+else if (completeness.score < 70) cap("medium");
+if (bypass_required === true) cap("low");
+
+Step 5: Apply condition multiplier
+const CONDITION_MULTIPLIERS = {
+  "New":         1.05,
+  "Excellent":   1.00,
+  "Good":        0.93,
+  "Fair":        0.83,
+  "Needs Refit": 0.70,
+  "Project":     0.50,
+};
+const multiplier = CONDITION_MULTIPLIERS[condition] ?? 1.00;
+const finalPrice = aiPrice * multiplier;
+if (!condition) cap("medium"); // missing condition → cap confidence
+
+Step 6: Derive distressed + quick-sale tiers
+const distressed = finalPrice * 0.80;  // -20%
+const quickSale  = finalPrice * 0.70;  // -30%
+
+Step 7: Format prices back to "€ X,XXX,XXX" string for the mobile app
+const formatEur = (n: number) => "€ " + Math.round(n).toLocaleString("en-US");
+
+Step 8: Log to DB (fire-and-forget, for future ML training)
+CREATE TABLE valuation_requests (
+  id bigserial PRIMARY KEY,
+  user_id uuid,                  -- link to Yachtworth user
+  input jsonb NOT NULL,          -- full form input
+  output jsonb NOT NULL,         -- full response object
+  confidence text,
+  estimated_price_eur numeric,
+  sanity_adjusted boolean DEFAULT false,
+  completeness_score int,
+  created_at timestamptz DEFAULT now()
+);
+
+Step 9: Return to mobile
+Response shape — see Section 11 of YACHTWORTH_VALUATION_QUESTIONNAIRE_SPEC.md.
+
+What to drop / change vs PDYE
+When porting to Yachtworth:
+
+Drop findComparables() DB lookup (the dbBlock injection). Yachtworth starts with empty database. Add later in v1.1 once you've accumulated 100+ valuation requests.
+
+Shorten reasoning in the JSON schema from "3–4 sentences" to "2 sentences max" — mobile screens are small, long reasoning becomes a wall of text. Edit both the main prompt AND the JSON schema description.
+
+Reduce comparables from 5 to 3 for mobile — easier to display in a stacked card view. Edit the prompt AND the rules section.
+
+Add user_id to logging — Yachtworth has authenticated users (via Clerk). PDYE's valuation is anonymous, ours is not.
+
+Don't forget rate limiting — even though users are authenticated, prevent abuse with a per-user limit (e.g. free tier: 1/month, basic: 30/month, Pro: unlimited). Track in valuation_requests table by user_id + created_at.
+
+Cost monitoring — gpt-5-mini with web search costs roughly $0.05–0.15 per valuation. With €19.99 basic subscription you have huge margin, but log token usage anyway to catch abuse early.
+
+Testing the prompt
+Before showing to users, test with these 3 sanity cases — the responses should look reasonable:
+
+A 22m Sunseeker Manhattan 70, 2018, Excellent, Mediterranean, VAT paid → expected ~€1.8–2.4M, confidence high
+A 35m Benetti Tradition, 2010, Good, Northern Europe, VAT paid → expected ~€4.5–6.5M, confidence medium
+A 14m unknown sailing yacht, 1995, Needs Refit, Global, no VAT info → expected ~€80–150k after condition multiplier (Excellent baseline ~€115–215k, then × 0.70)
+If results are way off, check:
+
+Did you inject the region block?
+Did you tell the AI NOT to factor condition?
+Are you applying the condition multiplier server-side AFTER the AI response?
+TL;DR
+The OpenAI API key is just a pass — it does NOT contain any prompt
+The full prompt is built fresh on every request from the blocks above
+Use /v1/responses with web_search_preview tool, fall back to /v1/chat/completions if it fails
+AI returns Excellent-baseline price; server applies condition multiplier + distressed/quick-sale derivation + sanity check
+For mobile: shorten reasoning to 2 sentences, drop comparables from 5 to 3, drop the internal-DB block (no DB yet)
