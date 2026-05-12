@@ -166,4 +166,201 @@ export const CreateValuationResponse = zod.object({
     .describe(
       "Server-injected legal disclaimer; render verbatim on every result surface.",
     ),
+  id: zod
+    .string()
+    .nullish()
+    .describe(
+      "Estimate id when persisted to history (authenticated requests only).",
+    ),
+});
+
+/**
+ * Returns last 50 estimates for the authenticated user, newest first.
+ * @summary List user's saved estimates
+ */
+export const ListEstimatesResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      created_at: zod.string(),
+      yacht_label: zod.string().nullish(),
+      yacht_type: zod.string().nullish(),
+      length_meters: zod.number().nullish(),
+      estimated_price_eur: zod.number(),
+      currency: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a saved estimate by id
+ */
+export const GetEstimateParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const getEstimateResponseRequestYearBuiltMin = 1940;
+export const getEstimateResponseRequestYearBuiltMax = 2100;
+
+export const getEstimateResponseRequestRefitYearMin = 1940;
+export const getEstimateResponseRequestRefitYearMax = 2100;
+
+export const getEstimateResponseRequestLengthMetersMax = 200;
+
+export const getEstimateResponseRequestEngineCountMax = 4;
+
+export const getEstimateResponseRequestCabinsMin = 0;
+
+export const getEstimateResponseRequestHeadsMin = 0;
+
+export const getEstimateResponseRequestBerthsMin = 0;
+
+export const getEstimateResponseRequestCrewMin = 0;
+
+export const GetEstimateResponse = zod.object({
+  id: zod.string(),
+  created_at: zod.string(),
+  request: zod.object({
+    mode: zod.enum(["builder", "specs"]),
+    bypass_required: zod
+      .boolean()
+      .describe("When true, only hard requirements are enforced"),
+    type: zod.enum(["motor_yacht", "sailing_yacht", "catamaran", "superyacht"]),
+    configuration: zod
+      .string()
+      .nullish()
+      .describe('e.g. \"Flybridge\", \"Sport Yacht\", \"Sloop\"'),
+    builder: zod
+      .string()
+      .nullish()
+      .describe(
+        "Yacht builder\/manufacturer (required when mode=builder unless bypass)",
+      ),
+    model: zod
+      .string()
+      .nullish()
+      .describe("Model\/range (required when mode=builder unless bypass)"),
+    year_built: zod
+      .number()
+      .min(getEstimateResponseRequestYearBuiltMin)
+      .max(getEstimateResponseRequestYearBuiltMax),
+    refit_year: zod
+      .number()
+      .min(getEstimateResponseRequestRefitYearMin)
+      .max(getEstimateResponseRequestRefitYearMax)
+      .nullish(),
+    condition: zod
+      .union([
+        zod.enum([
+          "New",
+          "Excellent",
+          "Good",
+          "Fair",
+          "Needs Refit",
+          "Project",
+        ]),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "Required unless bypass; defaults to Excellent multiplier when missing",
+      ),
+    sale_region: zod.enum([
+      "mediterranean",
+      "northern_europe",
+      "north_america_caribbean",
+      "asia_pacific_me",
+      "global",
+    ]),
+    vat_status: zod
+      .union([zod.enum(["paid", "not_paid"]), zod.null()])
+      .optional()
+      .describe(
+        "Required when sale_region in [mediterranean, northern_europe, global]",
+      ),
+    length_meters: zod
+      .number()
+      .min(1)
+      .max(getEstimateResponseRequestLengthMetersMax),
+    beam_meters: zod.number().nullish(),
+    draft_meters: zod.number().nullish(),
+    hull_material: zod.string().nullish(),
+    displacement_tonnes: zod.number().nullish(),
+    gross_tonnage: zod.number().nullish(),
+    engine_maker: zod.string().nullish(),
+    engine_model: zod.string().nullish(),
+    engine_config: zod
+      .union([
+        zod.enum([
+          "single_diesel",
+          "twin_diesel",
+          "triple_diesel",
+          "quad_diesel",
+          "ips_drives",
+          "sail_auxiliary",
+          "electric_hybrid",
+          "waterjet",
+        ]),
+        zod.null(),
+      ])
+      .optional(),
+    engine_count: zod
+      .number()
+      .min(1)
+      .max(getEstimateResponseRequestEngineCountMax)
+      .nullish(),
+    horse_power: zod.number().nullish(),
+    range_nm: zod.number().nullish(),
+    cabins: zod.number().min(getEstimateResponseRequestCabinsMin).nullish(),
+    heads: zod.number().min(getEstimateResponseRequestHeadsMin).nullish(),
+    berths: zod.number().min(getEstimateResponseRequestBerthsMin).nullish(),
+    crew: zod.number().min(getEstimateResponseRequestCrewMin).nullish(),
+  }),
+  result: zod.object({
+    estimated_price_eur: zod.number(),
+    distressed_price_eur: zod.number(),
+    quick_sale_price_eur: zod.number(),
+    range_low_eur: zod.number(),
+    range_high_eur: zod.number(),
+    confidence: zod.enum(["high", "medium", "low"]),
+    reasoning: zod.string(),
+    comparables: zod.array(
+      zod.object({
+        builder: zod.string().nullish(),
+        model: zod.string().nullish(),
+        year: zod.number().nullish(),
+        length: zod.string().nullish(),
+        condition: zod.string().nullish(),
+        price: zod.string(),
+        note: zod.string().nullish(),
+      }),
+    ),
+    condition_baseline_eur: zod.number(),
+    condition_multiplier: zod.number(),
+    condition_adjustment_pct: zod.number(),
+    condition_label: zod.string().nullish(),
+    completeness_score: zod.number(),
+    completeness_filled: zod.number(),
+    completeness_total: zod.number(),
+    completeness_missing_critical: zod.array(zod.string()).optional(),
+    sanity_adjusted: zod.boolean(),
+    sanity_band_label: zod.string().nullish(),
+    sanity_per_meter_eur: zod.number().nullish(),
+    sale_region_label: zod.string(),
+    vat_status: zod
+      .union([zod.enum(["paid", "not_paid"]), zod.null()])
+      .optional(),
+    currency: zod.string(),
+    legal_disclaimer: zod
+      .string()
+      .describe(
+        "Server-injected legal disclaimer; render verbatim on every result surface.",
+      ),
+    id: zod
+      .string()
+      .nullish()
+      .describe(
+        "Estimate id when persisted to history (authenticated requests only).",
+      ),
+  }),
 });

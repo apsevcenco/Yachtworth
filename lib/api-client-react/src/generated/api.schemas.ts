@@ -212,4 +212,33 @@ export interface Valuation {
   currency: string;
   /** Server-injected legal disclaimer; render verbatim on every result surface. */
   legal_disclaimer: string;
+  /**
+   * Estimate id when persisted to history (authenticated requests only).
+   * @nullable
+   */
+  id?: string | null;
+}
+
+export interface EstimateListItem {
+  id: string;
+  created_at: string;
+  /** @nullable */
+  yacht_label?: string | null;
+  /** @nullable */
+  yacht_type?: string | null;
+  /** @nullable */
+  length_meters?: number | null;
+  estimated_price_eur: number;
+  currency: string;
+}
+
+export interface EstimateListResponse {
+  items: EstimateListItem[];
+}
+
+export interface EstimateDetail {
+  id: string;
+  created_at: string;
+  request: ValuationInput;
+  result: Valuation;
 }

@@ -482,7 +482,27 @@ export default function NewValuationScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           router.replace({
             pathname: "/valuation/result",
-            params: { data: JSON.stringify(result) },
+            params: {
+              data: JSON.stringify(result),
+              header: JSON.stringify({
+                yachtType: form.type
+                  ? form.type
+                      .split("_")
+                      .map((w) => w[0]?.toUpperCase() + w.slice(1))
+                      .join(" ")
+                  : null,
+                builder: form.builder?.trim() || null,
+                model: form.model?.trim() || null,
+                yearBuilt: form.year ? parseInt(form.year, 10) : null,
+                lengthMeters: form.length
+                  ? (() => {
+                      const n = parseFloat(form.length.replace(",", "."));
+                      if (!isFinite(n)) return null;
+                      return form.units === "metric" ? n : n * 0.3048;
+                    })()
+                  : null,
+              }),
+            },
           });
         },
         onError: () => {

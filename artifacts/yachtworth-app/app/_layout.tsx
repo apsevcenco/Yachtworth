@@ -4,11 +4,11 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
-import { ClerkProvider, ClerkLoaded } from "@clerk/expo";
+import { ClerkProvider, ClerkLoaded, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setBaseUrl } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -29,6 +29,22 @@ const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
 if (apiDomain) {
   setBaseUrl(`https://${apiDomain}`);
+}
+
+function ClerkTokenBridge() {
+  const { getToken, isLoaded } = useAuth();
+  useEffect(() => {
+    if (!isLoaded) return;
+    setAuthTokenGetter(async () => {
+      try {
+        return await getToken();
+      } catch {
+        return null;
+      }
+    });
+    return () => setAuthTokenGetter(null);
+  }, [getToken, isLoaded]);
+  return null;
 }
 
 function RootLayoutNav() {
@@ -82,6 +98,7 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <StatusBar style="light" />
+                  <ClerkTokenBridge />
                   <RootLayoutNav />
                 </KeyboardProvider>
               </GestureHandlerRootView>

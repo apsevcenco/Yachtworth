@@ -37,4 +37,9 @@ export interface Valuation {
   currency: string;
   /** Server-injected legal disclaimer; render verbatim on every result surface. */
   legal_disclaimer: string;
+  /**
+   * Estimate id when persisted to history (authenticated requests only).
+   * @nullable
+   */
+  id?: string | null;
 }

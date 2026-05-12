@@ -1,10 +1,18 @@
 import { Feather } from "@expo/vector-icons";
-import type { Valuation, Comparable } from "@workspace/api-client-react";
+import {
+  getGetEstimateQueryKey,
+  useGetEstimate,
+  type Valuation,
+  type Comparable,
+} from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useUnits } from "../../hooks/useUnits";
 import { formatComparableLength } from "../../lib/units";
+import { exportEstimatePdf } from "../../lib/pdf";
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -38,9 +46,22 @@ export default function ValuationResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { units } = useUnits();
-  const params = useLocalSearchParams<{ data?: string }>();
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const params = useLocalSearchParams<{
+    data?: string;
+    header?: string;
+    id?: string;
+  }>();
 
-  const result = useMemo<Valuation | null>(() => {
+  // Fetch by id if no data param (history → result)
+  const detailQuery = useGetEstimate(params.id ?? "", {
+    query: {
+      queryKey: getGetEstimateQueryKey(params.id ?? ""),
+      enabled: Boolean(params.id && !params.data),
+    },
+  });
+
+  const inlineResult = useMemo<Valuation | null>(() => {
     if (!params.data) return null;
     try {
       return JSON.parse(params.data) as Valuation;
@@ -49,11 +70,55 @@ export default function ValuationResultScreen() {
     }
   }, [params.data]);
 
+  const inlineHeader = useMemo(() => {
+    if (!params.header) return undefined;
+    try {
+      return JSON.parse(params.header);
+    } catch {
+      return undefined;
+    }
+  }, [params.header]);
+
+  const result: Valuation | null =
+    inlineResult ?? (detailQuery.data?.result as Valuation | undefined) ?? null;
+
+  const header = useMemo(() => {
+    if (inlineHeader) return inlineHeader;
+    const req = detailQuery.data?.request;
+    if (!req) return undefined;
+    return {
+      yachtType: req.type
+        ? req.type
+            .split("_")
+            .map((w: string) => w[0]?.toUpperCase() + w.slice(1))
+            .join(" ")
+        : null,
+      builder: req.builder ?? null,
+      model: req.model ?? null,
+      yearBuilt: req.year_built ?? null,
+      lengthMeters: req.length_meters ?? null,
+    };
+  }, [inlineHeader, detailQuery.data]);
+
   if (!result) {
+    if (params.id && (detailQuery.isLoading || detailQuery.isFetching)) {
+      return (
+        <View
+          style={[
+            styles.root,
+            { backgroundColor: NAVY, justifyContent: "center", alignItems: "center" },
+          ]}
+        >
+          <ActivityIndicator color={GOLD} />
+        </View>
+      );
+    }
     return (
       <View style={[styles.root, { backgroundColor: NAVY, justifyContent: "center", alignItems: "center" }]}>
         <Text style={{ color: IVORY, fontFamily: "Inter_500Medium" }}>
-          No estimate data
+          {detailQuery.error instanceof Error
+            ? detailQuery.error.message
+            : "No estimate data"}
         </Text>
         <Pressable onPress={() => router.replace("/")} style={{ marginTop: 16 }}>
           <Text style={{ color: GOLD, fontFamily: "Inter_600SemiBold" }}>
@@ -62,6 +127,21 @@ export default function ValuationResultScreen() {
         </Pressable>
       </View>
     );
+  }
+
+  async function handleExportPdf() {
+    if (!result || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await exportEstimatePdf(result, units, header);
+    } catch (e) {
+      Alert.alert(
+        "PDF export failed",
+        e instanceof Error ? e.message : "Could not generate PDF",
+      );
+    } finally {
+      setPdfBusy(false);
+    }
   }
 
   const conf = CONFIDENCE_META[result.confidence] ?? CONFIDENCE_META.low;
@@ -221,6 +301,25 @@ export default function ValuationResultScreen() {
             <Text style={{ color: GOLD }}>Powered by PDYE</Text>
           </Text>
         </View>
+
+        {/* PDF export */}
+        <Pressable
+          onPress={handleExportPdf}
+          disabled={pdfBusy}
+          style={({ pressed }) => [
+            styles.primaryCta,
+            { opacity: pressed || pdfBusy ? 0.85 : 1 },
+          ]}
+        >
+          {pdfBusy ? (
+            <ActivityIndicator color={NAVY} size="small" />
+          ) : (
+            <>
+              <Feather name="download" size={16} color={NAVY} />
+              <Text style={styles.primaryCtaText}>Export PDF report</Text>
+            </>
+          )}
+        </Pressable>
 
         {/* CTA new */}
         <Pressable
@@ -458,8 +557,25 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     letterSpacing: 0.3,
   },
+  primaryCta: {
+    marginTop: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: GOLD,
+    minHeight: 52,
+  },
+  primaryCtaText: {
+    color: NAVY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
   secondaryCta: {
-    marginTop: 18,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

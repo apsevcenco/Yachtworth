@@ -91,6 +91,7 @@ export interface ValuationResult {
   vat_status: VatStatus | null;
   currency: "EUR";
   legal_disclaimer: string;
+  id?: string | null;
 }
 
 const TYPE_LABELS: Record<string, string> = {

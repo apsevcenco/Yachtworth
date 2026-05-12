@@ -18,6 +18,8 @@ import type {
 
 import type {
   ErrorResponse,
+  EstimateDetail,
+  EstimateListResponse,
   HealthStatus,
   Valuation,
   ValuationInput,
@@ -196,3 +198,166 @@ export const useCreateValuation = <
 > => {
   return useMutation(getCreateValuationMutationOptions(options));
 };
+
+/**
+ * Returns last 50 estimates for the authenticated user, newest first.
+ * @summary List user's saved estimates
+ */
+export const getListEstimatesUrl = () => {
+  return `/api/estimates`;
+};
+
+export const listEstimates = async (
+  options?: RequestInit,
+): Promise<EstimateListResponse> => {
+  return customFetch<EstimateListResponse>(getListEstimatesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListEstimatesQueryKey = () => {
+  return [`/api/estimates`] as const;
+};
+
+export const getListEstimatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEstimates>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listEstimates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListEstimatesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listEstimates>>> = ({
+    signal,
+  }) => listEstimates({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEstimates>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEstimatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEstimates>>
+>;
+export type ListEstimatesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's saved estimates
+ */
+
+export function useListEstimates<
+  TData = Awaited<ReturnType<typeof listEstimates>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listEstimates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEstimatesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a saved estimate by id
+ */
+export const getGetEstimateUrl = (id: string) => {
+  return `/api/estimates/${id}`;
+};
+
+export const getEstimate = async (
+  id: string,
+  options?: RequestInit,
+): Promise<EstimateDetail> => {
+  return customFetch<EstimateDetail>(getGetEstimateUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEstimateQueryKey = (id: string) => {
+  return [`/api/estimates/${id}`] as const;
+};
+
+export const getGetEstimateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEstimate>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEstimate>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetEstimateQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEstimate>>> = ({
+    signal,
+  }) => getEstimate(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEstimate>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEstimateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEstimate>>
+>;
+export type GetEstimateQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a saved estimate by id
+ */
+
+export function useGetEstimate<
+  TData = Awaited<ReturnType<typeof getEstimate>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEstimate>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEstimateQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
