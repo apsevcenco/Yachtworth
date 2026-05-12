@@ -3,6 +3,7 @@ import { useAuth, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -14,8 +15,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
+const NAVY_DEEP = "#081633";
 const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
+const MUTED = "rgba(247,243,236,0.6)";
+const FAINT = "rgba(247,243,236,0.4)";
+const DIVIDER = "rgba(247,243,236,0.08)";
+const DANGER = "#E87B7B";
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "Y";
+}
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -29,9 +40,8 @@ export default function ProfileScreen() {
     user?.firstName ||
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
     "Guest";
-  const meta = isSignedIn
-    ? user?.primaryEmailAddress?.emailAddress || "Free plan · 1 estimate / month"
-    : "Sign in to save your estimates";
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const planLabel = "Free plan · 1 estimate / month";
 
   return (
     <View style={styles.root}>
@@ -48,11 +58,30 @@ export default function ProfileScreen() {
 
         <View style={styles.userCard}>
           <View style={styles.avatar}>
-            <Feather name="user" size={22} color={GOLD} />
+            {isSignedIn && user?.imageUrl ? (
+              <Image source={{ uri: user.imageUrl }} style={styles.avatarImg} />
+            ) : isSignedIn ? (
+              <Text style={styles.avatarInitials}>
+                {getInitials(displayName)}
+              </Text>
+            ) : (
+              <Feather name="user" size={22} color={GOLD} />
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.userName}>{displayName}</Text>
-            <Text style={styles.userMeta}>{meta}</Text>
+            {isSignedIn && email ? (
+              <Text style={styles.userMeta}>{email}</Text>
+            ) : (
+              <Text style={styles.userMeta}>
+                Sign in to save your estimates
+              </Text>
+            )}
+            {isSignedIn && (
+              <View style={styles.planChip}>
+                <Text style={styles.planChipText}>{planLabel}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -84,30 +113,37 @@ export default function ProfileScreen() {
           </Pressable>
         )}
 
-        <Text style={styles.sectionTitle}>Settings</Text>
-
-        <Row icon="user" label="Account" />
-        <Row icon="credit-card" label="Subscription" />
-        <Row icon="bell" label="Notifications" />
-        <Row icon="shield" label="Privacy" />
-        <Row icon="help-circle" label="Support" />
-        {isSignedIn && (
+        <View style={styles.menuGroup}>
           <Row
-            icon="log-out"
-            label="Sign out"
-            onPress={() => signOut()}
-            danger
+            icon="settings"
+            label="Settings"
+            onPress={() => router.push("/settings")}
           />
-        )}
+          {isSignedIn && (
+            <Row
+              icon="log-out"
+              label="Sign out"
+              onPress={() => signOut()}
+              danger
+              last
+            />
+          )}
+        </View>
 
-        <View style={styles.poweredBlock}>
+        <Pressable
+          onPress={() => router.push("/settings")}
+          style={({ pressed }) => [
+            styles.poweredBlock,
+            { opacity: pressed ? 0.9 : 1 },
+          ]}
+        >
           <Text style={styles.poweredKicker}>POWERED BY</Text>
           <Text style={styles.poweredTitle}>PDYE</Text>
           <Text style={styles.poweredText}>
-            Yachtworth is built by the team behind PDYE — a leading platform
-            for superyacht market intelligence and brokerage.
+            Yachtworth is built by the team behind PDYE — yacht brokerage and
+            superyacht market intelligence.
           </Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.version}>Yachtworth · v1.0.0</Text>
       </ScrollView>
@@ -120,34 +156,33 @@ function Row({
   label,
   onPress,
   danger,
+  last,
 }: {
   icon: React.ComponentProps<typeof Feather>["name"];
   label: string;
   onPress?: () => void;
   danger?: boolean;
+  last?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
+        last && styles.rowLast,
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
       <Feather
         name={icon}
         size={18}
-        color={danger ? "#E87B7B" : GOLD}
+        color={danger ? DANGER : GOLD}
         style={{ width: 26 }}
       />
-      <Text style={[styles.rowLabel, danger && { color: "#E87B7B" }]}>
+      <Text style={[styles.rowLabel, danger && { color: DANGER }]}>
         {label}
       </Text>
-      <Feather
-        name="chevron-right"
-        size={18}
-        color="rgba(247,243,236,0.4)"
-      />
+      <Feather name="chevron-right" size={18} color={FAINT} />
     </Pressable>
   );
 }
@@ -179,12 +214,20 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "rgba(201,169,97,0.12)",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: { width: "100%", height: "100%" },
+  avatarInitials: {
+    color: GOLD,
+    fontFamily: "Gilroy-ExtraBold",
+    fontSize: 18,
+    letterSpacing: 0.5,
   },
   userName: {
     color: IVORY,
@@ -192,10 +235,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   userMeta: {
-    color: "rgba(247,243,236,0.6)",
+    color: MUTED,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     marginTop: 2,
+  },
+  planChip: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+    backgroundColor: "rgba(201,169,97,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.3)",
+  },
+  planChipText: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 0.4,
   },
   primaryAuth: {
     flexDirection: "row",
@@ -207,7 +266,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GOLD,
     backgroundColor: "rgba(201,169,97,0.06)",
-    marginBottom: 32,
+    marginBottom: 24,
   },
   primaryAuthText: {
     color: GOLD,
@@ -221,7 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: GOLD,
     borderRadius: 14,
     padding: 18,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   upgradeTitle: {
     color: NAVY,
@@ -234,19 +293,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 3,
   },
-  sectionTitle: {
-    color: IVORY,
-    fontFamily: "Gilroy-Regular",
-    fontSize: 18,
-    marginBottom: 10,
+  menuGroup: {
+    backgroundColor: NAVY_DEEP,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    overflow: "hidden",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 16,
+    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(247,243,236,0.08)",
+    borderBottomColor: DIVIDER,
   },
+  rowLast: { borderBottomWidth: 0 },
   rowLabel: {
     flex: 1,
     color: IVORY,
@@ -254,7 +316,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   poweredBlock: {
-    marginTop: 36,
+    marginTop: 28,
     backgroundColor: NAVY_ELEV,
     borderRadius: 14,
     padding: 20,
@@ -277,13 +339,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   poweredText: {
-    color: "rgba(247,243,236,0.65)",
+    color: MUTED,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 20,
   },
   version: {
-    color: "rgba(247,243,236,0.35)",
+    color: FAINT,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     textAlign: "center",

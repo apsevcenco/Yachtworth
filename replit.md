@@ -56,8 +56,16 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
   - **DB schema**: `migrations/001_estimates.sql` — `estimates` table (uuid id, `clerk_user_id text`, denorm `yacht_label/yacht_type/length_meters/estimated_price_eur/currency`, `request jsonb`, `result jsonb`), composite index on (`clerk_user_id`, `created_at desc`), RLS `deny_all` policy (service-role bypasses).
   - **Manual step required from owner once**: paste `migrations/001_estimates.sql` into Supabase SQL editor of `yachtworth-prod` project. Until then, history POST silently no-ops (logged as warn) and GET returns 401/empty.
   - Architect re-review: PASS after Clerk-key gate fix (was checking publishable + secret, now only secret). Typecheck green. Health screenshot of History tab confirmed signed-out state renders correctly.
-- **Day 5 (next):** Profile + Settings with "Powered by PDYE" + units toggle in Settings (deferred from Day 3.5)
-- **Day 6:** RevenueCat + paywall + 7-day trial + free-tier limits
+- **Day 5 (current) — DONE:** Profile + Settings with "Powered by PDYE" + units toggle in Settings.
+  - **Profile (`app/(tabs)/profile.tsx`)** trimmed and polished: real Clerk avatar (`user.imageUrl` if present, else gold initials, else generic icon), name, email, "Free plan · 1 estimate / month" gold chip (real plan in Day 6), Sign in CTA (signed-out) or Upgrade-to-Pro card (signed-in), single grouped menu (Settings → /settings, Sign out for signed-in users), short Powered by PDYE block (also taps to /settings), version footer.
+  - **Settings (`app/settings.tsx`, new screen, registered in root Stack as `card` presentation, headerless with custom navy back-bar)**:
+    - **Units** segmented control Metric (m, t) ↔ Imperial (ft, lt). Reads/writes the SAME `useUnits()` hook + AsyncStorage key as the form-header pill, so toggling here flips form, history, comparables, PDF immediately. Header-pill kept as quick access per owner request (both entry points live).
+    - **Appearance** — Dark only, locked with check (Light v1.1+).
+    - **About** — `App version` from `expo-constants`, `Privacy Policy` + `Terms of Service` rows open Alert placeholders ("full text published before App Store launch") — real copy comes Day 7.
+    - **Powered by PDYE** — gold-bordered card, taps `expo-web-browser.openBrowserAsync("https://www.pdyegroup.com")` (in-app browser on native, plain Linking on web), navy toolbar + gold controls.
+    - **Sign out** — danger-red bordered button at bottom (signed-in only).
+  - No new deps (`expo-web-browser` + `expo-constants` already present). Typecheck green. Verified live via screenshots: Profile (signed-out → Guest card + Sign in + Settings + PDYE + version) and Settings (Units segment with Metric active + Appearance Dark + About group + PDYE card with Visit PDYE arrow).
+- **Day 6 (next):** RevenueCat + paywall + 7-day trial + free-tier limits
 - **Day 7:** Screenshots + App Store/Google Play descriptions + Privacy Policy + Terms + EAS Build
 
 ## Not in v1.0
