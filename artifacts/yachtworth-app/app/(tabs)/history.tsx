@@ -21,7 +21,7 @@ export default function HistoryScreen() {
     >
       <View style={styles.headerBlock}>
         <Text style={styles.kicker}>HISTORY</Text>
-        <Text style={styles.title}>Your valuations</Text>
+        <Text style={styles.title}>Your estimates</Text>
       </View>
 
       <View style={styles.empty}>
@@ -30,7 +30,7 @@ export default function HistoryScreen() {
         </View>
         <Text style={styles.emptyTitle}>Nothing here yet</Text>
         <Text style={styles.emptyText}>
-          Your yacht valuations will appear here. History is available on the Pro plan.
+          Your yacht estimates will appear here. History is available on the Pro plan.
         </Text>
       </View>
     </View>

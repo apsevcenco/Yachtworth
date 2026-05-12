@@ -60,12 +60,12 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.kicker}>AI valuation, the discreet way</Text>
+        <Text style={styles.kicker}>AI market estimate, the discreet way</Text>
         <Text style={styles.hero}>
           Know your{"\n"}yacht's worth.
         </Text>
         <Text style={styles.subhero}>
-          A professional AI valuation in under a minute — built for owners,
+          A professional AI market estimate in under a minute — built for owners,
           brokers and surveyors.
         </Text>
 
@@ -82,13 +82,13 @@ export default function HomeScreen() {
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.ctaInner}>
-            <Text style={styles.ctaText}>New valuation</Text>
+            <Text style={styles.ctaText}>New estimate</Text>
             <Feather name="arrow-up-right" size={20} color={GOLD} />
           </View>
         </Pressable>
 
         <View style={styles.statsRow}>
-          <StatCard label="Valuations" value="—" />
+          <StatCard label="Estimates" value="—" />
           <StatCard label="Plan" value="Free" />
           <StatCard label="Remaining" value="1" />
         </View>
@@ -107,7 +107,7 @@ export default function HomeScreen() {
         />
         <FeatureCard
           icon="archive"
-          title="Valuation history"
+          title="Estimate history"
           subtitle="All your yachts in one place, on the Pro plan."
         />
 

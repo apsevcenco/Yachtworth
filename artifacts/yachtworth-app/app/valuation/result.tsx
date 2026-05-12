@@ -53,7 +53,7 @@ export default function ValuationResultScreen() {
     return (
       <View style={[styles.root, { backgroundColor: NAVY, justifyContent: "center", alignItems: "center" }]}>
         <Text style={{ color: IVORY, fontFamily: "Inter_500Medium" }}>
-          No valuation data
+          No estimate data
         </Text>
         <Pressable onPress={() => router.replace("/")} style={{ marginTop: 16 }}>
           <Text style={{ color: GOLD, fontFamily: "Inter_600SemiBold" }}>
@@ -78,7 +78,7 @@ export default function ValuationResultScreen() {
         <Pressable onPress={() => router.replace("/")} hitSlop={16}>
           <Feather name="x" size={22} color={IVORY} />
         </Pressable>
-        <Text style={styles.headerTitle}>Valuation</Text>
+        <Text style={styles.headerTitle}>Market estimate</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -91,7 +91,7 @@ export default function ValuationResultScreen() {
       >
         {/* Hero estimate */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroLabel}>Estimated market value</Text>
+          <Text style={styles.heroLabel}>Indicative market estimate</Text>
           <Text style={styles.heroPrice}>
             {formatEur(result.estimated_price_eur)}
           </Text>
@@ -197,7 +197,7 @@ export default function ValuationResultScreen() {
         {/* AI reasoning */}
         {result.reasoning ? (
           <>
-            <Text style={styles.sectionTitle}>Appraiser's note</Text>
+            <Text style={styles.sectionTitle}>Analyst's note</Text>
             <View style={styles.reasoningCard}>
               <Text style={styles.reasoningText}>{result.reasoning}</Text>
             </View>
@@ -230,9 +230,14 @@ export default function ValuationResultScreen() {
             { opacity: pressed ? 0.85 : 1 },
           ]}
         >
-          <Text style={styles.secondaryCtaText}>New valuation</Text>
+          <Text style={styles.secondaryCtaText}>New estimate</Text>
           <Feather name="refresh-cw" size={16} color={GOLD} />
         </Pressable>
+
+        {/* Legal disclaimer — server-injected, rendered verbatim. */}
+        {result.legal_disclaimer ? (
+          <Text style={styles.disclaimer}>{result.legal_disclaimer}</Text>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -463,6 +468,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: GOLD,
+  },
+  disclaimer: {
+    color: "rgba(247,243,236,0.4)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 18,
+    paddingHorizontal: 4,
+    textAlign: "center",
   },
   secondaryCtaText: {
     color: GOLD,

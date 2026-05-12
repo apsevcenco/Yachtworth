@@ -11,7 +11,7 @@ tags:
   - name: health
     description: Health operations
   - name: valuations
-    description: Yacht valuation operations
+    description: Yacht market estimate operations
 paths:
   /healthz:
     get:
@@ -30,7 +30,7 @@ paths:
     post:
       operationId: createValuation
       tags: [valuations]
-      summary: Create AI yacht valuation
+      summary: Create AI yacht market estimate
       description: |
         Estimates fair market value of a yacht using AI comparable search
         plus deterministic sanity check + condition multiplier.
@@ -42,7 +42,7 @@ paths:
               $ref: "#/components/schemas/ValuationInput"
       responses:
         "200":
-          description: Valuation produced
+          description: Market estimate produced
           content:
             application/json:
               schema:
@@ -241,6 +241,7 @@ components:
         - sanity_adjusted
         - currency
         - sale_region_label
+        - legal_disclaimer
       properties:
         estimated_price_eur:
           type: number
@@ -293,3 +294,6 @@ components:
             - type: "null"
         currency:
           type: string
+        legal_disclaimer:
+          type: string
+          description: Server-injected legal disclaimer; render verbatim on every result surface.

@@ -199,7 +199,7 @@ export default function SignUpScreen() {
             <Text style={styles.kicker}>JOIN YACHTWORTH</Text>
             <Text style={styles.title}>Create account.</Text>
             <Text style={styles.subtitle}>
-              Start with one free yacht valuation. Upgrade anytime.
+              Start with one free yacht estimate. Upgrade anytime.
             </Text>
 
             <Pressable

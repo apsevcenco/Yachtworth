@@ -19,7 +19,7 @@ export const HealthCheckResponse = zod.object({
  * Estimates fair market value of a yacht using AI comparable search
 plus deterministic sanity check + condition multiplier.
 
- * @summary Create AI yacht valuation
+ * @summary Create AI yacht market estimate
  */
 export const createValuationBodyYearBuiltMin = 1940;
 export const createValuationBodyYearBuiltMax = 2100;
@@ -161,4 +161,9 @@ export const CreateValuationResponse = zod.object({
     .union([zod.enum(["paid", "not_paid"]), zod.null()])
     .optional(),
   currency: zod.string(),
+  legal_disclaimer: zod
+    .string()
+    .describe(
+      "Server-injected legal disclaimer; render verbatim on every result surface.",
+    ),
 });

@@ -30,8 +30,8 @@ export default function ProfileScreen() {
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
     "Guest";
   const meta = isSignedIn
-    ? user?.primaryEmailAddress?.emailAddress || "Free plan · 1 valuation / month"
-    : "Sign in to save your valuations";
+    ? user?.primaryEmailAddress?.emailAddress || "Free plan · 1 estimate / month"
+    : "Sign in to save your estimates";
 
   return (
     <View style={styles.root}>
@@ -77,7 +77,7 @@ export default function ProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
               <Text style={styles.upgradeSubtitle}>
-                Unlimited valuations, history and PDF · €49.99/mo
+                Unlimited estimates, history and PDF · €49.99/mo
               </Text>
             </View>
             <Feather name="arrow-up-right" size={20} color={NAVY} />
@@ -105,7 +105,7 @@ export default function ProfileScreen() {
           <Text style={styles.poweredTitle}>PDYE</Text>
           <Text style={styles.poweredText}>
             Yachtworth is built by the team behind PDYE — a leading platform
-            for superyacht valuation and brokerage.
+            for superyacht market intelligence and brokerage.
           </Text>
         </View>
 

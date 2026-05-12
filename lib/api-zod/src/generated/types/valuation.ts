@@ -35,4 +35,6 @@ export interface Valuation {
   sale_region_label: string;
   vat_status?: VatStatus | null;
   currency: string;
+  /** Server-injected legal disclaimer; render verbatim on every result surface. */
+  legal_disclaimer: string;
 }

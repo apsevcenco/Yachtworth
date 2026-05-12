@@ -627,7 +627,7 @@ export default function NewValuationScreen() {
             ) : (
               <>
                 <Text style={styles.ctaText}>
-                  {step < 4 ? "Continue" : "Get valuation"}
+                  {step < 4 ? "Continue" : "Get estimate"}
                 </Text>
                 <Feather
                   name={step < 4 ? "arrow-up-right" : "check"}
@@ -662,7 +662,7 @@ function Step1General({ form, update, errs }: StepProps) {
   const configs = form.type ? CONFIGURATIONS[form.type] : [];
   return (
     <>
-      <Hero title="Tell us about your yacht" sub="The more accurate the inputs, the more reliable the valuation." />
+      <Hero title="Tell us about your yacht" sub="The more accurate the inputs, the more reliable the estimate." />
 
       {/* Bypass — must be visible up-front so users with partial data
           know they can proceed without filling every required field. */}

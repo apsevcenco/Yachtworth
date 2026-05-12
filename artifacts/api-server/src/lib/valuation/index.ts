@@ -90,6 +90,7 @@ export interface ValuationResult {
   sale_region_label: string;
   vat_status: VatStatus | null;
   currency: "EUR";
+  legal_disclaimer: string;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -245,7 +246,7 @@ function buildPrompt(
   );
   const note = modeNote(b.mode);
 
-  return `You are a professional superyacht market appraiser with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to determine its fair market value. Use web search iteratively — refine your queries as you learn more about this vessel's segment, and verify data on actual listing pages before using it.
+  return `You are a professional yacht market analyst with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to produce an INDICATIVE MARKET ESTIMATE. This is NOT a certified appraisal or valuation. Use web search iteratively — refine your queries as you learn more about this vessel's segment, and verify data on actual listing pages before using it.
 
 TARGET VESSEL SPECIFICATIONS:
 ${specs}
@@ -294,10 +295,10 @@ For each candidate you find in search results, visit the actual listing page to 
 If a listing page's specs don't match the target criteria strictly, discard it and search for another.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 4 — VALUATION & OUTPUT
+STEP 4 — MARKET ESTIMATE & OUTPUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${note}
-Based on the 3 verified comparable listings, determine the fair market value of the target vessel.
+Based on the 3 verified comparable listings, produce an indicative market estimate for the target vessel. Use the words "estimate" / "market estimate" / "price indication" — NEVER use "valuation", "appraisal", or "fair market value" in your reasoning text.
 
 ⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
 Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would be listed at on YachtWorld / RightBoat / TheYachtMarket today, alongside the comparables you found. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target vessel's specific spec advantages or disadvantages vs the cohort (newer/older, more/fewer engines, refit history, hull material, etc.).
@@ -340,7 +341,7 @@ function buildFallbackPrompt(b: ValuationRequest): string {
   const region = regionBlock(b);
   const vat = vatBlock(b);
   const note = modeNote(b.mode);
-  return `You are an expert superyacht market appraiser with deep knowledge of the global brokerage market.
+  return `You are an expert yacht market analyst with deep knowledge of the global brokerage market. Produce an INDICATIVE MARKET ESTIMATE — not a certified appraisal or valuation. Use the words "estimate" / "market estimate" only; never "valuation", "appraisal", or "fair market value" in your reasoning.
 TARGET VESSEL:
 ${specs}
 ${region}${vat}
@@ -407,7 +408,7 @@ export async function runValuation(
       {
         role: "system",
         content:
-          "You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown.",
+          "You are an expert yacht market analyst producing an indicative market estimate (not a certified appraisal). Reply ONLY with valid JSON, no markdown.",
       },
       { role: "user", content: fallbackPrompt },
     ]);
@@ -514,5 +515,9 @@ export async function runValuation(
     sale_region_label: SALE_REGION_LABELS[b.sale_region],
     vat_status: b.vat_status ?? null,
     currency: "EUR",
+    legal_disclaimer: LEGAL_DISCLAIMER,
   };
 }
+
+export const LEGAL_DISCLAIMER =
+  "This is an indicative market estimate for informational purposes only — not a certified appraisal or valuation. Not suitable for financing, insurance, or legal proceedings. For a certified appraisal, consult a licensed marine surveyor. Estimate valid for 30 days.";

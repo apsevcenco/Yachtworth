@@ -112,7 +112,7 @@ export function useHealthCheck<
  * Estimates fair market value of a yacht using AI comparable search
 plus deterministic sanity check + condition multiplier.
 
- * @summary Create AI yacht valuation
+ * @summary Create AI yacht market estimate
  */
 export const getCreateValuationUrl = () => {
   return `/api/valuations`;
@@ -175,7 +175,7 @@ export type CreateValuationMutationBody = BodyType<ValuationInput>;
 export type CreateValuationMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Create AI yacht valuation
+ * @summary Create AI yacht market estimate
  */
 export const useCreateValuation = <
   TError = ErrorType<ErrorResponse>,

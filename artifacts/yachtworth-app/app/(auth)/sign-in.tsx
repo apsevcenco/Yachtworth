@@ -125,7 +125,7 @@ export default function SignInScreen() {
         <Text style={styles.kicker}>WELCOME BACK</Text>
         <Text style={styles.title}>Sign in.</Text>
         <Text style={styles.subtitle}>
-          Access your valuations and continue where you left off.
+          Access your estimates and continue where you left off.
         </Text>
 
         <Pressable
