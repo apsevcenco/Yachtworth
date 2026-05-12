@@ -33,7 +33,14 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
 
 - **Day 1 (current):** App skeleton + design system + tabs (Home / History / Profile) + DB schema (users, valuations, subscriptions)
 - **Day 2 (current):** Clerk auth — DONE. ClerkProvider in `app/_layout.tsx` (tokenCache via expo-secure-store). `app/(auth)/sign-in.tsx` + `sign-up.tsx` with Email+Password (email verification code), Apple SSO (`oauth_apple`), Google SSO (`oauth_google`) — all branded navy/gold. Profile tab shows real `useUser()` + Sign out when signed-in, "Sign in" CTA when guest. Tabs stay public (per skill — no gate on landing). `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` wired in dev script and `scripts/build.js` for prod.
-- **Days 3–4:** Yacht valuation form + AI estimation + result screen (price range / chart / PDF)
+- **Day 3 (current): Valuation form + AI engine + result screen — DONE.**
+  - Backend `POST /api/valuations` (api-server). Engine adapts production PDYE logic: `lib/valuation/{index,sanity,condition,openai,completeness}.ts`. OpenAI `gpt-5-mini` via Responses API + `web_search_preview` tool, with `/chat/completions` fallback. Sanity check by €/m bands per yacht type+configuration, with premium overrides for ≥18–20m. Condition multipliers New 1.05 / Excellent 1.0 / Good 0.93 / Fair 0.83 / Needs Refit 0.7 / Project 0.5 (deterministic, server-authoritative — AI is told to price as Excellent). Distressed = −20%, Quick-sale = −30%. Confidence floor by completeness score (<30 → low, <50 → medium, etc.). API key resolution: prefers user's `YACHTWORTH_OPENAI_API_KEY` (real OpenAI), falls back to Replit AI Integrations proxy.
+  - Frontend `app/valuation/new.tsx`: form (4 yacht-type pills, 6 condition pills, length, year, shipyard, model, configuration, engines HP, beam, hull material, notes). Required: type, length (1–200m), year (1900–2100), condition. Inline error borders.
+  - Frontend `app/valuation/result.tsx`: hero estimated price + range, confidence chip, sanity-adjusted notice, condition adjustment line, 3-tier bar chart (Open market / Discreet / Quick), AI reasoning, comparables list, "Powered by PDYE" block, "New valuation" CTA. Data passed via `expo-router` params as JSON.
+  - `app/_layout.tsx` calls `setBaseUrl(`https://${EXPO_PUBLIC_DOMAIN}`)` from `@workspace/api-client-react` so the Expo bundle hits the proxy at the same Replit dev domain.
+  - Home tab CTA wired to `router.push("/valuation/new")`.
+  - **Skipped from PDYE for v1 mobile** (defer to later): internal comparables DB lookup (`findComparables`), region/VAT cohort filters, `valuation_requests` jsonb log table, IP rate limiting middleware. The `valuations` table in `lib/db/` exists but persistence will be wired on Day 5 when history UX lands.
+- **Day 4:** PDF report export + history persistence to Supabase
 - **Day 5:** History + Profile + Settings with "Powered by PDYE"
 - **Day 6:** RevenueCat + paywall + 7-day trial + free-tier limits
 - **Day 7:** Screenshots + App Store/Google Play descriptions + Privacy Policy + Terms + EAS Build

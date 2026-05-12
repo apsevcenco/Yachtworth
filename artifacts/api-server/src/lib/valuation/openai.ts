@@ -1,11 +1,18 @@
 function getBaseUrl(): string {
+  // User-provided keys go to the real OpenAI API. Only when falling back
+  // to the Replit AI Integrations proxy do we use its base URL.
+  if (process.env["YACHTWORTH_OPENAI_API_KEY"]) {
+    return "https://api.openai.com/v1";
+  }
   const url =
-    process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"] || "https://api.openai.com/v1";
+    process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"] ||
+    "https://api.openai.com/v1";
   return url.replace(/\/+$/, "");
 }
 
 function getApiKey(): string {
   const key =
+    process.env["YACHTWORTH_OPENAI_API_KEY"] ||
     process.env["AI_INTEGRATIONS_OPENAI_API_KEY"] ||
     process.env["OPENAI_API_KEY"];
   if (!key) throw new Error("OpenAI API key is not configured");
