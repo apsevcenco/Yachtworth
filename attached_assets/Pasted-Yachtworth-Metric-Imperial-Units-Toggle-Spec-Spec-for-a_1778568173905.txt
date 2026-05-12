@@ -1,0 +1,238 @@
+Yachtworth — Metric ↔ Imperial Units Toggle Spec
+Spec for adding a units system toggle (Metric / Imperial) to the Yachtworth mobile valuation form.
+
+1. Why this matters
+US, UK and Caribbean yacht buyers think in feet, knots, long tons, US gallons. EU/Med buyers think in metres, km/h, tonnes, litres. The form must accept both and convert internally to metric before sending to the AI prompt — the AI prompt is metric-only (see YACHTWORTH_AI_PROMPT_SPEC.md, the unit string is " m" or " tonnes" etc).
+
+If we don't convert internally, a US user types "82" meaning 82 feet, AI reads it as "82 metres" → valuation off by factor 3.3×. Disaster.
+
+2. Where the toggle lives
+A single global setting per user:
+
+Settings screen → "Units" → choice: Metric / Imperial
+Default: Metric (we are EU-first)
+Persist to: users.preferred_units column (text, default 'metric') AND device local storage (AsyncStorage / SecureStore key yachtworth.units)
+On every form load: read from device storage first (instant), fall back to user record
+Optional quick-toggle inside the valuation form header (small "M / Ft" pill at top-right) so users can flip mid-form without leaving. Flipping mid-form must convert already-entered values, NOT wipe them (see Section 6).
+
+3. Fields affected
+These are the form fields that change unit/label depending on the toggle:
+
+Field	Metric label	Metric unit	Imperial label	Imperial unit	Conversion (imperial → metric)
+length (LOA)	Length (LOA)	m	Length (LOA)	ft	metres = feet × 0.3048
+beam	Beam	m	Beam	ft	metres = feet × 0.3048
+draft	Draft	m	Draft	ft	metres = feet × 0.3048
+displacement	Displacement	tonnes (t)	Displacement	LT (long tons)	tonnes = LT × 1.01605
+range	Range	nm	Range	nm	no change — nautical miles is universal
+gross_tonnage	Gross tonnage	GT	Gross tonnage	GT	no change — GT is a volume index, unitless
+horse_power	Total HP	HP	Total HP	HP	no change — HP is universal in yachting
+cabins/heads/berths/crew/engine_count	(counts)	—	(counts)	—	no change
+year/refit	(years)	—	(years)	—	no change
+Three fields convert (length, beam, draft, displacement). The rest are already universal or unitless.
+
+4. Where the units value travels
+[user picks "Imperial" in settings]
+         ↓
+   useUnits() hook returns "imperial"
+         ↓
+[form labels show " (ft)" / " (LT)"]
+         ↓
+[user types "82" in length field]
+         ↓
+[on submit: form converts 82 ft → 25.0 m internally]
+         ↓
+[POST /api/valuation body sends ALWAYS metric values]
+         ↓
+[server prompt builder uses unitNote = " m" / " tonnes" — NEVER imperial in the AI prompt]
+         ↓
+[AI returns metric-priced valuation]
+         ↓
+[response display layer converts BACK to imperial for UI ONLY if user is on Imperial]
+
+Golden rule: the API contract between mobile ↔ server is always metric. Imperial exists only in the UI layer. This keeps the AI prompt simple and DB clean.
+
+5. Implementation — React Native (Expo)
+5.1 Hook
+// src/hooks/useUnits.ts
+import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+export type UnitsSystem = "metric" | "imperial";
+const STORAGE_KEY = "yachtworth.units";
+export function useUnits() {
+  const [units, setUnitsState] = useState<UnitsSystem>("metric");
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
+      if (v === "metric" || v === "imperial") setUnitsState(v);
+      setLoaded(true);
+    });
+  }, []);
+  const setUnits = async (next: UnitsSystem) => {
+    setUnitsState(next);
+    await AsyncStorage.setItem(STORAGE_KEY, next);
+    // ALSO update server-side users.preferred_units (fire-and-forget)
+    // await api.patch("/me", { preferred_units: next });
+  };
+  return { units, setUnits, loaded };
+}
+
+5.2 Conversion helpers
+// src/lib/units.ts
+export const FT_PER_M = 3.28084;
+export const M_PER_FT = 0.3048;
+export const LT_PER_T = 0.984207;       // 1 tonne = 0.984 long tons
+export const T_PER_LT = 1.01605;        // 1 long ton = 1.01605 tonnes
+export function feetToMetres(ft: number) { return ft * M_PER_FT; }
+export function metresToFeet(m: number)  { return m * FT_PER_M; }
+export function longTonsToTonnes(lt: number) { return lt * T_PER_LT; }
+export function tonnesToLongTons(t: number)  { return t * LT_PER_T; }
+// Round to sensible display precision
+export function fmtLength(m: number, units: "metric"|"imperial"): string {
+  if (units === "metric")  return m.toFixed(2).replace(/\.?0+$/, "") + " m";
+  return metresToFeet(m).toFixed(1).replace(/\.0$/, "") + " ft";
+}
+export function fmtMass(t: number, units: "metric"|"imperial"): string {
+  if (units === "metric")  return t.toFixed(1).replace(/\.0$/, "") + " t";
+  return tonnesToLongTons(t).toFixed(1).replace(/\.0$/, "") + " LT";
+}
+
+5.3 Field input component
+// src/components/UnitInput.tsx
+import { useUnits } from "../hooks/useUnits";
+import { feetToMetres, metresToFeet, longTonsToTonnes, tonnesToLongTons } from "../lib/units";
+type Props = {
+  field: "length" | "beam" | "draft" | "displacement";
+  valueMetric: string;          // canonical store: ALWAYS metric, as string
+  onChangeMetric: (v: string) => void;
+  label: string;
+};
+const UNIT_LABELS = {
+  metric:   { length: "m", beam: "m", draft: "m", displacement: "t"  },
+  imperial: { length: "ft", beam: "ft", draft: "ft", displacement: "LT" },
+};
+export function UnitInput({ field, valueMetric, onChangeMetric, label }: Props) {
+  const { units } = useUnits();
+  const unit = UNIT_LABELS[units][field];
+  // Display value: convert from canonical metric → user's units
+  const displayValue = (() => {
+    if (!valueMetric) return "";
+    const n = parseFloat(valueMetric);
+    if (isNaN(n)) return valueMetric;
+    if (units === "metric") return valueMetric;
+    if (field === "displacement") return tonnesToLongTons(n).toFixed(2).replace(/\.?0+$/, "");
+    return metresToFeet(n).toFixed(2).replace(/\.?0+$/, "");
+  })();
+  const handleChange = (text: string) => {
+    if (!text) { onChangeMetric(""); return; }
+    const n = parseFloat(text.replace(",", "."));
+    if (isNaN(n)) { onChangeMetric(text); return; }
+    if (units === "metric") { onChangeMetric(String(n)); return; }
+    const metric = field === "displacement" ? longTonsToTonnes(n) : feetToMetres(n);
+    onChangeMetric(String(metric));
+  };
+  return (
+    <View>
+      <Text>{label} ({unit})</Text>
+      <TextInput
+        keyboardType="decimal-pad"
+        value={displayValue}
+        onChangeText={handleChange}
+        placeholder={units === "metric" ? "e.g. 22.5" : "e.g. 74"}
+      />
+    </View>
+  );
+}
+
+Key invariant: valueMetric in the parent form state is always the canonical metric value as a string. The component just shows it converted. This means:
+
+No conversion bugs on submit (already metric)
+Switching toggle mid-form just re-renders — no data lost (Section 6 handled automatically)
+DB and API always speak metric
+5.4 Settings screen toggle
+// src/screens/SettingsScreen.tsx
+import { useUnits } from "../hooks/useUnits";
+export function SettingsScreen() {
+  const { units, setUnits } = useUnits();
+  return (
+    <View>
+      <Text>Units</Text>
+      <SegmentedControl
+        values={["Metric (m, t)", "Imperial (ft, LT)"]}
+        selectedIndex={units === "metric" ? 0 : 1}
+        onChange={(e) => setUnits(e.nativeEvent.selectedSegmentIndex === 0 ? "metric" : "imperial")}
+      />
+    </View>
+  );
+}
+
+5.5 Optional: form header pill (quick-toggle)
+// inside ValuationFormScreen header
+<Pressable onPress={() => setUnits(units === "metric" ? "imperial" : "metric")}>
+  <Text>{units === "metric" ? "M" : "ft"}</Text>
+</Pressable>
+
+6. Mid-form switching behaviour
+If user fills length = 22 in metric (stored as "22" metric), then flips to imperial:
+
+The UnitInput re-renders, sees stored valueMetric = "22", shows metresToFeet(22).toFixed(2) = "72.18" ft
+User sees their length is now "72.18 ft" — correct, no data lost
+If they edit it to "75" ft, handleChange converts 75 ft → 22.86 m, stores "22.86"
+Flips back to metric → shows "22.86 m" — correct
+Do NOT clear the form on toggle. Do NOT convert the stored value (it stays metric). Only the displayed value transforms.
+
+7. Server side — receives only metric
+In the API server (routes/valuation.ts or wherever you put it), assume incoming body is metric. Do not accept a units field in the request body. If you want belt-and-braces validation:
+
+// schemas/valuationInput.ts (Zod)
+import { z } from "zod";
+export const valuationInputSchema = z.object({
+  length: z.string().regex(/^\d+(\.\d+)?$/).optional(),  // metres
+  beam: z.string().regex(/^\d+(\.\d+)?$/).optional(),    // metres
+  draft: z.string().regex(/^\d+(\.\d+)?$/).optional(),   // metres
+  displacement: z.string().regex(/^\d+(\.\d+)?$/).optional(), // tonnes
+  // ... rest of fields
+});
+
+The prompt builder in YACHTWORTH_AI_PROMPT_SPEC.md already uses unitNote = " m" / " tonnes" — leave it as metric only. Do NOT add a units branch to the prompt builder.
+
+8. Display of result
+The valuation result (price + comparables) comes back from the AI in EUR (price is currency-only, no length/mass conversion needed there). The comparables array contains a length field as a string with metric unit baked in, e.g. "28.5m" — this is fine to display as-is in metric mode. For imperial-mode users, convert on display:
+
+function formatComparableLength(s: string, units: "metric"|"imperial"): string {
+  // s is like "28.5m" or "28m" — strip suffix, parse, convert if needed
+  const m = parseFloat(s.replace(/[^\d.]/g, ""));
+  if (isNaN(m)) return s;
+  if (units === "metric") return `${m}m`;
+  return `${metresToFeet(m).toFixed(0)}ft`;
+}
+
+9. Database column
+ALTER TABLE users ADD COLUMN preferred_units text NOT NULL DEFAULT 'metric'
+  CHECK (preferred_units IN ('metric', 'imperial'));
+
+(Add to whatever migration script Yachtworth uses for users table.)
+
+10. Testing checklist
+ Default state on fresh install is Metric
+ Toggle in Settings persists across app restart (close app, reopen → still imperial)
+ User types 82 in Length when on Imperial → form state stores "24.9936" (metric)
+ User types 82 Imperial → flips to Metric mid-form → field shows "25" (or "24.99")
+ User types 25 Metric → flips to Imperial → field shows "82.02" ft (or "82")
+ Submit network request body always contains metric values regardless of toggle
+ AI prompt sent to OpenAI never contains "ft" or "LT" — always " m" or " tonnes"
+ Comparable length "28.5m" displays as "28.5m" in metric mode, "94ft" in imperial mode
+ Sanity: type same yacht in both modes (22m vs 72.2ft) → AI gets identical request → identical valuation
+11. Out of scope (do NOT add now)
+US gallons / litres for fuel capacity → not currently a form field, ignore
+Knots vs km/h for speed → not currently a form field, ignore
+Currency switching (EUR/USD/GBP) → separate spec, not now
+If user later asks for currency switching, that's a different feature — currency lives at the result/display layer (AI always returns EUR), not at form input.
+
+TL;DR for the new agent
+Add useUnits hook + AsyncStorage persistence
+Add units.ts with conversion helpers
+Add UnitInput component that always stores metric internally, only displays converted
+Use UnitInput for length, beam, draft, displacement fields in the valuation form
+Toggle in Settings screen + optional quick-toggle pill in form header
+Do NOT touch the server prompt builder — it stays metric-only
+Add preferred_units column to users table

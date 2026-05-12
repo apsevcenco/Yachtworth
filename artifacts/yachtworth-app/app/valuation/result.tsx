@@ -2,6 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import type { Valuation, Comparable } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo } from "react";
+import { useUnits } from "../../hooks/useUnits";
+import { formatComparableLength } from "../../lib/units";
 import {
   Pressable,
   ScrollView,
@@ -35,6 +37,7 @@ function formatEur(n: number): string {
 export default function ValuationResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { units } = useUnits();
   const params = useLocalSearchParams<{ data?: string }>();
 
   const result = useMemo<Valuation | null>(() => {
@@ -206,7 +209,7 @@ export default function ValuationResultScreen() {
           <>
             <Text style={styles.sectionTitle}>Comparable yachts</Text>
             {result.comparables.map((c, i) => (
-              <ComparableCard key={i} c={c} />
+              <ComparableCard key={i} c={c} units={units} />
             ))}
           </>
         ) : null}
@@ -235,11 +238,17 @@ export default function ValuationResultScreen() {
   );
 }
 
-function ComparableCard({ c }: { c: Comparable }) {
+function ComparableCard({
+  c,
+  units,
+}: {
+  c: Comparable;
+  units: "metric" | "imperial";
+}) {
   const head = [c.builder, c.model].filter(Boolean).join(" ") || "Listing";
   const meta = [
     c.year ? String(c.year) : null,
-    c.length || null,
+    c.length ? formatComparableLength(c.length, units) : null,
     c.condition || null,
   ]
     .filter(Boolean)

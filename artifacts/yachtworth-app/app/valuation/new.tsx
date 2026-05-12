@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { useCreateValuation } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useUnits } from "../../hooks/useUnits";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -153,6 +154,28 @@ const T_TO_LT = 0.984207;
 
 // Keep 4 decimals on conversion so repeated metric↔imperial toggles don't
 // silently drift (display still looks clean since trailing zeros are stripped).
+function convertFormUnits(f: FormState, target: Units): FormState {
+  if (f.units === target) return f;
+  if (target === "imperial") {
+    return {
+      ...f,
+      units: "imperial",
+      length: convertUnitField(f.length, M_TO_FT),
+      beam: convertUnitField(f.beam, M_TO_FT),
+      draft: convertUnitField(f.draft, M_TO_FT),
+      displacement: convertUnitField(f.displacement, T_TO_LT),
+    };
+  }
+  return {
+    ...f,
+    units: "metric",
+    length: convertUnitField(f.length, 1 / M_TO_FT),
+    beam: convertUnitField(f.beam, 1 / M_TO_FT),
+    draft: convertUnitField(f.draft, 1 / M_TO_FT),
+    displacement: convertUnitField(f.displacement, 1 / T_TO_LT),
+  };
+}
+
 function convertUnitField(value: string, factor: number): string {
   const n = parseFloat(value.replace(",", "."));
   if (!isFinite(n) || n <= 0) return value;
@@ -233,35 +256,39 @@ export default function NewValuationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const mutation = useCreateValuation();
+  const { units: persistedUnits, setUnits: persistUnits, loaded: unitsLoaded } =
+    useUnits();
   const [form, setForm] = useState<FormState>(INITIAL);
   const [step, setStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
+  const initRef = useRef(false);
+
+  // Bring form.units in line with the user's persisted choice on mount.
+  // If the user already typed something before AsyncStorage resolved, the
+  // numeric fields must be converted — otherwise a value typed in metric
+  // would silently be reinterpreted as imperial (the exact 3.28× error the
+  // units spec is designed to prevent).
+  useEffect(() => {
+    if (!unitsLoaded || initRef.current) return;
+    initRef.current = true;
+    setForm((f) => convertFormUnits(f, persistedUnits));
+  }, [unitsLoaded, persistedUnits]);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
   };
 
   const toggleUnits = () => {
+    // Direction is computed atomically from the previous form state inside
+    // the updater so a rapid double-tap can never double-convert the values.
+    let nextUnits: Units | null = null;
     setForm((f) => {
-      if (f.units === "metric") {
-        return {
-          ...f,
-          units: "imperial",
-          length: convertUnitField(f.length, M_TO_FT),
-          beam: convertUnitField(f.beam, M_TO_FT),
-          draft: convertUnitField(f.draft, M_TO_FT),
-          displacement: convertUnitField(f.displacement, T_TO_LT),
-        };
-      }
-      return {
-        ...f,
-        units: "metric",
-        length: convertUnitField(f.length, 1 / M_TO_FT),
-        beam: convertUnitField(f.beam, 1 / M_TO_FT),
-        draft: convertUnitField(f.draft, 1 / M_TO_FT),
-        displacement: convertUnitField(f.displacement, 1 / T_TO_LT),
-      };
+      const target: Units = f.units === "metric" ? "imperial" : "metric";
+      if (f.units === target) return f;
+      nextUnits = target;
+      return convertFormUnits(f, target);
     });
+    if (nextUnits) void persistUnits(nextUnits);
   };
 
   const lengthUnit = form.units === "metric" ? "m" : "ft";
