@@ -41,7 +41,14 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
   - `app/_layout.tsx` calls `setBaseUrl(`https://${EXPO_PUBLIC_DOMAIN}`)` from `@workspace/api-client-react` so the Expo bundle hits the proxy at the same Replit dev domain.
   - Home tab CTA wired to `router.push("/valuation/new")`.
   - **Skipped from PDYE for v1 mobile** (defer to later): internal comparables DB lookup (`findComparables`), region/VAT cohort filters, `valuation_requests` jsonb log table, IP rate limiting middleware. The `valuations` table in `lib/db/` exists but persistence will be wired on Day 5 when history UX lands.
-- **Day 4:** PDF report export + history persistence to Supabase
+- **Day 3.6 (current) — V2 spec point 1 DONE: terminology + legal disclaimer.**
+  - **User-facing rename "valuation" → "estimate"** in all screens (home, auth, history, profile, new, result) and AI prompt strings ("market analyst" not "appraiser"; explicit instruction to AI not to use "valuation/appraisal/fair market value" in reasoning). **Code-level names PRESERVED** (no contract breakage): file paths, routes `/valuation/new|result`, `POST /api/valuations`, OpenAPI operationId `createValuation`, schema name `Valuation`, types `ValuationRequest/Result/Mode`, `useCreateValuation` hook, `lib/valuation/` folder.
+  - **Legal disclaimer** server-injected: `LEGAL_DISCLAIMER` constant in `artifacts/api-server/src/lib/valuation/index.ts` ("This is an indicative market estimate for informational purposes only — not a certified appraisal or valuation. Not suitable for financing, insurance, or legal proceedings. For a certified appraisal, consult a licensed marine surveyor. Estimate valid for 30 days."). Wired through OpenAPI (`legal_disclaimer: string`, required) → server zod-validates response → UI renders verbatim at bottom of result screen (`styles.disclaimer`: 11px, muted, centered).
+  - Architect re-review: PASS, no critical issues. Typecheck green, api-server healthy.
+- **Day 3.7 — V2 spec DEFERRED items (decided NOT to do now):**
+  - **Point 2 (per-comparable freshness badge `fresh/verify/stale`)** — DEFERRED. Owner asked, explained: pure cosmetic (AI guesses freshness from snippet without reliable date data, doesn't actually filter stale comps from calc, legal cover already done by disclaimer). Revisit after Day 4-5 if owner sees stale-listing problem in real tests. If doing later, do MINIMAL version (UI badge only, ~1h) — NOT the full `assessListingFreshness` regex helper from spec (priceHistory array doesn't exist in web_search response).
+  - Other V2 items also deferred (not approved by owner): broker tier, GDPR copy, free-tier hard limit on backend.
+- **Day 4 (next):** PDF report export + history persistence to Supabase
 - **Day 5:** History + Profile + Settings with "Powered by PDYE"
 - **Day 6:** RevenueCat + paywall + 7-day trial + free-tier limits
 - **Day 7:** Screenshots + App Store/Google Play descriptions + Privacy Policy + Terms + EAS Build
