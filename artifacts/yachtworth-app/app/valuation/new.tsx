@@ -629,6 +629,27 @@ function Step1General({ form, update, errs }: StepProps) {
     <>
       <Hero title="Tell us about your yacht" sub="The more accurate the inputs, the more reliable the valuation." />
 
+      {/* Bypass — must be visible up-front so users with partial data
+          know they can proceed without filling every required field. */}
+      <Pressable
+        onPress={() => update("bypass_required", !form.bypass_required)}
+        style={styles.bypassRow}
+      >
+        <View
+          style={[
+            styles.checkbox,
+            form.bypass_required && styles.checkboxChecked,
+          ]}
+        >
+          {form.bypass_required ? (
+            <Feather name="check" size={14} color={NAVY} />
+          ) : null}
+        </View>
+        <Text style={styles.bypassText}>
+          I don't have all the data — give me an indicative estimate
+        </Text>
+      </Pressable>
+
       {/* Mode */}
       <Section label="How do you know your yacht?">
         <View style={styles.modeRow}>
@@ -997,25 +1018,6 @@ function Step5Capacity({ form, update, errs }: StepProps) {
           />
         </Section>
       </View>
-
-      <Pressable
-        onPress={() => update("bypass_required", !form.bypass_required)}
-        style={styles.bypassRow}
-      >
-        <View
-          style={[
-            styles.checkbox,
-            form.bypass_required && styles.checkboxChecked,
-          ]}
-        >
-          {form.bypass_required ? (
-            <Feather name="check" size={14} color={NAVY} />
-          ) : null}
-        </View>
-        <Text style={styles.bypassText}>
-          I don't have all the data — give me an indicative estimate
-        </Text>
-      </Pressable>
     </>
   );
 }
