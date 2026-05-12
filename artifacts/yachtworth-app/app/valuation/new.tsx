@@ -97,13 +97,13 @@ const CONFIGURATIONS: Record<YachtType, string[]> = {
   ],
 };
 
-const CONDITION_OPTIONS: { value: Condition; hint: string }[] = [
-  { value: "New", hint: "+5%" },
-  { value: "Excellent", hint: "baseline" },
-  { value: "Good", hint: "−7%" },
-  { value: "Fair", hint: "−17%" },
-  { value: "Needs Refit", hint: "−30%" },
-  { value: "Project", hint: "−50%" },
+const CONDITION_OPTIONS: { value: Condition }[] = [
+  { value: "New" },
+  { value: "Excellent" },
+  { value: "Good" },
+  { value: "Fair" },
+  { value: "Needs Refit" },
+  { value: "Project" },
 ];
 
 const REGION_OPTIONS: { value: SaleRegion; label: string }[] = [
@@ -561,16 +561,16 @@ export default function NewValuationScreen() {
             ]}
           >
             {isLoading ? (
-              <ActivityIndicator color={NAVY} />
+              <ActivityIndicator color={GOLD} />
             ) : (
               <>
                 <Text style={styles.ctaText}>
                   {step < 4 ? "Continue" : "Get valuation"}
                 </Text>
                 <Feather
-                  name={step < 4 ? "arrow-right" : "check"}
-                  size={18}
-                  color={NAVY}
+                  name={step < 4 ? "arrow-up-right" : "check"}
+                  size={20}
+                  color={GOLD}
                 />
               </>
             )}
@@ -711,7 +711,7 @@ function Step1General({ form, update, errs }: StepProps) {
           {CONDITION_OPTIONS.map((c) => (
             <Pill
               key={c.value}
-              label={`${c.value} · ${c.hint}`}
+              label={c.value}
               active={form.condition === c.value}
               onPress={() => update("condition", c.value)}
             />
@@ -1368,19 +1368,21 @@ const styles = StyleSheet.create({
     borderTopColor: DIVIDER,
   },
   cta: {
-    backgroundColor: GOLD,
     borderRadius: 14,
-    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.06)",
+    paddingVertical: 18,
+    paddingHorizontal: 22,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    justifyContent: "space-between",
   },
   ctaText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Inter_600SemiBold",
     fontSize: 16,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   footerNote: {
     color: "rgba(247,243,236,0.4)",
