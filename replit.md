@@ -32,7 +32,7 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
 ## 7-day Build Plan
 
 - **Day 1 (current):** App skeleton + design system + tabs (Home / History / Profile) + DB schema (users, valuations, subscriptions)
-- **Day 2:** Clerk auth (Apple + Google + Email)
+- **Day 2 (current):** Clerk auth — DONE. ClerkProvider in `app/_layout.tsx` (tokenCache via expo-secure-store). `app/(auth)/sign-in.tsx` + `sign-up.tsx` with Email+Password (email verification code), Apple SSO (`oauth_apple`), Google SSO (`oauth_google`) — all branded navy/gold. Profile tab shows real `useUser()` + Sign out when signed-in, "Sign in" CTA when guest. Tabs stay public (per skill — no gate on landing). `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` wired in dev script and `scripts/build.js` for prod.
 - **Days 3–4:** Yacht valuation form + AI estimation + result screen (price range / chart / PDF)
 - **Day 5:** History + Profile + Settings with "Powered by PDYE"
 - **Day 6:** RevenueCat + paywall + 7-day trial + free-tier limits

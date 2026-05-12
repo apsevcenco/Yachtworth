@@ -1,4 +1,6 @@
 import { Feather } from "@expo/vector-icons";
+import { useAuth, useUser } from "@clerk/expo";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Platform,
@@ -18,6 +20,18 @@ const IVORY = "#F7F3EC";
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const router = useRouter();
+  const { isSignedIn, signOut } = useAuth();
+  const { user } = useUser();
+
+  const displayName =
+    user?.fullName ||
+    user?.firstName ||
+    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+    "Guest";
+  const meta = isSignedIn
+    ? user?.primaryEmailAddress?.emailAddress || "Free plan · 1 valuation / month"
+    : "Sign in to save your valuations";
 
   return (
     <View style={styles.root}>
@@ -37,25 +51,38 @@ export default function ProfileScreen() {
             <Feather name="user" size={22} color={GOLD} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.userName}>Guest</Text>
-            <Text style={styles.userMeta}>Free plan · 1 valuation / month</Text>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.userMeta}>{meta}</Text>
           </View>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.upgrade,
-            { opacity: pressed ? 0.9 : 1 },
-          ]}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
-            <Text style={styles.upgradeSubtitle}>
-              Unlimited valuations, history and PDF · €49.99/mo
-            </Text>
-          </View>
-          <Feather name="arrow-up-right" size={20} color={NAVY} />
-        </Pressable>
+        {!isSignedIn ? (
+          <Pressable
+            onPress={() => router.push("/sign-in")}
+            style={({ pressed }) => [
+              styles.primaryAuth,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Text style={styles.primaryAuthText}>Sign in</Text>
+            <Feather name="arrow-up-right" size={20} color={GOLD} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={({ pressed }) => [
+              styles.upgrade,
+              { opacity: pressed ? 0.9 : 1 },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
+              <Text style={styles.upgradeSubtitle}>
+                Unlimited valuations, history and PDF · €49.99/mo
+              </Text>
+            </View>
+            <Feather name="arrow-up-right" size={20} color={NAVY} />
+          </Pressable>
+        )}
 
         <Text style={styles.sectionTitle}>Settings</Text>
 
@@ -64,6 +91,14 @@ export default function ProfileScreen() {
         <Row icon="bell" label="Notifications" />
         <Row icon="shield" label="Privacy" />
         <Row icon="help-circle" label="Support" />
+        {isSignedIn && (
+          <Row
+            icon="log-out"
+            label="Sign out"
+            onPress={() => signOut()}
+            danger
+          />
+        )}
 
         <View style={styles.poweredBlock}>
           <Text style={styles.poweredKicker}>POWERED BY</Text>
@@ -83,20 +118,36 @@ export default function ProfileScreen() {
 function Row({
   icon,
   label,
+  onPress,
+  danger,
 }: {
   icon: React.ComponentProps<typeof Feather>["name"];
   label: string;
+  onPress?: () => void;
+  danger?: boolean;
 }) {
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => [
         styles.row,
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <Feather name={icon} size={18} color={GOLD} style={{ width: 26 }} />
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Feather name="chevron-right" size={18} color="rgba(247,243,236,0.4)" />
+      <Feather
+        name={icon}
+        size={18}
+        color={danger ? "#E87B7B" : GOLD}
+        style={{ width: 26 }}
+      />
+      <Text style={[styles.rowLabel, danger && { color: "#E87B7B" }]}>
+        {label}
+      </Text>
+      <Feather
+        name="chevron-right"
+        size={18}
+        color="rgba(247,243,236,0.4)"
+      />
     </Pressable>
   );
 }
@@ -145,6 +196,24 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     marginTop: 2,
+  },
+  primaryAuth: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 22,
+    borderWidth: 1,
+    borderColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.06)",
+    marginBottom: 32,
+  },
+  primaryAuthText: {
+    color: GOLD,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+    letterSpacing: 0.2,
   },
   upgrade: {
     flexDirection: "row",
