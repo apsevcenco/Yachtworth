@@ -299,7 +299,7 @@ If a listing page's specs don't match the target criteria strictly, discard it a
 STEP 4 — MARKET ESTIMATE & OUTPUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${note}
-Based on the 3 verified comparable listings, produce an indicative market estimate for the target vessel. Use the words "estimate" / "market estimate" / "price indication" — NEVER use "valuation", "appraisal", or "fair market value" in your reasoning text.
+Based on the 5 verified comparable listings, produce an indicative market estimate for the target vessel. Use the words "estimate" / "market estimate" / "price indication" — NEVER use "valuation", "appraisal", or "fair market value" in your reasoning text.
 
 ⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
 Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would be listed at on YachtWorld / RightBoat / TheYachtMarket today, alongside the comparables you found. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target vessel's specific spec advantages or disadvantages vs the cohort (newer/older, more/fewer engines, refit history, hull material, etc.).
@@ -328,8 +328,8 @@ Return ONLY this JSON (absolutely no markdown, no text before or after):
   ]
 }
 RULES:
-- The comparables array must have EXACTLY 3 entries from real listings you visited
-- If you cannot find 3 real matches within the strict criteria, widen year range by ±1 year and search again
+- The comparables array must have EXACTLY 5 entries from real listings you visited
+- If you cannot find 5 real matches within the strict criteria, widen year range by ±1 year and search again
 - Set confidence to "low" if you had to widen search criteria significantly
 - All prices (estimated_price and each comparable's price) MUST be returned in canonical EUR format: "€ X,XXX,XXX" (e.g. "€ 5,200,000"). Do NOT use shorthand like "€ 5.2M", "5200K", or currency codes like "EUR 5200000".
 - DO NOT include vessel names, owner names, flag, or registration country
@@ -347,7 +347,7 @@ TARGET VESSEL:
 ${specs}
 ${region}${vat}
 ${note}
-Based on your knowledge of comparable vessels sold or listed on YachtWorld, RightBoat, Boat24 and similar platforms, provide 3 real comparable examples that closely match the target vessel (same type, ±3 years, ±15% length, similar engines if specified).
+Based on your knowledge of comparable vessels sold or listed on YachtWorld, RightBoat, Boat24 and similar platforms, provide 5 real comparable examples that closely match the target vessel (same type, ±3 years, ±15% length, similar engines if specified).
 
 ⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
 Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would currently be listed at on YachtWorld / RightBoat / TheYachtMarket alongside the comparables. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. The downstream system applies separate discounts to derive Discreet Sale (≈ −20%) and Quick Sale (≈ −30%) tiers, so do NOT bake those into your number.
@@ -372,7 +372,7 @@ Return ONLY valid JSON, no markdown:
     }
   ]
 }
-Comparables array must have EXACTLY 3 entries. DO NOT include vessel names, owner names or flag. DO NOT include brokerage / broker / listing-agent / dealer / platform names anywhere — "builder" must contain ONLY the shipyard name (e.g. "Sunseeker"), never "(listed by …)" or similar.`;
+Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag. DO NOT include brokerage / broker / listing-agent / dealer / platform names anywhere — "builder" must contain ONLY the shipyard name (e.g. "Sunseeker"), never "(listed by …)" or similar.`;
 }
 
 export async function runValuation(
@@ -420,7 +420,7 @@ export async function runValuation(
   const rawComparables = Array.isArray(result.comparables)
     ? (result.comparables as Record<string, unknown>[])
     : [];
-  const comparables: ComparableItem[] = rawComparables.slice(0, 3).map((c) => ({
+  const comparables: ComparableItem[] = rawComparables.slice(0, 5).map((c) => ({
     builder: typeof c.builder === "string" ? c.builder : null,
     model: typeof c.model === "string" ? c.model : null,
     year: typeof c.year === "number" ? c.year : null,
