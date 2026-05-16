@@ -1,0 +1,236 @@
+Создай профессиональное мобильное AI-приложение для расчета рентабельности яхт, сдаваемых в чартер. Приложение должно работать как инвестиционный и аналитический инструмент для владельцев яхт, брокеров и инвесторов.
+
+Технологии:
+
+* Frontend: React + TypeScript + Tailwind
+* Mobile-first дизайн
+* Backend: Supabase
+* Database: PostgreSQL
+* Authentication: Supabase Auth
+* Charts: Recharts
+* AI integration: OpenAI API
+* Hosting: Replit Deployments
+
+Основная идея:
+Пользователь вводит параметры яхты, а AI автоматически рассчитывает:
+
+* доходность
+* расходы
+* ROI
+* загрузку яхты
+* окупаемость
+* прогноз прибыли
+* прогноз остаточной стоимости яхты
+* рекомендации по регионам и сезонам
+
+Сделай приложение современным, premium-класса, в стиле Bloomberg Terminal / modern yacht tech platform.
+
+====================================
+ОСНОВНЫЕ ФУНКЦИИ
+
+1. DASHBOARD
+    Создай главный dashboard со следующими блоками:
+
+* Expected Annual Revenue
+* Net Profit
+* ROI %
+* Occupancy %
+* Payback Period
+* Depreciation
+* Market Rating
+* Risk Score
+
+Добавь красивые графики:
+
+* revenue by month
+* expenses by category
+* occupancy forecast
+* ROI projection 5 years
+
+====================================
+2. ФОРМА ВВОДА ЯХТЫ
+
+Поля:
+
+* Yacht Name
+* Brand
+* Model
+* Year
+* Length
+* Cabins
+* Guests
+* Crew
+* Engine Hours
+* Purchase Price
+* Marina Location
+* Flag
+* Commercial Registration
+* Financing / Cash Purchase
+
+====================================
+3. AI CHARTER CALCULATOR
+
+AI должен рассчитывать:
+
+GROSS REVENUE:
+Gross Revenue = Daily Rate × Booked Days
+
+OPERATING PROFIT:
+Operating Profit = Revenue - Expenses - Broker Commissions
+
+ROI:
+ROI = (Net Profit + Residual Value - Depreciation) / Initial Investment
+
+====================================
+4. AI PREDICTIONS
+
+Добавь AI-модуль прогнозирования:
+
+* expected charter days
+* seasonal occupancy
+* pricing optimization
+* event-based pricing
+* demand forecast
+* weather impact
+* market comparison
+
+AI должен объяснять результаты человеческим языком:
+Например:
+“Эта яхта имеет высокий потенциал в South of France, но низкую загрузку зимой. Рекомендуется relocation в UAE.”
+
+====================================
+5. EXPENSE ENGINE
+
+Автоматический расчет:
+
+* crew salary
+* maintenance
+* fuel
+* insurance
+* marina fees
+* management fees
+* VAT
+* cleaning
+* refit reserve
+
+Расходы должны зависеть от:
+
+* возраста яхты
+* engine hours
+* charter usage
+* региона
+
+====================================
+6. DEPRECIATION MODEL
+
+Добавь прогноз стоимости яхты:
+
+* через 1 год
+* через 3 года
+* через 5 лет
+
+С учетом:
+
+* бренда
+* возраста
+* market trend
+* usage intensity
+
+====================================
+7. AI RECOMMENDATIONS
+
+AI должен рекомендовать:
+
+* лучшие регионы для чартеров
+* лучшие месяцы
+* оптимальные цены
+* когда делать relocation
+* стоит ли брать crew
+* стоит ли сдавать через брокеров
+
+====================================
+8. MARKET COMPARISON
+
+Создай модуль сравнения с аналогичными яхтами:
+
+* average charter rate
+* occupancy
+* yearly revenue
+* market position
+
+====================================
+9. USER EXPERIENCE
+
+Дизайн:
+
+* luxury dark theme
+* glassmorphism
+* минимализм
+* premium charts
+* адаптация под мобильный телефон
+
+Добавь:
+
+* onboarding
+* loading animations
+* AI assistant chat
+* export to PDF
+* save calculations
+* share report
+
+====================================
+10. DATABASE STRUCTURE
+
+Создай таблицы:
+
+* users
+* yachts
+* calculations
+* forecasts
+* expenses
+* market_data
+* reports
+
+====================================
+11. AI CHAT ASSISTANT
+
+Добавь встроенный AI-чат:
+Пользователь может спросить:
+
+* “Стоит ли покупать эту яхту?”
+* “Где лучше сдавать?”
+* “Как повысить ROI?”
+* “Сколько я потеряю при продаже?”
+
+AI отвечает аналитически и профессионально.
+
+====================================
+12. МОБИЛЬНАЯ ВЕРСИЯ
+
+Приложение должно выглядеть как настоящее premium mobile app:
+
+* bottom navigation
+* swipe cards
+* mobile charts
+* fast loading
+* responsive UI
+
+====================================
+13. ДОПОЛНИТЕЛЬНО
+
+Добавь:
+
+* mock yacht data
+* realistic calculations
+* demo AI responses
+* красивый стартовый экран
+* логотип-заглушку
+* несколько готовых примеров яхт
+
+====================================
+14. ГЛАВНАЯ ЦЕЛЬ
+
+Это не обычный калькулятор.
+Это AI Yacht Investment Intelligence Platform.
+
+Приложение должно выглядеть дорого, профессионально и как реальный fintech/yachting SaaS продукт.
