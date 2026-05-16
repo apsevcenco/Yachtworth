@@ -39,3 +39,7 @@ export function getSupabase(): SupabaseClient | null {
 }
 
 export const ESTIMATES_TABLE = "estimates";
+export const YACHTS_TABLE = "yachts";
+export const ROI_CALCULATIONS_TABLE = "roi_calculations";
+export const MARKET_RATES_TABLE = "market_rates";
+export const EXPENSE_RATES_TABLE = "expense_rates";
