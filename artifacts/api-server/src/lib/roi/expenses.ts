@@ -1,4 +1,5 @@
 import type { YachtRow } from "./types";
+import { findExpense, lengthBand, type ExpenseRateRow } from "./rates";
 
 export interface ExpenseLine {
   category: string;
@@ -6,6 +7,7 @@ export interface ExpenseLine {
   formula: string | null;
 }
 
+// Used only as a last-resort if neither owner override nor DB seed has a value.
 const REGION_MULT: Record<string, number> = {
   mediterranean: 1.0,
   caribbean: 1.05,
@@ -21,48 +23,69 @@ const MGMT_FEE_DEFAULT_PCT: Record<string, number> = {
 };
 
 /**
- * Fallback heuristics when owner left a field blank.
- * Numbers are deliberately conservative & based on industry-standard
- * benchmarks for Med-region yachts; regional multiplier adjusts where it
- * actually moves (mooring, fuel, antifouling).
+ * Compute every default expense field. Each line prefers a value from
+ * `expense_rates` (seeded data) and only falls back to the hard-coded
+ * heuristic when no row matches — so once the seed is applied the
+ * numbers below stop being used in practice.
  */
 interface FallbackInputs {
   lengthM: number;
   guests: number;
   purchasePriceEur: number;
   commercial: boolean;
+  region: string;
   regionMult: number;
+  expenseRates: ExpenseRateRow[];
 }
 
 function fb(inp: FallbackInputs) {
-  const { lengthM: L, guests, purchasePriceEur: P, commercial, regionMult: R } = inp;
-  // Crew: based on size
+  const { lengthM: L, guests, purchasePriceEur: P, commercial, region, regionMult: R, expenseRates } = inp;
+  const band = lengthBand(L);
+  const lookup = (cat: string, fallback: number, bandLabel: string | null = null) =>
+    findExpense(expenseRates, cat, region, bandLabel) ?? fallback;
+
+  // Crew: based on size (kept length-tier — owner usually fills the
+  // 6-role crew breakdown so this is rarely the source of truth).
   let crewMonthly = 0;
   if (L >= 40) crewMonthly = 60000;
   else if (L >= 24) crewMonthly = 25000;
   else if (L >= 15) crewMonthly = 8000;
-  // Mooring: ~80 €/m/month Med-baseline
-  const mooringMonthly = L * 80 * R;
-  // Fuel: ~200 €/m/month average across season
-  const fuelMonthly = L * 200 * R;
-  // Provisioning: 800 €/guest/month
-  const provisioningMonthly = guests > 0 ? guests * 800 : Math.round(L * 80);
-  // Communications: ~600 €/mo across V-SAT + crew Wi-Fi
-  const commsMonthly = 600;
-  // Maintenance: 1.5% of value / yr, otherwise length-based
-  const maintenanceMonthly = P > 0 ? (P * 0.015) / 12 : L * 250;
-  // Misc: 1000 €/mo for unexpected
-  const miscMonthly = 1000;
-  // Insurance: 1.0% of value / yr (length fallback)
-  const insuranceAnnual = P > 0 ? P * 0.01 : L * L * 50;
-  // Registration / flag
-  const registrationAnnual = commercial ? 3500 : 2000;
-  // Classification / survey (commercial pays more)
-  const classificationAnnual = commercial ? 8000 : 1500;
-  // Antifouling / haul-out
-  const antifoulingAnnual = L * 300 * R;
-  // Refit reserve: 1% of value / yr
-  const refitAnnual = P > 0 ? P * 0.01 : L * L * 100;
+
+  // Mooring: €/m/month from seed → multiplied by length.
+  const mooringPerMeter = lookup("mooring_per_meter_month", 80 * R);
+  const mooringMonthly = L * mooringPerMeter;
+  // Fuel: €/m/month from seed → multiplied by length.
+  const fuelPerMeter = lookup("fuel_per_meter_month", 200 * R);
+  const fuelMonthly = L * fuelPerMeter;
+  // Provisioning: €/guest/month from seed.
+  const provPerGuest = lookup("provisioning_per_guest_month", 800);
+  const provisioningMonthly = guests > 0 ? guests * provPerGuest : Math.round(L * 80);
+  // Communications: monthly flat from seed.
+  const commsMonthly = lookup("comms_monthly", 600);
+  // Maintenance: % of value / yr from seed, length-based if no purchase price.
+  const maintPct = lookup("maintenance_pct_of_value_year", 1.5);
+  const maintenanceMonthly = P > 0 ? (P * (maintPct / 100)) / 12 : L * 250;
+  // Misc: monthly flat from seed.
+  const miscMonthly = lookup("misc_monthly", 1000);
+  // Insurance: % of value / yr from seed.
+  const insPct = lookup("insurance_pct_of_value_year", 1.0);
+  const insuranceAnnual = P > 0 ? P * (insPct / 100) : L * L * 50;
+  // Registration / flag (commercial vs leisure variants both seeded).
+  const registrationAnnual = commercial
+    ? lookup("registration_commercial_year", 3500)
+    : lookup("registration_leisure_year", 2000);
+  // Classification / survey
+  const classificationAnnual = commercial
+    ? lookup("classification_commercial_year", 8000)
+    : lookup("classification_leisure_year", 1500);
+  // Antifouling / haul-out: €/m/year from seed.
+  const antiPerMeter = lookup("antifouling_per_meter_year", 300 * R);
+  const antifoulingAnnual = L * antiPerMeter;
+  // Refit reserve: % of value / yr from seed.
+  const refitPct = lookup("refit_reserve_pct_of_value_year", 1.0);
+  const refitAnnual = P > 0 ? P * (refitPct / 100) : L * L * 100;
+
+  void band; // length_band currently only used by market_rates lookup
   return {
     crewMonthly,
     mooringMonthly,
@@ -87,6 +110,8 @@ interface BuildExpensesArgs {
   managementFeeOverridePct: number | null;
   /** Annual gross charter revenue, used for % fees */
   annualGrossRevenueEur: number;
+  /** Pre-fetched expense_rates rows (Stage 4). Empty array = pure heuristic. */
+  expenseRates?: ExpenseRateRow[];
 }
 
 export function buildExpenses(args: BuildExpensesArgs): {
@@ -96,13 +121,22 @@ export function buildExpenses(args: BuildExpensesArgs): {
   managementFeePct: number;
 } {
   const { yacht, region, managementStyle, managementFeeOverridePct, annualGrossRevenueEur } = args;
+  const expenseRates = args.expenseRates ?? [];
 
   const L = Number(yacht.length_meters) || 18;
   const guests = Number(yacht.guests) || 0;
   const P = Number(yacht.purchase_price_eur) || 0;
   const commercial = Boolean(yacht.commercial_registration);
   const R = REGION_MULT[region] ?? 1.0;
-  const defaults = fb({ lengthM: L, guests, purchasePriceEur: P, commercial, regionMult: R });
+  const defaults = fb({
+    lengthM: L,
+    guests,
+    purchasePriceEur: P,
+    commercial,
+    region,
+    regionMult: R,
+    expenseRates,
+  });
 
   const pickMonthly = (
     label: string,

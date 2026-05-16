@@ -11,6 +11,7 @@ import {
   computeAiRevenue,
   type ComputedRevenue,
 } from "./revenue";
+import { loadRoiRates } from "./rates";
 
 export const ROI_DISCLAIMER =
   "This Charter ROI projection is an indicative estimate for informational " +
@@ -121,6 +122,15 @@ export async function calculateRoi(
   yacht: YachtRow,
   input: RoiInput,
 ): Promise<RoiResult> {
+  // ── 0. Data-driven baseline rates (Stage 4) ───────────────────────
+  // One Supabase round-trip up front; empty result if Supabase unconfigured
+  // or seed not applied — every downstream call degrades to its heuristic.
+  const rates = await loadRoiRates({
+    yachtType: yacht.yacht_type ?? null,
+    lengthMeters: Number(yacht.length_meters) || 0,
+    region: input.region,
+  });
+
   // ── 1. Revenue ────────────────────────────────────────────────────
   let revenue: ComputedRevenue;
   if (input.pricing_mode === "ai") {
@@ -130,6 +140,7 @@ export async function calculateRoi(
       season: input.season || "mixed",
       occupancyTarget: input.occupancy_target ?? null,
       targetWeeksOverride: input.target_weeks ?? null,
+      marketRates: rates.market,
     });
   } else {
     const rate = Number(input.manual_rate_eur);
@@ -153,6 +164,7 @@ export async function calculateRoi(
     managementStyle: input.management_style,
     managementFeeOverridePct: input.management_fee_pct ?? null,
     annualGrossRevenueEur: revenue.annual_gross_eur,
+    expenseRates: rates.expense,
   });
 
   // ── 3. Loan service ───────────────────────────────────────────────

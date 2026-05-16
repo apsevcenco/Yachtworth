@@ -5,6 +5,7 @@ import {
   cleanReasoning,
 } from "../valuation/openai";
 import type { YachtRow } from "./types";
+import { findMarketRate, lengthBand, type MarketRateRow } from "./rates";
 
 export interface ComputedRevenue {
   annual_gross_eur: number;
@@ -91,6 +92,9 @@ interface AiArgs {
   season: string; // high|shoulder|low|mixed
   occupancyTarget: string | null;
   targetWeeksOverride: number | null;
+  /** Pre-fetched market_rates rows (Stage 4). Used by the deterministic
+   *  fallback only — the AI path is unchanged. */
+  marketRates?: MarketRateRow[];
 }
 
 function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOverride }: AiArgs): string {
@@ -171,13 +175,36 @@ const REGION_RATE_MULT: Record<string, number> = {
 function heuristicAiFallback(args: AiArgs): ComputedRevenue {
   const L = Number(args.yacht.length_meters) || 18;
   const R = REGION_RATE_MULT[args.region] ?? 1.0;
-  let perMeter: number;
-  if (L < 15) perMeter = 800;
-  else if (L < 25) perMeter = 1500;
-  else if (L < 40) perMeter = 2200;
-  else perMeter = 3500;
-  const weekly = Math.round(L * perMeter * R);
-  const daily = Math.round(weekly / 7);
+
+  // ── Stage 4: try market_rates seed first ─────────────────────────
+  const marketRates = args.marketRates ?? [];
+  const band = lengthBand(L);
+  const seasonForLookup = args.season === "mixed" ? "shoulder" : args.season;
+  const hit = findMarketRate(marketRates, band, seasonForLookup);
+
+  let daily: number;
+  let weekly: number;
+  let dailyLow: number;
+  let dailyHigh: number;
+  if (hit) {
+    dailyLow = Math.round(Number(hit.daily_rate_low_eur));
+    dailyHigh = Math.round(Number(hit.daily_rate_high_eur));
+    daily = Math.round((dailyLow + dailyHigh) / 2);
+    weekly = daily * 7;
+  } else {
+    // Preserve pre-Stage-4 rounding: weekly is rounded from raw, daily
+    // is derived from weekly. Do NOT recompute weekly = daily*7 (drift).
+    let perMeter: number;
+    if (L < 15) perMeter = 800;
+    else if (L < 25) perMeter = 1500;
+    else if (L < 40) perMeter = 2200;
+    else perMeter = 3500;
+    weekly = Math.round(L * perMeter * R);
+    daily = Math.round(weekly / 7);
+    dailyLow = Math.round(daily * 0.7);
+    dailyHigh = Math.round(daily * 1.3);
+  }
+
   // Default weeks by occupancy hint, then season modifier
   const weeksByOcc: Record<string, number> = {
     conservative: 8,
@@ -196,13 +223,14 @@ function heuristicAiFallback(args: AiArgs): ComputedRevenue {
     daily_rate_eur: daily,
     weekly_rate_eur: weekly,
     expected_charter_weeks: weeks,
-    daily_rate_low_eur: Math.round(daily * 0.7),
-    daily_rate_high_eur: Math.round(daily * 1.3),
+    daily_rate_low_eur: dailyLow,
+    daily_rate_high_eur: dailyHigh,
     occupancy_pct: occupancyPct,
     market_rating: null,
     comparables: [],
-    reasoning:
-      "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers.",
+    reasoning: hit
+      ? `AI market lookup was unavailable. Used internal market_rates baseline (${args.yacht.yacht_type ?? "yacht"} · ${band} · ${args.region} · ${hit.season}). Add a real charter rate (manual mode) for sharper numbers.`
+      : "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers.",
     confidence: "low",
     ai_used: false,
   };
