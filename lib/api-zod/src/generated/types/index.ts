@@ -9,6 +9,7 @@
 export * from "./charterRegion";
 export * from "./charterSeason";
 export * from "./comparable";
+export * from "./crewMember";
 export * from "./engineConfig";
 export * from "./errorResponse";
 export * from "./estimateDetail";

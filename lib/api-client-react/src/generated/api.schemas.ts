@@ -302,6 +302,18 @@ export const PricingMode = {
   ai: "ai",
 } as const;
 
+export interface CrewMember {
+  /** Free-text role label (e.g. "Captain", "Chef") */
+  role: string;
+  /** @minimum 0 */
+  monthly_salary_eur: number;
+  /**
+   * @minimum 1
+   * @maximum 12
+   */
+  months_per_year: number;
+}
+
 export interface YachtInput {
   /** @nullable */
   name?: string | null;
@@ -450,6 +462,8 @@ export interface YachtInput {
    * @nullable
    */
   charter_commission_pct?: number | null;
+  /** @nullable */
+  crew_breakdown?: CrewMember[] | null;
 }
 
 export interface Yacht {
@@ -527,6 +541,8 @@ export interface Yacht {
   annual_refit_reserve_eur?: number | null;
   /** @nullable */
   charter_commission_pct?: number | null;
+  /** @nullable */
+  crew_breakdown?: CrewMember[] | null;
 }
 
 export interface YachtListResponse {

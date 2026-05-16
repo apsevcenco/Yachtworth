@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CrewMember } from "./crewMember";
 import type { FinancingType } from "./financingType";
 import type { YachtType } from "./yachtType";
 
@@ -156,4 +157,6 @@ export interface YachtInput {
    * @nullable
    */
   charter_commission_pct?: number | null;
+  /** @nullable */
+  crew_breakdown?: CrewMember[] | null;
 }

@@ -314,14 +314,18 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: "center",
   },
-  segmentItemActive: { backgroundColor: GOLD },
+  segmentItemActive: {
+    backgroundColor: "rgba(201,169,97,0.12)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
+  },
   segmentText: {
     color: MUTED,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     letterSpacing: 0.3,
   },
-  segmentTextActive: { color: NAVY, fontFamily: "Inter_700Bold" },
+  segmentTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
   poweredBlock: {
     marginTop: 32,
     backgroundColor: NAVY_ELEV,

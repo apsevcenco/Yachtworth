@@ -194,7 +194,7 @@ export default function CharterScreen() {
               { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Feather name="trending-up" size={18} color={NAVY} />
+            <Feather name="trending-up" size={18} color={GOLD} />
             <Text style={styles.calcBtnText}>Calculate ROI</Text>
           </Pressable>
           <Text style={styles.comingSoon}>
@@ -277,12 +277,14 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: 20,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 10,
   },
-  ctaText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
+  ctaText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   card: {
     backgroundColor: NAVY_DEEP,
     borderColor: DIVIDER,
@@ -326,11 +328,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     paddingVertical: 16,
     borderRadius: 12,
   },
-  calcBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  calcBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
   comingSoon: {
     color: MUTED,
     fontFamily: "Inter_400Regular",

@@ -312,10 +312,10 @@ export default function ValuationResultScreen() {
           ]}
         >
           {pdfBusy ? (
-            <ActivityIndicator color={NAVY} size="small" />
+            <ActivityIndicator color={GOLD} size="small" />
           ) : (
             <>
-              <Feather name="download" size={16} color={NAVY} />
+              <Feather name="download" size={16} color={GOLD} />
               <Text style={styles.primaryCtaText}>Export PDF report</Text>
             </>
           )}
@@ -565,11 +565,13 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     minHeight: 52,
   },
   primaryCtaText: {
-    color: NAVY,
+    color: GOLD,
     fontFamily: "Inter_700Bold",
     fontSize: 15,
     letterSpacing: 0.2,

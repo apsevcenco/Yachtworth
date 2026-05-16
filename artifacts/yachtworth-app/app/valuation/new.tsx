@@ -1252,7 +1252,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   unitsSegActive: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.14)",
+    borderWidth: 1,
+    borderColor: GOLD,
   },
   unitsSegText: {
     color: GOLD,
@@ -1261,7 +1263,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   unitsSegTextActive: {
-    color: NAVY,
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
   },
   progressTrack: {
     height: 2,

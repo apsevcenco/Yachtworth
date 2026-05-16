@@ -109,7 +109,7 @@ export default function ProfileScreen() {
                 Unlimited estimates, history and PDF · €49.99/mo
               </Text>
             </View>
-            <Feather name="arrow-up-right" size={20} color={NAVY} />
+            <Feather name="arrow-up-right" size={20} color={GOLD} />
           </Pressable>
         )}
 
@@ -277,18 +277,20 @@ const styles = StyleSheet.create({
   upgrade: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     borderRadius: 14,
     padding: 18,
     marginBottom: 24,
   },
   upgradeTitle: {
-    color: NAVY,
+    color: GOLD,
     fontFamily: "Inter_600SemiBold",
     fontSize: 16,
   },
   upgradeSubtitle: {
-    color: "rgba(11,30,63,0.75)",
+    color: "rgba(201,169,97,0.7)",
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     marginTop: 3,

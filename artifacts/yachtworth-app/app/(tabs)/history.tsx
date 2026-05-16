@@ -238,12 +238,14 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: 20,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 10,
   },
-  ctaText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
+  ctaText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   card: {
     flexDirection: "row",
     alignItems: "center",

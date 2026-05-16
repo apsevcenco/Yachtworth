@@ -368,6 +368,10 @@ export const GetEstimateResponse = zod.object({
 /**
  * @summary List user's yacht profiles
  */
+export const listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const listYachtsResponseItemsItemCrewBreakdownItemMonthsPerYearMax = 12;
+
 export const ListYachtsResponse = zod.object({
   items: zod.array(
     zod.object({
@@ -410,6 +414,26 @@ export const ListYachtsResponse = zod.object({
       annual_antifouling_eur: zod.number().nullish(),
       annual_refit_reserve_eur: zod.number().nullish(),
       charter_commission_pct: zod.number().nullish(),
+      crew_breakdown: zod
+        .array(
+          zod.object({
+            role: zod
+              .string()
+              .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
+            monthly_salary_eur: zod
+              .number()
+              .min(
+                listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin,
+              ),
+            months_per_year: zod
+              .number()
+              .min(1)
+              .max(
+                listYachtsResponseItemsItemCrewBreakdownItemMonthsPerYearMax,
+              ),
+          }),
+        )
+        .nullish(),
     }),
   ),
 });
@@ -469,6 +493,10 @@ export const createYachtBodyAnnualRefitReserveEurMin = 0;
 
 export const createYachtBodyCharterCommissionPctMin = 0;
 export const createYachtBodyCharterCommissionPctMax = 100;
+
+export const createYachtBodyCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const createYachtBodyCrewBreakdownItemMonthsPerYearMax = 12;
 
 export const CreateYachtBody = zod.object({
   name: zod.string().nullish(),
@@ -571,6 +599,22 @@ export const CreateYachtBody = zod.object({
     .min(createYachtBodyCharterCommissionPctMin)
     .max(createYachtBodyCharterCommissionPctMax)
     .nullish(),
+  crew_breakdown: zod
+    .array(
+      zod.object({
+        role: zod
+          .string()
+          .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
+        monthly_salary_eur: zod
+          .number()
+          .min(createYachtBodyCrewBreakdownItemMonthlySalaryEurMin),
+        months_per_year: zod
+          .number()
+          .min(1)
+          .max(createYachtBodyCrewBreakdownItemMonthsPerYearMax),
+      }),
+    )
+    .nullish(),
 });
 
 /**
@@ -579,6 +623,10 @@ export const CreateYachtBody = zod.object({
 export const GetYachtParams = zod.object({
   id: zod.coerce.string(),
 });
+
+export const getYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const getYachtResponseCrewBreakdownItemMonthsPerYearMax = 12;
 
 export const GetYachtResponse = zod.object({
   id: zod.string(),
@@ -620,6 +668,22 @@ export const GetYachtResponse = zod.object({
   annual_antifouling_eur: zod.number().nullish(),
   annual_refit_reserve_eur: zod.number().nullish(),
   charter_commission_pct: zod.number().nullish(),
+  crew_breakdown: zod
+    .array(
+      zod.object({
+        role: zod
+          .string()
+          .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
+        monthly_salary_eur: zod
+          .number()
+          .min(getYachtResponseCrewBreakdownItemMonthlySalaryEurMin),
+        months_per_year: zod
+          .number()
+          .min(1)
+          .max(getYachtResponseCrewBreakdownItemMonthsPerYearMax),
+      }),
+    )
+    .nullish(),
 });
 
 /**
@@ -681,6 +745,10 @@ export const updateYachtBodyAnnualRefitReserveEurMin = 0;
 
 export const updateYachtBodyCharterCommissionPctMin = 0;
 export const updateYachtBodyCharterCommissionPctMax = 100;
+
+export const updateYachtBodyCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const updateYachtBodyCrewBreakdownItemMonthsPerYearMax = 12;
 
 export const UpdateYachtBody = zod.object({
   name: zod.string().nullish(),
@@ -783,7 +851,27 @@ export const UpdateYachtBody = zod.object({
     .min(updateYachtBodyCharterCommissionPctMin)
     .max(updateYachtBodyCharterCommissionPctMax)
     .nullish(),
+  crew_breakdown: zod
+    .array(
+      zod.object({
+        role: zod
+          .string()
+          .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
+        monthly_salary_eur: zod
+          .number()
+          .min(updateYachtBodyCrewBreakdownItemMonthlySalaryEurMin),
+        months_per_year: zod
+          .number()
+          .min(1)
+          .max(updateYachtBodyCrewBreakdownItemMonthsPerYearMax),
+      }),
+    )
+    .nullish(),
 });
+
+export const updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const updateYachtResponseCrewBreakdownItemMonthsPerYearMax = 12;
 
 export const UpdateYachtResponse = zod.object({
   id: zod.string(),
@@ -825,6 +913,22 @@ export const UpdateYachtResponse = zod.object({
   annual_antifouling_eur: zod.number().nullish(),
   annual_refit_reserve_eur: zod.number().nullish(),
   charter_commission_pct: zod.number().nullish(),
+  crew_breakdown: zod
+    .array(
+      zod.object({
+        role: zod
+          .string()
+          .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
+        monthly_salary_eur: zod
+          .number()
+          .min(updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin),
+        months_per_year: zod
+          .number()
+          .min(1)
+          .max(updateYachtResponseCrewBreakdownItemMonthsPerYearMax),
+      }),
+    )
+    .nullish(),
 });
 
 /**

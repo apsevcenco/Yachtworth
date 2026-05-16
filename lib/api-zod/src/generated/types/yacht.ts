@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CrewMember } from "./crewMember";
 
 export interface Yacht {
   id: string;
@@ -81,4 +82,6 @@ export interface Yacht {
   annual_refit_reserve_eur?: number | null;
   /** @nullable */
   charter_commission_pct?: number | null;
+  /** @nullable */
+  crew_breakdown?: CrewMember[] | null;
 }

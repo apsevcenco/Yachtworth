@@ -50,11 +50,35 @@ const TYPE_OPTIONS: { value: YachtType; label: string }[] = [
 
 const STEP_TITLES = ["Basics", "Operations", "Expenses", "Financing"];
 
+// ── Crew positions ──────────────────────────────────────────────────────
+// Six default roles. The user fills monthly salary + months/year per row;
+// total monthly_crew_eur is auto-derived on submit so the ROI engine
+// (which reads monthly_crew_eur) keeps working unchanged.
+const CREW_POSITIONS: { key: string; label: string }[] = [
+  { key: "captain", label: "Captain" },
+  { key: "first_officer", label: "First officer / Mate" },
+  { key: "engineer", label: "Chief engineer" },
+  { key: "chef", label: "Chef" },
+  { key: "stewardess", label: "Stewardess" },
+  { key: "deckhand", label: "Deckhand" },
+];
+
+interface CrewRow {
+  role: string;
+  monthly_salary_eur: string; // string while editing
+  months_per_year: number; // 1..12
+}
+
+const INITIAL_CREW: CrewRow[] = CREW_POSITIONS.map((p) => ({
+  role: p.label,
+  monthly_salary_eur: "",
+  months_per_year: 12,
+}));
+
 // ── Expense fields ──────────────────────────────────────────────────────
 // Naming convention matches DB columns / OpenAPI exactly so payload mapping
 // is a 1-to-1 copy at submit time.
 const MONTHLY_FIELDS = [
-  { key: "monthly_crew_eur", label: "Crew salaries", hint: "Captain, deckhands, stewards" },
   { key: "monthly_mooring_eur", label: "Mooring / berth", hint: "Marina contract or rolling fees" },
   { key: "monthly_fuel_eur", label: "Fuel", hint: "Average across the season" },
   { key: "monthly_provisioning_eur", label: "Provisioning", hint: "Food, drink, consumables" },
@@ -94,8 +118,9 @@ interface FormState {
   commercial_registration: boolean;
   purchase_price_eur: string;
   purchase_year: string;
+  // crew (per-position breakdown, auto-totals to monthly_crew_eur on submit)
+  crew_breakdown: CrewRow[];
   // expenses (monthly EUR)
-  monthly_crew_eur: string;
   monthly_mooring_eur: string;
   monthly_fuel_eur: string;
   monthly_provisioning_eur: string;
@@ -134,7 +159,7 @@ const INITIAL: FormState = {
   commercial_registration: false,
   purchase_price_eur: "",
   purchase_year: "",
-  monthly_crew_eur: "",
+  crew_breakdown: INITIAL_CREW,
   monthly_mooring_eur: "",
   monthly_fuel_eur: "",
   monthly_provisioning_eur: "",
@@ -166,6 +191,67 @@ function parseInt10(v: string): number | null {
 
 function toStr(n: number | null | undefined): string {
   return n != null ? String(n) : "";
+}
+
+/**
+ * Build the crew_breakdown form state from a saved yacht. If the DB row has
+ * a real crew_breakdown array, use it; otherwise fall back to the 6 default
+ * rows and put any legacy monthly_crew_eur total into the Captain row so
+ * existing data isn't silently dropped on the next save.
+ */
+function hydrateCrew(
+  raw: unknown,
+  legacyTotal: number | null | undefined,
+): CrewRow[] {
+  if (Array.isArray(raw) && raw.length > 0) {
+    const incoming = raw
+      .map((r) => {
+        if (!r || typeof r !== "object") return null;
+        const o = r as Record<string, unknown>;
+        const role = typeof o.role === "string" ? o.role : "";
+        const salary =
+          typeof o.monthly_salary_eur === "number"
+            ? String(o.monthly_salary_eur)
+            : typeof o.monthly_salary_eur === "string"
+            ? o.monthly_salary_eur
+            : "";
+        const monthsRaw = Number(o.months_per_year);
+        const months =
+          Number.isFinite(monthsRaw) && monthsRaw >= 1 && monthsRaw <= 12
+            ? Math.round(monthsRaw)
+            : 12;
+        return role ? { role, monthly_salary_eur: salary, months_per_year: months } : null;
+      })
+      .filter((r): r is CrewRow => r !== null);
+    // Make sure we always show at least the 6 default rows so the user can
+    // edit positions that were not previously populated.
+    const merged = INITIAL_CREW.map((def) => {
+      const match = incoming.find((r) => r.role === def.role);
+      return match ?? def;
+    });
+    const extras = incoming.filter(
+      (r) => !INITIAL_CREW.some((def) => def.role === r.role),
+    );
+    return [...merged, ...extras];
+  }
+  if (legacyTotal != null && legacyTotal > 0) {
+    return INITIAL_CREW.map((p, i) =>
+      i === 0 ? { ...p, monthly_salary_eur: String(legacyTotal) } : p,
+    );
+  }
+  return INITIAL_CREW;
+}
+
+function computeCrewMonthlyTotal(rows: CrewRow[]): number {
+  let total = 0;
+  for (const r of rows) {
+    const s = parseFloat(r.monthly_salary_eur.replace(",", "."));
+    if (isFinite(s) && s > 0) {
+      const m = r.months_per_year > 0 && r.months_per_year <= 12 ? r.months_per_year : 12;
+      total += s * (m / 12);
+    }
+  }
+  return Math.round(total);
 }
 
 export default function YachtFormScreen() {
@@ -230,7 +316,7 @@ export default function YachtFormScreen() {
       commercial_registration: Boolean(y.commercial_registration),
       purchase_price_eur: toStr(y.purchase_price_eur),
       purchase_year: toStr(y.purchase_year),
-      monthly_crew_eur: toStr(y.monthly_crew_eur),
+      crew_breakdown: hydrateCrew(y.crew_breakdown, y.monthly_crew_eur),
       monthly_mooring_eur: toStr(y.monthly_mooring_eur),
       monthly_fuel_eur: toStr(y.monthly_fuel_eur),
       monthly_provisioning_eur: toStr(y.monthly_provisioning_eur),
@@ -307,6 +393,13 @@ export default function YachtFormScreen() {
       const v = form[k as keyof FormState] as string;
       if (v && !DEC_RE.test(v)) e[k as keyof FormState] = "Invalid amount";
     }
+    // Crew rows: any populated salary must be a valid number
+    for (const r of form.crew_breakdown) {
+      if (r.monthly_salary_eur && !DEC_RE.test(r.monthly_salary_eur)) {
+        e.crew_breakdown = "Some crew salaries are invalid";
+        break;
+      }
+    }
     if (form.charter_commission_pct) {
       const n = parseNum(form.charter_commission_pct);
       if (n != null && (n < 0 || n > 100)) e.charter_commission_pct = "0–100 %";
@@ -342,6 +435,7 @@ export default function YachtFormScreen() {
       ...MONTHLY_FIELDS.map((f) => f.key),
       ...ANNUAL_FIELDS.map((f) => f.key),
       "charter_commission_pct",
+      "crew_breakdown",
     ];
     const step3Keys: (keyof FormState)[] = [
       "loan_amount_eur",
@@ -411,8 +505,26 @@ export default function YachtFormScreen() {
       commercial_registration: form.commercial_registration,
       purchase_price_eur: numOrNull(form.purchase_price_eur),
       purchase_year: form.purchase_year ? parseInt(form.purchase_year, 10) : null,
+      // crew breakdown — strip empty rows, also derive monthly_crew_eur total
+      crew_breakdown: (() => {
+        const rows = form.crew_breakdown
+          .map((r) => {
+            const s = parseFloat(r.monthly_salary_eur.replace(",", "."));
+            if (!isFinite(s) || s <= 0) return null;
+            return {
+              role: r.role,
+              monthly_salary_eur: s,
+              months_per_year: r.months_per_year,
+            };
+          })
+          .filter((r) => r !== null);
+        return rows.length > 0 ? rows : null;
+      })(),
       // expenses
-      monthly_crew_eur: numOrNull(form.monthly_crew_eur),
+      monthly_crew_eur: (() => {
+        const total = computeCrewMonthlyTotal(form.crew_breakdown);
+        return total > 0 ? total : null;
+      })(),
       monthly_mooring_eur: numOrNull(form.monthly_mooring_eur),
       monthly_fuel_eur: numOrNull(form.monthly_fuel_eur),
       monthly_provisioning_eur: numOrNull(form.monthly_provisioning_eur),
@@ -603,7 +715,7 @@ export default function YachtFormScreen() {
             ]}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={NAVY} />
+              <ActivityIndicator color={GOLD} />
             ) : (
               <Text style={styles.primaryBtnText}>
                 {isLast ? (editId ? "Save changes" : "Create profile") : "Continue"}
@@ -801,10 +913,41 @@ function OperationsStep({ form, update, errors }: StepProps) {
 }
 
 function ExpensesStep({ form, update, errors }: StepProps) {
+  const setCrew = (idx: number, patch: Partial<CrewRow>) => {
+    const next = form.crew_breakdown.map((r, i) =>
+      i === idx ? { ...r, ...patch } : r,
+    );
+    update("crew_breakdown", next);
+  };
+
+  const crewTotal = computeCrewMonthlyTotal(form.crew_breakdown);
+
   return (
     <View>
       <Text style={styles.sectionLead}>
         Fill in only what you know. Empty fields will fall back to regional averages.
+      </Text>
+
+      <SectionLabel text="CREW · BY POSITION" />
+      {form.crew_breakdown.map((row, i) => (
+        <CrewRowEditor
+          key={`${row.role}-${i}`}
+          row={row}
+          onSalary={(v) => setCrew(i, { monthly_salary_eur: v })}
+          onMonths={(m) => setCrew(i, { months_per_year: m })}
+        />
+      ))}
+      {errors.crew_breakdown ? (
+        <Text style={styles.fieldError}>{errors.crew_breakdown}</Text>
+      ) : null}
+      <View style={styles.crewTotalRow}>
+        <Text style={styles.crewTotalLabel}>Total crew cost</Text>
+        <Text style={styles.crewTotalValue}>
+          {crewTotal > 0 ? `€ ${crewTotal.toLocaleString("en-US")} / mo` : "—"}
+        </Text>
+      </View>
+      <Text style={styles.fieldHint}>
+        Months/year covers seasonal crew (e.g. summer-only deckhand). Total feeds the ROI engine.
       </Text>
 
       <SectionLabel text="MONTHLY · € PER MONTH" />
@@ -922,6 +1065,75 @@ function FinancingStep({ form, update, errors }: StepProps) {
 
 function SectionLabel({ text }: { text: string }) {
   return <Text style={styles.sectionLabel}>{text}</Text>;
+}
+
+function CrewRowEditor({
+  row,
+  onSalary,
+  onMonths,
+}: {
+  row: CrewRow;
+  onSalary: (v: string) => void;
+  onMonths: (n: number) => void;
+}) {
+  const dec = () => {
+    const next = Math.max(1, row.months_per_year - 1);
+    if (next !== row.months_per_year) {
+      onMonths(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  const inc = () => {
+    const next = Math.min(12, row.months_per_year + 1);
+    if (next !== row.months_per_year) {
+      onMonths(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  return (
+    <View style={styles.crewRow}>
+      <Text style={styles.crewRole}>{row.role}</Text>
+      <View style={styles.crewControls}>
+        <View style={styles.crewSalaryWrap}>
+          <TextInput
+            value={row.monthly_salary_eur}
+            onChangeText={onSalary}
+            placeholder="0"
+            placeholderTextColor={MUTED}
+            keyboardType="decimal-pad"
+            style={styles.crewSalaryInput}
+          />
+          <Text style={styles.crewSalarySuffix}>€ / mo</Text>
+        </View>
+        <View style={styles.crewStepper}>
+          <Pressable
+            onPress={dec}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.crewStepBtn,
+              { opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Feather name="minus" size={14} color={GOLD} />
+          </Pressable>
+          <View style={styles.crewMonthsBox}>
+            <Text style={styles.crewMonthsValue}>{row.months_per_year}</Text>
+            <Text style={styles.crewMonthsLabel}>mo / yr</Text>
+          </View>
+          <Pressable
+            onPress={inc}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.crewStepBtn,
+              { opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Feather name="plus" size={14} color={GOLD} />
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 function MoneyInput({
@@ -1067,10 +1279,112 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: NAVY_DEEP,
   },
-  pillActive: { backgroundColor: GOLD, borderColor: GOLD },
+  pillActive: {
+    backgroundColor: "rgba(201,169,97,0.12)",
+    borderColor: GOLD,
+    borderWidth: 1.5,
+  },
   pillText: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 13 },
-  pillTextActive: { color: NAVY, fontFamily: "Inter_700Bold" },
+  pillTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
   hint: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 },
+  // Crew breakdown
+  crewRow: {
+    paddingVertical: 12,
+    borderBottomColor: DIVIDER,
+    borderBottomWidth: 1,
+  },
+  crewRole: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  crewControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  crewSalaryWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: NAVY_DEEP,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingRight: 12,
+  },
+  crewSalaryInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+  },
+  crewSalarySuffix: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 0.4,
+  },
+  crewStepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    borderRadius: 10,
+    backgroundColor: NAVY_DEEP,
+    paddingHorizontal: 4,
+  },
+  crewStepBtn: {
+    width: 28,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  crewMonthsBox: {
+    paddingHorizontal: 6,
+    alignItems: "center",
+    minWidth: 38,
+  },
+  crewMonthsValue: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+    lineHeight: 16,
+  },
+  crewMonthsLabel: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 9,
+    letterSpacing: 0.4,
+    marginTop: 1,
+  },
+  crewTotalRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "rgba(201,169,97,0.06)",
+    borderColor: "rgba(201,169,97,0.25)",
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  crewTotalLabel: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  crewTotalValue: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+  },
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
@@ -1079,12 +1393,14 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY,
   },
   primaryBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
   emptyTitle: { color: IVORY, fontFamily: "Gilroy-Regular", fontSize: 20, marginTop: 14 },
   errorBanner: {

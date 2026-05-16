@@ -251,7 +251,7 @@ export default function RoiCalculateScreen() {
             ]}
           >
             {mutation.isPending ? (
-              <ActivityIndicator color={NAVY} />
+              <ActivityIndicator color={GOLD} />
             ) : (
               <Text style={styles.primaryBtnText}>
                 {pricingMode === "ai" ? "Run AI estimate" : "Calculate ROI"}
@@ -417,9 +417,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: NAVY_DEEP,
   },
-  pillActive: { backgroundColor: GOLD, borderColor: GOLD },
+  pillActive: {
+    backgroundColor: "rgba(201,169,97,0.12)",
+    borderColor: GOLD,
+    borderWidth: 1.5,
+  },
   pillText: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 13 },
-  pillTextActive: { color: NAVY, fontFamily: "Inter_700Bold" },
+  pillTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
   field: { marginBottom: 18 },
   fieldLabel: {
     color: MUTED,
@@ -462,12 +466,14 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY,
   },
   primaryBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
   footHint: {
     color: MUTED,
     fontFamily: "Inter_400Regular",

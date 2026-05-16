@@ -216,7 +216,7 @@ export default function SignInScreen() {
           ]}
         >
           {fetchStatus === "fetching" ? (
-            <ActivityIndicator color={NAVY} />
+            <ActivityIndicator color={GOLD} />
           ) : (
             <Text style={styles.primaryText}>Sign in</Text>
           )}
@@ -331,7 +331,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   primaryBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
+    borderWidth: 1.5,
+    borderColor: GOLD,
     borderRadius: 14,
     paddingVertical: 17,
     alignItems: "center",
@@ -339,7 +341,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   primaryText: {
-    color: NAVY,
+    color: GOLD,
     fontFamily: "Inter_600SemiBold",
     fontSize: 16,
     letterSpacing: 0.2,
