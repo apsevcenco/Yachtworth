@@ -269,10 +269,13 @@ paths:
     post:
       operationId: calculateRoi
       tags: [roi]
-      summary: Compute charter ROI for a yacht (AI-assisted)
+      summary: Compute charter ROI for a yacht
       description: |
-        Stage 1 stub: contract is locked but the engine is not implemented yet.
-        Returns 501 until Stages 3–4 land.
+        Runs the Charter ROI engine for the user's yacht. Pricing is set by
+        `pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
+        and `manual_charter_units`; ai mode estimates rate via web search and
+        falls back to a deterministic regional heuristic if the AI call fails.
+        Result is persisted to roi_calculations.
       security:
         - bearerAuth: []
       requestBody:
@@ -288,14 +291,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoiCalculation"
+        "400":
+          description: Invalid input (bad shape, manual rate/units out of range)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Unauthenticated
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        "501":
-          description: Not implemented yet
+        "404":
+          description: Yacht not found or not owned by caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Engine failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: ROI storage not configured (Supabase missing)
           content:
             application/json:
               schema:
@@ -655,13 +676,21 @@ components:
         - middle_east
     CharterSeason:
       type: string
-      enum: [high, shoulder, low]
+      enum: [high, shoulder, low, mixed]
     ManagementStyle:
       type: string
       enum: [owner_operated, management_company, brokerage]
     OccupancyTarget:
       type: string
       enum: [conservative, realistic, optimistic]
+    PricingMode:
+      type: string
+      enum: [manual_daily, manual_weekly, ai]
+      description: |
+        How the charter rate is determined:
+        * manual_daily  — user provides daily rate + number of charter days
+        * manual_weekly — user provides weekly rate + number of charter weeks
+        * ai            — engine asks AI (web-search) for plausible rate + weeks
     YachtInput:
       type: object
       properties:
@@ -863,26 +892,57 @@ components:
             $ref: "#/components/schemas/Yacht"
     RoiCalculationInput:
       type: object
-      required: [yacht_id, region, management_style, occupancy_target]
+      required: [yacht_id, region, pricing_mode, management_style]
       properties:
         yacht_id:
           type: string
         region:
           $ref: "#/components/schemas/CharterRegion"
+        season:
+          oneOf:
+            - $ref: "#/components/schemas/CharterSeason"
+            - type: "null"
+          description: Default 'mixed' (weighted across high/shoulder/low)
         management_style:
           $ref: "#/components/schemas/ManagementStyle"
         occupancy_target:
-          $ref: "#/components/schemas/OccupancyTarget"
+          oneOf:
+            - $ref: "#/components/schemas/OccupancyTarget"
+            - type: "null"
+          description: Hint for AI mode; ignored in manual modes
+        pricing_mode:
+          $ref: "#/components/schemas/PricingMode"
+        manual_rate_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Per-day rate for manual_daily, per-week rate for manual_weekly
+        manual_charter_units:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 366
+          description: Number of charter days OR weeks per year, matching pricing_mode
         management_fee_pct:
           type: ["number", "null"]
           minimum: 0
           maximum: 50
-          description: Override default management fee (18–25% by style); null = default
+          description: Override default management fee; null = uses style default
         target_weeks:
           type: ["integer", "null"]
           minimum: 0
           maximum: 52
-          description: Override AI-predicted charter weeks; null = AI decides
+          description: AI mode only — override AI-predicted charter weeks
+    RoiComparable:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        location:
+          type: ["string", "null"]
+        weekly_rate_eur:
+          type: ["number", "null"]
+        source_url:
+          type: ["string", "null"]
     ExpenseBreakdown:
       type: object
       required: [category, amount_eur]
@@ -981,7 +1041,7 @@ components:
         comparables:
           type: array
           items:
-            $ref: "#/components/schemas/Comparable"
+            $ref: "#/components/schemas/RoiComparable"
         reasoning:
           type: string
         recommendations:

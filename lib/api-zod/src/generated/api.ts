@@ -835,11 +835,19 @@ export const DeleteYachtParams = zod.object({
 });
 
 /**
- * Stage 1 stub: contract is locked but the engine is not implemented yet.
-Returns 501 until Stages 3–4 land.
+ * Runs the Charter ROI engine for the user's yacht. Pricing is set by
+`pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
+and `manual_charter_units`; ai mode estimates rate via web search and
+falls back to a deterministic regional heuristic if the AI call fails.
+Result is persisted to roi_calculations.
 
- * @summary Compute charter ROI for a yacht (AI-assisted)
+ * @summary Compute charter ROI for a yacht
  */
+export const calculateRoiBodyManualRateEurMin = 0;
+
+export const calculateRoiBodyManualCharterUnitsMin = 0;
+export const calculateRoiBodyManualCharterUnitsMax = 366;
+
 export const calculateRoiBodyManagementFeePctMin = 0;
 export const calculateRoiBodyManagementFeePctMax = 50;
 
@@ -855,26 +863,49 @@ export const CalculateRoiBody = zod.object({
     "asia_pacific_me",
     "middle_east",
   ]),
+  season: zod
+    .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
+    .optional()
+    .describe("Default 'mixed' (weighted across high\/shoulder\/low)"),
   management_style: zod.enum([
     "owner_operated",
     "management_company",
     "brokerage",
   ]),
-  occupancy_target: zod.enum(["conservative", "realistic", "optimistic"]),
+  occupancy_target: zod
+    .union([zod.enum(["conservative", "realistic", "optimistic"]), zod.null()])
+    .optional()
+    .describe("Hint for AI mode; ignored in manual modes"),
+  pricing_mode: zod
+    .enum(["manual_daily", "manual_weekly", "ai"])
+    .describe(
+      "How the charter rate is determined:\n\* manual_daily  — user provides daily rate + number of charter days\n\* manual_weekly — user provides weekly rate + number of charter weeks\n\* ai            — engine asks AI (web-search) for plausible rate + weeks\n",
+    ),
+  manual_rate_eur: zod
+    .number()
+    .min(calculateRoiBodyManualRateEurMin)
+    .nullish()
+    .describe("Per-day rate for manual_daily, per-week rate for manual_weekly"),
+  manual_charter_units: zod
+    .number()
+    .min(calculateRoiBodyManualCharterUnitsMin)
+    .max(calculateRoiBodyManualCharterUnitsMax)
+    .nullish()
+    .describe(
+      "Number of charter days OR weeks per year, matching pricing_mode",
+    ),
   management_fee_pct: zod
     .number()
     .min(calculateRoiBodyManagementFeePctMin)
     .max(calculateRoiBodyManagementFeePctMax)
     .nullish()
-    .describe(
-      "Override default management fee (18–25% by style); null = default",
-    ),
+    .describe("Override default management fee; null = uses style default"),
   target_weeks: zod
     .number()
     .min(calculateRoiBodyTargetWeeksMin)
     .max(calculateRoiBodyTargetWeeksMax)
     .nullish()
-    .describe("Override AI-predicted charter weeks; null = AI decides"),
+    .describe("AI mode only — override AI-predicted charter weeks"),
 });
 
 export const calculateRoiResponseRiskScoreMax = 10;
@@ -939,13 +970,10 @@ export const CalculateRoiResponse = zod.object({
   comparables: zod
     .array(
       zod.object({
-        builder: zod.string().nullish(),
-        model: zod.string().nullish(),
-        year: zod.number().nullish(),
-        length: zod.string().nullish(),
-        condition: zod.string().nullish(),
-        price: zod.string(),
-        note: zod.string().nullish(),
+        name: zod.string(),
+        location: zod.string().nullish(),
+        weekly_rate_eur: zod.number().nullish(),
+        source_url: zod.string().nullish(),
       }),
     )
     .optional(),
@@ -985,6 +1013,11 @@ export const GetRoiCalculationParams = zod.object({
   id: zod.coerce.string(),
 });
 
+export const getRoiCalculationResponseInputManualRateEurMin = 0;
+
+export const getRoiCalculationResponseInputManualCharterUnitsMin = 0;
+export const getRoiCalculationResponseInputManualCharterUnitsMax = 366;
+
 export const getRoiCalculationResponseInputManagementFeePctMin = 0;
 export const getRoiCalculationResponseInputManagementFeePctMax = 50;
 
@@ -1008,26 +1041,54 @@ export const GetRoiCalculationResponse = zod.object({
       "asia_pacific_me",
       "middle_east",
     ]),
+    season: zod
+      .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
+      .optional()
+      .describe("Default 'mixed' (weighted across high\/shoulder\/low)"),
     management_style: zod.enum([
       "owner_operated",
       "management_company",
       "brokerage",
     ]),
-    occupancy_target: zod.enum(["conservative", "realistic", "optimistic"]),
+    occupancy_target: zod
+      .union([
+        zod.enum(["conservative", "realistic", "optimistic"]),
+        zod.null(),
+      ])
+      .optional()
+      .describe("Hint for AI mode; ignored in manual modes"),
+    pricing_mode: zod
+      .enum(["manual_daily", "manual_weekly", "ai"])
+      .describe(
+        "How the charter rate is determined:\n\* manual_daily  — user provides daily rate + number of charter days\n\* manual_weekly — user provides weekly rate + number of charter weeks\n\* ai            — engine asks AI (web-search) for plausible rate + weeks\n",
+      ),
+    manual_rate_eur: zod
+      .number()
+      .min(getRoiCalculationResponseInputManualRateEurMin)
+      .nullish()
+      .describe(
+        "Per-day rate for manual_daily, per-week rate for manual_weekly",
+      ),
+    manual_charter_units: zod
+      .number()
+      .min(getRoiCalculationResponseInputManualCharterUnitsMin)
+      .max(getRoiCalculationResponseInputManualCharterUnitsMax)
+      .nullish()
+      .describe(
+        "Number of charter days OR weeks per year, matching pricing_mode",
+      ),
     management_fee_pct: zod
       .number()
       .min(getRoiCalculationResponseInputManagementFeePctMin)
       .max(getRoiCalculationResponseInputManagementFeePctMax)
       .nullish()
-      .describe(
-        "Override default management fee (18–25% by style); null = default",
-      ),
+      .describe("Override default management fee; null = uses style default"),
     target_weeks: zod
       .number()
       .min(getRoiCalculationResponseInputTargetWeeksMin)
       .max(getRoiCalculationResponseInputTargetWeeksMax)
       .nullish()
-      .describe("Override AI-predicted charter weeks; null = AI decides"),
+      .describe("AI mode only — override AI-predicted charter weeks"),
   }),
   result: zod.object({
     id: zod.string().nullish(),
@@ -1087,13 +1148,10 @@ export const GetRoiCalculationResponse = zod.object({
     comparables: zod
       .array(
         zod.object({
-          builder: zod.string().nullish(),
-          model: zod.string().nullish(),
-          year: zod.number().nullish(),
-          length: zod.string().nullish(),
-          condition: zod.string().nullish(),
-          price: zod.string(),
-          note: zod.string().nullish(),
+          name: zod.string(),
+          location: zod.string().nullish(),
+          weekly_rate_eur: zod.number().nullish(),
+          source_url: zod.string().nullish(),
         }),
       )
       .optional(),

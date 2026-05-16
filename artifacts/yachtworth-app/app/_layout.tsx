@@ -68,6 +68,14 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
+        name="roi/calculate"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="roi/result"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
         name="settings"
         options={{ headerShown: false, presentation: "card" }}
       />

@@ -12,4 +12,5 @@ export const CharterSeason = {
   high: "high",
   shoulder: "shoulder",
   low: "low",
+  mixed: "mixed",
 } as const;

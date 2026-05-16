@@ -6,23 +6,42 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CharterRegion } from "./charterRegion";
+import type { CharterSeason } from "./charterSeason";
 import type { ManagementStyle } from "./managementStyle";
 import type { OccupancyTarget } from "./occupancyTarget";
+import type { PricingMode } from "./pricingMode";
 
 export interface RoiCalculationInput {
   yacht_id: string;
   region: CharterRegion;
+  /** Default 'mixed' (weighted across high/shoulder/low) */
+  season?: CharterSeason | null;
   management_style: ManagementStyle;
-  occupancy_target: OccupancyTarget;
+  /** Hint for AI mode; ignored in manual modes */
+  occupancy_target?: OccupancyTarget | null;
+  pricing_mode: PricingMode;
   /**
-   * Override default management fee (18–25% by style); null = default
+   * Per-day rate for manual_daily, per-week rate for manual_weekly
+   * @minimum 0
+   * @nullable
+   */
+  manual_rate_eur?: number | null;
+  /**
+   * Number of charter days OR weeks per year, matching pricing_mode
+   * @minimum 0
+   * @maximum 366
+   * @nullable
+   */
+  manual_charter_units?: number | null;
+  /**
+   * Override default management fee; null = uses style default
    * @minimum 0
    * @maximum 50
    * @nullable
    */
   management_fee_pct?: number | null;
   /**
-   * Override AI-predicted charter weeks; null = AI decides
+   * AI mode only — override AI-predicted charter weeks
    * @minimum 0
    * @maximum 52
    * @nullable

@@ -788,10 +788,13 @@ export const useDeleteYacht = <
 };
 
 /**
- * Stage 1 stub: contract is locked but the engine is not implemented yet.
-Returns 501 until Stages 3–4 land.
+ * Runs the Charter ROI engine for the user's yacht. Pricing is set by
+`pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
+and `manual_charter_units`; ai mode estimates rate via web search and
+falls back to a deterministic regional heuristic if the AI call fails.
+Result is persisted to roi_calculations.
 
- * @summary Compute charter ROI for a yacht (AI-assisted)
+ * @summary Compute charter ROI for a yacht
  */
 export const getCalculateRoiUrl = () => {
   return `/api/roi/calculate`;
@@ -854,7 +857,7 @@ export type CalculateRoiMutationBody = BodyType<RoiCalculationInput>;
 export type CalculateRoiMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Compute charter ROI for a yacht (AI-assisted)
+ * @summary Compute charter ROI for a yacht
  */
 export const useCalculateRoi = <
   TError = ErrorType<ErrorResponse>,

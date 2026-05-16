@@ -266,6 +266,7 @@ export const CharterSeason = {
   high: "high",
   shoulder: "shoulder",
   low: "low",
+  mixed: "mixed",
 } as const;
 
 export type ManagementStyle =
@@ -284,6 +285,21 @@ export const OccupancyTarget = {
   conservative: "conservative",
   realistic: "realistic",
   optimistic: "optimistic",
+} as const;
+
+/**
+ * How the charter rate is determined:
+* manual_daily  — user provides daily rate + number of charter days
+* manual_weekly — user provides weekly rate + number of charter weeks
+* ai            — engine asks AI (web-search) for plausible rate + weeks
+
+ */
+export type PricingMode = (typeof PricingMode)[keyof typeof PricingMode];
+
+export const PricingMode = {
+  manual_daily: "manual_daily",
+  manual_weekly: "manual_weekly",
+  ai: "ai",
 } as const;
 
 export interface YachtInput {
@@ -520,22 +536,49 @@ export interface YachtListResponse {
 export interface RoiCalculationInput {
   yacht_id: string;
   region: CharterRegion;
+  /** Default 'mixed' (weighted across high/shoulder/low) */
+  season?: CharterSeason | null;
   management_style: ManagementStyle;
-  occupancy_target: OccupancyTarget;
+  /** Hint for AI mode; ignored in manual modes */
+  occupancy_target?: OccupancyTarget | null;
+  pricing_mode: PricingMode;
   /**
-   * Override default management fee (18–25% by style); null = default
+   * Per-day rate for manual_daily, per-week rate for manual_weekly
+   * @minimum 0
+   * @nullable
+   */
+  manual_rate_eur?: number | null;
+  /**
+   * Number of charter days OR weeks per year, matching pricing_mode
+   * @minimum 0
+   * @maximum 366
+   * @nullable
+   */
+  manual_charter_units?: number | null;
+  /**
+   * Override default management fee; null = uses style default
    * @minimum 0
    * @maximum 50
    * @nullable
    */
   management_fee_pct?: number | null;
   /**
-   * Override AI-predicted charter weeks; null = AI decides
+   * AI mode only — override AI-predicted charter weeks
    * @minimum 0
    * @maximum 52
    * @nullable
    */
   target_weeks?: number | null;
+}
+
+export interface RoiComparable {
+  name: string;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  weekly_rate_eur?: number | null;
+  /** @nullable */
+  source_url?: string | null;
 }
 
 export interface ExpenseBreakdown {
@@ -610,7 +653,7 @@ export interface RoiCalculation {
   revenue_by_month: MonthlyPoint[];
   depreciation_curve: YearlyPoint[];
   roi_projection_5y: YearlyPoint[];
-  comparables?: Comparable[];
+  comparables?: RoiComparable[];
   reasoning: string;
   recommendations?: string[];
   confidence: RoiCalculationConfidence;

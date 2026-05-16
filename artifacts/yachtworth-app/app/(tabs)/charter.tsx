@@ -183,19 +183,23 @@ export default function CharterScreen() {
           </View>
 
           <Pressable
-            onPress={() => {
-              /* Stage 6: open ROI scenario sheet */
-            }}
+            onPress={() =>
+              router.push({
+                pathname: "/roi/calculate",
+                params: { yacht_id: yacht.id },
+              })
+            }
             style={({ pressed }) => [
               styles.calcBtn,
-              { opacity: pressed ? 0.85 : 0.5 },
+              { opacity: pressed ? 0.85 : 1 },
             ]}
-            disabled
           >
             <Feather name="trending-up" size={18} color={NAVY} />
             <Text style={styles.calcBtnText}>Calculate ROI</Text>
           </Pressable>
-          <Text style={styles.comingSoon}>ROI engine arrives in the next update.</Text>
+          <Text style={styles.comingSoon}>
+            Set your scenario — manual day/week pricing or AI market estimate.
+          </Text>
         </View>
       )}
     </ScrollView>

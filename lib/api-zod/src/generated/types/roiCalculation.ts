@@ -5,11 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { Comparable } from "./comparable";
 import type { ExpenseBreakdown } from "./expenseBreakdown";
 import type { MonthlyPoint } from "./monthlyPoint";
 import type { RoiCalculationConfidence } from "./roiCalculationConfidence";
 import type { RoiCalculationMarketRating } from "./roiCalculationMarketRating";
+import type { RoiComparable } from "./roiComparable";
 import type { YearlyPoint } from "./yearlyPoint";
 
 export interface RoiCalculation {
@@ -40,7 +40,7 @@ export interface RoiCalculation {
   revenue_by_month: MonthlyPoint[];
   depreciation_curve: YearlyPoint[];
   roi_projection_5y: YearlyPoint[];
-  comparables?: Comparable[];
+  comparables?: RoiComparable[];
   reasoning: string;
   recommendations?: string[];
   confidence: RoiCalculationConfidence;
