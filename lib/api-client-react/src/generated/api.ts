@@ -21,8 +21,16 @@ import type {
   EstimateDetail,
   EstimateListResponse,
   HealthStatus,
+  ListRoiCalculationsParams,
+  RoiCalculation,
+  RoiCalculationDetail,
+  RoiCalculationInput,
+  RoiCalculationListResponse,
   Valuation,
   ValuationInput,
+  Yacht,
+  YachtInput,
+  YachtListResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -354,6 +362,702 @@ export function useGetEstimate<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetEstimateQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List user's yacht profiles
+ */
+export const getListYachtsUrl = () => {
+  return `/api/yachts`;
+};
+
+export const listYachts = async (
+  options?: RequestInit,
+): Promise<YachtListResponse> => {
+  return customFetch<YachtListResponse>(getListYachtsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListYachtsQueryKey = () => {
+  return [`/api/yachts`] as const;
+};
+
+export const getListYachtsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listYachts>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listYachts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListYachtsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listYachts>>> = ({
+    signal,
+  }) => listYachts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listYachts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListYachtsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listYachts>>
+>;
+export type ListYachtsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's yacht profiles
+ */
+
+export function useListYachts<
+  TData = Awaited<ReturnType<typeof listYachts>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listYachts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListYachtsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a yacht profile
+ */
+export const getCreateYachtUrl = () => {
+  return `/api/yachts`;
+};
+
+export const createYacht = async (
+  yachtInput: YachtInput,
+  options?: RequestInit,
+): Promise<Yacht> => {
+  return customFetch<Yacht>(getCreateYachtUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(yachtInput),
+  });
+};
+
+export const getCreateYachtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createYacht>>,
+    TError,
+    { data: BodyType<YachtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createYacht>>,
+  TError,
+  { data: BodyType<YachtInput> },
+  TContext
+> => {
+  const mutationKey = ["createYacht"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createYacht>>,
+    { data: BodyType<YachtInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createYacht(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateYachtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createYacht>>
+>;
+export type CreateYachtMutationBody = BodyType<YachtInput>;
+export type CreateYachtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a yacht profile
+ */
+export const useCreateYacht = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createYacht>>,
+    TError,
+    { data: BodyType<YachtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createYacht>>,
+  TError,
+  { data: BodyType<YachtInput> },
+  TContext
+> => {
+  return useMutation(getCreateYachtMutationOptions(options));
+};
+
+/**
+ * @summary Get a yacht profile by id
+ */
+export const getGetYachtUrl = (id: string) => {
+  return `/api/yachts/${id}`;
+};
+
+export const getYacht = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Yacht> => {
+  return customFetch<Yacht>(getGetYachtUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetYachtQueryKey = (id: string) => {
+  return [`/api/yachts/${id}`] as const;
+};
+
+export const getGetYachtQueryOptions = <
+  TData = Awaited<ReturnType<typeof getYacht>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getYacht>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetYachtQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getYacht>>> = ({
+    signal,
+  }) => getYacht(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getYacht>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetYachtQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getYacht>>
+>;
+export type GetYachtQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a yacht profile by id
+ */
+
+export function useGetYacht<
+  TData = Awaited<ReturnType<typeof getYacht>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getYacht>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetYachtQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a yacht profile
+ */
+export const getUpdateYachtUrl = (id: string) => {
+  return `/api/yachts/${id}`;
+};
+
+export const updateYacht = async (
+  id: string,
+  yachtInput: YachtInput,
+  options?: RequestInit,
+): Promise<Yacht> => {
+  return customFetch<Yacht>(getUpdateYachtUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(yachtInput),
+  });
+};
+
+export const getUpdateYachtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateYacht>>,
+    TError,
+    { id: string; data: BodyType<YachtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateYacht>>,
+  TError,
+  { id: string; data: BodyType<YachtInput> },
+  TContext
+> => {
+  const mutationKey = ["updateYacht"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateYacht>>,
+    { id: string; data: BodyType<YachtInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateYacht(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateYachtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateYacht>>
+>;
+export type UpdateYachtMutationBody = BodyType<YachtInput>;
+export type UpdateYachtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a yacht profile
+ */
+export const useUpdateYacht = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateYacht>>,
+    TError,
+    { id: string; data: BodyType<YachtInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateYacht>>,
+  TError,
+  { id: string; data: BodyType<YachtInput> },
+  TContext
+> => {
+  return useMutation(getUpdateYachtMutationOptions(options));
+};
+
+/**
+ * @summary Delete a yacht profile (cascades ROI calculations)
+ */
+export const getDeleteYachtUrl = (id: string) => {
+  return `/api/yachts/${id}`;
+};
+
+export const deleteYacht = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteYachtUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteYachtMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteYacht>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteYacht>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteYacht"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteYacht>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteYacht(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteYachtMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteYacht>>
+>;
+
+export type DeleteYachtMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a yacht profile (cascades ROI calculations)
+ */
+export const useDeleteYacht = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteYacht>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteYacht>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteYachtMutationOptions(options));
+};
+
+/**
+ * Stage 1 stub: contract is locked but the engine is not implemented yet.
+Returns 501 until Stages 3–4 land.
+
+ * @summary Compute charter ROI for a yacht (AI-assisted)
+ */
+export const getCalculateRoiUrl = () => {
+  return `/api/roi/calculate`;
+};
+
+export const calculateRoi = async (
+  roiCalculationInput: RoiCalculationInput,
+  options?: RequestInit,
+): Promise<RoiCalculation> => {
+  return customFetch<RoiCalculation>(getCalculateRoiUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(roiCalculationInput),
+  });
+};
+
+export const getCalculateRoiMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof calculateRoi>>,
+    TError,
+    { data: BodyType<RoiCalculationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof calculateRoi>>,
+  TError,
+  { data: BodyType<RoiCalculationInput> },
+  TContext
+> => {
+  const mutationKey = ["calculateRoi"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof calculateRoi>>,
+    { data: BodyType<RoiCalculationInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return calculateRoi(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CalculateRoiMutationResult = NonNullable<
+  Awaited<ReturnType<typeof calculateRoi>>
+>;
+export type CalculateRoiMutationBody = BodyType<RoiCalculationInput>;
+export type CalculateRoiMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Compute charter ROI for a yacht (AI-assisted)
+ */
+export const useCalculateRoi = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof calculateRoi>>,
+    TError,
+    { data: BodyType<RoiCalculationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof calculateRoi>>,
+  TError,
+  { data: BodyType<RoiCalculationInput> },
+  TContext
+> => {
+  return useMutation(getCalculateRoiMutationOptions(options));
+};
+
+/**
+ * @summary List user's saved ROI calculations
+ */
+export const getListRoiCalculationsUrl = (
+  params?: ListRoiCalculationsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/roi/calculations?${stringifiedParams}`
+    : `/api/roi/calculations`;
+};
+
+export const listRoiCalculations = async (
+  params?: ListRoiCalculationsParams,
+  options?: RequestInit,
+): Promise<RoiCalculationListResponse> => {
+  return customFetch<RoiCalculationListResponse>(
+    getListRoiCalculationsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListRoiCalculationsQueryKey = (
+  params?: ListRoiCalculationsParams,
+) => {
+  return [`/api/roi/calculations`, ...(params ? [params] : [])] as const;
+};
+
+export const getListRoiCalculationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRoiCalculations>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListRoiCalculationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRoiCalculations>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListRoiCalculationsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listRoiCalculations>>
+  > = ({ signal }) =>
+    listRoiCalculations(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRoiCalculations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRoiCalculationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRoiCalculations>>
+>;
+export type ListRoiCalculationsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's saved ROI calculations
+ */
+
+export function useListRoiCalculations<
+  TData = Awaited<ReturnType<typeof listRoiCalculations>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListRoiCalculationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRoiCalculations>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRoiCalculationsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a saved ROI calculation by id
+ */
+export const getGetRoiCalculationUrl = (id: string) => {
+  return `/api/roi/calculations/${id}`;
+};
+
+export const getRoiCalculation = async (
+  id: string,
+  options?: RequestInit,
+): Promise<RoiCalculationDetail> => {
+  return customFetch<RoiCalculationDetail>(getGetRoiCalculationUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRoiCalculationQueryKey = (id: string) => {
+  return [`/api/roi/calculations/${id}`] as const;
+};
+
+export const getGetRoiCalculationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRoiCalculation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoiCalculation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRoiCalculationQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRoiCalculation>>
+  > = ({ signal }) => getRoiCalculation(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRoiCalculation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRoiCalculationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRoiCalculation>>
+>;
+export type GetRoiCalculationQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a saved ROI calculation by id
+ */
+
+export function useGetRoiCalculation<
+  TData = Awaited<ReturnType<typeof getRoiCalculation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoiCalculation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRoiCalculationQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

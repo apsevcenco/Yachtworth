@@ -14,6 +14,10 @@ tags:
     description: Yacht market estimate operations
   - name: estimates
     description: Saved estimate history (authenticated)
+  - name: yachts
+    description: User-owned yacht profiles (authenticated)
+  - name: roi
+    description: Charter ROI intelligence (authenticated)
 paths:
   /healthz:
     get:
@@ -102,6 +106,246 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EstimateDetail"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /yachts:
+    get:
+      operationId: listYachts
+      tags: [yachts]
+      summary: List user's yacht profiles
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Yacht list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YachtListResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createYacht
+      tags: [yachts]
+      summary: Create a yacht profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YachtInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Yacht"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /yachts/{id}:
+    get:
+      operationId: getYacht
+      tags: [yachts]
+      summary: Get a yacht profile by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Yacht detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Yacht"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateYacht
+      tags: [yachts]
+      summary: Update a yacht profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YachtInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Yacht"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteYacht
+      tags: [yachts]
+      summary: Delete a yacht profile (cascades ROI calculations)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /roi/calculate:
+    post:
+      operationId: calculateRoi
+      tags: [roi]
+      summary: Compute charter ROI for a yacht (AI-assisted)
+      description: |
+        Stage 1 stub: contract is locked but the engine is not implemented yet.
+        Returns 501 until Stages 3–4 land.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoiCalculationInput"
+      responses:
+        "200":
+          description: ROI computed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoiCalculation"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "501":
+          description: Not implemented yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /roi/calculations:
+    get:
+      operationId: listRoiCalculations
+      tags: [roi]
+      summary: List user's saved ROI calculations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: yacht_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ROI list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoiCalculationListResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /roi/calculations/{id}:
+    get:
+      operationId: getRoiCalculation
+      tags: [roi]
+      summary: Get a saved ROI calculation by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ROI detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoiCalculationDetail"
         "401":
           description: Unauthenticated
           content:
@@ -398,3 +642,331 @@ components:
           $ref: "#/components/schemas/ValuationInput"
         result:
           $ref: "#/components/schemas/Valuation"
+    FinancingType:
+      type: string
+      enum: [cash, loan]
+    CharterRegion:
+      type: string
+      enum:
+        - mediterranean
+        - caribbean
+        - northern_europe
+        - asia_pacific_me
+        - middle_east
+    CharterSeason:
+      type: string
+      enum: [high, shoulder, low]
+    ManagementStyle:
+      type: string
+      enum: [owner_operated, management_company, brokerage]
+    OccupancyTarget:
+      type: string
+      enum: [conservative, realistic, optimistic]
+    YachtInput:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        year_built:
+          type: ["integer", "null"]
+          minimum: 1900
+          maximum: 2100
+        yacht_type:
+          oneOf:
+            - $ref: "#/components/schemas/YachtType"
+            - type: "null"
+        configuration:
+          type: ["string", "null"]
+        length_meters:
+          type: ["number", "null"]
+          minimum: 1
+          maximum: 200
+        beam_meters:
+          type: ["number", "null"]
+        cabins:
+          type: ["integer", "null"]
+          minimum: 0
+        guests:
+          type: ["integer", "null"]
+          minimum: 0
+        crew:
+          type: ["integer", "null"]
+          minimum: 0
+        engine_hours:
+          type: ["integer", "null"]
+          minimum: 0
+        marina_location:
+          type: ["string", "null"]
+        flag:
+          type: ["string", "null"]
+        commercial_registration:
+          type: ["boolean", "null"]
+        purchase_price_eur:
+          type: ["number", "null"]
+          minimum: 0
+        purchase_year:
+          type: ["integer", "null"]
+          minimum: 1900
+          maximum: 2100
+        financing_type:
+          oneOf:
+            - $ref: "#/components/schemas/FinancingType"
+            - type: "null"
+        loan_amount_eur:
+          type: ["number", "null"]
+          minimum: 0
+        loan_rate_pct:
+          type: ["number", "null"]
+          minimum: 0
+        loan_term_years:
+          type: ["integer", "null"]
+          minimum: 0
+    Yacht:
+      type: object
+      required: [id, clerk_user_id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        clerk_user_id:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        name:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        year_built:
+          type: ["integer", "null"]
+        yacht_type:
+          type: ["string", "null"]
+        configuration:
+          type: ["string", "null"]
+        length_meters:
+          type: ["number", "null"]
+        beam_meters:
+          type: ["number", "null"]
+        cabins:
+          type: ["integer", "null"]
+        guests:
+          type: ["integer", "null"]
+        crew:
+          type: ["integer", "null"]
+        engine_hours:
+          type: ["integer", "null"]
+        marina_location:
+          type: ["string", "null"]
+        flag:
+          type: ["string", "null"]
+        commercial_registration:
+          type: ["boolean", "null"]
+        purchase_price_eur:
+          type: ["number", "null"]
+        purchase_year:
+          type: ["integer", "null"]
+        financing_type:
+          type: ["string", "null"]
+        loan_amount_eur:
+          type: ["number", "null"]
+        loan_rate_pct:
+          type: ["number", "null"]
+        loan_term_years:
+          type: ["integer", "null"]
+    YachtListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Yacht"
+    RoiCalculationInput:
+      type: object
+      required: [yacht_id, region, management_style, occupancy_target]
+      properties:
+        yacht_id:
+          type: string
+        region:
+          $ref: "#/components/schemas/CharterRegion"
+        management_style:
+          $ref: "#/components/schemas/ManagementStyle"
+        occupancy_target:
+          $ref: "#/components/schemas/OccupancyTarget"
+        management_fee_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 50
+          description: Override default management fee (18–25% by style); null = default
+        target_weeks:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 52
+          description: Override AI-predicted charter weeks; null = AI decides
+    ExpenseBreakdown:
+      type: object
+      required: [category, amount_eur]
+      properties:
+        category:
+          type: string
+        amount_eur:
+          type: number
+        formula:
+          type: ["string", "null"]
+    MonthlyPoint:
+      type: object
+      required: [month, value_eur]
+      properties:
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        value_eur:
+          type: number
+    YearlyPoint:
+      type: object
+      required: [year_offset, value_eur]
+      properties:
+        year_offset:
+          type: integer
+        value_eur:
+          type: number
+    RoiCalculation:
+      type: object
+      required:
+        - annual_revenue_eur
+        - annual_expenses_eur
+        - net_profit_eur
+        - roi_pct
+        - payback_years
+        - occupancy_pct
+        - expected_charter_weeks
+        - avg_daily_rate_eur
+        - currency
+        - expenses
+        - revenue_by_month
+        - depreciation_curve
+        - roi_projection_5y
+        - reasoning
+        - confidence
+        - legal_disclaimer
+      properties:
+        id:
+          type: ["string", "null"]
+        annual_revenue_eur:
+          type: number
+        annual_expenses_eur:
+          type: number
+        net_profit_eur:
+          type: number
+        roi_pct:
+          type: number
+        payback_years:
+          type: number
+        occupancy_pct:
+          type: number
+        expected_charter_weeks:
+          type: integer
+        avg_daily_rate_eur:
+          type: number
+        daily_rate_low_season_eur:
+          type: ["number", "null"]
+        daily_rate_high_season_eur:
+          type: ["number", "null"]
+        market_rating:
+          type: ["string", "null"]
+          enum: [A, B, C, D, null]
+        risk_score:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 10
+        currency:
+          type: string
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseBreakdown"
+        revenue_by_month:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyPoint"
+        depreciation_curve:
+          type: array
+          items:
+            $ref: "#/components/schemas/YearlyPoint"
+        roi_projection_5y:
+          type: array
+          items:
+            $ref: "#/components/schemas/YearlyPoint"
+        comparables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comparable"
+        reasoning:
+          type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        legal_disclaimer:
+          type: string
+    RoiCalculationListItem:
+      type: object
+      required:
+        - id
+        - yacht_id
+        - created_at
+        - region
+        - annual_revenue_eur
+        - net_profit_eur
+        - roi_pct
+      properties:
+        id:
+          type: string
+        yacht_id:
+          type: string
+        created_at:
+          type: string
+        region:
+          type: string
+        annual_revenue_eur:
+          type: number
+        annual_expenses_eur:
+          type: ["number", "null"]
+        net_profit_eur:
+          type: number
+        roi_pct:
+          type: number
+        payback_years:
+          type: ["number", "null"]
+    RoiCalculationListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoiCalculationListItem"
+    RoiCalculationDetail:
+      type: object
+      required: [id, yacht_id, created_at, input, result]
+      properties:
+        id:
+          type: string
+        yacht_id:
+          type: string
+        created_at:
+          type: string
+        input:
+          $ref: "#/components/schemas/RoiCalculationInput"
+        result:
+          $ref: "#/components/schemas/RoiCalculation"

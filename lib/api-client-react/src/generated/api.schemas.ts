@@ -242,3 +242,308 @@ export interface EstimateDetail {
   request: ValuationInput;
   result: Valuation;
 }
+
+export type FinancingType = (typeof FinancingType)[keyof typeof FinancingType];
+
+export const FinancingType = {
+  cash: "cash",
+  loan: "loan",
+} as const;
+
+export type CharterRegion = (typeof CharterRegion)[keyof typeof CharterRegion];
+
+export const CharterRegion = {
+  mediterranean: "mediterranean",
+  caribbean: "caribbean",
+  northern_europe: "northern_europe",
+  asia_pacific_me: "asia_pacific_me",
+  middle_east: "middle_east",
+} as const;
+
+export type CharterSeason = (typeof CharterSeason)[keyof typeof CharterSeason];
+
+export const CharterSeason = {
+  high: "high",
+  shoulder: "shoulder",
+  low: "low",
+} as const;
+
+export type ManagementStyle =
+  (typeof ManagementStyle)[keyof typeof ManagementStyle];
+
+export const ManagementStyle = {
+  owner_operated: "owner_operated",
+  management_company: "management_company",
+  brokerage: "brokerage",
+} as const;
+
+export type OccupancyTarget =
+  (typeof OccupancyTarget)[keyof typeof OccupancyTarget];
+
+export const OccupancyTarget = {
+  conservative: "conservative",
+  realistic: "realistic",
+  optimistic: "optimistic",
+} as const;
+
+export interface YachtInput {
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /**
+   * @minimum 1900
+   * @maximum 2100
+   * @nullable
+   */
+  year_built?: number | null;
+  yacht_type?: YachtType | null;
+  /** @nullable */
+  configuration?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 200
+   * @nullable
+   */
+  length_meters?: number | null;
+  /** @nullable */
+  beam_meters?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  cabins?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  guests?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  crew?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  engine_hours?: number | null;
+  /** @nullable */
+  marina_location?: string | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  commercial_registration?: boolean | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  purchase_price_eur?: number | null;
+  /**
+   * @minimum 1900
+   * @maximum 2100
+   * @nullable
+   */
+  purchase_year?: number | null;
+  financing_type?: FinancingType | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_amount_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_rate_pct?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_term_years?: number | null;
+}
+
+export interface Yacht {
+  id: string;
+  clerk_user_id: string;
+  created_at: string;
+  updated_at: string;
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year_built?: number | null;
+  /** @nullable */
+  yacht_type?: string | null;
+  /** @nullable */
+  configuration?: string | null;
+  /** @nullable */
+  length_meters?: number | null;
+  /** @nullable */
+  beam_meters?: number | null;
+  /** @nullable */
+  cabins?: number | null;
+  /** @nullable */
+  guests?: number | null;
+  /** @nullable */
+  crew?: number | null;
+  /** @nullable */
+  engine_hours?: number | null;
+  /** @nullable */
+  marina_location?: string | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  commercial_registration?: boolean | null;
+  /** @nullable */
+  purchase_price_eur?: number | null;
+  /** @nullable */
+  purchase_year?: number | null;
+  /** @nullable */
+  financing_type?: string | null;
+  /** @nullable */
+  loan_amount_eur?: number | null;
+  /** @nullable */
+  loan_rate_pct?: number | null;
+  /** @nullable */
+  loan_term_years?: number | null;
+}
+
+export interface YachtListResponse {
+  items: Yacht[];
+}
+
+export interface RoiCalculationInput {
+  yacht_id: string;
+  region: CharterRegion;
+  management_style: ManagementStyle;
+  occupancy_target: OccupancyTarget;
+  /**
+   * Override default management fee (18–25% by style); null = default
+   * @minimum 0
+   * @maximum 50
+   * @nullable
+   */
+  management_fee_pct?: number | null;
+  /**
+   * Override AI-predicted charter weeks; null = AI decides
+   * @minimum 0
+   * @maximum 52
+   * @nullable
+   */
+  target_weeks?: number | null;
+}
+
+export interface ExpenseBreakdown {
+  category: string;
+  amount_eur: number;
+  /** @nullable */
+  formula?: string | null;
+}
+
+export interface MonthlyPoint {
+  /**
+   * @minimum 1
+   * @maximum 12
+   */
+  month: number;
+  value_eur: number;
+}
+
+export interface YearlyPoint {
+  year_offset: number;
+  value_eur: number;
+}
+
+/**
+ * @nullable
+ */
+export type RoiCalculationMarketRating =
+  | (typeof RoiCalculationMarketRating)[keyof typeof RoiCalculationMarketRating]
+  | null;
+
+export const RoiCalculationMarketRating = {
+  A: "A",
+  B: "B",
+  C: "C",
+  D: "D",
+} as const;
+
+export type RoiCalculationConfidence =
+  (typeof RoiCalculationConfidence)[keyof typeof RoiCalculationConfidence];
+
+export const RoiCalculationConfidence = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface RoiCalculation {
+  /** @nullable */
+  id?: string | null;
+  annual_revenue_eur: number;
+  annual_expenses_eur: number;
+  net_profit_eur: number;
+  roi_pct: number;
+  payback_years: number;
+  occupancy_pct: number;
+  expected_charter_weeks: number;
+  avg_daily_rate_eur: number;
+  /** @nullable */
+  daily_rate_low_season_eur?: number | null;
+  /** @nullable */
+  daily_rate_high_season_eur?: number | null;
+  /** @nullable */
+  market_rating?: RoiCalculationMarketRating;
+  /**
+   * @minimum 1
+   * @maximum 10
+   * @nullable
+   */
+  risk_score?: number | null;
+  currency: string;
+  expenses: ExpenseBreakdown[];
+  revenue_by_month: MonthlyPoint[];
+  depreciation_curve: YearlyPoint[];
+  roi_projection_5y: YearlyPoint[];
+  comparables?: Comparable[];
+  reasoning: string;
+  recommendations?: string[];
+  confidence: RoiCalculationConfidence;
+  legal_disclaimer: string;
+}
+
+export interface RoiCalculationListItem {
+  id: string;
+  yacht_id: string;
+  created_at: string;
+  region: string;
+  annual_revenue_eur: number;
+  /** @nullable */
+  annual_expenses_eur?: number | null;
+  net_profit_eur: number;
+  roi_pct: number;
+  /** @nullable */
+  payback_years?: number | null;
+}
+
+export interface RoiCalculationListResponse {
+  items: RoiCalculationListItem[];
+}
+
+export interface RoiCalculationDetail {
+  id: string;
+  yacht_id: string;
+  created_at: string;
+  input: RoiCalculationInput;
+  result: RoiCalculation;
+}
+
+export type ListRoiCalculationsParams = {
+  yacht_id?: string;
+};

@@ -6,18 +6,37 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./charterRegion";
+export * from "./charterSeason";
 export * from "./comparable";
 export * from "./engineConfig";
 export * from "./errorResponse";
 export * from "./estimateDetail";
 export * from "./estimateListItem";
 export * from "./estimateListResponse";
+export * from "./expenseBreakdown";
+export * from "./financingType";
 export * from "./healthStatus";
+export * from "./listRoiCalculationsParams";
+export * from "./managementStyle";
+export * from "./monthlyPoint";
+export * from "./occupancyTarget";
+export * from "./roiCalculation";
+export * from "./roiCalculationConfidence";
+export * from "./roiCalculationDetail";
+export * from "./roiCalculationInput";
+export * from "./roiCalculationListItem";
+export * from "./roiCalculationListResponse";
+export * from "./roiCalculationMarketRating";
 export * from "./saleRegion";
 export * from "./valuation";
 export * from "./valuationConfidence";
 export * from "./valuationInput";
 export * from "./valuationMode";
 export * from "./vatStatus";
+export * from "./yacht";
 export * from "./yachtCondition";
+export * from "./yachtInput";
+export * from "./yachtListResponse";
 export * from "./yachtType";
+export * from "./yearlyPoint";

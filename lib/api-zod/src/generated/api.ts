@@ -364,3 +364,528 @@ export const GetEstimateResponse = zod.object({
       ),
   }),
 });
+
+/**
+ * @summary List user's yacht profiles
+ */
+export const ListYachtsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      clerk_user_id: zod.string(),
+      created_at: zod.string(),
+      updated_at: zod.string(),
+      name: zod.string().nullish(),
+      brand: zod.string().nullish(),
+      model: zod.string().nullish(),
+      year_built: zod.number().nullish(),
+      yacht_type: zod.string().nullish(),
+      configuration: zod.string().nullish(),
+      length_meters: zod.number().nullish(),
+      beam_meters: zod.number().nullish(),
+      cabins: zod.number().nullish(),
+      guests: zod.number().nullish(),
+      crew: zod.number().nullish(),
+      engine_hours: zod.number().nullish(),
+      marina_location: zod.string().nullish(),
+      flag: zod.string().nullish(),
+      commercial_registration: zod.boolean().nullish(),
+      purchase_price_eur: zod.number().nullish(),
+      purchase_year: zod.number().nullish(),
+      financing_type: zod.string().nullish(),
+      loan_amount_eur: zod.number().nullish(),
+      loan_rate_pct: zod.number().nullish(),
+      loan_term_years: zod.number().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a yacht profile
+ */
+export const createYachtBodyYearBuiltMin = 1900;
+export const createYachtBodyYearBuiltMax = 2100;
+
+export const createYachtBodyLengthMetersMax = 200;
+
+export const createYachtBodyCabinsMin = 0;
+
+export const createYachtBodyGuestsMin = 0;
+
+export const createYachtBodyCrewMin = 0;
+
+export const createYachtBodyEngineHoursMin = 0;
+
+export const createYachtBodyPurchasePriceEurMin = 0;
+
+export const createYachtBodyPurchaseYearMin = 1900;
+export const createYachtBodyPurchaseYearMax = 2100;
+
+export const createYachtBodyLoanAmountEurMin = 0;
+
+export const createYachtBodyLoanRatePctMin = 0;
+
+export const createYachtBodyLoanTermYearsMin = 0;
+
+export const CreateYachtBody = zod.object({
+  name: zod.string().nullish(),
+  brand: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod
+    .number()
+    .min(createYachtBodyYearBuiltMin)
+    .max(createYachtBodyYearBuiltMax)
+    .nullish(),
+  yacht_type: zod
+    .union([
+      zod.enum(["motor_yacht", "sailing_yacht", "catamaran", "superyacht"]),
+      zod.null(),
+    ])
+    .optional(),
+  configuration: zod.string().nullish(),
+  length_meters: zod
+    .number()
+    .min(1)
+    .max(createYachtBodyLengthMetersMax)
+    .nullish(),
+  beam_meters: zod.number().nullish(),
+  cabins: zod.number().min(createYachtBodyCabinsMin).nullish(),
+  guests: zod.number().min(createYachtBodyGuestsMin).nullish(),
+  crew: zod.number().min(createYachtBodyCrewMin).nullish(),
+  engine_hours: zod.number().min(createYachtBodyEngineHoursMin).nullish(),
+  marina_location: zod.string().nullish(),
+  flag: zod.string().nullish(),
+  commercial_registration: zod.boolean().nullish(),
+  purchase_price_eur: zod
+    .number()
+    .min(createYachtBodyPurchasePriceEurMin)
+    .nullish(),
+  purchase_year: zod
+    .number()
+    .min(createYachtBodyPurchaseYearMin)
+    .max(createYachtBodyPurchaseYearMax)
+    .nullish(),
+  financing_type: zod
+    .union([zod.enum(["cash", "loan"]), zod.null()])
+    .optional(),
+  loan_amount_eur: zod.number().min(createYachtBodyLoanAmountEurMin).nullish(),
+  loan_rate_pct: zod.number().min(createYachtBodyLoanRatePctMin).nullish(),
+  loan_term_years: zod.number().min(createYachtBodyLoanTermYearsMin).nullish(),
+});
+
+/**
+ * @summary Get a yacht profile by id
+ */
+export const GetYachtParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetYachtResponse = zod.object({
+  id: zod.string(),
+  clerk_user_id: zod.string(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+  name: zod.string().nullish(),
+  brand: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod.number().nullish(),
+  yacht_type: zod.string().nullish(),
+  configuration: zod.string().nullish(),
+  length_meters: zod.number().nullish(),
+  beam_meters: zod.number().nullish(),
+  cabins: zod.number().nullish(),
+  guests: zod.number().nullish(),
+  crew: zod.number().nullish(),
+  engine_hours: zod.number().nullish(),
+  marina_location: zod.string().nullish(),
+  flag: zod.string().nullish(),
+  commercial_registration: zod.boolean().nullish(),
+  purchase_price_eur: zod.number().nullish(),
+  purchase_year: zod.number().nullish(),
+  financing_type: zod.string().nullish(),
+  loan_amount_eur: zod.number().nullish(),
+  loan_rate_pct: zod.number().nullish(),
+  loan_term_years: zod.number().nullish(),
+});
+
+/**
+ * @summary Update a yacht profile
+ */
+export const UpdateYachtParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const updateYachtBodyYearBuiltMin = 1900;
+export const updateYachtBodyYearBuiltMax = 2100;
+
+export const updateYachtBodyLengthMetersMax = 200;
+
+export const updateYachtBodyCabinsMin = 0;
+
+export const updateYachtBodyGuestsMin = 0;
+
+export const updateYachtBodyCrewMin = 0;
+
+export const updateYachtBodyEngineHoursMin = 0;
+
+export const updateYachtBodyPurchasePriceEurMin = 0;
+
+export const updateYachtBodyPurchaseYearMin = 1900;
+export const updateYachtBodyPurchaseYearMax = 2100;
+
+export const updateYachtBodyLoanAmountEurMin = 0;
+
+export const updateYachtBodyLoanRatePctMin = 0;
+
+export const updateYachtBodyLoanTermYearsMin = 0;
+
+export const UpdateYachtBody = zod.object({
+  name: zod.string().nullish(),
+  brand: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod
+    .number()
+    .min(updateYachtBodyYearBuiltMin)
+    .max(updateYachtBodyYearBuiltMax)
+    .nullish(),
+  yacht_type: zod
+    .union([
+      zod.enum(["motor_yacht", "sailing_yacht", "catamaran", "superyacht"]),
+      zod.null(),
+    ])
+    .optional(),
+  configuration: zod.string().nullish(),
+  length_meters: zod
+    .number()
+    .min(1)
+    .max(updateYachtBodyLengthMetersMax)
+    .nullish(),
+  beam_meters: zod.number().nullish(),
+  cabins: zod.number().min(updateYachtBodyCabinsMin).nullish(),
+  guests: zod.number().min(updateYachtBodyGuestsMin).nullish(),
+  crew: zod.number().min(updateYachtBodyCrewMin).nullish(),
+  engine_hours: zod.number().min(updateYachtBodyEngineHoursMin).nullish(),
+  marina_location: zod.string().nullish(),
+  flag: zod.string().nullish(),
+  commercial_registration: zod.boolean().nullish(),
+  purchase_price_eur: zod
+    .number()
+    .min(updateYachtBodyPurchasePriceEurMin)
+    .nullish(),
+  purchase_year: zod
+    .number()
+    .min(updateYachtBodyPurchaseYearMin)
+    .max(updateYachtBodyPurchaseYearMax)
+    .nullish(),
+  financing_type: zod
+    .union([zod.enum(["cash", "loan"]), zod.null()])
+    .optional(),
+  loan_amount_eur: zod.number().min(updateYachtBodyLoanAmountEurMin).nullish(),
+  loan_rate_pct: zod.number().min(updateYachtBodyLoanRatePctMin).nullish(),
+  loan_term_years: zod.number().min(updateYachtBodyLoanTermYearsMin).nullish(),
+});
+
+export const UpdateYachtResponse = zod.object({
+  id: zod.string(),
+  clerk_user_id: zod.string(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+  name: zod.string().nullish(),
+  brand: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod.number().nullish(),
+  yacht_type: zod.string().nullish(),
+  configuration: zod.string().nullish(),
+  length_meters: zod.number().nullish(),
+  beam_meters: zod.number().nullish(),
+  cabins: zod.number().nullish(),
+  guests: zod.number().nullish(),
+  crew: zod.number().nullish(),
+  engine_hours: zod.number().nullish(),
+  marina_location: zod.string().nullish(),
+  flag: zod.string().nullish(),
+  commercial_registration: zod.boolean().nullish(),
+  purchase_price_eur: zod.number().nullish(),
+  purchase_year: zod.number().nullish(),
+  financing_type: zod.string().nullish(),
+  loan_amount_eur: zod.number().nullish(),
+  loan_rate_pct: zod.number().nullish(),
+  loan_term_years: zod.number().nullish(),
+});
+
+/**
+ * @summary Delete a yacht profile (cascades ROI calculations)
+ */
+export const DeleteYachtParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * Stage 1 stub: contract is locked but the engine is not implemented yet.
+Returns 501 until Stages 3–4 land.
+
+ * @summary Compute charter ROI for a yacht (AI-assisted)
+ */
+export const calculateRoiBodyManagementFeePctMin = 0;
+export const calculateRoiBodyManagementFeePctMax = 50;
+
+export const calculateRoiBodyTargetWeeksMin = 0;
+export const calculateRoiBodyTargetWeeksMax = 52;
+
+export const CalculateRoiBody = zod.object({
+  yacht_id: zod.string(),
+  region: zod.enum([
+    "mediterranean",
+    "caribbean",
+    "northern_europe",
+    "asia_pacific_me",
+    "middle_east",
+  ]),
+  management_style: zod.enum([
+    "owner_operated",
+    "management_company",
+    "brokerage",
+  ]),
+  occupancy_target: zod.enum(["conservative", "realistic", "optimistic"]),
+  management_fee_pct: zod
+    .number()
+    .min(calculateRoiBodyManagementFeePctMin)
+    .max(calculateRoiBodyManagementFeePctMax)
+    .nullish()
+    .describe(
+      "Override default management fee (18–25% by style); null = default",
+    ),
+  target_weeks: zod
+    .number()
+    .min(calculateRoiBodyTargetWeeksMin)
+    .max(calculateRoiBodyTargetWeeksMax)
+    .nullish()
+    .describe("Override AI-predicted charter weeks; null = AI decides"),
+});
+
+export const calculateRoiResponseRiskScoreMax = 10;
+
+export const calculateRoiResponseRevenueByMonthItemMonthMax = 12;
+
+export const CalculateRoiResponse = zod.object({
+  id: zod.string().nullish(),
+  annual_revenue_eur: zod.number(),
+  annual_expenses_eur: zod.number(),
+  net_profit_eur: zod.number(),
+  roi_pct: zod.number(),
+  payback_years: zod.number(),
+  occupancy_pct: zod.number(),
+  expected_charter_weeks: zod.number(),
+  avg_daily_rate_eur: zod.number(),
+  daily_rate_low_season_eur: zod.number().nullish(),
+  daily_rate_high_season_eur: zod.number().nullish(),
+  market_rating: zod
+    .union([
+      zod.literal("A"),
+      zod.literal("B"),
+      zod.literal("C"),
+      zod.literal("D"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  risk_score: zod
+    .number()
+    .min(1)
+    .max(calculateRoiResponseRiskScoreMax)
+    .nullish(),
+  currency: zod.string(),
+  expenses: zod.array(
+    zod.object({
+      category: zod.string(),
+      amount_eur: zod.number(),
+      formula: zod.string().nullish(),
+    }),
+  ),
+  revenue_by_month: zod.array(
+    zod.object({
+      month: zod
+        .number()
+        .min(1)
+        .max(calculateRoiResponseRevenueByMonthItemMonthMax),
+      value_eur: zod.number(),
+    }),
+  ),
+  depreciation_curve: zod.array(
+    zod.object({
+      year_offset: zod.number(),
+      value_eur: zod.number(),
+    }),
+  ),
+  roi_projection_5y: zod.array(
+    zod.object({
+      year_offset: zod.number(),
+      value_eur: zod.number(),
+    }),
+  ),
+  comparables: zod
+    .array(
+      zod.object({
+        builder: zod.string().nullish(),
+        model: zod.string().nullish(),
+        year: zod.number().nullish(),
+        length: zod.string().nullish(),
+        condition: zod.string().nullish(),
+        price: zod.string(),
+        note: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  reasoning: zod.string(),
+  recommendations: zod.array(zod.string()).optional(),
+  confidence: zod.enum(["high", "medium", "low"]),
+  legal_disclaimer: zod.string(),
+});
+
+/**
+ * @summary List user's saved ROI calculations
+ */
+export const ListRoiCalculationsQueryParams = zod.object({
+  yacht_id: zod.coerce.string().optional(),
+});
+
+export const ListRoiCalculationsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      yacht_id: zod.string(),
+      created_at: zod.string(),
+      region: zod.string(),
+      annual_revenue_eur: zod.number(),
+      annual_expenses_eur: zod.number().nullish(),
+      net_profit_eur: zod.number(),
+      roi_pct: zod.number(),
+      payback_years: zod.number().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a saved ROI calculation by id
+ */
+export const GetRoiCalculationParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const getRoiCalculationResponseInputManagementFeePctMin = 0;
+export const getRoiCalculationResponseInputManagementFeePctMax = 50;
+
+export const getRoiCalculationResponseInputTargetWeeksMin = 0;
+export const getRoiCalculationResponseInputTargetWeeksMax = 52;
+
+export const getRoiCalculationResponseResultRiskScoreMax = 10;
+
+export const getRoiCalculationResponseResultRevenueByMonthItemMonthMax = 12;
+
+export const GetRoiCalculationResponse = zod.object({
+  id: zod.string(),
+  yacht_id: zod.string(),
+  created_at: zod.string(),
+  input: zod.object({
+    yacht_id: zod.string(),
+    region: zod.enum([
+      "mediterranean",
+      "caribbean",
+      "northern_europe",
+      "asia_pacific_me",
+      "middle_east",
+    ]),
+    management_style: zod.enum([
+      "owner_operated",
+      "management_company",
+      "brokerage",
+    ]),
+    occupancy_target: zod.enum(["conservative", "realistic", "optimistic"]),
+    management_fee_pct: zod
+      .number()
+      .min(getRoiCalculationResponseInputManagementFeePctMin)
+      .max(getRoiCalculationResponseInputManagementFeePctMax)
+      .nullish()
+      .describe(
+        "Override default management fee (18–25% by style); null = default",
+      ),
+    target_weeks: zod
+      .number()
+      .min(getRoiCalculationResponseInputTargetWeeksMin)
+      .max(getRoiCalculationResponseInputTargetWeeksMax)
+      .nullish()
+      .describe("Override AI-predicted charter weeks; null = AI decides"),
+  }),
+  result: zod.object({
+    id: zod.string().nullish(),
+    annual_revenue_eur: zod.number(),
+    annual_expenses_eur: zod.number(),
+    net_profit_eur: zod.number(),
+    roi_pct: zod.number(),
+    payback_years: zod.number(),
+    occupancy_pct: zod.number(),
+    expected_charter_weeks: zod.number(),
+    avg_daily_rate_eur: zod.number(),
+    daily_rate_low_season_eur: zod.number().nullish(),
+    daily_rate_high_season_eur: zod.number().nullish(),
+    market_rating: zod
+      .union([
+        zod.literal("A"),
+        zod.literal("B"),
+        zod.literal("C"),
+        zod.literal("D"),
+        zod.literal(null),
+      ])
+      .nullish(),
+    risk_score: zod
+      .number()
+      .min(1)
+      .max(getRoiCalculationResponseResultRiskScoreMax)
+      .nullish(),
+    currency: zod.string(),
+    expenses: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    revenue_by_month: zod.array(
+      zod.object({
+        month: zod
+          .number()
+          .min(1)
+          .max(getRoiCalculationResponseResultRevenueByMonthItemMonthMax),
+        value_eur: zod.number(),
+      }),
+    ),
+    depreciation_curve: zod.array(
+      zod.object({
+        year_offset: zod.number(),
+        value_eur: zod.number(),
+      }),
+    ),
+    roi_projection_5y: zod.array(
+      zod.object({
+        year_offset: zod.number(),
+        value_eur: zod.number(),
+      }),
+    ),
+    comparables: zod
+      .array(
+        zod.object({
+          builder: zod.string().nullish(),
+          model: zod.string().nullish(),
+          year: zod.number().nullish(),
+          length: zod.string().nullish(),
+          condition: zod.string().nullish(),
+          price: zod.string(),
+          note: zod.string().nullish(),
+        }),
+      )
+      .optional(),
+    reasoning: zod.string(),
+    recommendations: zod.array(zod.string()).optional(),
+    confidence: zod.enum(["high", "medium", "low"]),
+    legal_disclaimer: zod.string(),
+  }),
+});

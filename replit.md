@@ -65,8 +65,23 @@ Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Cre
     - **Powered by PDYE** — gold-bordered card, taps `expo-web-browser.openBrowserAsync("https://www.pdyegroup.com")` (in-app browser on native, plain Linking on web), navy toolbar + gold controls.
     - **Sign out** — danger-red bordered button at bottom (signed-in only).
   - No new deps (`expo-web-browser` + `expo-constants` already present). Typecheck green. Verified live via screenshots: Profile (signed-out → Guest card + Sign in + Settings + PDYE + version) and Settings (Units segment with Metric active + Appearance Dark + About group + PDYE card with Visit PDYE arrow).
-- **Day 6 (next):** RevenueCat + paywall + 7-day trial + free-tier limits
-- **Day 7:** Screenshots + App Store/Google Play descriptions + Privacy Policy + Terms + EAS Build
+- **Day 6 / Day 7 — DEFERRED by owner.** RevenueCat + paywall + App Store submission будут позже. Phase 2 (Charter ROI Intelligence) приоритетнее.
+
+## Phase 2 — Charter ROI Intelligence (in progress)
+
+Внутренний модуль Yachtworth (НЕ отдельное приложение) для AI-расчёта рентабельности яхты в чартере. 10 стадий, см. историю чата. Pro-only гейт — позже на Day 6.
+
+- **Stage 1 (current) — DONE:** Архитектура + схема БД.
+  - **Миграция `migrations/002_charter_roi.sql`** (Supabase, тот же проект `yachtworth-prod`): 4 таблицы — `yachts` (профили яхт пользователя, scoped by clerk_user_id), `roi_calculations` (сохранённые расчёты, FK на yachts с cascade), `market_rates` (seed чартерных дневных ставок по типу/длине/региону/сезону — пока пустая), `expense_rates` (региональные коэффициенты расходов — пока пустая). RLS deny_all на всех 4, service-role обходит.
+  - **Константы в `artifacts/api-server/src/lib/supabase.ts`:** `YACHTS_TABLE`, `ROI_CALCULATIONS_TABLE`, `MARKET_RATES_TABLE`, `EXPENSE_RATES_TABLE`.
+  - **OpenAPI `lib/api-spec/openapi.yaml` расширен:** новые теги `yachts` + `roi`, новые схемы `Yacht/YachtInput/YachtListResponse`, `RoiCalculationInput/RoiCalculation/RoiCalculationListItem/RoiCalculationListResponse/RoiCalculationDetail`, `ExpenseBreakdown`, `MonthlyPoint`, `YearlyPoint`, enum-ы `FinancingType/CharterRegion/CharterSeason/ManagementStyle/OccupancyTarget`. Эндпоинты: `GET/POST /yachts`, `GET/PATCH/DELETE /yachts/{id}`, `POST /roi/calculate` (контракт залочен, тело — стаб **501** до Стадии 3–5), `GET /roi/calculations` (с опц. фильтром `?yacht_id`), `GET /roi/calculations/{id}`. Все требуют `bearerAuth`.
+  - **Роуты `artifacts/api-server/src/routes/yachts.ts`** — полный CRUD через Supabase service-role, scoping by `clerk_user_id`, валидация тела через `CreateYachtBody`/`UpdateYachtBody` (orval-сгенерённые zod), UUID-гард на path id (кривой id → 404, не 500).
+  - **Роуты `artifacts/api-server/src/routes/roi.ts`** — list/get через Supabase, stub `POST /roi/calculate` возвращает `501`. UUID-гард на path id и query `yacht_id`.
+  - **Хелпер `lib/validators.ts`** — `isUuid()` regex-гард, общий для всех новых роутов.
+  - Codegen прогнан: новые хуки `useListYachts/useCreateYacht/useGetYacht/useUpdateYacht/useDeleteYacht/useCalculateRoi/useListRoiCalculations/useGetRoiCalculation`. Typecheck зелёный, api-server рестартован, smoke-тест: новые роуты отдают 401 без токена.
+  - Code review (architect) PASS после фикса UUID-гарда. Известные не-критичные пункты на потом: integer-поля в orval генерятся как `number()` (общая проблема, не вношу в Стадии 1, чтобы не трогать существующие эндпоинты); OpenAPI не описывает `500/503` (тот же паттерн в `estimates.ts` — оставляю консистентным).
+  - **Ручной шаг от владельца:** вставить `migrations/002_charter_roi.sql` в Supabase SQL editor (`yachtworth-prod` проект) → Run. До этого `/yachts` и `/roi/calculations` будут возвращать 500 при попытке записи.
+- **Stage 2 (next):** Форма ввода профиля яхты — wizard на 3 шага (basics / operations / strategy) в стиле текущей валюации.
 
 ## Not in v1.0
 
