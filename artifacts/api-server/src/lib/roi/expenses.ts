@@ -138,20 +138,29 @@ export function buildExpenses(args: BuildExpensesArgs): {
     expenseRates,
   });
 
+  // Owner rule: an expense line appears in the report ONLY when the owner
+  // filled it in. The single exception is Routine maintenance — it ALWAYS
+  // appears with a regional estimate even if blank, because no boat in
+  // operation has truly zero maintenance and skipping it would inflate ROI.
   const pickMonthly = (
     label: string,
     override: number | string | null | undefined,
     fallback: number,
-  ): ExpenseLine => {
+    alwaysEstimate = false,
+  ): ExpenseLine | null => {
     const v = override == null ? null : Number(override);
-    const used = v != null && isFinite(v) ? v : fallback;
+    if (v != null && isFinite(v)) {
+      return {
+        category: label,
+        amount_eur: Math.round(v * 12),
+        formula: `Owner-provided: €${Math.round(v)}/mo × 12`,
+      };
+    }
+    if (!alwaysEstimate) return null;
     return {
       category: label,
-      amount_eur: Math.round(used * 12),
-      formula:
-        v != null && isFinite(v)
-          ? `Owner-provided: €${Math.round(used)}/mo × 12`
-          : `Estimated €${Math.round(used)}/mo × 12 (region ${region})`,
+      amount_eur: Math.round(fallback * 12),
+      formula: `Estimated €${Math.round(fallback)}/mo × 12 (region ${region})`,
     };
   };
 
@@ -159,33 +168,41 @@ export function buildExpenses(args: BuildExpensesArgs): {
     label: string,
     override: number | string | null | undefined,
     fallback: number,
-  ): ExpenseLine => {
+    alwaysEstimate = false,
+  ): ExpenseLine | null => {
     const v = override == null ? null : Number(override);
-    const used = v != null && isFinite(v) ? v : fallback;
+    if (v != null && isFinite(v)) {
+      return {
+        category: label,
+        amount_eur: Math.round(v),
+        formula: `Owner-provided: €${Math.round(v)}/yr`,
+      };
+    }
+    if (!alwaysEstimate) return null;
     return {
       category: label,
-      amount_eur: Math.round(used),
-      formula:
-        v != null && isFinite(v)
-          ? `Owner-provided: €${Math.round(used)}/yr`
-          : `Estimated €${Math.round(used)}/yr`,
+      amount_eur: Math.round(fallback),
+      formula: `Estimated €${Math.round(fallback)}/yr`,
     };
   };
 
-  const lines: ExpenseLine[] = [
-    pickMonthly("Crew", yacht.monthly_crew_eur, defaults.crewMonthly),
-    pickMonthly("Mooring / berth", yacht.monthly_mooring_eur, defaults.mooringMonthly),
-    pickMonthly("Fuel", yacht.monthly_fuel_eur, defaults.fuelMonthly),
-    pickMonthly("Provisioning", yacht.monthly_provisioning_eur, defaults.provisioningMonthly),
-    pickMonthly("Communications", yacht.monthly_communications_eur, defaults.commsMonthly),
-    pickMonthly("Routine maintenance", yacht.monthly_maintenance_eur, defaults.maintenanceMonthly),
-    pickMonthly("Misc operating", yacht.monthly_misc_eur, defaults.miscMonthly),
-    pickAnnual("Insurance", yacht.annual_insurance_eur, defaults.insuranceAnnual),
-    pickAnnual("Registration / flag", yacht.annual_registration_eur, defaults.registrationAnnual),
-    pickAnnual("Classification & survey", yacht.annual_classification_eur, defaults.classificationAnnual),
-    pickAnnual("Antifouling & haul-out", yacht.annual_antifouling_eur, defaults.antifoulingAnnual),
-    pickAnnual("Refit reserve", yacht.annual_refit_reserve_eur, defaults.refitAnnual),
-  ];
+  const lines: ExpenseLine[] = (
+    [
+      pickMonthly("Crew", yacht.monthly_crew_eur, defaults.crewMonthly),
+      pickMonthly("Mooring / berth", yacht.monthly_mooring_eur, defaults.mooringMonthly),
+      pickMonthly("Fuel", yacht.monthly_fuel_eur, defaults.fuelMonthly),
+      pickMonthly("Provisioning", yacht.monthly_provisioning_eur, defaults.provisioningMonthly),
+      pickMonthly("Communications", yacht.monthly_communications_eur, defaults.commsMonthly),
+      // Exception — maintenance always shown with regional estimate.
+      pickMonthly("Routine maintenance", yacht.monthly_maintenance_eur, defaults.maintenanceMonthly, true),
+      pickMonthly("Misc operating", yacht.monthly_misc_eur, defaults.miscMonthly),
+      pickAnnual("Insurance", yacht.annual_insurance_eur, defaults.insuranceAnnual),
+      pickAnnual("Registration / flag", yacht.annual_registration_eur, defaults.registrationAnnual),
+      pickAnnual("Classification & survey", yacht.annual_classification_eur, defaults.classificationAnnual),
+      pickAnnual("Antifouling & haul-out", yacht.annual_antifouling_eur, defaults.antifoulingAnnual),
+      pickAnnual("Refit reserve", yacht.annual_refit_reserve_eur, defaults.refitAnnual),
+    ] as (ExpenseLine | null)[]
+  ).filter((l): l is ExpenseLine => l !== null);
 
   // Management fee — uses owner override on yacht, then RoiCalculationInput override, then style default
   const ownerOverride = yacht.monthly_management_fee_eur != null
