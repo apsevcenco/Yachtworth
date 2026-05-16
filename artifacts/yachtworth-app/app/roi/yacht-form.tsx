@@ -48,7 +48,33 @@ const TYPE_OPTIONS: { value: YachtType; label: string }[] = [
   { value: "superyacht", label: "Superyacht" },
 ];
 
-const STEP_TITLES = ["Basics", "Operations", "Financing"];
+const STEP_TITLES = ["Basics", "Operations", "Expenses", "Financing"];
+
+// ── Expense fields ──────────────────────────────────────────────────────
+// Naming convention matches DB columns / OpenAPI exactly so payload mapping
+// is a 1-to-1 copy at submit time.
+const MONTHLY_FIELDS = [
+  { key: "monthly_crew_eur", label: "Crew salaries", hint: "Captain, deckhands, stewards" },
+  { key: "monthly_mooring_eur", label: "Mooring / berth", hint: "Marina contract or rolling fees" },
+  { key: "monthly_fuel_eur", label: "Fuel", hint: "Average across the season" },
+  { key: "monthly_provisioning_eur", label: "Provisioning", hint: "Food, drink, consumables" },
+  { key: "monthly_communications_eur", label: "Communications", hint: "Satellite, Wi-Fi, phone" },
+  { key: "monthly_maintenance_eur", label: "Routine maintenance", hint: "Servicing, small repairs" },
+  { key: "monthly_management_fee_eur", label: "Management fee", hint: "If yacht is professionally managed" },
+  { key: "monthly_misc_eur", label: "Other monthly costs", hint: "Anything not listed above" },
+] as const;
+
+const ANNUAL_FIELDS = [
+  { key: "annual_insurance_eur", label: "Insurance", hint: "Hull + P&I, full annual premium" },
+  { key: "annual_registration_eur", label: "Registration / flag", hint: "Annual flag-state fees" },
+  { key: "annual_classification_eur", label: "Classification & survey", hint: "Class society, MCA, audits" },
+  { key: "annual_antifouling_eur", label: "Antifouling & haul-out", hint: "Yearly bottom service" },
+  { key: "annual_refit_reserve_eur", label: "Refit reserve", hint: "Money set aside for major refit" },
+] as const;
+
+type MonthlyKey = (typeof MONTHLY_FIELDS)[number]["key"];
+type AnnualKey = (typeof ANNUAL_FIELDS)[number]["key"];
+type ExpenseKey = MonthlyKey | AnnualKey | "charter_commission_pct";
 
 interface FormState {
   // basics
@@ -68,6 +94,23 @@ interface FormState {
   commercial_registration: boolean;
   purchase_price_eur: string;
   purchase_year: string;
+  // expenses (monthly EUR)
+  monthly_crew_eur: string;
+  monthly_mooring_eur: string;
+  monthly_fuel_eur: string;
+  monthly_provisioning_eur: string;
+  monthly_communications_eur: string;
+  monthly_maintenance_eur: string;
+  monthly_management_fee_eur: string;
+  monthly_misc_eur: string;
+  // expenses (annual EUR)
+  annual_insurance_eur: string;
+  annual_registration_eur: string;
+  annual_classification_eur: string;
+  annual_antifouling_eur: string;
+  annual_refit_reserve_eur: string;
+  // charter-specific
+  charter_commission_pct: string;
   // financing
   financing_type: FinancingType | null;
   loan_amount_eur: string;
@@ -91,6 +134,20 @@ const INITIAL: FormState = {
   commercial_registration: false,
   purchase_price_eur: "",
   purchase_year: "",
+  monthly_crew_eur: "",
+  monthly_mooring_eur: "",
+  monthly_fuel_eur: "",
+  monthly_provisioning_eur: "",
+  monthly_communications_eur: "",
+  monthly_maintenance_eur: "",
+  monthly_management_fee_eur: "",
+  monthly_misc_eur: "",
+  annual_insurance_eur: "",
+  annual_registration_eur: "",
+  annual_classification_eur: "",
+  annual_antifouling_eur: "",
+  annual_refit_reserve_eur: "",
+  charter_commission_pct: "",
   financing_type: null,
   loan_amount_eur: "",
   loan_rate_pct: "",
@@ -105,6 +162,10 @@ function parseNum(v: string): number | null {
 function parseInt10(v: string): number | null {
   const n = parseInt(v.replace(/[^0-9]/g, ""), 10);
   return isFinite(n) ? n : null;
+}
+
+function toStr(n: number | null | undefined): string {
+  return n != null ? String(n) : "";
 }
 
 export default function YachtFormScreen() {
@@ -129,10 +190,7 @@ export default function YachtFormScreen() {
   const [step, setStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
   const lastPrefilledIdRef = useRef<string | null>(null);
-  // Lock units to whatever they were when the form mounted / prefilled, so
-  // a mid-edit global units toggle can NEVER reinterpret a typed value.
-  // The header pill / Settings still flip the GLOBAL units; the form just
-  // keeps its own snapshot for the lifetime of this screen.
+  // Lock units snapshot at mount — see Stage 2 review notes.
   const [formUnits, setFormUnits] = useState<"metric" | "imperial">(units);
   const formUnitsLockedRef = useRef(false);
   useEffect(() => {
@@ -142,7 +200,7 @@ export default function YachtFormScreen() {
     }
   }, [units]);
 
-  // Prefill on edit — re-prefills when editId changes, not a one-shot.
+  // Prefill on edit — re-prefills when editId changes.
   useEffect(() => {
     if (!editId) return;
     if (lastPrefilledIdRef.current === editId) return;
@@ -160,25 +218,36 @@ export default function YachtFormScreen() {
       name: y.name ?? "",
       brand: y.brand ?? "",
       model: y.model ?? "",
-      year_built: y.year_built != null ? String(y.year_built) : "",
+      year_built: toStr(y.year_built),
       yacht_type: (y.yacht_type as YachtType | null) ?? null,
       length: lengthDisplay,
-      cabins: y.cabins != null ? String(y.cabins) : "",
-      guests: y.guests != null ? String(y.guests) : "",
-      crew: y.crew != null ? String(y.crew) : "",
-      engine_hours: y.engine_hours != null ? String(y.engine_hours) : "",
+      cabins: toStr(y.cabins),
+      guests: toStr(y.guests),
+      crew: toStr(y.crew),
+      engine_hours: toStr(y.engine_hours),
       marina_location: y.marina_location ?? "",
       flag: y.flag ?? "",
       commercial_registration: Boolean(y.commercial_registration),
-      purchase_price_eur:
-        y.purchase_price_eur != null ? String(y.purchase_price_eur) : "",
-      purchase_year: y.purchase_year != null ? String(y.purchase_year) : "",
+      purchase_price_eur: toStr(y.purchase_price_eur),
+      purchase_year: toStr(y.purchase_year),
+      monthly_crew_eur: toStr(y.monthly_crew_eur),
+      monthly_mooring_eur: toStr(y.monthly_mooring_eur),
+      monthly_fuel_eur: toStr(y.monthly_fuel_eur),
+      monthly_provisioning_eur: toStr(y.monthly_provisioning_eur),
+      monthly_communications_eur: toStr(y.monthly_communications_eur),
+      monthly_maintenance_eur: toStr(y.monthly_maintenance_eur),
+      monthly_management_fee_eur: toStr(y.monthly_management_fee_eur),
+      monthly_misc_eur: toStr(y.monthly_misc_eur),
+      annual_insurance_eur: toStr(y.annual_insurance_eur),
+      annual_registration_eur: toStr(y.annual_registration_eur),
+      annual_classification_eur: toStr(y.annual_classification_eur),
+      annual_antifouling_eur: toStr(y.annual_antifouling_eur),
+      annual_refit_reserve_eur: toStr(y.annual_refit_reserve_eur),
+      charter_commission_pct: toStr(y.charter_commission_pct),
       financing_type: (y.financing_type as FinancingType | null) ?? null,
-      loan_amount_eur:
-        y.loan_amount_eur != null ? String(y.loan_amount_eur) : "",
-      loan_rate_pct: y.loan_rate_pct != null ? String(y.loan_rate_pct) : "",
-      loan_term_years:
-        y.loan_term_years != null ? String(y.loan_term_years) : "",
+      loan_amount_eur: toStr(y.loan_amount_eur),
+      loan_rate_pct: toStr(y.loan_rate_pct),
+      loan_term_years: toStr(y.loan_term_years),
     });
   }, [editId, getYacht.data, formUnits]);
 
@@ -187,13 +256,12 @@ export default function YachtFormScreen() {
 
   const lengthUnitLabel = formUnits === "imperial" ? "ft" : "m";
 
-  // ── Per-step validation ────────────────────────────────────────────────
+  // ── Validation ────────────────────────────────────────────────────────
   const errors = useMemo(() => {
     const e: Partial<Record<keyof FormState, string>> = {};
     // Step 0
     if (!form.yacht_type) e.yacht_type = "Pick a type";
     if (!form.name && !(form.brand && form.model)) {
-      // require either a custom name OR brand+model
       e.name = "Add a name or brand+model";
     }
     if (form.length) {
@@ -229,7 +297,21 @@ export default function YachtFormScreen() {
     }
     if (form.purchase_price_eur && !DEC_RE.test(form.purchase_price_eur))
       e.purchase_price_eur = "Invalid amount";
-    // Step 2
+    // Step 2 — expenses (all optional, just numeric sanity)
+    const expenseKeys: ExpenseKey[] = [
+      ...MONTHLY_FIELDS.map((f) => f.key),
+      ...ANNUAL_FIELDS.map((f) => f.key),
+      "charter_commission_pct",
+    ];
+    for (const k of expenseKeys) {
+      const v = form[k as keyof FormState] as string;
+      if (v && !DEC_RE.test(v)) e[k as keyof FormState] = "Invalid amount";
+    }
+    if (form.charter_commission_pct) {
+      const n = parseNum(form.charter_commission_pct);
+      if (n != null && (n < 0 || n > 100)) e.charter_commission_pct = "0–100 %";
+    }
+    // Step 3 — financing
     if (form.financing_type === "loan") {
       if (form.loan_amount_eur && !DEC_RE.test(form.loan_amount_eur))
         e.loan_amount_eur = "Invalid amount";
@@ -257,11 +339,16 @@ export default function YachtFormScreen() {
       "purchase_price_eur",
     ];
     const step2Keys: (keyof FormState)[] = [
+      ...MONTHLY_FIELDS.map((f) => f.key),
+      ...ANNUAL_FIELDS.map((f) => f.key),
+      "charter_commission_pct",
+    ];
+    const step3Keys: (keyof FormState)[] = [
       "loan_amount_eur",
       "loan_rate_pct",
       "loan_term_years",
     ];
-    return [step0Keys, step1Keys, step2Keys].map((keys) =>
+    return [step0Keys, step1Keys, step2Keys, step3Keys].map((keys) =>
       keys.some((k) => errors[k]),
     );
   }, [errors]);
@@ -293,12 +380,10 @@ export default function YachtFormScreen() {
   };
 
   const submit = async () => {
-    // Final guard
     if (stepErrors.some(Boolean)) {
       setShowErrors(true);
       return;
     }
-    // Build payload — always send metric to API
     const lengthVal = parseNum(form.length);
     const lengthMeters =
       lengthVal != null
@@ -307,6 +392,9 @@ export default function YachtFormScreen() {
           : lengthVal
         : null;
 
+    const numOrNull = (v: string) => (v ? parseNum(v) : null);
+    const intOrNull = (v: string) => (v ? parseInt10(v) : null);
+
     const payload = {
       name: form.name || null,
       brand: form.brand || null,
@@ -314,32 +402,38 @@ export default function YachtFormScreen() {
       year_built: form.year_built ? parseInt(form.year_built, 10) : null,
       yacht_type: form.yacht_type,
       length_meters: lengthMeters,
-      cabins: form.cabins ? parseInt10(form.cabins) : null,
-      guests: form.guests ? parseInt10(form.guests) : null,
-      crew: form.crew ? parseInt10(form.crew) : null,
-      engine_hours: form.engine_hours ? parseInt10(form.engine_hours) : null,
+      cabins: intOrNull(form.cabins),
+      guests: intOrNull(form.guests),
+      crew: intOrNull(form.crew),
+      engine_hours: intOrNull(form.engine_hours),
       marina_location: form.marina_location || null,
       flag: form.flag || null,
       commercial_registration: form.commercial_registration,
-      purchase_price_eur: form.purchase_price_eur
-        ? parseNum(form.purchase_price_eur)
-        : null,
-      purchase_year: form.purchase_year
-        ? parseInt(form.purchase_year, 10)
-        : null,
+      purchase_price_eur: numOrNull(form.purchase_price_eur),
+      purchase_year: form.purchase_year ? parseInt(form.purchase_year, 10) : null,
+      // expenses
+      monthly_crew_eur: numOrNull(form.monthly_crew_eur),
+      monthly_mooring_eur: numOrNull(form.monthly_mooring_eur),
+      monthly_fuel_eur: numOrNull(form.monthly_fuel_eur),
+      monthly_provisioning_eur: numOrNull(form.monthly_provisioning_eur),
+      monthly_communications_eur: numOrNull(form.monthly_communications_eur),
+      monthly_maintenance_eur: numOrNull(form.monthly_maintenance_eur),
+      monthly_management_fee_eur: numOrNull(form.monthly_management_fee_eur),
+      monthly_misc_eur: numOrNull(form.monthly_misc_eur),
+      annual_insurance_eur: numOrNull(form.annual_insurance_eur),
+      annual_registration_eur: numOrNull(form.annual_registration_eur),
+      annual_classification_eur: numOrNull(form.annual_classification_eur),
+      annual_antifouling_eur: numOrNull(form.annual_antifouling_eur),
+      annual_refit_reserve_eur: numOrNull(form.annual_refit_reserve_eur),
+      charter_commission_pct: numOrNull(form.charter_commission_pct),
+      // financing
       financing_type: form.financing_type,
       loan_amount_eur:
-        form.financing_type === "loan" && form.loan_amount_eur
-          ? parseNum(form.loan_amount_eur)
-          : null,
+        form.financing_type === "loan" ? numOrNull(form.loan_amount_eur) : null,
       loan_rate_pct:
-        form.financing_type === "loan" && form.loan_rate_pct
-          ? parseNum(form.loan_rate_pct)
-          : null,
+        form.financing_type === "loan" ? numOrNull(form.loan_rate_pct) : null,
       loan_term_years:
-        form.financing_type === "loan" && form.loan_term_years
-          ? parseInt10(form.loan_term_years)
-          : null,
+        form.financing_type === "loan" ? intOrNull(form.loan_term_years) : null,
     };
 
     try {
@@ -365,7 +459,6 @@ export default function YachtFormScreen() {
       : null;
   const isSubmitting = createMut.isPending || updateMut.isPending;
 
-  // Auth gate — redirect to sign-in if not logged in
   if (isLoaded && !isSignedIn) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
@@ -473,11 +566,16 @@ export default function YachtFormScreen() {
               form={form}
               update={update}
               errors={showErrors ? errors : {}}
-              units={units}
               lengthUnitLabel={lengthUnitLabel}
             />
           ) : step === 1 ? (
             <OperationsStep
+              form={form}
+              update={update}
+              errors={showErrors ? errors : {}}
+            />
+          ) : step === 2 ? (
+            <ExpensesStep
               form={form}
               update={update}
               errors={showErrors ? errors : {}}
@@ -542,9 +640,8 @@ function BasicsStep({
   form,
   update,
   errors,
-  units: _units,
   lengthUnitLabel,
-}: StepProps & { units: "metric" | "imperial"; lengthUnitLabel: string }) {
+}: StepProps & { lengthUnitLabel: string }) {
   return (
     <View>
       <Field label="Yacht type" error={errors.yacht_type}>
@@ -703,6 +800,62 @@ function OperationsStep({ form, update, errors }: StepProps) {
   );
 }
 
+function ExpensesStep({ form, update, errors }: StepProps) {
+  return (
+    <View>
+      <Text style={styles.sectionLead}>
+        Fill in only what you know. Empty fields will fall back to regional averages.
+      </Text>
+
+      <SectionLabel text="MONTHLY · € PER MONTH" />
+      {MONTHLY_FIELDS.map((f) => (
+        <Field
+          key={f.key}
+          label={f.label}
+          hint={f.hint}
+          error={errors[f.key as keyof FormState]}
+        >
+          <MoneyInput
+            value={form[f.key] as string}
+            onChangeText={(v) => update(f.key as keyof FormState, v as never)}
+            suffix="€ / mo"
+          />
+        </Field>
+      ))}
+
+      <SectionLabel text="ANNUAL · € PER YEAR" />
+      {ANNUAL_FIELDS.map((f) => (
+        <Field
+          key={f.key}
+          label={f.label}
+          hint={f.hint}
+          error={errors[f.key as keyof FormState]}
+        >
+          <MoneyInput
+            value={form[f.key] as string}
+            onChangeText={(v) => update(f.key as keyof FormState, v as never)}
+            suffix="€ / yr"
+          />
+        </Field>
+      ))}
+
+      <SectionLabel text="CHARTER" />
+      <Field
+        label="Broker commission"
+        hint="% of gross charter revenue paid to your broker"
+        error={errors.charter_commission_pct}
+      >
+        <MoneyInput
+          value={form.charter_commission_pct}
+          onChangeText={(v) => update("charter_commission_pct", v)}
+          suffix="%"
+          placeholder="15"
+        />
+      </Field>
+    </View>
+  );
+}
+
 function FinancingStep({ form, update, errors }: StepProps) {
   const isLoan = form.financing_type === "loan";
   return (
@@ -763,6 +916,36 @@ function FinancingStep({ form, update, errors }: StepProps) {
           Loan details only affect the ROI calculation; you can change financing later.
         </Text>
       )}
+    </View>
+  );
+}
+
+function SectionLabel({ text }: { text: string }) {
+  return <Text style={styles.sectionLabel}>{text}</Text>;
+}
+
+function MoneyInput({
+  value,
+  onChangeText,
+  suffix,
+  placeholder,
+}: {
+  value: string;
+  onChangeText: (v: string) => void;
+  suffix: string;
+  placeholder?: string;
+}) {
+  return (
+    <View style={styles.moneyWrap}>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder ?? "0"}
+        placeholderTextColor={MUTED}
+        keyboardType="decimal-pad"
+        style={styles.moneyInput}
+      />
+      <Text style={styles.moneySuffix}>{suffix}</Text>
     </View>
   );
 }
@@ -911,5 +1094,43 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 14,
     paddingHorizontal: 12,
+  },
+  sectionLead: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  sectionLabel: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+    letterSpacing: 1.6,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  moneyWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: NAVY_DEEP,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingRight: 12,
+  },
+  moneyInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+  },
+  moneySuffix: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 });

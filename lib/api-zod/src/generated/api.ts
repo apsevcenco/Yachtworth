@@ -396,6 +396,20 @@ export const ListYachtsResponse = zod.object({
       loan_amount_eur: zod.number().nullish(),
       loan_rate_pct: zod.number().nullish(),
       loan_term_years: zod.number().nullish(),
+      monthly_crew_eur: zod.number().nullish(),
+      monthly_mooring_eur: zod.number().nullish(),
+      monthly_fuel_eur: zod.number().nullish(),
+      monthly_provisioning_eur: zod.number().nullish(),
+      monthly_communications_eur: zod.number().nullish(),
+      monthly_maintenance_eur: zod.number().nullish(),
+      monthly_management_fee_eur: zod.number().nullish(),
+      monthly_misc_eur: zod.number().nullish(),
+      annual_insurance_eur: zod.number().nullish(),
+      annual_registration_eur: zod.number().nullish(),
+      annual_classification_eur: zod.number().nullish(),
+      annual_antifouling_eur: zod.number().nullish(),
+      annual_refit_reserve_eur: zod.number().nullish(),
+      charter_commission_pct: zod.number().nullish(),
     }),
   ),
 });
@@ -426,6 +440,35 @@ export const createYachtBodyLoanAmountEurMin = 0;
 export const createYachtBodyLoanRatePctMin = 0;
 
 export const createYachtBodyLoanTermYearsMin = 0;
+
+export const createYachtBodyMonthlyCrewEurMin = 0;
+
+export const createYachtBodyMonthlyMooringEurMin = 0;
+
+export const createYachtBodyMonthlyFuelEurMin = 0;
+
+export const createYachtBodyMonthlyProvisioningEurMin = 0;
+
+export const createYachtBodyMonthlyCommunicationsEurMin = 0;
+
+export const createYachtBodyMonthlyMaintenanceEurMin = 0;
+
+export const createYachtBodyMonthlyManagementFeeEurMin = 0;
+
+export const createYachtBodyMonthlyMiscEurMin = 0;
+
+export const createYachtBodyAnnualInsuranceEurMin = 0;
+
+export const createYachtBodyAnnualRegistrationEurMin = 0;
+
+export const createYachtBodyAnnualClassificationEurMin = 0;
+
+export const createYachtBodyAnnualAntifoulingEurMin = 0;
+
+export const createYachtBodyAnnualRefitReserveEurMin = 0;
+
+export const createYachtBodyCharterCommissionPctMin = 0;
+export const createYachtBodyCharterCommissionPctMax = 100;
 
 export const CreateYachtBody = zod.object({
   name: zod.string().nullish(),
@@ -471,6 +514,63 @@ export const CreateYachtBody = zod.object({
   loan_amount_eur: zod.number().min(createYachtBodyLoanAmountEurMin).nullish(),
   loan_rate_pct: zod.number().min(createYachtBodyLoanRatePctMin).nullish(),
   loan_term_years: zod.number().min(createYachtBodyLoanTermYearsMin).nullish(),
+  monthly_crew_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyCrewEurMin)
+    .nullish(),
+  monthly_mooring_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyMooringEurMin)
+    .nullish(),
+  monthly_fuel_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyFuelEurMin)
+    .nullish(),
+  monthly_provisioning_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyProvisioningEurMin)
+    .nullish(),
+  monthly_communications_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyCommunicationsEurMin)
+    .nullish(),
+  monthly_maintenance_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyMaintenanceEurMin)
+    .nullish(),
+  monthly_management_fee_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyManagementFeeEurMin)
+    .nullish(),
+  monthly_misc_eur: zod
+    .number()
+    .min(createYachtBodyMonthlyMiscEurMin)
+    .nullish(),
+  annual_insurance_eur: zod
+    .number()
+    .min(createYachtBodyAnnualInsuranceEurMin)
+    .nullish(),
+  annual_registration_eur: zod
+    .number()
+    .min(createYachtBodyAnnualRegistrationEurMin)
+    .nullish(),
+  annual_classification_eur: zod
+    .number()
+    .min(createYachtBodyAnnualClassificationEurMin)
+    .nullish(),
+  annual_antifouling_eur: zod
+    .number()
+    .min(createYachtBodyAnnualAntifoulingEurMin)
+    .nullish(),
+  annual_refit_reserve_eur: zod
+    .number()
+    .min(createYachtBodyAnnualRefitReserveEurMin)
+    .nullish(),
+  charter_commission_pct: zod
+    .number()
+    .min(createYachtBodyCharterCommissionPctMin)
+    .max(createYachtBodyCharterCommissionPctMax)
+    .nullish(),
 });
 
 /**
@@ -506,6 +606,20 @@ export const GetYachtResponse = zod.object({
   loan_amount_eur: zod.number().nullish(),
   loan_rate_pct: zod.number().nullish(),
   loan_term_years: zod.number().nullish(),
+  monthly_crew_eur: zod.number().nullish(),
+  monthly_mooring_eur: zod.number().nullish(),
+  monthly_fuel_eur: zod.number().nullish(),
+  monthly_provisioning_eur: zod.number().nullish(),
+  monthly_communications_eur: zod.number().nullish(),
+  monthly_maintenance_eur: zod.number().nullish(),
+  monthly_management_fee_eur: zod.number().nullish(),
+  monthly_misc_eur: zod.number().nullish(),
+  annual_insurance_eur: zod.number().nullish(),
+  annual_registration_eur: zod.number().nullish(),
+  annual_classification_eur: zod.number().nullish(),
+  annual_antifouling_eur: zod.number().nullish(),
+  annual_refit_reserve_eur: zod.number().nullish(),
+  charter_commission_pct: zod.number().nullish(),
 });
 
 /**
@@ -538,6 +652,35 @@ export const updateYachtBodyLoanAmountEurMin = 0;
 export const updateYachtBodyLoanRatePctMin = 0;
 
 export const updateYachtBodyLoanTermYearsMin = 0;
+
+export const updateYachtBodyMonthlyCrewEurMin = 0;
+
+export const updateYachtBodyMonthlyMooringEurMin = 0;
+
+export const updateYachtBodyMonthlyFuelEurMin = 0;
+
+export const updateYachtBodyMonthlyProvisioningEurMin = 0;
+
+export const updateYachtBodyMonthlyCommunicationsEurMin = 0;
+
+export const updateYachtBodyMonthlyMaintenanceEurMin = 0;
+
+export const updateYachtBodyMonthlyManagementFeeEurMin = 0;
+
+export const updateYachtBodyMonthlyMiscEurMin = 0;
+
+export const updateYachtBodyAnnualInsuranceEurMin = 0;
+
+export const updateYachtBodyAnnualRegistrationEurMin = 0;
+
+export const updateYachtBodyAnnualClassificationEurMin = 0;
+
+export const updateYachtBodyAnnualAntifoulingEurMin = 0;
+
+export const updateYachtBodyAnnualRefitReserveEurMin = 0;
+
+export const updateYachtBodyCharterCommissionPctMin = 0;
+export const updateYachtBodyCharterCommissionPctMax = 100;
 
 export const UpdateYachtBody = zod.object({
   name: zod.string().nullish(),
@@ -583,6 +726,63 @@ export const UpdateYachtBody = zod.object({
   loan_amount_eur: zod.number().min(updateYachtBodyLoanAmountEurMin).nullish(),
   loan_rate_pct: zod.number().min(updateYachtBodyLoanRatePctMin).nullish(),
   loan_term_years: zod.number().min(updateYachtBodyLoanTermYearsMin).nullish(),
+  monthly_crew_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyCrewEurMin)
+    .nullish(),
+  monthly_mooring_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyMooringEurMin)
+    .nullish(),
+  monthly_fuel_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyFuelEurMin)
+    .nullish(),
+  monthly_provisioning_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyProvisioningEurMin)
+    .nullish(),
+  monthly_communications_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyCommunicationsEurMin)
+    .nullish(),
+  monthly_maintenance_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyMaintenanceEurMin)
+    .nullish(),
+  monthly_management_fee_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyManagementFeeEurMin)
+    .nullish(),
+  monthly_misc_eur: zod
+    .number()
+    .min(updateYachtBodyMonthlyMiscEurMin)
+    .nullish(),
+  annual_insurance_eur: zod
+    .number()
+    .min(updateYachtBodyAnnualInsuranceEurMin)
+    .nullish(),
+  annual_registration_eur: zod
+    .number()
+    .min(updateYachtBodyAnnualRegistrationEurMin)
+    .nullish(),
+  annual_classification_eur: zod
+    .number()
+    .min(updateYachtBodyAnnualClassificationEurMin)
+    .nullish(),
+  annual_antifouling_eur: zod
+    .number()
+    .min(updateYachtBodyAnnualAntifoulingEurMin)
+    .nullish(),
+  annual_refit_reserve_eur: zod
+    .number()
+    .min(updateYachtBodyAnnualRefitReserveEurMin)
+    .nullish(),
+  charter_commission_pct: zod
+    .number()
+    .min(updateYachtBodyCharterCommissionPctMin)
+    .max(updateYachtBodyCharterCommissionPctMax)
+    .nullish(),
 });
 
 export const UpdateYachtResponse = zod.object({
@@ -611,6 +811,20 @@ export const UpdateYachtResponse = zod.object({
   loan_amount_eur: zod.number().nullish(),
   loan_rate_pct: zod.number().nullish(),
   loan_term_years: zod.number().nullish(),
+  monthly_crew_eur: zod.number().nullish(),
+  monthly_mooring_eur: zod.number().nullish(),
+  monthly_fuel_eur: zod.number().nullish(),
+  monthly_provisioning_eur: zod.number().nullish(),
+  monthly_communications_eur: zod.number().nullish(),
+  monthly_maintenance_eur: zod.number().nullish(),
+  monthly_management_fee_eur: zod.number().nullish(),
+  monthly_misc_eur: zod.number().nullish(),
+  annual_insurance_eur: zod.number().nullish(),
+  annual_registration_eur: zod.number().nullish(),
+  annual_classification_eur: zod.number().nullish(),
+  annual_antifouling_eur: zod.number().nullish(),
+  annual_refit_reserve_eur: zod.number().nullish(),
+  charter_commission_pct: zod.number().nullish(),
 });
 
 /**

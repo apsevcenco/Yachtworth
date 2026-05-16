@@ -725,6 +725,52 @@ components:
         loan_term_years:
           type: ["integer", "null"]
           minimum: 0
+        # ── Monthly operating expenses (EUR / month) ─────────────────
+        monthly_crew_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_mooring_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_fuel_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_provisioning_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_communications_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_maintenance_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_management_fee_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_misc_eur:
+          type: ["number", "null"]
+          minimum: 0
+        # ── Annual fixed expenses (EUR / year) ───────────────────────
+        annual_insurance_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_registration_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_classification_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_antifouling_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_refit_reserve_eur:
+          type: ["number", "null"]
+          minimum: 0
+        # ── Charter-specific ────────────────────────────────────────
+        charter_commission_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
     Yacht:
       type: object
       required: [id, clerk_user_id, created_at, updated_at]
@@ -779,6 +825,34 @@ components:
           type: ["number", "null"]
         loan_term_years:
           type: ["integer", "null"]
+        monthly_crew_eur:
+          type: ["number", "null"]
+        monthly_mooring_eur:
+          type: ["number", "null"]
+        monthly_fuel_eur:
+          type: ["number", "null"]
+        monthly_provisioning_eur:
+          type: ["number", "null"]
+        monthly_communications_eur:
+          type: ["number", "null"]
+        monthly_maintenance_eur:
+          type: ["number", "null"]
+        monthly_management_fee_eur:
+          type: ["number", "null"]
+        monthly_misc_eur:
+          type: ["number", "null"]
+        annual_insurance_eur:
+          type: ["number", "null"]
+        annual_registration_eur:
+          type: ["number", "null"]
+        annual_classification_eur:
+          type: ["number", "null"]
+        annual_antifouling_eur:
+          type: ["number", "null"]
+        annual_refit_reserve_eur:
+          type: ["number", "null"]
+        charter_commission_pct:
+          type: ["number", "null"]
     YachtListResponse:
       type: object
       required: [items]

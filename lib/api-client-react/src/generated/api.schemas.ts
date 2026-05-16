@@ -363,6 +363,77 @@ export interface YachtInput {
    * @nullable
    */
   loan_term_years?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_crew_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_mooring_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_fuel_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_provisioning_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_communications_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_maintenance_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_management_fee_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_misc_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_insurance_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_registration_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_classification_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_antifouling_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_refit_reserve_eur?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  charter_commission_pct?: number | null;
 }
 
 export interface Yacht {
@@ -412,6 +483,34 @@ export interface Yacht {
   loan_rate_pct?: number | null;
   /** @nullable */
   loan_term_years?: number | null;
+  /** @nullable */
+  monthly_crew_eur?: number | null;
+  /** @nullable */
+  monthly_mooring_eur?: number | null;
+  /** @nullable */
+  monthly_fuel_eur?: number | null;
+  /** @nullable */
+  monthly_provisioning_eur?: number | null;
+  /** @nullable */
+  monthly_communications_eur?: number | null;
+  /** @nullable */
+  monthly_maintenance_eur?: number | null;
+  /** @nullable */
+  monthly_management_fee_eur?: number | null;
+  /** @nullable */
+  monthly_misc_eur?: number | null;
+  /** @nullable */
+  annual_insurance_eur?: number | null;
+  /** @nullable */
+  annual_registration_eur?: number | null;
+  /** @nullable */
+  annual_classification_eur?: number | null;
+  /** @nullable */
+  annual_antifouling_eur?: number | null;
+  /** @nullable */
+  annual_refit_reserve_eur?: number | null;
+  /** @nullable */
+  charter_commission_pct?: number | null;
 }
 
 export interface YachtListResponse {
