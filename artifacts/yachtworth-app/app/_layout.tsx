@@ -64,6 +64,10 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
+        name="roi/yacht-form"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
         name="settings"
         options={{ headerShown: false, presentation: "card" }}
       />

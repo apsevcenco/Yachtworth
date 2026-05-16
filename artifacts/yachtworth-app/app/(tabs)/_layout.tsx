@@ -16,6 +16,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "sailboat", selected: "sailboat.fill" }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="charter">
+        <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
+        <Label>Charter ROI</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         <Icon sf={{ default: "clock", selected: "clock.fill" }} />
         <Label>History</Label>
@@ -78,6 +82,18 @@ function ClassicTabLayout() {
               <SymbolView name="sailboat" tintColor={color} size={24} />
             ) : (
               <Feather name="anchor" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="charter"
+        options={{
+          title: "Charter ROI",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chart.line.uptrend.xyaxis" tintColor={color} size={24} />
+            ) : (
+              <Feather name="trending-up" size={22} color={color} />
             ),
         }}
       />
