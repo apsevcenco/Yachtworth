@@ -1,8 +1,13 @@
 import { Feather } from "@expo/vector-icons";
-import type { RoiCalculation } from "@workspace/api-client-react";
+import {
+  getGetRoiCalculationQueryKey,
+  useGetRoiCalculation,
+  type RoiCalculation,
+} from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,9 +37,9 @@ const MONTH_LABELS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"
 export default function RoiResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ data?: string }>();
+  const params = useLocalSearchParams<{ data?: string; id?: string }>();
 
-  const data: RoiCalculation | null = useMemo(() => {
+  const inlineData: RoiCalculation | null = useMemo(() => {
     if (typeof params.data !== "string") return null;
     try {
       return JSON.parse(params.data) as RoiCalculation;
@@ -42,6 +47,31 @@ export default function RoiResultScreen() {
       return null;
     }
   }, [params.data]);
+
+  const idParam = typeof params.id === "string" ? params.id : "";
+  const detailQuery = useGetRoiCalculation(idParam, {
+    query: {
+      queryKey: getGetRoiCalculationQueryKey(idParam),
+      enabled: Boolean(idParam && !inlineData),
+      staleTime: 30_000,
+    },
+  });
+
+  const data: RoiCalculation | null = useMemo(() => {
+    if (inlineData) return inlineData;
+    return (detailQuery.data?.result as unknown as RoiCalculation) ?? null;
+  }, [inlineData, detailQuery.data]);
+
+  if (idParam && !inlineData && detailQuery.isLoading) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+        <TopBar onBack={() => router.back()} title="ROI result" />
+        <View style={styles.empty}>
+          <ActivityIndicator color={GOLD} />
+        </View>
+      </View>
+    );
+  }
 
   if (!data) {
     return (

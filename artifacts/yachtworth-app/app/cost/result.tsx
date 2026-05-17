@@ -1,7 +1,12 @@
 import { Feather } from "@expo/vector-icons";
+import {
+  getGetCostEstimateQueryKey,
+  useGetCostEstimate,
+} from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -71,9 +76,9 @@ function fmtEur(n: number): string {
 export default function CostResultScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ data?: string }>();
+  const params = useLocalSearchParams<{ data?: string; id?: string }>();
 
-  const envelope = useMemo<CostEstimateEnvelope | null>(() => {
+  const inlineEnvelope = useMemo<CostEstimateEnvelope | null>(() => {
     if (!params.data) return null;
     try {
       return JSON.parse(params.data) as CostEstimateEnvelope;
@@ -81,6 +86,37 @@ export default function CostResultScreen() {
       return null;
     }
   }, [params.data]);
+
+  const idParam = typeof params.id === "string" ? params.id : "";
+  const detailQuery = useGetCostEstimate(idParam, {
+    query: {
+      queryKey: getGetCostEstimateQueryKey(idParam),
+      enabled: Boolean(idParam && !inlineEnvelope),
+      staleTime: 30_000,
+    },
+  });
+
+  const envelope: CostEstimateEnvelope | null = useMemo(() => {
+    if (inlineEnvelope) return inlineEnvelope;
+    const d = detailQuery.data;
+    if (!d) return null;
+    return {
+      id: d.id,
+      created_at: d.created_at,
+      result: d.result as unknown as CostResult,
+    };
+  }, [inlineEnvelope, detailQuery.data]);
+
+  if (idParam && !inlineEnvelope && detailQuery.isLoading) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+        <TopBar onBack={() => router.back()} />
+        <View style={styles.empty}>
+          <ActivityIndicator color={GOLD} />
+        </View>
+      </View>
+    );
+  }
 
   if (!envelope) {
     return (
