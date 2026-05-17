@@ -702,6 +702,231 @@ export interface RoiCalculationDetail {
   result: RoiCalculation;
 }
 
+export type OperationRegion =
+  (typeof OperationRegion)[keyof typeof OperationRegion];
+
+export const OperationRegion = {
+  mediterranean: "mediterranean",
+  northern_europe: "northern_europe",
+  caribbean: "caribbean",
+  asia_pacific: "asia_pacific",
+  middle_east: "middle_east",
+  global: "global",
+} as const;
+
+export type UsageType = (typeof UsageType)[keyof typeof UsageType];
+
+export const UsageType = {
+  private: "private",
+  mixed: "mixed",
+  charter_focused: "charter_focused",
+} as const;
+
+export type CostFinancingType =
+  (typeof CostFinancingType)[keyof typeof CostFinancingType];
+
+export const CostFinancingType = {
+  cash: "cash",
+  loan: "loan",
+} as const;
+
+export interface CrewPositionInput {
+  /** Position key (captain, first_officer, chief_engineer, chef, stewardess, deckhand, bosun, security) */
+  position: string;
+  enabled: boolean;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_salary_eur?: number | null;
+  /**
+   * Only meaningful for stewardess/deckhand
+   * @minimum 1
+   * @maximum 4
+   * @nullable
+   */
+  quantity?: number | null;
+}
+
+export interface CostMonthlyExpenses {
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  mooring_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  fuel_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  provisioning_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  communications_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  maintenance_eur?: number | null;
+}
+
+export interface CostAnnualExpenses {
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  insurance_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  registration_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  classification_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  antifouling_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  refit_reserve_eur?: number | null;
+}
+
+export interface CostFinancingInput {
+  type: CostFinancingType;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_amount_eur?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 30
+   * @nullable
+   */
+  interest_rate_pct?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 40
+   * @nullable
+   */
+  term_years?: number | null;
+}
+
+export interface CostEstimateInput {
+  /** @nullable */
+  yacht_name?: string | null;
+  yacht_class: YachtType;
+  /**
+   * @minimum 5
+   * @maximum 120
+   */
+  length_meters: number;
+  /**
+   * @minimum 1950
+   * @maximum 2026
+   */
+  year_built: number;
+  region: OperationRegion;
+  usage_type: UsageType;
+  crew: CrewPositionInput[];
+  monthly_expenses: CostMonthlyExpenses;
+  annual_expenses: CostAnnualExpenses;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  broker_commission_pct?: number | null;
+  financing: CostFinancingInput;
+}
+
+export interface CostBreakdownEntry {
+  category: string;
+  amount_eur: number;
+  /** @nullable */
+  formula?: string | null;
+}
+
+export interface CostCategorySummary {
+  category: string;
+  amount_eur: number;
+  color_hint: string;
+}
+
+export interface CostEstimateResult {
+  total_annual_eur: number;
+  cost_per_day_eur: number;
+  cost_per_week_eur: number;
+  crew_total_eur: number;
+  operations_total_eur: number;
+  maintenance_total_eur: number;
+  financing_total_eur: number;
+  crew_breakdown: CostBreakdownEntry[];
+  operations_breakdown: CostBreakdownEntry[];
+  maintenance_breakdown: CostBreakdownEntry[];
+  financing_breakdown: CostBreakdownEntry[];
+  category_summary: CostCategorySummary[];
+  /** @nullable */
+  charter_break_even_weeks?: number | null;
+  currency: string;
+  legal_disclaimer: string;
+  /** @nullable */
+  yacht_name?: string | null;
+  yacht_class: YachtType;
+  length_meters: number;
+  year_built: number;
+}
+
+export interface CostEstimate {
+  /** @nullable */
+  id?: string | null;
+  /** @nullable */
+  created_at?: string | null;
+  result: CostEstimateResult;
+}
+
+export interface CostEstimateListItem {
+  id: string;
+  created_at: string;
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  yacht_name?: string | null;
+  yacht_class: string;
+  length_meters: number;
+  year_built?: number;
+  region: string;
+  usage_type?: string;
+  total_annual_eur: number;
+  currency?: string;
+}
+
+export interface CostEstimateListResponse {
+  items: CostEstimateListItem[];
+}
+
+export interface CostEstimateDetail {
+  id: string;
+  created_at: string;
+  /** @nullable */
+  name?: string | null;
+  input: CostEstimateInput;
+  result: CostEstimateResult;
+}
+
 export type ListRoiCalculationsParams = {
   yacht_id?: string;
 };

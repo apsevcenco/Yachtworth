@@ -17,6 +17,10 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CostEstimate,
+  CostEstimateDetail,
+  CostEstimateInput,
+  CostEstimateListResponse,
   ErrorResponse,
   EstimateDetail,
   EstimateListResponse,
@@ -981,6 +985,341 @@ export function useListRoiCalculations<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Pure deterministic calculator. If the caller is authenticated, the
+estimate is also persisted to history; guests still get the result.
+
+ * @summary Compute (and optionally save) annual ownership cost
+ */
+export const getCalculateCostEstimateUrl = () => {
+  return `/api/cost-estimates`;
+};
+
+export const calculateCostEstimate = async (
+  costEstimateInput: CostEstimateInput,
+  options?: RequestInit,
+): Promise<CostEstimate> => {
+  return customFetch<CostEstimate>(getCalculateCostEstimateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(costEstimateInput),
+  });
+};
+
+export const getCalculateCostEstimateMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof calculateCostEstimate>>,
+    TError,
+    { data: BodyType<CostEstimateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof calculateCostEstimate>>,
+  TError,
+  { data: BodyType<CostEstimateInput> },
+  TContext
+> => {
+  const mutationKey = ["calculateCostEstimate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof calculateCostEstimate>>,
+    { data: BodyType<CostEstimateInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return calculateCostEstimate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CalculateCostEstimateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof calculateCostEstimate>>
+>;
+export type CalculateCostEstimateMutationBody = BodyType<CostEstimateInput>;
+export type CalculateCostEstimateMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Compute (and optionally save) annual ownership cost
+ */
+export const useCalculateCostEstimate = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof calculateCostEstimate>>,
+    TError,
+    { data: BodyType<CostEstimateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof calculateCostEstimate>>,
+  TError,
+  { data: BodyType<CostEstimateInput> },
+  TContext
+> => {
+  return useMutation(getCalculateCostEstimateMutationOptions(options));
+};
+
+/**
+ * @summary List user's saved annual cost estimates
+ */
+export const getListCostEstimatesUrl = () => {
+  return `/api/cost-estimates`;
+};
+
+export const listCostEstimates = async (
+  options?: RequestInit,
+): Promise<CostEstimateListResponse> => {
+  return customFetch<CostEstimateListResponse>(getListCostEstimatesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCostEstimatesQueryKey = () => {
+  return [`/api/cost-estimates`] as const;
+};
+
+export const getListCostEstimatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCostEstimates>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCostEstimates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCostEstimatesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCostEstimates>>
+  > = ({ signal }) => listCostEstimates({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCostEstimates>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCostEstimatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCostEstimates>>
+>;
+export type ListCostEstimatesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's saved annual cost estimates
+ */
+
+export function useListCostEstimates<
+  TData = Awaited<ReturnType<typeof listCostEstimates>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCostEstimates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCostEstimatesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a saved annual cost estimate by id
+ */
+export const getGetCostEstimateUrl = (id: string) => {
+  return `/api/cost-estimates/${id}`;
+};
+
+export const getCostEstimate = async (
+  id: string,
+  options?: RequestInit,
+): Promise<CostEstimateDetail> => {
+  return customFetch<CostEstimateDetail>(getGetCostEstimateUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCostEstimateQueryKey = (id: string) => {
+  return [`/api/cost-estimates/${id}`] as const;
+};
+
+export const getGetCostEstimateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCostEstimate>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCostEstimate>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCostEstimateQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCostEstimate>>> = ({
+    signal,
+  }) => getCostEstimate(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCostEstimate>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCostEstimateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCostEstimate>>
+>;
+export type GetCostEstimateQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a saved annual cost estimate by id
+ */
+
+export function useGetCostEstimate<
+  TData = Awaited<ReturnType<typeof getCostEstimate>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCostEstimate>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCostEstimateQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a saved annual cost estimate
+ */
+export const getDeleteCostEstimateUrl = (id: string) => {
+  return `/api/cost-estimates/${id}`;
+};
+
+export const deleteCostEstimate = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteCostEstimateUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCostEstimateMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCostEstimate>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCostEstimate>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteCostEstimate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCostEstimate>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCostEstimate(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCostEstimateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCostEstimate>>
+>;
+
+export type DeleteCostEstimateMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a saved annual cost estimate
+ */
+export const useDeleteCostEstimate = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCostEstimate>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCostEstimate>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteCostEstimateMutationOptions(options));
+};
 
 /**
  * @summary Get a saved ROI calculation by id

@@ -18,6 +18,8 @@ tags:
     description: User-owned yacht profiles (authenticated)
   - name: roi
     description: Charter ROI intelligence (authenticated)
+  - name: cost
+    description: Annual ownership cost estimator (separate module)
 paths:
   /healthz:
     get:
@@ -343,6 +345,120 @@ paths:
                 $ref: "#/components/schemas/RoiCalculationListResponse"
         "401":
           description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cost-estimates:
+    post:
+      operationId: calculateCostEstimate
+      tags: [cost]
+      summary: Compute (and optionally save) annual ownership cost
+      description: |
+        Pure deterministic calculator. If the caller is authenticated, the
+        estimate is also persisted to history; guests still get the result.
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CostEstimateInput"
+      responses:
+        "200":
+          description: Estimate computed (saved if authenticated)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostEstimate"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listCostEstimates
+      tags: [cost]
+      summary: List user's saved annual cost estimates
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Saved estimate list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostEstimateListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cost-estimates/{id}:
+    get:
+      operationId: getCostEstimate
+      tags: [cost]
+      summary: Get a saved annual cost estimate by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Estimate detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostEstimateDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCostEstimate
+      tags: [cost]
+      summary: Delete a saved annual cost estimate
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
           content:
             application/json:
               schema:
@@ -1129,3 +1245,287 @@ components:
           $ref: "#/components/schemas/RoiCalculationInput"
         result:
           $ref: "#/components/schemas/RoiCalculation"
+    OperationRegion:
+      type: string
+      enum:
+        - mediterranean
+        - northern_europe
+        - caribbean
+        - asia_pacific
+        - middle_east
+        - global
+    UsageType:
+      type: string
+      enum:
+        - private
+        - mixed
+        - charter_focused
+    CostFinancingType:
+      type: string
+      enum: [cash, loan]
+    CrewPositionInput:
+      type: object
+      required: [position, enabled]
+      properties:
+        position:
+          type: string
+          description: Position key (captain, first_officer, chief_engineer, chef, stewardess, deckhand, bosun, security)
+        enabled:
+          type: boolean
+        monthly_salary_eur:
+          type: ["number", "null"]
+          minimum: 0
+        quantity:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 4
+          description: Only meaningful for stewardess/deckhand
+    CostMonthlyExpenses:
+      type: object
+      properties:
+        mooring_eur:
+          type: ["number", "null"]
+          minimum: 0
+        fuel_eur:
+          type: ["number", "null"]
+          minimum: 0
+        provisioning_eur:
+          type: ["number", "null"]
+          minimum: 0
+        communications_eur:
+          type: ["number", "null"]
+          minimum: 0
+        maintenance_eur:
+          type: ["number", "null"]
+          minimum: 0
+    CostAnnualExpenses:
+      type: object
+      properties:
+        insurance_eur:
+          type: ["number", "null"]
+          minimum: 0
+        registration_eur:
+          type: ["number", "null"]
+          minimum: 0
+        classification_eur:
+          type: ["number", "null"]
+          minimum: 0
+        antifouling_eur:
+          type: ["number", "null"]
+          minimum: 0
+        refit_reserve_eur:
+          type: ["number", "null"]
+          minimum: 0
+    CostFinancingInput:
+      type: object
+      required: [type]
+      properties:
+        type:
+          $ref: "#/components/schemas/CostFinancingType"
+        loan_amount_eur:
+          type: ["number", "null"]
+          minimum: 0
+        interest_rate_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 30
+        term_years:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 40
+    CostEstimateInput:
+      type: object
+      required:
+        - yacht_class
+        - length_meters
+        - year_built
+        - region
+        - usage_type
+        - crew
+        - monthly_expenses
+        - annual_expenses
+        - financing
+      properties:
+        yacht_name:
+          type: ["string", "null"]
+        yacht_class:
+          $ref: "#/components/schemas/YachtType"
+        length_meters:
+          type: number
+          minimum: 5
+          maximum: 120
+        year_built:
+          type: integer
+          minimum: 1950
+          maximum: 2026
+        region:
+          $ref: "#/components/schemas/OperationRegion"
+        usage_type:
+          $ref: "#/components/schemas/UsageType"
+        crew:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrewPositionInput"
+        monthly_expenses:
+          $ref: "#/components/schemas/CostMonthlyExpenses"
+        annual_expenses:
+          $ref: "#/components/schemas/CostAnnualExpenses"
+        broker_commission_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+        financing:
+          $ref: "#/components/schemas/CostFinancingInput"
+    CostBreakdownEntry:
+      type: object
+      required: [category, amount_eur]
+      properties:
+        category:
+          type: string
+        amount_eur:
+          type: number
+        formula:
+          type: ["string", "null"]
+    CostCategorySummary:
+      type: object
+      required: [category, amount_eur, color_hint]
+      properties:
+        category:
+          type: string
+        amount_eur:
+          type: number
+        color_hint:
+          type: string
+    CostEstimateResult:
+      type: object
+      required:
+        - total_annual_eur
+        - cost_per_day_eur
+        - cost_per_week_eur
+        - crew_total_eur
+        - operations_total_eur
+        - maintenance_total_eur
+        - financing_total_eur
+        - crew_breakdown
+        - operations_breakdown
+        - maintenance_breakdown
+        - financing_breakdown
+        - category_summary
+        - currency
+        - legal_disclaimer
+        - yacht_class
+        - length_meters
+        - year_built
+      properties:
+        total_annual_eur:
+          type: number
+        cost_per_day_eur:
+          type: number
+        cost_per_week_eur:
+          type: number
+        crew_total_eur:
+          type: number
+        operations_total_eur:
+          type: number
+        maintenance_total_eur:
+          type: number
+        financing_total_eur:
+          type: number
+        crew_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostBreakdownEntry"
+        operations_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostBreakdownEntry"
+        maintenance_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostBreakdownEntry"
+        financing_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostBreakdownEntry"
+        category_summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostCategorySummary"
+        charter_break_even_weeks:
+          type: ["integer", "null"]
+        currency:
+          type: string
+        legal_disclaimer:
+          type: string
+        yacht_name:
+          type: ["string", "null"]
+        yacht_class:
+          $ref: "#/components/schemas/YachtType"
+        length_meters:
+          type: number
+        year_built:
+          type: integer
+    CostEstimate:
+      type: object
+      required: [result]
+      properties:
+        id:
+          type: ["string", "null"]
+        created_at:
+          type: ["string", "null"]
+        result:
+          $ref: "#/components/schemas/CostEstimateResult"
+    CostEstimateListItem:
+      type: object
+      required:
+        - id
+        - created_at
+        - yacht_class
+        - length_meters
+        - region
+        - total_annual_eur
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+        name:
+          type: ["string", "null"]
+        yacht_name:
+          type: ["string", "null"]
+        yacht_class:
+          type: string
+        length_meters:
+          type: number
+        year_built:
+          type: integer
+        region:
+          type: string
+        usage_type:
+          type: string
+        total_annual_eur:
+          type: number
+        currency:
+          type: string
+    CostEstimateListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostEstimateListItem"
+    CostEstimateDetail:
+      type: object
+      required: [id, created_at, input, result]
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+        name:
+          type: ["string", "null"]
+        input:
+          $ref: "#/components/schemas/CostEstimateInput"
+        result:
+          $ref: "#/components/schemas/CostEstimateResult"

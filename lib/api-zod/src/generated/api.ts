@@ -1111,6 +1111,475 @@ export const ListRoiCalculationsResponse = zod.object({
 });
 
 /**
+ * Pure deterministic calculator. If the caller is authenticated, the
+estimate is also persisted to history; guests still get the result.
+
+ * @summary Compute (and optionally save) annual ownership cost
+ */
+export const calculateCostEstimateBodyLengthMetersMin = 5;
+export const calculateCostEstimateBodyLengthMetersMax = 120;
+
+export const calculateCostEstimateBodyYearBuiltMin = 1950;
+export const calculateCostEstimateBodyYearBuiltMax = 2026;
+
+export const calculateCostEstimateBodyCrewItemMonthlySalaryEurMin = 0;
+
+export const calculateCostEstimateBodyCrewItemQuantityMax = 4;
+
+export const calculateCostEstimateBodyMonthlyExpensesMooringEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesFuelEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesProvisioningEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesInsuranceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesRegistrationEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesClassificationEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesAntifoulingEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesRefitReserveEurMin = 0;
+
+export const calculateCostEstimateBodyBrokerCommissionPctMin = 0;
+export const calculateCostEstimateBodyBrokerCommissionPctMax = 100;
+
+export const calculateCostEstimateBodyFinancingLoanAmountEurMin = 0;
+
+export const calculateCostEstimateBodyFinancingInterestRatePctMin = 0;
+export const calculateCostEstimateBodyFinancingInterestRatePctMax = 30;
+
+export const calculateCostEstimateBodyFinancingTermYearsMax = 40;
+
+export const CalculateCostEstimateBody = zod.object({
+  yacht_name: zod.string().nullish(),
+  yacht_class: zod.enum([
+    "motor_yacht",
+    "sailing_yacht",
+    "catamaran",
+    "superyacht",
+  ]),
+  length_meters: zod
+    .number()
+    .min(calculateCostEstimateBodyLengthMetersMin)
+    .max(calculateCostEstimateBodyLengthMetersMax),
+  year_built: zod
+    .number()
+    .min(calculateCostEstimateBodyYearBuiltMin)
+    .max(calculateCostEstimateBodyYearBuiltMax),
+  region: zod.enum([
+    "mediterranean",
+    "northern_europe",
+    "caribbean",
+    "asia_pacific",
+    "middle_east",
+    "global",
+  ]),
+  usage_type: zod.enum(["private", "mixed", "charter_focused"]),
+  crew: zod.array(
+    zod.object({
+      position: zod
+        .string()
+        .describe(
+          "Position key (captain, first_officer, chief_engineer, chef, stewardess, deckhand, bosun, security)",
+        ),
+      enabled: zod.boolean(),
+      monthly_salary_eur: zod
+        .number()
+        .min(calculateCostEstimateBodyCrewItemMonthlySalaryEurMin)
+        .nullish(),
+      quantity: zod
+        .number()
+        .min(1)
+        .max(calculateCostEstimateBodyCrewItemQuantityMax)
+        .nullish()
+        .describe("Only meaningful for stewardess\/deckhand"),
+    }),
+  ),
+  monthly_expenses: zod.object({
+    mooring_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesMooringEurMin)
+      .nullish(),
+    fuel_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesFuelEurMin)
+      .nullish(),
+    provisioning_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesProvisioningEurMin)
+      .nullish(),
+    communications_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin)
+      .nullish(),
+    maintenance_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin)
+      .nullish(),
+  }),
+  annual_expenses: zod.object({
+    insurance_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesInsuranceEurMin)
+      .nullish(),
+    registration_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesRegistrationEurMin)
+      .nullish(),
+    classification_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesClassificationEurMin)
+      .nullish(),
+    antifouling_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesAntifoulingEurMin)
+      .nullish(),
+    refit_reserve_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesRefitReserveEurMin)
+      .nullish(),
+  }),
+  broker_commission_pct: zod
+    .number()
+    .min(calculateCostEstimateBodyBrokerCommissionPctMin)
+    .max(calculateCostEstimateBodyBrokerCommissionPctMax)
+    .nullish(),
+  financing: zod.object({
+    type: zod.enum(["cash", "loan"]),
+    loan_amount_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyFinancingLoanAmountEurMin)
+      .nullish(),
+    interest_rate_pct: zod
+      .number()
+      .min(calculateCostEstimateBodyFinancingInterestRatePctMin)
+      .max(calculateCostEstimateBodyFinancingInterestRatePctMax)
+      .nullish(),
+    term_years: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyFinancingTermYearsMax)
+      .nullish(),
+  }),
+});
+
+export const CalculateCostEstimateResponse = zod.object({
+  id: zod.string().nullish(),
+  created_at: zod.string().nullish(),
+  result: zod.object({
+    total_annual_eur: zod.number(),
+    cost_per_day_eur: zod.number(),
+    cost_per_week_eur: zod.number(),
+    crew_total_eur: zod.number(),
+    operations_total_eur: zod.number(),
+    maintenance_total_eur: zod.number(),
+    financing_total_eur: zod.number(),
+    crew_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    operations_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    maintenance_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    financing_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    category_summary: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        color_hint: zod.string(),
+      }),
+    ),
+    charter_break_even_weeks: zod.number().nullish(),
+    currency: zod.string(),
+    legal_disclaimer: zod.string(),
+    yacht_name: zod.string().nullish(),
+    yacht_class: zod.enum([
+      "motor_yacht",
+      "sailing_yacht",
+      "catamaran",
+      "superyacht",
+    ]),
+    length_meters: zod.number(),
+    year_built: zod.number(),
+  }),
+});
+
+/**
+ * @summary List user's saved annual cost estimates
+ */
+export const ListCostEstimatesResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      created_at: zod.string(),
+      name: zod.string().nullish(),
+      yacht_name: zod.string().nullish(),
+      yacht_class: zod.string(),
+      length_meters: zod.number(),
+      year_built: zod.number().optional(),
+      region: zod.string(),
+      usage_type: zod.string().optional(),
+      total_annual_eur: zod.number(),
+      currency: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a saved annual cost estimate by id
+ */
+export const GetCostEstimateParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const getCostEstimateResponseInputLengthMetersMin = 5;
+export const getCostEstimateResponseInputLengthMetersMax = 120;
+
+export const getCostEstimateResponseInputYearBuiltMin = 1950;
+export const getCostEstimateResponseInputYearBuiltMax = 2026;
+
+export const getCostEstimateResponseInputCrewItemMonthlySalaryEurMin = 0;
+
+export const getCostEstimateResponseInputCrewItemQuantityMax = 4;
+
+export const getCostEstimateResponseInputMonthlyExpensesMooringEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesFuelEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesProvisioningEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesInsuranceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesRegistrationEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesClassificationEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesAntifoulingEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesRefitReserveEurMin = 0;
+
+export const getCostEstimateResponseInputBrokerCommissionPctMin = 0;
+export const getCostEstimateResponseInputBrokerCommissionPctMax = 100;
+
+export const getCostEstimateResponseInputFinancingLoanAmountEurMin = 0;
+
+export const getCostEstimateResponseInputFinancingInterestRatePctMin = 0;
+export const getCostEstimateResponseInputFinancingInterestRatePctMax = 30;
+
+export const getCostEstimateResponseInputFinancingTermYearsMax = 40;
+
+export const GetCostEstimateResponse = zod.object({
+  id: zod.string(),
+  created_at: zod.string(),
+  name: zod.string().nullish(),
+  input: zod.object({
+    yacht_name: zod.string().nullish(),
+    yacht_class: zod.enum([
+      "motor_yacht",
+      "sailing_yacht",
+      "catamaran",
+      "superyacht",
+    ]),
+    length_meters: zod
+      .number()
+      .min(getCostEstimateResponseInputLengthMetersMin)
+      .max(getCostEstimateResponseInputLengthMetersMax),
+    year_built: zod
+      .number()
+      .min(getCostEstimateResponseInputYearBuiltMin)
+      .max(getCostEstimateResponseInputYearBuiltMax),
+    region: zod.enum([
+      "mediterranean",
+      "northern_europe",
+      "caribbean",
+      "asia_pacific",
+      "middle_east",
+      "global",
+    ]),
+    usage_type: zod.enum(["private", "mixed", "charter_focused"]),
+    crew: zod.array(
+      zod.object({
+        position: zod
+          .string()
+          .describe(
+            "Position key (captain, first_officer, chief_engineer, chef, stewardess, deckhand, bosun, security)",
+          ),
+        enabled: zod.boolean(),
+        monthly_salary_eur: zod
+          .number()
+          .min(getCostEstimateResponseInputCrewItemMonthlySalaryEurMin)
+          .nullish(),
+        quantity: zod
+          .number()
+          .min(1)
+          .max(getCostEstimateResponseInputCrewItemQuantityMax)
+          .nullish()
+          .describe("Only meaningful for stewardess\/deckhand"),
+      }),
+    ),
+    monthly_expenses: zod.object({
+      mooring_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesMooringEurMin)
+        .nullish(),
+      fuel_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesFuelEurMin)
+        .nullish(),
+      provisioning_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesProvisioningEurMin)
+        .nullish(),
+      communications_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin)
+        .nullish(),
+      maintenance_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin)
+        .nullish(),
+    }),
+    annual_expenses: zod.object({
+      insurance_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesInsuranceEurMin)
+        .nullish(),
+      registration_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesRegistrationEurMin)
+        .nullish(),
+      classification_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesClassificationEurMin)
+        .nullish(),
+      antifouling_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesAntifoulingEurMin)
+        .nullish(),
+      refit_reserve_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesRefitReserveEurMin)
+        .nullish(),
+    }),
+    broker_commission_pct: zod
+      .number()
+      .min(getCostEstimateResponseInputBrokerCommissionPctMin)
+      .max(getCostEstimateResponseInputBrokerCommissionPctMax)
+      .nullish(),
+    financing: zod.object({
+      type: zod.enum(["cash", "loan"]),
+      loan_amount_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputFinancingLoanAmountEurMin)
+        .nullish(),
+      interest_rate_pct: zod
+        .number()
+        .min(getCostEstimateResponseInputFinancingInterestRatePctMin)
+        .max(getCostEstimateResponseInputFinancingInterestRatePctMax)
+        .nullish(),
+      term_years: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputFinancingTermYearsMax)
+        .nullish(),
+    }),
+  }),
+  result: zod.object({
+    total_annual_eur: zod.number(),
+    cost_per_day_eur: zod.number(),
+    cost_per_week_eur: zod.number(),
+    crew_total_eur: zod.number(),
+    operations_total_eur: zod.number(),
+    maintenance_total_eur: zod.number(),
+    financing_total_eur: zod.number(),
+    crew_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    operations_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    maintenance_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    financing_breakdown: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        formula: zod.string().nullish(),
+      }),
+    ),
+    category_summary: zod.array(
+      zod.object({
+        category: zod.string(),
+        amount_eur: zod.number(),
+        color_hint: zod.string(),
+      }),
+    ),
+    charter_break_even_weeks: zod.number().nullish(),
+    currency: zod.string(),
+    legal_disclaimer: zod.string(),
+    yacht_name: zod.string().nullish(),
+    yacht_class: zod.enum([
+      "motor_yacht",
+      "sailing_yacht",
+      "catamaran",
+      "superyacht",
+    ]),
+    length_meters: zod.number(),
+    year_built: zod.number(),
+  }),
+});
+
+/**
+ * @summary Delete a saved annual cost estimate
+ */
+export const DeleteCostEstimateParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary Get a saved ROI calculation by id
  */
 export const GetRoiCalculationParams = zod.object({

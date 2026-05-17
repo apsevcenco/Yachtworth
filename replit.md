@@ -168,3 +168,20 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
 
 - See the `expo` skill for mobile dev guidelines
 - See the `pnpm-workspace` skill for workspace structure
+
+## Annual Cost Estimator (separate module, in progress)
+
+Отдельный модуль от Charter ROI и Valuation. Owner choice: literal spec — 4-step wizard, отдельная история, **БЕЗ months_per_year (€/mo × 12 для всех позиций)**, quantity > 1 только для stewardess/deckhand.
+
+- **Stage A1 (current) — DONE:** backend foundation.
+  - **Миграция `migrations/007_cost_estimates.sql`** (`cost_estimates` table, scoped by `clerk_user_id`, RLS deny_all, index `(clerk_user_id, created_at desc)`). **Ручной шаг от владельца:** вставить в Supabase SQL editor `yachtworth-prod` → Run.
+  - **OpenAPI:** новый тег `cost`, enums `OperationRegion` (6 значений: mediterranean/northern_europe/caribbean/asia_pacific/middle_east/global), `UsageType` (private/mixed/charter_focused), `CostFinancingType` (cash/loan). Schemas `CrewPositionInput`, `CostMonthlyExpenses`, `CostAnnualExpenses`, `CostFinancingInput`, `CostEstimateInput`, `CostBreakdownEntry`, `CostCategorySummary`, `CostEstimateResult`, `CostEstimate`, `CostEstimateListItem/Response`, `CostEstimateDetail`. Endpoints: `POST /cost-estimates` (soft auth — guests получают расчёт, signed-in юзеры — ещё и сохранение), `GET /cost-estimates` (auth), `GET /cost-estimates/{id}` (auth + UUID guard), `DELETE /cost-estimates/{id}` (auth + UUID guard + count check).
+  - **Бэкенд `artifacts/api-server/src/lib/cost-estimate/index.ts`:** чистый детерминистический калькулятор (без AI). Crew: `salary × 12 × qty` где `qty=1` для всех кроме stewardess/deckhand (server-side enforce, clamp 1..4). Monthly ops × 12, annual maintenance passthrough. Routine maintenance показывается в maintenance-бакете, не в operations. Loan annuity через переиспользованный `annualLoanPayment` из `roi/loan.ts`. Charter break-even hint (weeks) только если usage=mixed/charter_focused. `category_summary` с цветами для будущего donut chart. `COST_DISCLAIMER` server-injected. Auto-estimate хелперы (`estimateYachtValue` интерполяция по якорям LOA 10/15/20/24/30/40/50/60м с 2.5%/year age depreciation, `estimateMooringMonthly` по региону, `estimateInsuranceAnnual` = value × 1%, `estimateMaintenanceMonthly` = value × 0.5%/mo) подготовлены, но в compute path НЕ вызываются — будут использованы фронтом в Step 3 для кнопки "Auto-fill estimate" (по спеке владельца).
+  - **Route `artifacts/api-server/src/routes/costEstimates.ts`:** zod-валидация через `CalculateCostEstimateBody`, IDOR-safe scoping по `clerk_user_id`, denorm колонки в insert для дешёвого list rendering. Если Supabase не настроен или insert падает — расчёт всё равно отдаётся (best-effort persistence).
+  - Registered в `routes/index.ts`. `COST_ESTIMATES_TABLE` константа в `lib/supabase.ts`.
+  - Codegen прогнан, typecheck зелёный, api-server рестартован. Smoke: 200/healthz, 400/empty, 401/list-no-auth, реальный расчёт 24м motor + Med + mixed + captain+2 stewardesses + loan 1M @ 6%/10y → 366,968€ (math reconciled). Quantity-clamp проверен: captain × 4 → клампится в 1; stewardess × 3 → принято.
+  - Architect re-review: 2 валидных пункта исправлены (crew quantity rule + integer clamp для term_years/year_built). Остальное (auto-estimate хелперы вне compute path) — by design, для UI Stage A3.
+- **Stage A2 (next):** Frontend wizard — root Stack registration `/cost/new` + `/cost/result` + `/cost/history`, Home tab второй CTA "Calculate annual cost", шаги 1-2 (Basics + Crew).
+- **Stage A3:** Шаги 3-4 (Expenses с кнопкой Auto-fill + Financing), Results screen с donut chart.
+- **Stage A4:** History screen + Save/Rename/Delete + Edit-reopen.
+- **Stage A5:** PDF export.
