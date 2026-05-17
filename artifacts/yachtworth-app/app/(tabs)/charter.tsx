@@ -2,13 +2,16 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import {
   getListYachtsQueryKey,
+  useDeleteYacht,
   useListYachts,
   type Yacht,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -26,6 +29,9 @@ const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.08)";
+const DANGER = "#E07A6B";
+
+const MAX_YACHTS = 5;
 
 const TYPE_LABELS: Record<string, string> = {
   motor_yacht: "Motor Yacht",
@@ -59,6 +65,7 @@ export default function CharterScreen() {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
   const { units } = useUnits();
+  const queryClient = useQueryClient();
 
   const query = useListYachts({
     query: {
@@ -68,8 +75,44 @@ export default function CharterScreen() {
     },
   });
 
-  // V1: one active yacht — pick the most recent one (list is ordered by updated_at desc).
-  const yacht: Yacht | undefined = query.data?.items?.[0];
+  const deleteMut = useDeleteYacht({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListYachtsQueryKey() });
+      },
+    },
+  });
+
+  const yachts: Yacht[] = query.data?.items ?? [];
+  const atLimit = yachts.length >= MAX_YACHTS;
+
+  const handleDelete = (y: Yacht) => {
+    const title = yachtTitle(y);
+    Alert.alert(
+      `Delete ${title}?`,
+      "This will also delete all ROI calculations saved for this yacht. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteMut.mutate(
+              { id: y.id! },
+              {
+                onError: (err) => {
+                  Alert.alert(
+                    "Couldn't delete yacht",
+                    err instanceof Error ? err.message : "Please try again.",
+                  );
+                },
+              },
+            );
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <ScrollView
@@ -102,7 +145,7 @@ export default function CharterScreen() {
           </View>
           <Text style={styles.emptyTitle}>Sign in to use Charter ROI</Text>
           <Text style={styles.emptyText}>
-            Save your yacht profile and run unlimited charter ROI scenarios across regions and seasons.
+            Save up to {MAX_YACHTS} yacht profiles and run unlimited charter ROI scenarios.
           </Text>
           <Pressable
             onPress={() => router.push("/(auth)/sign-in")}
@@ -116,7 +159,7 @@ export default function CharterScreen() {
           <View style={styles.emptyIcon}>
             <Feather name="alert-circle" size={26} color={GOLD} />
           </View>
-          <Text style={styles.emptyTitle}>Couldn't load profile</Text>
+          <Text style={styles.emptyTitle}>Couldn't load yachts</Text>
           <Text style={styles.emptyText}>
             {query.error instanceof Error ? query.error.message : "Something went wrong."}
           </Text>
@@ -127,14 +170,14 @@ export default function CharterScreen() {
             <Text style={styles.ctaText}>Retry</Text>
           </Pressable>
         </View>
-      ) : !yacht ? (
+      ) : yachts.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>
             <Feather name="anchor" size={26} color={GOLD} />
           </View>
-          <Text style={styles.emptyTitle}>Create your yacht profile</Text>
+          <Text style={styles.emptyTitle}>Create your first yacht profile</Text>
           <Text style={styles.emptyText}>
-            Tell us about your yacht once. We'll use it for every ROI scenario.
+            Tell us about your yacht once. You can save up to {MAX_YACHTS} profiles and run ROI scenarios across regions and seasons.
           </Text>
           <Pressable
             onPress={() => router.push("/roi/yacht-form")}
@@ -145,61 +188,129 @@ export default function CharterScreen() {
         </View>
       ) : (
         <View>
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.yachtName} numberOfLines={1}>
-                  {yachtTitle(yacht)}
-                </Text>
-                {yacht.yacht_type ? (
-                  <Text style={styles.yachtType}>
-                    {TYPE_LABELS[yacht.yacht_type] ?? yacht.yacht_type}
-                    {yacht.year_built ? ` · ${yacht.year_built}` : ""}
-                  </Text>
-                ) : null}
-              </View>
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/roi/yacht-form",
-                    params: { id: yacht.id },
-                  })
-                }
-                hitSlop={8}
-                style={({ pressed }) => [styles.editBtn, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Feather name="edit-2" size={16} color={GOLD} />
-              </Pressable>
-            </View>
-            <View style={styles.cardDivider} />
-            <View style={styles.specGrid}>
-              <Spec label="Length" value={formatLength(yacht.length_meters, units)} />
-              <Spec label="Cabins" value={yacht.cabins != null ? String(yacht.cabins) : "—"} />
-              <Spec label="Guests" value={yacht.guests != null ? String(yacht.guests) : "—"} />
-              <Spec label="Crew" value={yacht.crew != null ? String(yacht.crew) : "—"} />
-              <Spec label="Marina" value={yacht.marina_location || "—"} wide />
-              <Spec label="Purchase" value={formatEur(yacht.purchase_price_eur)} wide />
-            </View>
+          <View style={styles.listHeader}>
+            <Text style={styles.listHeaderText}>
+              {yachts.length} of {MAX_YACHTS} yacht profile{yachts.length === 1 ? "" : "s"}
+            </Text>
           </View>
 
+          {yachts.map((yacht) => {
+            const hasId = Boolean(yacht.id);
+            const deleting =
+              deleteMut.isPending && deleteMut.variables?.id === yacht.id;
+            const disabled = deleting || !hasId;
+            const title = yachtTitle(yacht);
+            return (
+              <View key={yacht.id ?? title} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.yachtName} numberOfLines={1}>
+                      {yachtTitle(yacht)}
+                    </Text>
+                    {yacht.yacht_type ? (
+                      <Text style={styles.yachtType}>
+                        {TYPE_LABELS[yacht.yacht_type] ?? yacht.yacht_type}
+                        {yacht.year_built ? ` · ${yacht.year_built}` : ""}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: "/roi/yacht-form",
+                        params: { id: yacht.id },
+                      })
+                    }
+                    hitSlop={8}
+                    disabled={disabled}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit yacht ${title}`}
+                    style={({ pressed }) => [
+                      styles.iconBtn,
+                      { opacity: pressed || disabled ? 0.5 : 1 },
+                    ]}
+                  >
+                    <Feather name="edit-2" size={15} color={GOLD} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleDelete(yacht)}
+                    hitSlop={8}
+                    disabled={disabled}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete yacht ${title}`}
+                    style={({ pressed }) => [
+                      styles.iconBtn,
+                      styles.iconBtnDanger,
+                      { opacity: pressed || disabled ? 0.5 : 1, marginLeft: 8 },
+                    ]}
+                  >
+                    {deleting ? (
+                      <ActivityIndicator size="small" color={DANGER} />
+                    ) : (
+                      <Feather name="trash-2" size={15} color={DANGER} />
+                    )}
+                  </Pressable>
+                </View>
+                <View style={styles.cardDivider} />
+                <View style={styles.specGrid}>
+                  <Spec label="Length" value={formatLength(yacht.length_meters, units)} />
+                  <Spec label="Cabins" value={yacht.cabins != null ? String(yacht.cabins) : "—"} />
+                  <Spec label="Guests" value={yacht.guests != null ? String(yacht.guests) : "—"} />
+                  <Spec label="Crew" value={yacht.crew != null ? String(yacht.crew) : "—"} />
+                  <Spec label="Marina" value={yacht.marina_location || "—"} wide />
+                  <Spec label="Purchase" value={formatEur(yacht.purchase_price_eur)} wide />
+                </View>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/roi/calculate",
+                      params: { yacht_id: yacht.id },
+                    })
+                  }
+                  disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Calculate ROI for ${title}`}
+                  style={({ pressed }) => [
+                    styles.calcBtn,
+                    { opacity: pressed || disabled ? 0.85 : 1 },
+                  ]}
+                >
+                  <Feather name="trending-up" size={16} color={GOLD} />
+                  <Text style={styles.calcBtnText}>Calculate ROI</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+
           <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/roi/calculate",
-                params: { yacht_id: yacht.id },
-              })
-            }
+            onPress={() => {
+              if (atLimit) return;
+              router.push("/roi/yacht-form");
+            }}
+            disabled={atLimit}
+            accessibilityRole="button"
+            accessibilityLabel={atLimit ? `Yacht limit reached, ${MAX_YACHTS} maximum` : "Add yacht profile"}
             style={({ pressed }) => [
-              styles.calcBtn,
-              { opacity: pressed ? 0.85 : 1 },
+              styles.addBtn,
+              atLimit ? styles.addBtnDisabled : null,
+              { opacity: pressed && !atLimit ? 0.85 : 1 },
             ]}
           >
-            <Feather name="trending-up" size={18} color={GOLD} />
-            <Text style={styles.calcBtnText}>Calculate ROI</Text>
+            <Feather name="plus" size={18} color={atLimit ? MUTED : GOLD} />
+            <Text
+              style={[
+                styles.addBtnText,
+                atLimit ? { color: MUTED } : null,
+              ]}
+            >
+              {atLimit ? `Limit reached (${MAX_YACHTS} max)` : "Add yacht"}
+            </Text>
           </Pressable>
-          <Text style={styles.comingSoon}>
-            Set your scenario — manual day/week pricing or AI market estimate.
-          </Text>
+          {atLimit ? (
+            <Text style={styles.limitHint}>
+              Delete a profile to add a new one.
+            </Text>
+          ) : null}
         </View>
       )}
     </ScrollView>
@@ -228,7 +339,7 @@ function Spec({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
   content: { paddingHorizontal: 24 },
-  headerBlock: { marginBottom: 26 },
+  headerBlock: { marginBottom: 22 },
   kicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",
@@ -285,32 +396,46 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   ctaText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
+  listHeader: { marginBottom: 12 },
+  listHeaderText: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
   card: {
     backgroundColor: NAVY_DEEP,
     borderColor: DIVIDER,
     borderWidth: 1,
     borderRadius: 16,
     padding: 20,
-    marginBottom: 18,
+    marginBottom: 14,
   },
   cardHeader: { flexDirection: "row", alignItems: "flex-start" },
   yachtName: {
     color: IVORY,
     fontFamily: "Gilroy-ExtraBold",
-    fontSize: 22,
+    fontSize: 20,
     marginBottom: 4,
   },
-  yachtType: { color: GOLD, fontFamily: "Inter_500Medium", fontSize: 12, letterSpacing: 0.4 },
-  editBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  yachtType: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderColor: GOLD,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  cardDivider: { height: 1, backgroundColor: DIVIDER, marginVertical: 18 },
+  iconBtnDanger: { borderColor: DANGER },
+  cardDivider: { height: 1, backgroundColor: DIVIDER, marginVertical: 16 },
   specGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   spec: { width: "47%" },
   specWide: { width: "100%" },
@@ -331,16 +456,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(201,169,97,0.10)",
     borderWidth: 1.5,
     borderColor: GOLD,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
+    marginTop: 18,
   },
-  calcBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
-  comingSoon: {
+  calcBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: GOLD,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  addBtnDisabled: { borderColor: DIVIDER, borderStyle: "solid" },
+  addBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
+  limitHint: {
     color: MUTED,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 8,
     fontStyle: "italic",
   },
 });
