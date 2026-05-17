@@ -1146,6 +1146,22 @@ export const calculateCostEstimateBodyAnnualExpensesAntifoulingEurMin = 0;
 
 export const calculateCostEstimateBodyAnnualExpensesRefitReserveEurMin = 0;
 
+export const calculateCostEstimateBodyAnnualExpensesEngineServiceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesGeneratorServiceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesElectronicsServiceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesSafetyEquipmentEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesTenderServiceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesHullPaintEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesRiggingServiceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesWatermakerServiceEurMin = 0;
+
 export const calculateCostEstimateBodyBrokerCommissionPctMin = 0;
 export const calculateCostEstimateBodyBrokerCommissionPctMax = 100;
 
@@ -1244,6 +1260,50 @@ export const CalculateCostEstimateBody = zod.object({
       .number()
       .min(calculateCostEstimateBodyAnnualExpensesRefitReserveEurMin)
       .nullish(),
+    engine_service_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesEngineServiceEurMin)
+      .nullish()
+      .describe(
+        "Main engine(s) annual service — oil, filters, impellers, injectors",
+      ),
+    generator_service_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesGeneratorServiceEurMin)
+      .nullish()
+      .describe("Generator(s) annual service"),
+    electronics_service_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesElectronicsServiceEurMin)
+      .nullish()
+      .describe("Navigation \/ electronics calibration & service"),
+    safety_equipment_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesSafetyEquipmentEurMin)
+      .nullish()
+      .describe(
+        "Life raft, EPIRB, fire suppression, flares — annual certification",
+      ),
+    tender_service_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesTenderServiceEurMin)
+      .nullish()
+      .describe("Tender \/ outboard annual service"),
+    hull_paint_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesHullPaintEurMin)
+      .nullish()
+      .describe("Topside polish \/ paint touch-ups (annualized)"),
+    rigging_service_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesRiggingServiceEurMin)
+      .nullish()
+      .describe("Standing \/ running rigging inspection (sailing & catamaran)"),
+    watermaker_service_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesWatermakerServiceEurMin)
+      .nullish()
+      .describe("Watermaker membrane replacement & service"),
   }),
   broker_commission_pct: zod
     .number()
@@ -1388,6 +1448,22 @@ export const getCostEstimateResponseInputAnnualExpensesAntifoulingEurMin = 0;
 
 export const getCostEstimateResponseInputAnnualExpensesRefitReserveEurMin = 0;
 
+export const getCostEstimateResponseInputAnnualExpensesEngineServiceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesGeneratorServiceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesElectronicsServiceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesSafetyEquipmentEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesTenderServiceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesHullPaintEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesRiggingServiceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesWatermakerServiceEurMin = 0;
+
 export const getCostEstimateResponseInputBrokerCommissionPctMin = 0;
 export const getCostEstimateResponseInputBrokerCommissionPctMax = 100;
 
@@ -1490,6 +1566,52 @@ export const GetCostEstimateResponse = zod.object({
         .number()
         .min(getCostEstimateResponseInputAnnualExpensesRefitReserveEurMin)
         .nullish(),
+      engine_service_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesEngineServiceEurMin)
+        .nullish()
+        .describe(
+          "Main engine(s) annual service — oil, filters, impellers, injectors",
+        ),
+      generator_service_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesGeneratorServiceEurMin)
+        .nullish()
+        .describe("Generator(s) annual service"),
+      electronics_service_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesElectronicsServiceEurMin)
+        .nullish()
+        .describe("Navigation \/ electronics calibration & service"),
+      safety_equipment_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesSafetyEquipmentEurMin)
+        .nullish()
+        .describe(
+          "Life raft, EPIRB, fire suppression, flares — annual certification",
+        ),
+      tender_service_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesTenderServiceEurMin)
+        .nullish()
+        .describe("Tender \/ outboard annual service"),
+      hull_paint_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesHullPaintEurMin)
+        .nullish()
+        .describe("Topside polish \/ paint touch-ups (annualized)"),
+      rigging_service_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesRiggingServiceEurMin)
+        .nullish()
+        .describe(
+          "Standing \/ running rigging inspection (sailing & catamaran)",
+        ),
+      watermaker_service_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesWatermakerServiceEurMin)
+        .nullish()
+        .describe("Watermaker membrane replacement & service"),
     }),
     broker_commission_pct: zod
       .number()

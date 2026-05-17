@@ -32,4 +32,52 @@ export interface CostAnnualExpenses {
    * @nullable
    */
   refit_reserve_eur?: number | null;
+  /**
+   * Main engine(s) annual service — oil, filters, impellers, injectors
+   * @minimum 0
+   * @nullable
+   */
+  engine_service_eur?: number | null;
+  /**
+   * Generator(s) annual service
+   * @minimum 0
+   * @nullable
+   */
+  generator_service_eur?: number | null;
+  /**
+   * Navigation / electronics calibration & service
+   * @minimum 0
+   * @nullable
+   */
+  electronics_service_eur?: number | null;
+  /**
+   * Life raft, EPIRB, fire suppression, flares — annual certification
+   * @minimum 0
+   * @nullable
+   */
+  safety_equipment_eur?: number | null;
+  /**
+   * Tender / outboard annual service
+   * @minimum 0
+   * @nullable
+   */
+  tender_service_eur?: number | null;
+  /**
+   * Topside polish / paint touch-ups (annualized)
+   * @minimum 0
+   * @nullable
+   */
+  hull_paint_eur?: number | null;
+  /**
+   * Standing / running rigging inspection (sailing & catamaran)
+   * @minimum 0
+   * @nullable
+   */
+  rigging_service_eur?: number | null;
+  /**
+   * Watermaker membrane replacement & service
+   * @minimum 0
+   * @nullable
+   */
+  watermaker_service_eur?: number | null;
 }

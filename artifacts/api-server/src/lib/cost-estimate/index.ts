@@ -209,6 +209,14 @@ export function computeCostEstimate(
   pushAnnual("Registration / flag", annual.registration_eur);
   pushAnnual("Classification & survey", annual.classification_eur);
   pushAnnual("Antifouling & haul-out", annual.antifouling_eur);
+  pushAnnual("Engine service", annual.engine_service_eur);
+  pushAnnual("Generator service", annual.generator_service_eur);
+  pushAnnual("Electronics & navigation", annual.electronics_service_eur);
+  pushAnnual("Safety equipment certification", annual.safety_equipment_eur);
+  pushAnnual("Tender & outboard service", annual.tender_service_eur);
+  pushAnnual("Hull paint / polish", annual.hull_paint_eur);
+  pushAnnual("Rigging inspection", annual.rigging_service_eur);
+  pushAnnual("Watermaker service", annual.watermaker_service_eur);
   pushAnnual("Refit reserve", annual.refit_reserve_eur);
 
   // ---- Financing ----

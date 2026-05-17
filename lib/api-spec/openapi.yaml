@@ -1316,6 +1316,39 @@ components:
         refit_reserve_eur:
           type: ["number", "null"]
           minimum: 0
+        # ── Annual technical works (expanded per owner request) ──
+        engine_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Main engine(s) annual service — oil, filters, impellers, injectors
+        generator_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Generator(s) annual service
+        electronics_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Navigation / electronics calibration & service
+        safety_equipment_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Life raft, EPIRB, fire suppression, flares — annual certification
+        tender_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Tender / outboard annual service
+        hull_paint_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Topside polish / paint touch-ups (annualized)
+        rigging_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Standing / running rigging inspection (sailing & catamaran)
+        watermaker_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Watermaker membrane replacement & service
     CostFinancingInput:
       type: object
       required: [type]
