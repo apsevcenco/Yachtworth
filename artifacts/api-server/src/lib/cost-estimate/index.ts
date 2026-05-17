@@ -108,22 +108,31 @@ const CREW_LABEL_BY_KEY: Record<string, string> = Object.fromEntries(
 
 // ---------- Calculator ----------
 
-// Spec rule: only stewardess and deckhand may have quantity > 1.
-// Everything else is locked to 1, regardless of what the client sends.
-const QUANTITY_ALLOWED = new Set(["stewardess", "deckhand"]);
+// Spec rule: only stewardess and deckhand are seasonal — they may have
+// quantity > 1 AND months_per_year < 12. All other positions are full-time
+// year-round (12 months) and locked to quantity = 1, regardless of what
+// the client sends.
+const SEASONAL_ALLOWED = new Set(["stewardess", "deckhand"]);
 
 function effectiveQuantity(p: CrewPositionInput): number {
-  if (!QUANTITY_ALLOWED.has(p.position)) return 1;
+  if (!SEASONAL_ALLOWED.has(p.position)) return 1;
   const raw = Math.floor(Number(p.quantity ?? 1));
   if (!isFinite(raw) || raw < 1) return 1;
   return Math.min(4, raw);
+}
+
+function effectiveMonths(p: CrewPositionInput): number {
+  if (!SEASONAL_ALLOWED.has(p.position)) return 12;
+  const raw = Math.floor(Number(p.months_per_year ?? 12));
+  if (!isFinite(raw) || raw < 1) return 12;
+  return Math.min(12, raw);
 }
 
 function crewAnnualForPosition(p: CrewPositionInput): number {
   if (!p.enabled) return 0;
   const salary = Number(p.monthly_salary_eur ?? 0);
   if (!isFinite(salary) || salary <= 0) return 0;
-  return Math.round(salary * 12 * effectiveQuantity(p));
+  return Math.round(salary * effectiveMonths(p) * effectiveQuantity(p));
 }
 
 const CATEGORY_COLORS = {
@@ -147,11 +156,13 @@ export function computeCostEstimate(
     const annual = crewAnnualForPosition(pos);
     if (annual <= 0) continue;
     const qty = effectiveQuantity(pos);
+    const months = effectiveMonths(pos);
     const label = CREW_LABEL_BY_KEY[pos.position] ?? pos.position;
+    const salary = Number(pos.monthly_salary_eur ?? 0);
     crewLines.push({
       category: qty > 1 ? `${label} × ${qty}` : label,
       amount_eur: annual,
-      formula: `€${Number(pos.monthly_salary_eur ?? 0).toLocaleString("en-US")}/mo × 12${qty > 1 ? ` × ${qty}` : ""}`,
+      formula: `€${salary.toLocaleString("en-US")}/mo × ${months}${qty > 1 ? ` × ${qty}` : ""}`,
     });
     crewTotal += annual;
   }

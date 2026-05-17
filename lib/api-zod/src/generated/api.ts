@@ -1126,6 +1126,8 @@ export const calculateCostEstimateBodyCrewItemMonthlySalaryEurMin = 0;
 
 export const calculateCostEstimateBodyCrewItemQuantityMax = 4;
 
+export const calculateCostEstimateBodyCrewItemMonthsPerYearMax = 12;
+
 export const calculateCostEstimateBodyMonthlyExpensesMooringEurMin = 0;
 
 export const calculateCostEstimateBodyMonthlyExpensesFuelEurMin = 0;
@@ -1215,6 +1217,14 @@ export const CalculateCostEstimateBody = zod.object({
         .max(calculateCostEstimateBodyCrewItemQuantityMax)
         .nullish()
         .describe("Only meaningful for stewardess\/deckhand"),
+      months_per_year: zod
+        .number()
+        .min(1)
+        .max(calculateCostEstimateBodyCrewItemMonthsPerYearMax)
+        .nullish()
+        .describe(
+          "Months of employment per year. Only honored for stewardess\/deckhand (seasonal). All other positions are treated as 12.",
+        ),
     }),
   ),
   monthly_expenses: zod.object({
@@ -1428,6 +1438,8 @@ export const getCostEstimateResponseInputCrewItemMonthlySalaryEurMin = 0;
 
 export const getCostEstimateResponseInputCrewItemQuantityMax = 4;
 
+export const getCostEstimateResponseInputCrewItemMonthsPerYearMax = 12;
+
 export const getCostEstimateResponseInputMonthlyExpensesMooringEurMin = 0;
 
 export const getCostEstimateResponseInputMonthlyExpensesFuelEurMin = 0;
@@ -1521,6 +1533,14 @@ export const GetCostEstimateResponse = zod.object({
           .max(getCostEstimateResponseInputCrewItemQuantityMax)
           .nullish()
           .describe("Only meaningful for stewardess\/deckhand"),
+        months_per_year: zod
+          .number()
+          .min(1)
+          .max(getCostEstimateResponseInputCrewItemMonthsPerYearMax)
+          .nullish()
+          .describe(
+            "Months of employment per year. Only honored for stewardess\/deckhand (seasonal). All other positions are treated as 12.",
+          ),
       }),
     ),
     monthly_expenses: zod.object({

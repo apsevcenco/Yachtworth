@@ -746,6 +746,13 @@ export interface CrewPositionInput {
    * @nullable
    */
   quantity?: number | null;
+  /**
+   * Months of employment per year. Only honored for stewardess/deckhand (seasonal). All other positions are treated as 12.
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  months_per_year?: number | null;
 }
 
 export interface CostMonthlyExpenses {
