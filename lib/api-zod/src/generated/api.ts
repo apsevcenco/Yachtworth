@@ -1176,6 +1176,14 @@ export const calculateCostEstimateBodyFinancingTermYearsMax = 40;
 
 export const CalculateCostEstimateBody = zod.object({
   yacht_name: zod.string().nullish(),
+  builder: zod
+    .string()
+    .nullish()
+    .describe("Shipyard \/ builder (e.g. Sunseeker, Ferretti)"),
+  model: zod
+    .string()
+    .nullish()
+    .describe("Yacht model (e.g. Predator 74, Navetta 33)"),
   yacht_class: zod.enum([
     "motor_yacht",
     "sailing_yacht",
@@ -1389,6 +1397,8 @@ export const CalculateCostEstimateResponse = zod.object({
     currency: zod.string(),
     legal_disclaimer: zod.string(),
     yacht_name: zod.string().nullish(),
+    builder: zod.string().nullish(),
+    model: zod.string().nullish(),
     yacht_class: zod.enum([
       "motor_yacht",
       "sailing_yacht",
@@ -1492,6 +1502,14 @@ export const GetCostEstimateResponse = zod.object({
   name: zod.string().nullish(),
   input: zod.object({
     yacht_name: zod.string().nullish(),
+    builder: zod
+      .string()
+      .nullish()
+      .describe("Shipyard \/ builder (e.g. Sunseeker, Ferretti)"),
+    model: zod
+      .string()
+      .nullish()
+      .describe("Yacht model (e.g. Predator 74, Navetta 33)"),
     yacht_class: zod.enum([
       "motor_yacht",
       "sailing_yacht",
@@ -1703,6 +1721,8 @@ export const GetCostEstimateResponse = zod.object({
     currency: zod.string(),
     legal_disclaimer: zod.string(),
     yacht_name: zod.string().nullish(),
+    builder: zod.string().nullish(),
+    model: zod.string().nullish(),
     yacht_class: zod.enum([
       "motor_yacht",
       "sailing_yacht",

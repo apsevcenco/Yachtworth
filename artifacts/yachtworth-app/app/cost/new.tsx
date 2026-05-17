@@ -121,6 +121,8 @@ type AnnualKey = (typeof ANNUAL_FIELDS)[number]["key"];
 
 interface FormState {
   yacht_name: string;
+  builder: string;
+  model: string;
   yacht_class: YachtClass | null;
   length: string; // displayed in current units
   year_built: string;
@@ -142,6 +144,8 @@ const INITIAL_CREW: Record<string, CrewRow> = Object.fromEntries(
 
 const INITIAL: FormState = {
   yacht_name: "",
+  builder: "",
+  model: "",
   yacht_class: null,
   length: "",
   year_built: "",
@@ -355,6 +359,8 @@ export default function CostNewScreen() {
 
     const payload = {
       yacht_name: form.yacht_name || null,
+      builder: form.builder || null,
+      model: form.model || null,
       yacht_class: form.yacht_class!,
       length_meters: lengthMeters,
       year_built: parseInt(form.year_built, 10),
@@ -546,6 +552,22 @@ function Step1Basics({
           value={form.yacht_name}
           onChangeText={(v) => update("yacht_name", v)}
           placeholder="e.g. Aurora"
+        />
+      </Field>
+
+      <Field label="Shipyard / builder (optional)">
+        <Input
+          value={form.builder}
+          onChangeText={(v) => update("builder", v)}
+          placeholder="e.g. Sunseeker, Ferretti, Lagoon"
+        />
+      </Field>
+
+      <Field label="Model (optional)">
+        <Input
+          value={form.model}
+          onChangeText={(v) => update("model", v)}
+          placeholder="e.g. Predator 74, Navetta 33"
         />
       </Field>
 

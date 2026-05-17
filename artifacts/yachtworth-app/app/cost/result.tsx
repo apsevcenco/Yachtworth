@@ -45,6 +45,8 @@ interface CostResult {
   currency: string;
   legal_disclaimer: string;
   yacht_name?: string | null;
+  builder?: string | null;
+  model?: string | null;
   yacht_class: string;
   length_meters: number;
   year_built: number;
@@ -117,6 +119,11 @@ export default function CostResultScreen() {
       >
         <Text style={styles.kicker}>ANNUAL COST ESTIMATE</Text>
         {r.yacht_name ? <Text style={styles.yachtName}>{r.yacht_name}</Text> : null}
+        {(r.builder || r.model) ? (
+          <Text style={styles.yachtBuilder}>
+            {[r.builder, r.model].filter(Boolean).join(" · ")}
+          </Text>
+        ) : null}
         <Text style={styles.yachtMeta}>
           {CLASS_LABEL[r.yacht_class] ?? r.yacht_class} · {lenLabel} · {r.year_built}
         </Text>
@@ -276,6 +283,13 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-ExtraBold",
     fontSize: 26,
     marginTop: 6,
+  },
+  yachtBuilder: {
+    color: GOLD,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    marginTop: 4,
+    letterSpacing: 0.2,
   },
   yachtMeta: {
     color: MUTED,

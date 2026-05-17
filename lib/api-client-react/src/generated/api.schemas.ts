@@ -883,6 +883,16 @@ export interface CostFinancingInput {
 export interface CostEstimateInput {
   /** @nullable */
   yacht_name?: string | null;
+  /**
+   * Shipyard / builder (e.g. Sunseeker, Ferretti)
+   * @nullable
+   */
+  builder?: string | null;
+  /**
+   * Yacht model (e.g. Predator 74, Navetta 33)
+   * @nullable
+   */
+  model?: string | null;
   yacht_class: YachtType;
   /**
    * @minimum 5
@@ -940,6 +950,10 @@ export interface CostEstimateResult {
   legal_disclaimer: string;
   /** @nullable */
   yacht_name?: string | null;
+  /** @nullable */
+  builder?: string | null;
+  /** @nullable */
+  model?: string | null;
   yacht_class: YachtType;
   length_meters: number;
   year_built: number;

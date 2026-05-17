@@ -301,6 +301,8 @@ export function computeCostEstimate(
     length_meters: lengthM,
     year_built: year,
     yacht_name: input.yacht_name ?? null,
+    builder: input.builder ?? null,
+    model: input.model ?? null,
   };
 }
 

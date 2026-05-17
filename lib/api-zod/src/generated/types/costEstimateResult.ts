@@ -28,6 +28,10 @@ export interface CostEstimateResult {
   legal_disclaimer: string;
   /** @nullable */
   yacht_name?: string | null;
+  /** @nullable */
+  builder?: string | null;
+  /** @nullable */
+  model?: string | null;
   yacht_class: YachtType;
   length_meters: number;
   year_built: number;

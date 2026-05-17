@@ -16,6 +16,16 @@ import type { YachtType } from "./yachtType";
 export interface CostEstimateInput {
   /** @nullable */
   yacht_name?: string | null;
+  /**
+   * Shipyard / builder (e.g. Sunseeker, Ferretti)
+   * @nullable
+   */
+  builder?: string | null;
+  /**
+   * Yacht model (e.g. Predator 74, Navetta 33)
+   * @nullable
+   */
+  model?: string | null;
   yacht_class: YachtType;
   /**
    * @minimum 5

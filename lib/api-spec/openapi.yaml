@@ -1386,6 +1386,12 @@ components:
       properties:
         yacht_name:
           type: ["string", "null"]
+        builder:
+          type: ["string", "null"]
+          description: Shipyard / builder (e.g. Sunseeker, Ferretti)
+        model:
+          type: ["string", "null"]
+          description: Yacht model (e.g. Predator 74, Navetta 33)
         yacht_class:
           $ref: "#/components/schemas/YachtType"
         length_meters:
@@ -1496,6 +1502,10 @@ components:
         legal_disclaimer:
           type: string
         yacht_name:
+          type: ["string", "null"]
+        builder:
+          type: ["string", "null"]
+        model:
           type: ["string", "null"]
         yacht_class:
           $ref: "#/components/schemas/YachtType"
