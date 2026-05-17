@@ -366,6 +366,13 @@ export const GetEstimateResponse = zod.object({
 });
 
 /**
+ * @summary Delete a saved estimate
+ */
+export const DeleteEstimateParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary List user's yacht profiles
  */
 export const listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin = 0;
@@ -1895,4 +1902,11 @@ export const GetRoiCalculationResponse = zod.object({
     confidence: zod.enum(["high", "medium", "low"]),
     legal_disclaimer: zod.string(),
   }),
+});
+
+/**
+ * @summary Delete a saved ROI calculation
+ */
+export const DeleteRoiCalculationParams = zod.object({
+  id: zod.coerce.string(),
 });

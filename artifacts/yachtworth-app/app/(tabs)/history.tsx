@@ -4,6 +4,9 @@ import {
   getListCostEstimatesQueryKey,
   getListEstimatesQueryKey,
   getListRoiCalculationsQueryKey,
+  useDeleteCostEstimate,
+  useDeleteEstimate,
+  useDeleteRoiCalculation,
   useListCostEstimates,
   useListEstimates,
   useListRoiCalculations,
@@ -11,10 +14,12 @@ import {
   type EstimateListItem,
   type RoiCalculationListItem,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -23,6 +28,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../../hooks/useUnits";
 
@@ -35,6 +41,7 @@ const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 const POSITIVE = "#7BD389";
 const NEGATIVE = "#FF8A8A";
+const DANGER = "#B5363A";
 
 type Tab = "estimates" | "cost" | "roi";
 
@@ -83,13 +90,93 @@ function formatLength(m: number | null | undefined, units: "metric" | "imperial"
   return `${Math.round(m * 3.28084)} ft`;
 }
 
+interface SwipeableCardProps {
+  children: React.ReactNode;
+  onDelete: () => void;
+  deletingLabel: string;
+  confirmTitle: string;
+  confirmMessage: string;
+  isDeleting: boolean;
+}
+
+function SwipeableCard({
+  children,
+  onDelete,
+  deletingLabel,
+  confirmTitle,
+  confirmMessage,
+  isDeleting,
+}: SwipeableCardProps) {
+  const swipeRef = useRef<Swipeable>(null);
+  const handlePress = () => {
+    Alert.alert(confirmTitle, confirmMessage, [
+      { text: "Cancel", style: "cancel", onPress: () => swipeRef.current?.close() },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          swipeRef.current?.close();
+          onDelete();
+        },
+      },
+    ]);
+  };
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={() => (
+        <Pressable
+          onPress={handlePress}
+          accessibilityRole="button"
+          accessibilityLabel={deletingLabel}
+          disabled={isDeleting}
+          style={({ pressed }) => [
+            styles.deleteAction,
+            { opacity: pressed || isDeleting ? 0.7 : 1 },
+          ]}
+        >
+          {isDeleting ? (
+            <ActivityIndicator color={IVORY} />
+          ) : (
+            <>
+              <Feather name="trash-2" size={18} color={IVORY} />
+              <Text style={styles.deleteActionText}>Delete</Text>
+            </>
+          )}
+        </Pressable>
+      )}
+      overshootRight={false}
+      friction={2}
+      rightThreshold={40}
+    >
+      {children}
+    </Swipeable>
+  );
+}
+
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isSignedIn, isLoaded } = useAuth();
   const { units } = useUnits();
   const [tab, setTab] = useState<Tab>("estimates");
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const markPending = (id: string) =>
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  const clearPending = (id: string) =>
+    setPendingIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
 
   const estimatesQ = useListEstimates({
     query: {
@@ -110,6 +197,45 @@ export default function HistoryScreen() {
       queryKey: getListRoiCalculationsQueryKey(),
       enabled: Boolean(isSignedIn) && tab === "roi",
       staleTime: 30_000,
+    },
+  });
+
+  const deleteEstimate = useDeleteEstimate({
+    mutation: {
+      onSuccess: () =>
+        queryClient.invalidateQueries({ queryKey: getListEstimatesQueryKey() }),
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
+    },
+  });
+  const deleteCost = useDeleteCostEstimate({
+    mutation: {
+      onSuccess: () =>
+        queryClient.invalidateQueries({ queryKey: getListCostEstimatesQueryKey() }),
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
+    },
+  });
+  const deleteRoi = useDeleteRoiCalculation({
+    mutation: {
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: getListRoiCalculationsQueryKey(),
+        }),
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
     },
   });
 
@@ -249,35 +375,49 @@ export default function HistoryScreen() {
               tintColor={GOLD}
             />
           }
-          renderItem={({ item }) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open estimate ${item.yacht_label || ""}`}
-              onPress={() =>
-                router.push({ pathname: "/valuation/result", params: { id: item.id } })
-              }
-              style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
-            >
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.yacht_label || "Estimate"}
-                </Text>
-                <Text style={styles.cardMeta}>
-                  {[
-                    item.yacht_type ? TYPE_LABELS[item.yacht_type] ?? item.yacht_type : null,
-                    formatLength(item.length_meters, units),
-                    formatDate(item.created_at),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-              </View>
-              <View style={styles.priceWrap}>
-                <Text style={styles.cardPrice}>{formatEur(item.estimated_price_eur)}</Text>
-                <Feather name="chevron-right" size={18} color={MUTED} />
-              </View>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            const title = item.yacht_label || "Estimate";
+            return (
+              <SwipeableCard
+                onDelete={() => {
+                  markPending(item.id);
+                  deleteEstimate.mutate({ id: item.id });
+                }}
+                deletingLabel={`Delete ${title}`}
+                confirmTitle="Delete estimate?"
+                confirmMessage={`${title} will be permanently removed.`}
+                isDeleting={pendingIds.has(item.id)}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open estimate ${title}`}
+                  onPress={() =>
+                    router.push({ pathname: "/valuation/result", params: { id: item.id } })
+                  }
+                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {title}
+                    </Text>
+                    <Text style={styles.cardMeta}>
+                      {[
+                        item.yacht_type ? TYPE_LABELS[item.yacht_type] ?? item.yacht_type : null,
+                        formatLength(item.length_meters, units),
+                        formatDate(item.created_at),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  </View>
+                  <View style={styles.priceWrap}>
+                    <Text style={styles.cardPrice}>{formatEur(item.estimated_price_eur)}</Text>
+                    <Feather name="chevron-right" size={18} color={MUTED} />
+                  </View>
+                </Pressable>
+              </SwipeableCard>
+            );
+          }}
         />
       ) : tab === "cost" ? (
         <FlatList
@@ -295,36 +435,47 @@ export default function HistoryScreen() {
           renderItem={({ item }) => {
             const title = item.yacht_name || item.name || "Cost estimate";
             return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Open cost estimate ${title}`}
-                onPress={() =>
-                  router.push({ pathname: "/cost/result", params: { id: item.id } })
-                }
-                style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+              <SwipeableCard
+                onDelete={() => {
+                  markPending(item.id);
+                  deleteCost.mutate({ id: item.id });
+                }}
+                deletingLabel={`Delete ${title}`}
+                confirmTitle="Delete cost estimate?"
+                confirmMessage={`${title} will be permanently removed.`}
+                isDeleting={pendingIds.has(item.id)}
               >
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {title}
-                  </Text>
-                  <Text style={styles.cardMeta}>
-                    {[
-                      TYPE_LABELS[item.yacht_class] ?? item.yacht_class,
-                      formatLength(item.length_meters, units),
-                      formatDate(item.created_at),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </Text>
-                </View>
-                <View style={styles.priceWrap}>
-                  <Text style={styles.cardPrice}>
-                    {formatEur(item.total_annual_eur)}
-                    <Text style={styles.cardPriceSuffix}> /yr</Text>
-                  </Text>
-                  <Feather name="chevron-right" size={18} color={MUTED} />
-                </View>
-              </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open cost estimate ${title}`}
+                  onPress={() =>
+                    router.push({ pathname: "/cost/result", params: { id: item.id } })
+                  }
+                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {title}
+                    </Text>
+                    <Text style={styles.cardMeta}>
+                      {[
+                        TYPE_LABELS[item.yacht_class] ?? item.yacht_class,
+                        formatLength(item.length_meters, units),
+                        formatDate(item.created_at),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  </View>
+                  <View style={styles.priceWrap}>
+                    <Text style={styles.cardPrice}>
+                      {formatEur(item.total_annual_eur)}
+                      <Text style={styles.cardPriceSuffix}> /yr</Text>
+                    </Text>
+                    <Feather name="chevron-right" size={18} color={MUTED} />
+                  </View>
+                </Pressable>
+              </SwipeableCard>
             );
           }}
         />
@@ -343,33 +494,45 @@ export default function HistoryScreen() {
           }
           renderItem={({ item }) => {
             const positive = item.net_profit_eur >= 0;
+            const title = `Charter ROI · ${REGION_LABELS[item.region] ?? item.region}`;
             return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Open ROI calculation, ${item.roi_pct.toFixed(1)} percent`}
-                onPress={() =>
-                  router.push({ pathname: "/roi/result", params: { id: item.id } })
-                }
-                style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+              <SwipeableCard
+                onDelete={() => {
+                  markPending(item.id);
+                  deleteRoi.mutate({ id: item.id });
+                }}
+                deletingLabel="Delete ROI calculation"
+                confirmTitle="Delete ROI calculation?"
+                confirmMessage="This scenario will be permanently removed."
+                isDeleting={pendingIds.has(item.id)}
               >
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    Charter ROI · {REGION_LABELS[item.region] ?? item.region}
-                  </Text>
-                  <Text style={styles.cardMeta}>
-                    {`Revenue ${formatEur(item.annual_revenue_eur)} · ${formatDate(item.created_at)}`}
-                  </Text>
-                </View>
-                <View style={styles.priceWrap}>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={[styles.cardPrice, { color: positive ? POSITIVE : NEGATIVE }]}>
-                      {formatEurSigned(item.net_profit_eur)}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ROI calculation, ${item.roi_pct.toFixed(1)} percent`}
+                  onPress={() =>
+                    router.push({ pathname: "/roi/result", params: { id: item.id } })
+                  }
+                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {title}
                     </Text>
-                    <Text style={styles.roiSub}>{item.roi_pct.toFixed(1)}% ROI</Text>
+                    <Text style={styles.cardMeta}>
+                      {`Revenue ${formatEur(item.annual_revenue_eur)} · ${formatDate(item.created_at)}`}
+                    </Text>
                   </View>
-                  <Feather name="chevron-right" size={18} color={MUTED} />
-                </View>
-              </Pressable>
+                  <View style={styles.priceWrap}>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={[styles.cardPrice, { color: positive ? POSITIVE : NEGATIVE }]}>
+                        {formatEurSigned(item.net_profit_eur)}
+                      </Text>
+                      <Text style={styles.roiSub}>{item.roi_pct.toFixed(1)}% ROI</Text>
+                    </View>
+                    <Feather name="chevron-right" size={18} color={MUTED} />
+                  </View>
+                </Pressable>
+              </SwipeableCard>
             );
           }}
         />
@@ -475,4 +638,19 @@ const styles = StyleSheet.create({
   cardPrice: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   cardPriceSuffix: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11 },
   roiSub: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11, marginTop: 2 },
+  deleteAction: {
+    backgroundColor: DANGER,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 92,
+    marginBottom: 10,
+    borderRadius: 14,
+    marginLeft: 8,
+    gap: 4,
+  },
+  deleteActionText: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+  },
 });

@@ -375,6 +375,90 @@ export function useGetEstimate<
 }
 
 /**
+ * @summary Delete a saved estimate
+ */
+export const getDeleteEstimateUrl = (id: string) => {
+  return `/api/estimates/${id}`;
+};
+
+export const deleteEstimate = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteEstimateUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteEstimateMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteEstimate>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteEstimate>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteEstimate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteEstimate>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteEstimate(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteEstimateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteEstimate>>
+>;
+
+export type DeleteEstimateMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a saved estimate
+ */
+export const useDeleteEstimate = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteEstimate>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteEstimate>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteEstimateMutationOptions(options));
+};
+
+/**
  * @summary List user's yacht profiles
  */
 export const getListYachtsUrl = () => {
@@ -1407,3 +1491,87 @@ export function useGetRoiCalculation<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Delete a saved ROI calculation
+ */
+export const getDeleteRoiCalculationUrl = (id: string) => {
+  return `/api/roi/calculations/${id}`;
+};
+
+export const deleteRoiCalculation = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteRoiCalculationUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteRoiCalculationMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRoiCalculation>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRoiCalculation>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteRoiCalculation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRoiCalculation>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteRoiCalculation(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRoiCalculationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRoiCalculation>>
+>;
+
+export type DeleteRoiCalculationMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a saved ROI calculation
+ */
+export const useDeleteRoiCalculation = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRoiCalculation>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRoiCalculation>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteRoiCalculationMutationOptions(options));
+};

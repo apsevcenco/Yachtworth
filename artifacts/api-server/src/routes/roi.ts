@@ -204,4 +204,36 @@ router.get(
   },
 );
 
+router.delete(
+  "/roi/calculations/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "ROI storage not configured" });
+      return;
+    }
+    const { error, count } = await sb
+      .from(ROI_CALCULATIONS_TABLE)
+      .delete({ count: "exact" })
+      .eq("clerk_user_id", req.userId!)
+      .eq("id", req.params["id"]);
+    if (error) {
+      req.log.error({ err: error.message }, "Delete ROI calculation failed");
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    if (!count) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.status(204).send();
+  },
+);
+
 export default router;

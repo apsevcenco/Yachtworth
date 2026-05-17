@@ -74,7 +74,8 @@ Until each is run, the corresponding feature degrades: POSTs silently no-op (war
 - **Stage A1:** backend foundation — pure deterministic calculator (no AI). `/cost-estimates` POST (soft auth — guests get calc, signed-in users get calc + save) + GET list + GET detail + DELETE. Crew rule: `salary × 12 × qty`, `qty>1` only for stewardess/deckhand (server-enforced clamp). Auto-estimate helpers prepared for future "Auto-fill" button.
 - **Stage A2:** 4-step wizard (`cost/new.tsx`) + minimal results screen (hero total/yr + per-day/per-week + category cards + 4 breakdown sections). Home tab second CTA wired.
 - **Stage A2.5:** 8 new annual maintenance fields (engine / generator / electronics / safety / tender / hull paint / rigging / watermaker), crew `months_per_year` stepper (1-12) for stew/deck, builder+model echo through to result header.
-- **Stage A3 (current — DONE):** History tab extended with 3-segment switch (Estimates / Cost / ROI). Each segment uses its own list hook with `enabled: signedIn && tab===X`, per-tab empty/error/loading states, per-tab card rendering. Deep-link `?id=` added to `cost/result.tsx` (via `useGetCostEstimate`) and `roi/result.tsx` (via `useGetRoiCalculation`). Region label map covers both `CharterRegion` and `OperationRegion` enums. A11y: `tablist`/`tab` roles on segment, `accessibilityRole`+`accessibilityLabel` on all CTAs and cards.
+- **Stage A3:** History tab extended with 3-segment switch (Estimates / Cost / ROI). Each segment uses its own list hook with `enabled: signedIn && tab===X`, per-tab empty/error/loading states, per-tab card rendering. Deep-link `?id=` added to `cost/result.tsx` (via `useGetCostEstimate`) and `roi/result.tsx` (via `useGetRoiCalculation`). Region label map covers both `CharterRegion` and `OperationRegion` enums. A11y: `tablist`/`tab` roles on segment, `accessibilityRole`+`accessibilityLabel` on all CTAs and cards.
+- **Stage A4 (current — DONE):** Delete-from-history. New `DELETE /estimates/:id` + `DELETE /roi/calculations/:id` (mirror `DELETE /cost-estimates/:id`): `isUuid` guard → 404, `softClerkAuth+requireAuth`, scoped delete by `clerk_user_id` + `id` with `{count:'exact'}` → 404 if zero, 204 on success (no IDOR leak). UI: each list row wrapped in `Swipeable` (react-native-gesture-handler) with red trash action → `Alert.alert` destructive confirm → mutate → invalidate matching list query key. Concurrent-safe via `pendingIds: Set<string>` (per-row spinner survives rapid multi-delete; architect-flagged single-flight bug fixed pre-merge).
 
 ## Not in v1.0
 
@@ -85,7 +86,6 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
 - V2 spec point 2: per-comparable freshness badges (`fresh/verify/stale`) — cosmetic, revisit after real-world stale-listing complaints
 - V2: broker tier, GDPR copy, free-tier hard limit on backend
 - Architect hardening notes: DB-level CHECK constraints (`>=0`, commission `[0,100]`), upper bounds on expense fields to prevent `numeric(12,2)` overflow, unit test for ROI no-hit rounding invariant
-- Cost cards: swipe-to-delete via `useDeleteCostEstimate` (hook generated, UI not wired)
 - A11y backfill on `cost/new` Step 2 crew toggles/steppers + Step 1–4 pills/Continue
 
 ## Run

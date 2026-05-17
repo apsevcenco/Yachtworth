@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { ESTIMATES_TABLE, getSupabase } from "../lib/supabase";
+import { isUuid } from "../lib/validators";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 
 const router: IRouter = Router();
@@ -57,6 +58,38 @@ router.get(
       return;
     }
     res.json(data);
+  },
+);
+
+router.delete(
+  "/estimates/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "History storage not configured" });
+      return;
+    }
+    const { error, count } = await sb
+      .from(ESTIMATES_TABLE)
+      .delete({ count: "exact" })
+      .eq("clerk_user_id", req.userId!)
+      .eq("id", req.params["id"]);
+    if (error) {
+      req.log.error({ err: error.message }, "Delete estimate failed");
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    if (!count) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.status(204).send();
   },
 );
 
