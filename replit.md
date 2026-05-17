@@ -181,7 +181,25 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
   - Registered в `routes/index.ts`. `COST_ESTIMATES_TABLE` константа в `lib/supabase.ts`.
   - Codegen прогнан, typecheck зелёный, api-server рестартован. Smoke: 200/healthz, 400/empty, 401/list-no-auth, реальный расчёт 24м motor + Med + mixed + captain+2 stewardesses + loan 1M @ 6%/10y → 366,968€ (math reconciled). Quantity-clamp проверен: captain × 4 → клампится в 1; stewardess × 3 → принято.
   - Architect re-review: 2 валидных пункта исправлены (crew quantity rule + integer clamp для term_years/year_built). Остальное (auto-estimate хелперы вне compute path) — by design, для UI Stage A3.
-- **Stage A2 (next):** Frontend wizard — root Stack registration `/cost/new` + `/cost/result` + `/cost/history`, Home tab второй CTA "Calculate annual cost", шаги 1-2 (Basics + Crew).
-- **Stage A3:** Шаги 3-4 (Expenses с кнопкой Auto-fill + Financing), Results screen с donut chart.
-- **Stage A4:** History screen + Save/Rename/Delete + Edit-reopen.
-- **Stage A5:** PDF export.
+- **Stage A2 (current) — DONE:** Frontend визард + минимальный Results screen. Owner может пройти end-to-end и увидеть числа.
+  - **Root Stack `app/_layout.tsx`** регистрирует `cost/new` + `cost/result` (presentation: card, headerless — кастомный navy back-bar внутри экранов, по образцу roi/*).
+  - **Home tab `app/(tabs)/index.tsx`** — второй CTA-card под "New estimate": "NEW · Annual cost calculator" с иконкой `bar-chart-2`, мягкий золотой бордер + navy-elev фон чтобы не конкурировать с главным CTA. Тапает `/cost/new`.
+  - **Wizard `app/cost/new.tsx`** — 4 шага в одном экране со степ-индикатором сверху + Continue/Calculate в футере:
+    - **Step 1 Basics:** опциональное название, 4-pill class (motor/sailing/catamaran/superyacht), length (units-aware через `useUnits()`, 5-120m или эквивалент в футах), year_built (1950-2026), 6-pill region, 3-card usage (private / mixed / charter-focused).
+    - **Step 2 Crew:** 8 позиций как toggle-карты с чек-боксом. Quantity-степпер (×1..×4) **рендерится ТОЛЬКО для stewardess/deckhand** — UI совпадает с серверным QUANTITY_ALLOWED. Salaries пре-заполняются спековыми дефолтами при включении тогла; captain автоматически включается при выборе class + length ≥15м. Внизу live "annual crew total" gold-карта (salary × 12 × qty).
+    - **Step 3 Expenses:** 5 monthly money-input + 5 annual + условный `broker_commission_pct` (только если usage=mixed/charter). Все опциональные с подсказкой "leave blank if unknown". `MoneyInput` компонент с суффиксом `€/mo`/`€/yr`/`%`.
+    - **Step 4 Financing:** cash/loan pills, при loan — условные loan_amount/rate (0-30%) / term_years (1-40).
+    - **Units-safety:** `formUnitsRef` снапшотит units на маунте, мид-форма переключение в Settings не интерпретирует length как 3.28× ошибку (тот же паттерн, что в roi/yacht-form). На submit конвертится в метры (golden rule сохранён).
+    - **Валидация:** per-step error gating — Continue блокирует переход если на текущем шаге есть ошибки, ошибки показываются только после клика Continue (`showErrors` стейт), pристейт скрывает при успешном переходе. На submit повторная проверка всех шагов.
+    - **Submit:** `useCalculateCostEstimate` hook → `router.replace("/cost/result", { data: JSON.stringify(envelope) })`. Mutation error отображается баннером.
+  - **Results screen `app/cost/result.tsx`** — минимальный, но полный (donut + PDF будут в A3/A5):
+    - Hero-карта: total/year (Gilroy 40px gold) + per-day + per-week чипы.
+    - Charter break-even pill (рендерится только если backend вернул число weeks).
+    - 4 category-карты с color swatch (color_hint с бэка) + % от total.
+    - 4 секции (Crew / Operations / Maintenance / Financing) — каждая рендерится только если non-empty, со списком line items + formula под каждой строкой.
+    - Legal disclaimer + "Powered by PDYE" footer + "New cost estimate" CTA → `/cost/new`.
+  - **Auth-поведение:** `POST /cost-estimates` soft-auth — wizard работает у гостей (только расчёт) и у залогиненных (расчёт + сохранение). Никакого auth-гейта в визарде.
+  - Typecheck зелёный (и api-server, и yachtworth-app). Architect re-review: ожидается.
+- **Stage A3 (next):** History screen `app/cost/history.tsx` + кнопка "Saved estimates" на Home или внутри wizard'а; deep-link `/cost/result?id=` через `useGetCostEstimate`; кнопка Delete; опциональный "Auto-fill estimate" на Step 3 (бэк-хелперы уже готовы).
+- **Stage A4:** Donut chart на result screen (react-native-svg) + Edit-reopen из истории.
+- **Stage A5:** PDF export (expo-print по образцу `lib/pdf.ts`).

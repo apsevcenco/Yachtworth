@@ -33,6 +33,13 @@ export default function HomeScreen() {
     router.push("/valuation/new");
   };
 
+  const onPressCost = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    router.push("/cost/new");
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: NAVY }]}>
       <ScrollView
@@ -84,6 +91,22 @@ export default function HomeScreen() {
           <View style={styles.ctaInner}>
             <Text style={styles.ctaText}>New estimate</Text>
             <Feather name="arrow-up-right" size={20} color={GOLD} />
+          </View>
+        </Pressable>
+
+        <Pressable
+          onPress={onPressCost}
+          style={({ pressed }) => [
+            styles.ctaSecondary,
+            { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
+          ]}
+        >
+          <View style={styles.ctaInner}>
+            <View>
+              <Text style={styles.ctaSecondaryKicker}>NEW</Text>
+              <Text style={styles.ctaSecondaryText}>Annual cost calculator</Text>
+            </View>
+            <Feather name="bar-chart-2" size={20} color={GOLD} />
           </View>
         </Pressable>
 
@@ -213,6 +236,27 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 16,
     letterSpacing: 0.2,
+  },
+  ctaSecondary: {
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.35)",
+    backgroundColor: NAVY_ELEV,
+    overflow: "hidden",
+  },
+  ctaSecondaryText: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    letterSpacing: 0.1,
+    marginTop: 2,
+  },
+  ctaSecondaryKicker: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    letterSpacing: 1.8,
   },
   statsRow: {
     flexDirection: "row",
