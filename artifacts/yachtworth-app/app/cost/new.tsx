@@ -89,6 +89,7 @@ interface CrewRow {
   enabled: boolean;
   salary: string;
   qty: number;
+  months: number; // only honored server-side for stewardess/deckhand
 }
 
 const MONTHLY_FIELDS = [
@@ -104,6 +105,14 @@ const ANNUAL_FIELDS = [
   { key: "registration_eur", label: "Registration / flag" },
   { key: "classification_eur", label: "Classification & survey" },
   { key: "antifouling_eur", label: "Antifouling & haul-out" },
+  { key: "engine_service_eur", label: "Engine service" },
+  { key: "generator_service_eur", label: "Generator service" },
+  { key: "electronics_service_eur", label: "Electronics & navigation" },
+  { key: "safety_equipment_eur", label: "Safety equipment certification" },
+  { key: "tender_service_eur", label: "Tender & outboard service" },
+  { key: "hull_paint_eur", label: "Hull paint / polish" },
+  { key: "rigging_service_eur", label: "Rigging inspection" },
+  { key: "watermaker_service_eur", label: "Watermaker service" },
   { key: "refit_reserve_eur", label: "Refit reserve" },
 ] as const;
 
@@ -128,7 +137,7 @@ interface FormState {
 }
 
 const INITIAL_CREW: Record<string, CrewRow> = Object.fromEntries(
-  CREW.map((c) => [c.key, { enabled: false, salary: "", qty: 1 }]),
+  CREW.map((c) => [c.key, { enabled: false, salary: "", qty: 1, months: 12 }]),
 );
 
 const INITIAL: FormState = {
@@ -147,6 +156,14 @@ const INITIAL: FormState = {
     maintenance_eur: "",
   },
   annual: {
+    engine_service_eur: "",
+    generator_service_eur: "",
+    electronics_service_eur: "",
+    safety_equipment_eur: "",
+    tender_service_eur: "",
+    hull_paint_eur: "",
+    rigging_service_eur: "",
+    watermaker_service_eur: "",
     insurance_eur: "",
     registration_eur: "",
     classification_eur: "",
@@ -210,6 +227,7 @@ export default function CostNewScreen() {
               enabled: cur.enabled || shouldEnable,
               salary: cur.salary || String(c.defaultSalary),
               qty: cur.qty,
+              months: cur.months,
             },
           ];
         }),
@@ -349,6 +367,7 @@ export default function CostNewScreen() {
           enabled: row.enabled,
           monthly_salary_eur: row.enabled ? num(row.salary) : null,
           quantity: c.allowQty ? row.qty : 1,
+          months_per_year: c.allowQty ? row.months : 12,
         };
       }),
       monthly_expenses: {
@@ -363,6 +382,14 @@ export default function CostNewScreen() {
         registration_eur: num(form.annual.registration_eur),
         classification_eur: num(form.annual.classification_eur),
         antifouling_eur: num(form.annual.antifouling_eur),
+        engine_service_eur: num(form.annual.engine_service_eur),
+        generator_service_eur: num(form.annual.generator_service_eur),
+        electronics_service_eur: num(form.annual.electronics_service_eur),
+        safety_equipment_eur: num(form.annual.safety_equipment_eur),
+        tender_service_eur: num(form.annual.tender_service_eur),
+        hull_paint_eur: num(form.annual.hull_paint_eur),
+        rigging_service_eur: num(form.annual.rigging_service_eur),
+        watermaker_service_eur: num(form.annual.watermaker_service_eur),
         refit_reserve_eur: num(form.annual.refit_reserve_eur),
       },
       broker_commission_pct: num(form.broker_commission_pct),
@@ -632,7 +659,8 @@ function Step2Crew({
       const s = parseNum(r.salary);
       if (s == null || s <= 0) continue;
       const qty = c.allowQty ? Math.max(1, r.qty) : 1;
-      sum += s * 12 * qty;
+      const months = c.allowQty ? Math.min(12, Math.max(1, r.months)) : 12;
+      sum += s * months * qty;
     }
     return sum;
   }, [form.crew]);
@@ -711,6 +739,30 @@ function Step2Crew({
                     </Pressable>
                   </View>
                 )}
+              </View>
+            )}
+            {row.enabled && c.allowQty && (
+              <View style={styles.crewControlsRow}>
+                <Text style={styles.monthsLabel}>Months / year</Text>
+                <View style={styles.qtyStepper}>
+                  <Pressable
+                    onPress={() => updateCrew(c.key, { months: Math.max(1, row.months - 1) })}
+                    hitSlop={6}
+                    style={styles.qtyBtn}
+                  >
+                    <Feather name="minus" size={14} color={GOLD} />
+                  </Pressable>
+                  <View style={styles.qtyBox}>
+                    <Text style={styles.qtyValue}>{row.months}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => updateCrew(c.key, { months: Math.min(12, row.months + 1) })}
+                    hitSlop={6}
+                    style={styles.qtyBtn}
+                  >
+                    <Feather name="plus" size={14} color={GOLD} />
+                  </Pressable>
+                </View>
               </View>
             )}
           </View>
@@ -1132,6 +1184,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   qtyBox: { paddingHorizontal: 8, minWidth: 30, alignItems: "center" },
+  monthsLabel: {
+    flex: 1,
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
   qtyValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 14 },
   totalCard: {
     marginTop: 16,
