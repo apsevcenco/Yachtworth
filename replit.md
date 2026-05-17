@@ -1,205 +1,126 @@
 # Yachtworth
 
-Standalone luxury mobile app (iOS + Android) for AI-powered yacht valuation. Created by the team behind PDYE, but a separate brand.
+Standalone luxury mobile app (iOS + Android) — AI-powered yacht **estimates** + Charter ROI + Annual Cost calculator. Spinoff from PDYE; separate brand, shared backend.
 
 ## Product
 
 - **Audience:** yacht owners + brokers/surveyors
-- **Core flow:** user enters yacht parameters (length, year, shipyard, condition, etc.) → AI returns valuation with price range + chart + PDF report
-- **Branding:** luxury minimalism — deep navy `#0B1E3F` + champagne gold `#C9A961`. Fonts: **Gilroy** (headings, owner-provided .otf in `assets/fonts/` — `Gilroy-Regular` + `Gilroy-ExtraBold`) + Inter (body)
-- **Cross-link with PDYE:** clean Yachtworth logo, but inside the app:
-  - Onboarding: "by the team behind PDYE"
-  - Settings/About: "Powered by PDYE" block
-  - For valuations > €5M or quick-sale: banner suggesting PDYE for broker support
-
-## Monetization
-
-- Free: 1 valuation/month, no history
-- Basic: €19.99/month
-- Pro: €49.99/month (history, PDF export, unlimited valuations)
-- 7-day free trial
+- **Branding:** deep navy `#0B1E3F` + champagne gold `#C9A961`. Gilroy (headings) + Inter (body). Dark only (Light v1.1+).
+- **PDYE cross-link:** "by the team behind PDYE" in onboarding; "Powered by PDYE" block in Settings → opens `pdyegroup.com` in in-app browser.
+- **Legal:** every estimate result + ROI + cost has server-injected disclaimer ("indicative market estimate · not a certified appraisal · valid 30 days").
 
 ## Stack
 
-- **Frontend:** Expo React Native (artifact `yachtworth-app`, served at `/`) — single codebase for iOS + Android
-- **Backend:** shared `api-server` artifact (Express 5, served at `/api`) — used instead of a duplicate `yachtworth-api` because the monorepo's standard pattern is one shared backend per workspace
-- **DB (planned):** Supabase project `yachtworth-prod` (Frankfurt region) — owner-provisioned
-- **Auth (planned):** Clerk — Apple Sign-In (App Store requirement) + Google + Email
-- **Subscriptions (planned):** RevenueCat
-- **AI valuation (planned):** OpenAI via existing PDYE-style logic (base price by length/year/shipyard/condition + multipliers: New 1.05 / Excellent 1.00 / Good 0.93 / Fair 0.83 / Needs Refit 0.70 / Project 0.50, distressed -20%, quick-sale -30%)
-- **Deployment:** Render (separate service from existing PDYE)
+- **Frontend:** Expo React Native — `artifacts/yachtworth-app` (single codebase iOS+Android)
+- **Backend:** shared `artifacts/api-server` Express 5 at `/api`
+- **DB:** Supabase project `yachtworth-prod` (Frankfurt). RLS `deny_all` on all tables, service-role bypasses. Scoping by `clerk_user_id` everywhere → no IDOR.
+- **Auth:** Clerk (Apple SSO + Google SSO + email/password). `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (frontend) + `CLERK_SECRET_KEY` (backend gate).
+- **AI:** OpenAI `gpt-5-mini` via Responses API + `web_search_preview` tool; fallback `/chat/completions`; final deterministic heuristic fallback so AI never causes 500. Key resolution: user's `YACHTWORTH_OPENAI_API_KEY` → Replit AI Integrations proxy.
+- **Subscriptions (planned, Day 6):** RevenueCat. Pro €49.99/mo, Basic €19.99/mo, Free 1 estimate/month, 7-day trial.
+- **Deployment:** Render (separate service from PDYE).
 
-## 7-day Build Plan
+## Repo layout
 
-- **Day 1 (current):** App skeleton + design system + tabs (Home / History / Profile) + DB schema (users, valuations, subscriptions)
-- **Day 2 (current):** Clerk auth — DONE. ClerkProvider in `app/_layout.tsx` (tokenCache via expo-secure-store). `app/(auth)/sign-in.tsx` + `sign-up.tsx` with Email+Password (email verification code), Apple SSO (`oauth_apple`), Google SSO (`oauth_google`) — all branded navy/gold. Profile tab shows real `useUser()` + Sign out when signed-in, "Sign in" CTA when guest. Tabs stay public (per skill — no gate on landing). `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` wired in dev script and `scripts/build.js` for prod.
-- **Day 3 (current): Valuation form + AI engine + result screen — DONE (re-spec'd Day 3.5).**
-  - **Day 3.5 — full PDYE questionnaire ported.** Form rebuilt as 5-step wizard (`General → Market → Hull → Engines → Capacity`) per `attached_assets/Pasted-Yachtworth-Valuation-Questionnaire-full-specification...txt`. Mode toggle (`builder` vs `specs`), units toggle (m/ft + t/lt — converts on flip without losing data) **persisted globally via `hooks/useUnits.ts` + AsyncStorage key `yachtworth.units`** (per `attached_assets/Pasted-Yachtworth-Metric-Imperial-Units-Toggle-Spec...txt`); conversion helpers in `lib/units.ts`. Result screen now also reads `useUnits()` and converts comparable lengths via `formatComparableLength()` so US/UK users see "94ft" instead of "28.5m". API contract stays metric-only (golden rule); DB column `users.preferred_units` deferred to Day 4 with the rest of the schema. Settings-screen toggle deferred to Day 5 — header pill in form is the current entry point. per-step inline validation, "I don't have all the data" bypass. Backend extended: new fields `mode`, `bypass_required`, `refit_year`, `sale_region` (5 enum), `vat_status` (conditional on region), `draft_meters`, `displacement_tonnes`, `gross_tonnage`, `engine_maker/model/config/count`, `horse_power`, `range_nm`, `cabins/heads/berths/crew`. Region guidance string injected into prompt. Bypass caps confidence at medium and uses Excellent (1.00) multiplier when condition missing. Completeness weights matched to spec (mode-aware: builder/model excluded in specs mode). Result extended with `sale_region_label`, `vat_status`, `condition_label`, `completeness_filled/total/missing_critical`, `sanity_per_meter_eur`. Sanity-fallback heuristic cleaned up.
-  - Backend `POST /api/valuations` (api-server). Engine adapts production PDYE logic: `lib/valuation/{index,sanity,condition,openai,completeness}.ts`. OpenAI `gpt-5-mini` via Responses API + `web_search_preview` tool, with `/chat/completions` fallback. **Prompt fully ported from PDYE spec (`attached_assets/Pasted-Yachtworth-OpenAI-Prompt-Specification...txt`)**: full STEP 1–4 structure, BLOCK 3 region as HARD FILTER (with region-specific search query examples), BLOCK 4 VAT cohort filter (structurally different markets — NOT a percentage adjustment, with EU brokerage indicators), BLOCK 5 completeness with FILLED/TOTAL line, BLOCK 6 mode note (builder = factor brand premium / specs = pure tech), OPEN MARKET LISTING EQUIVALENT critical block (asking-price equivalent, weighted avg of comps, NO asking→sold haircut), explicit "PRICE AS EXCELLENT" instruction. Mobile adaptations per spec TL;DR: **3 comparables (not 5)**, **2 sentences max reasoning**. Separate `buildFallbackPrompt()` for chat-completions path; fallback also caps confidence to low (no web search → training-data only). Sanity check by €/m bands per yacht type+configuration, with premium overrides for ≥18–20m. Condition multipliers New 1.05 / Excellent 1.0 / Good 0.93 / Fair 0.83 / Needs Refit 0.7 / Project 0.5 (deterministic, server-authoritative — AI is told to price as Excellent). Distressed = −20%, Quick-sale = −30%. Confidence floor by completeness score (<30 → low, <50 → medium, etc.). API key resolution: prefers user's `YACHTWORTH_OPENAI_API_KEY` (real OpenAI), falls back to Replit AI Integrations proxy.
-  - Frontend `app/valuation/new.tsx`: form (4 yacht-type pills, 6 condition pills, length, year, shipyard, model, configuration, engines HP, beam, hull material, notes). Required: type, length (1–200m), year (1900–2100), condition. Inline error borders.
-  - Frontend `app/valuation/result.tsx`: hero estimated price + range, confidence chip, sanity-adjusted notice, condition adjustment line, 3-tier bar chart (Open market / Discreet / Quick), AI reasoning, comparables list, "Powered by PDYE" block, "New valuation" CTA. Data passed via `expo-router` params as JSON.
-  - `app/_layout.tsx` calls `setBaseUrl(`https://${EXPO_PUBLIC_DOMAIN}`)` from `@workspace/api-client-react` so the Expo bundle hits the proxy at the same Replit dev domain.
-  - Home tab CTA wired to `router.push("/valuation/new")`.
-  - **Skipped from PDYE for v1 mobile** (defer to later): internal comparables DB lookup (`findComparables`), region/VAT cohort filters, `valuation_requests` jsonb log table, IP rate limiting middleware. The `valuations` table in `lib/db/` exists but persistence will be wired on Day 5 when history UX lands.
-- **Day 3.6 (current) — V2 spec point 1 DONE: terminology + legal disclaimer.**
-  - **User-facing rename "valuation" → "estimate"** in all screens (home, auth, history, profile, new, result) and AI prompt strings ("market analyst" not "appraiser"; explicit instruction to AI not to use "valuation/appraisal/fair market value" in reasoning). **Code-level names PRESERVED** (no contract breakage): file paths, routes `/valuation/new|result`, `POST /api/valuations`, OpenAPI operationId `createValuation`, schema name `Valuation`, types `ValuationRequest/Result/Mode`, `useCreateValuation` hook, `lib/valuation/` folder.
-  - **Legal disclaimer** server-injected: `LEGAL_DISCLAIMER` constant in `artifacts/api-server/src/lib/valuation/index.ts` ("This is an indicative market estimate for informational purposes only — not a certified appraisal or valuation. Not suitable for financing, insurance, or legal proceedings. For a certified appraisal, consult a licensed marine surveyor. Estimate valid for 30 days."). Wired through OpenAPI (`legal_disclaimer: string`, required) → server zod-validates response → UI renders verbatim at bottom of result screen (`styles.disclaimer`: 11px, muted, centered).
-  - Architect re-review: PASS, no critical issues. Typecheck green, api-server healthy.
-- **Day 3.7 — V2 spec DEFERRED items (decided NOT to do now):**
-  - **Point 2 (per-comparable freshness badge `fresh/verify/stale`)** — DEFERRED. Owner asked, explained: pure cosmetic (AI guesses freshness from snippet without reliable date data, doesn't actually filter stale comps from calc, legal cover already done by disclaimer). Revisit after Day 4-5 if owner sees stale-listing problem in real tests. If doing later, do MINIMAL version (UI badge only, ~1h) — NOT the full `assessListingFreshness` regex helper from spec (priceHistory array doesn't exist in web_search response).
-  - Other V2 items also deferred (not approved by owner): broker tier, GDPR copy, free-tier hard limit on backend.
-- **Day 4 (current) — DONE:** PDF report export + history persistence to Supabase + History tab UI.
-  - **PDF export**: `expo-print` + `expo-sharing`. `artifacts/yachtworth-app/lib/pdf.ts` (`buildEstimatePdfHtml` + `exportEstimatePdf`), gold "Export PDF report" CTA on result screen with ActivityIndicator. `header` param wired from `new.tsx` via `expo-router` params (yachtType/builder/model/yearBuilt/lengthMeters; meters parsed from m/ft form input).
-  - **Backend persistence**: `@supabase/supabase-js` + `@clerk/express` on api-server. `lib/supabase.ts` (lazy singleton, `ESTIMATES_TABLE` const), `middlewares/clerkAuth.ts` (`softClerkAuth` + `requireAuth`; backend gates on `CLERK_SECRET_KEY` only — publishable is frontend), `routes/estimates.ts` (GET /estimates list + GET /estimates/:id detail, both `requireAuth`, scoped by `clerk_user_id` to prevent IDOR). `routes/valuations.ts` extended with `softClerkAuth` and conditional Supabase insert when `req.userId` exists; returns `id` in response so client can deep-link. **Persistence is OPTIONAL — guests still get an estimate, just not saved.**
-  - **OpenAPI**: added `id?` to `Valuation`, new `EstimateListItem`/`EstimateListResponse`/`EstimateDetail` schemas, `bearerAuth` securityScheme, `estimates` tag, GET /estimates + /estimates/{id} endpoints. Hooks generated: `useListEstimates`, `useGetEstimate` + `getListEstimatesQueryKey`/`getGetEstimateQueryKey`.
-  - **Frontend wiring**: `app/_layout.tsx` adds `ClerkTokenBridge` → calls `setAuthTokenGetter(() => useAuth().getToken())` from `api-client-react/custom-fetch.ts` (was already exported). `app/(tabs)/history.tsx` rebuilt: signed-out CTA → sign-in, signed-in shows list of cards (yacht label + type + length + date + €price), pull-to-refresh, empty/error/loading states, taps navigate to `/valuation/result?id=<id>`. `app/valuation/result.tsx` accepts `?id=` param and uses `useGetEstimate` to fetch when no inline `data` (history → result deep-link works); reconstructs `header` from saved `request` if needed.
-  - **DB schema**: `migrations/001_estimates.sql` — `estimates` table (uuid id, `clerk_user_id text`, denorm `yacht_label/yacht_type/length_meters/estimated_price_eur/currency`, `request jsonb`, `result jsonb`), composite index on (`clerk_user_id`, `created_at desc`), RLS `deny_all` policy (service-role bypasses).
-  - **Manual step required from owner once**: paste `migrations/001_estimates.sql` into Supabase SQL editor of `yachtworth-prod` project. Until then, history POST silently no-ops (logged as warn) and GET returns 401/empty.
-  - Architect re-review: PASS after Clerk-key gate fix (was checking publishable + secret, now only secret). Typecheck green. Health screenshot of History tab confirmed signed-out state renders correctly.
-- **Day 5 (current) — DONE:** Profile + Settings with "Powered by PDYE" + units toggle in Settings.
-  - **Profile (`app/(tabs)/profile.tsx`)** trimmed and polished: real Clerk avatar (`user.imageUrl` if present, else gold initials, else generic icon), name, email, "Free plan · 1 estimate / month" gold chip (real plan in Day 6), Sign in CTA (signed-out) or Upgrade-to-Pro card (signed-in), single grouped menu (Settings → /settings, Sign out for signed-in users), short Powered by PDYE block (also taps to /settings), version footer.
-  - **Settings (`app/settings.tsx`, new screen, registered in root Stack as `card` presentation, headerless with custom navy back-bar)**:
-    - **Units** segmented control Metric (m, t) ↔ Imperial (ft, lt). Reads/writes the SAME `useUnits()` hook + AsyncStorage key as the form-header pill, so toggling here flips form, history, comparables, PDF immediately. Header-pill kept as quick access per owner request (both entry points live).
-    - **Appearance** — Dark only, locked with check (Light v1.1+).
-    - **About** — `App version` from `expo-constants`, `Privacy Policy` + `Terms of Service` rows open Alert placeholders ("full text published before App Store launch") — real copy comes Day 7.
-    - **Powered by PDYE** — gold-bordered card, taps `expo-web-browser.openBrowserAsync("https://www.pdyegroup.com")` (in-app browser on native, plain Linking on web), navy toolbar + gold controls.
-    - **Sign out** — danger-red bordered button at bottom (signed-in only).
-  - No new deps (`expo-web-browser` + `expo-constants` already present). Typecheck green. Verified live via screenshots: Profile (signed-out → Guest card + Sign in + Settings + PDYE + version) and Settings (Units segment with Metric active + Appearance Dark + About group + PDYE card with Visit PDYE arrow).
-- **Day 6 / Day 7 — DEFERRED by owner.** RevenueCat + paywall + App Store submission будут позже. Phase 2 (Charter ROI Intelligence) приоритетнее.
+- `artifacts/yachtworth-app/app/` — Expo Router screens
+  - `(tabs)/` — Home, Charter, History, Profile
+  - `(auth)/sign-in.tsx` + `sign-up.tsx`
+  - `valuation/new.tsx` + `result.tsx` — yacht **estimate** wizard
+  - `roi/yacht-form.tsx` + `calculate.tsx` + `result.tsx` — Charter ROI
+  - `cost/new.tsx` + `result.tsx` — Annual cost
+  - `settings.tsx`
+  - `hooks/useUnits.ts` (AsyncStorage key `yachtworth.units`)
+- `artifacts/api-server/src/`
+  - `routes/{valuations,estimates,yachts,roi,costEstimates}.ts`
+  - `lib/{valuation,roi,cost-estimate}/` — engines
+  - `lib/supabase.ts` (lazy singleton + table constants)
+  - `middlewares/clerkAuth.ts` (`softClerkAuth` + `requireAuth`)
+  - `lib/validators.ts` (`isUuid` guard)
+- `lib/api-spec/openapi.yaml` — single source of truth → orval generates hooks + zod
+- `migrations/` — Supabase SQL (owner runs manually in SQL editor)
 
-## Phase 2 — Charter ROI Intelligence (in progress)
+## DB migrations — owner-run order
 
-Внутренний модуль Yachtworth (НЕ отдельное приложение) для AI-расчёта рентабельности яхты в чартере. 10 стадий, см. историю чата. Pro-only гейт — позже на Day 6.
+Run sequentially in Supabase SQL editor of `yachtworth-prod`:
 
-- **Stage 1 (current) — DONE:** Архитектура + схема БД.
-  - **Миграция `migrations/002_charter_roi.sql`** (Supabase, тот же проект `yachtworth-prod`): 4 таблицы — `yachts` (профили яхт пользователя, scoped by clerk_user_id), `roi_calculations` (сохранённые расчёты, FK на yachts с cascade), `market_rates` (seed чартерных дневных ставок по типу/длине/региону/сезону — пока пустая), `expense_rates` (региональные коэффициенты расходов — пока пустая). RLS deny_all на всех 4, service-role обходит.
-  - **Константы в `artifacts/api-server/src/lib/supabase.ts`:** `YACHTS_TABLE`, `ROI_CALCULATIONS_TABLE`, `MARKET_RATES_TABLE`, `EXPENSE_RATES_TABLE`.
-  - **OpenAPI `lib/api-spec/openapi.yaml` расширен:** новые теги `yachts` + `roi`, новые схемы `Yacht/YachtInput/YachtListResponse`, `RoiCalculationInput/RoiCalculation/RoiCalculationListItem/RoiCalculationListResponse/RoiCalculationDetail`, `ExpenseBreakdown`, `MonthlyPoint`, `YearlyPoint`, enum-ы `FinancingType/CharterRegion/CharterSeason/ManagementStyle/OccupancyTarget`. Эндпоинты: `GET/POST /yachts`, `GET/PATCH/DELETE /yachts/{id}`, `POST /roi/calculate` (контракт залочен, тело — стаб **501** до Стадии 3–5), `GET /roi/calculations` (с опц. фильтром `?yacht_id`), `GET /roi/calculations/{id}`. Все требуют `bearerAuth`.
-  - **Роуты `artifacts/api-server/src/routes/yachts.ts`** — полный CRUD через Supabase service-role, scoping by `clerk_user_id`, валидация тела через `CreateYachtBody`/`UpdateYachtBody` (orval-сгенерённые zod), UUID-гард на path id (кривой id → 404, не 500).
-  - **Роуты `artifacts/api-server/src/routes/roi.ts`** — list/get через Supabase, stub `POST /roi/calculate` возвращает `501`. UUID-гард на path id и query `yacht_id`.
-  - **Хелпер `lib/validators.ts`** — `isUuid()` regex-гард, общий для всех новых роутов.
-  - Codegen прогнан: новые хуки `useListYachts/useCreateYacht/useGetYacht/useUpdateYacht/useDeleteYacht/useCalculateRoi/useListRoiCalculations/useGetRoiCalculation`. Typecheck зелёный, api-server рестартован, smoke-тест: новые роуты отдают 401 без токена.
-  - Code review (architect) PASS после фикса UUID-гарда. Известные не-критичные пункты на потом: integer-поля в orval генерятся как `number()` (общая проблема, не вношу в Стадии 1, чтобы не трогать существующие эндпоинты); OpenAPI не описывает `500/503` (тот же паттерн в `estimates.ts` — оставляю консистентным).
-  - **Ручной шаг от владельца:** вставить `migrations/002_charter_roi.sql` в Supabase SQL editor (`yachtworth-prod` проект) → Run. До этого `/yachts` и `/roi/calculations` будут возвращать 500 при попытке записи.
-- **Stage 2 (current) — DONE:** Charter ROI таб + форма профиля яхты.
-  - **Решения владельца:** на v1 — одна активная яхта на пользователя (самая свежая по `updated_at` из списка; БД допускает много, ограничение чисто UI); модуль открыт всем подписавшимся (Pro-гейт позже на Day 6 с RevenueCat).
-  - **Новый таб `app/(tabs)/charter.tsx`** между Home и History. Иконки: SF `chart.line.uptrend.xyaxis` (NativeTabs) + Feather `trending-up` (Classic). 3 состояния: signed-out → "Sign in to use Charter ROI" CTA; signed-in без яхты → "Create your yacht profile" CTA → `/roi/yacht-form`; signed-in с яхтой → summary card (название, тип/год, length с учётом units, cabins/guests/crew, marina, purchase) + редактор-иконка `/roi/yacht-form?id=` + disabled "Calculate ROI" с надписью "ROI engine arrives in the next update" (хендлер ждёт Стадию 6).
-  - **Wizard `app/roi/yacht-form.tsx`** — 3 шага (Basics / Operations / Financing), один экран и для create, и для edit (через `?id=`). Степ-индикатор сверху, навигация Continue/Back, primary CTA снизу. Поля: type-пилюли × 4, name ИЛИ brand+model (одно из), length (метры/футы — отображение зависит от units), year_built, cabins/guests/crew, marina_location, flag, engine_hours, commercial_registration (Yes/No пилюли), purchase_price_eur, purchase_year, financing_type (cash/loan пилюли — loan-поля показываются условно: loan_amount_eur, loan_rate_pct, loan_term_years). Инлайн-валидация по шагам, ошибки показываются только после клика Continue.
-  - **Units-безопасность (после code review).** Глобальные units из `useUnits()` снапшотятся в локальный `formUnits` при маунте и **не меняются на лету**, иначе мид-формы переключение pill'а в Settings было бы интерпретировано как 3.28× ошибка в length. На submit конвертация в метры через `formUnits` — API всегда получает метры (golden rule).
-  - **Prefill edit-mode.** `lastPrefilledIdRef` keyed by `editId` (не one-shot), так что переход между яхтами в той же сессии корректно перезаполняет форму. Loading → spinner; `getYacht.isError || !data` → дедикейтед "Yacht not found / no access" экран с Back, не пустая редактируемая форма.
-  - **Auth-гейт.** Если `!isSignedIn` после `isLoaded` — экран показывает Sign in CTA и редирект в `(auth)/sign-in`. На бэке IDOR уже закрыт scoping by `clerk_user_id` (Стадия 1).
-  - **Кэш react-query.** На успех `createYacht`/`updateYacht` инвалидируется `listYachts` + `getYacht(id)` — таб Charter сразу подхватывает новые данные.
-  - Регистрация `roi/yacht-form` в root Stack `app/_layout.tsx` (`presentation: card`). Typecheck зелёный. Architect re-review PASS после фикса units + prefill + error-state.
-  - **Что осталось не сделано (намеренно, под будущие стадии):** реальная кнопка Calculate ROI (Стадия 6, откроет сценарий-шит → `useCalculateRoi`); кнопка "Delete yacht" в edit-форме (добавлю когда понадобится — пока на v1 одна яхта и owner может править её бесконечно); множественный выбор активной яхты (v1.1).
-- **Stage 2.5 (current) — DONE:** Полная анкета расходов в форме яхты (по запросу владельца "важно чтобы в анкете были указаны все возможные расходы — операционные в месяц, регуляторные в год").
-  - **Миграция `migrations/003_yacht_expenses.sql`** (ALTER TABLE yachts, идемпотентная): 8 monthly numeric(12,2): `monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur` + 5 annual numeric(12,2): `annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur` + `charter_commission_pct real` (% of gross charter revenue).
-  - **OpenAPI расширен:** все 14 полей добавлены в `YachtInput` (number|null, min 0; commission также max 100) и в `Yacht` response. Codegen перегенерил zod + хуки.
-  - **Backend:** `YACHT_COLUMNS` в `routes/yachts.ts` обновлён — SELECT теперь возвращает все новые колонки. `CreateYachtBody`/`UpdateYachtBody` zod-валидируют их автоматически.
-  - **Форма выросла с 3 до 4 шагов:** Basics → Operations → **Expenses** → Financing. Новый шаг показывает 3 секции с золотыми лейблами: MONTHLY · € PER MONTH (8 строк), ANNUAL · € PER YEAR (5 строк), CHARTER (broker commission %). Все поля опциональны с hint "Empty fields will fall back to regional averages." Новый компонент `MoneyInput` (input + suffix `€ / mo` / `€ / yr` / `%`). Валидация числовая по `DEC_RE`; commission 0–100.
-  - **Submit payload:** 1-to-1 mapping по именам (`monthly_crew_eur: numOrNull(form.monthly_crew_eur)` и т.д.). Prefill из `useGetYacht` через `toStr()` хелпер. Pустые значения → `null` (не `0`), чтобы Стадия 3 ROI engine отличала "не указано → fallback на market average" от "указано 0 → реально нулевая статья".
-  - Typecheck зелёный по всему монорепо, api-server рестартован, health 200. Architect re-review PASS.
-  - **Hardening — на потом (architect note, не сейчас):** DB-level CHECK constraints для >=0 и commission [0,100]; верхние границы расходов в API чтобы предотвратить overflow numeric(12,2) → 500 (сейчас будет ловиться зодом частично, но без явных max).
-  - **Ручной шаг от владельца:** вставить `migrations/003_yacht_expenses.sql` в Supabase SQL editor → Run. Если 002 ещё не накатывался — сначала 002, потом 003.
-- **Stage 3 (current) — DONE:** ROI calculator engine + scenario UI.
-  - **Pricing model (owner's clarification):** `pricing_mode` enum в `RoiCalculationInput` — `manual_daily` (rate per day + charter days/year) | `manual_weekly` (rate per week + charter weeks/year) | `ai` (engine ищет через OpenAI web_search comparables и берёт midpoint rate + plausible weeks). Manual режимы — детерминистичные, AI — с occupancy_target hint.
-  - **OpenAPI расширен:** `PricingMode` enum, `CharterSeason` теперь включает `mixed`, `RoiCalculationInput.required = [yacht_id, region, pricing_mode, management_style]` (occupancy_target теперь опционален — нужен только для AI), новые поля `season/manual_rate_eur/manual_charter_units/target_weeks`, отдельная схема `RoiComparable` (не путать с valuation `Comparable`). `/roi/calculate` теперь документирует реальные коды 200/400/401/404/500/503 (убрал Stage-1 stub 501).
-  - **Backend `artifacts/api-server/src/lib/roi/`:** `types.ts` (YachtRow), `loan.ts` (annuity с zero-rate edge case), `projection.ts` (depreciation -5%/-3.5% step, 5y projection с inflation 3%, monthly seasonal Med weights), `expenses.ts` (owner overrides из Stage 2.5 → fallback heuristics по length/guests/purchase_price, региональные множители на mooring/fuel/antifouling, mgmt fee % от gross revenue по style: owner 0% / mgmt company 10% / brokerage 0%, charter commission default 15%), `revenue.ts` (`computeManualRevenue` для day/week + `computeAiRevenue` через Responses API + web_search_preview tool, с fallback на chat completions, **затем deterministic length×region heuristic** если оба AI пути или JSON парсер упали — никогда не отдаём 500 из-за AI), `index.ts` (orchestrator → ROI%, payback, risk_score 1-10, recommendations array, `ROI_DISCLAIMER`).
-  - **Route `routes/roi.ts`:** реальный `POST /roi/calculate` с zod-валидацией через `CalculateRoiBody`, отдельным route-level guard на manual rate/units (rate > 0; units 1–366 для daily, 1–52 для weekly — 400, не 500), загрузка яхты scoped by `clerk_user_id` (IDOR-safe), персист в `roi_calculations` с denorm колонками. `GET /roi/calculations` + `GET /roi/calculations/:id` — то же scoping + UUID guard.
-  - **Frontend:** новый экран `app/roi/calculate.tsx` (scenario wizard: region pills × 5, season pills × 4, management pills × 3, pricing_mode pills × 3 — `AI market estimate` дефолтом, для manual режимов показывает `MoneyInput` rate + units с suffix `€/day`/`€/week`+`days`/`weeks`, для AI режима — occupancy posture pills). Mutate → `useCalculateRoi` → router.replace на result с JSON в params. Inline validation, error banner, ActivityIndicator на submit. Hint "AI mode searches web, takes 10-30s". Новый экран `app/roi/result.tsx` (hero net profit с цветом (зелёный/красный), chips ROI/Payback/Confidence, 2-col summary cards, monthly revenue bar chart, expense breakdown list с formula, 5y cumulative cash projection, depreciation table, AI comparables list (если есть), reasoning, recommendations с чек-иконками, legal_disclaimer внизу, "Run another scenario" CTA). Charter tab кнопка `Calculate ROI` enabled → push `/roi/calculate?yacht_id=<id>`. Оба экрана зарегистрированы в `app/_layout.tsx` Stack как `card`.
-  - Codegen + typecheck зелёный по монорепо. Api-server рестартован, smoke: новые роуты возвращают 401 без токена. Architect review PASS после фикса manual validation (rate>0 / per-mode max units → 400), обновления OpenAPI описания эндпоинта, и добавления heuristic fallback на случай AI failure.
-  - **Ручной шаг от владельца перед использованием:** в Supabase SQL editor (`yachtworth-prod`) последовательно прогнать `migrations/002_charter_roi.sql` (если ещё нет) и `migrations/003_yacht_expenses.sql` (если ещё нет). До этого `POST /roi/calculate` будет падать на загрузке яхты или persist.
-- **Stage 2.6 (current) — DONE:** Crew breakdown по 6 позициям + ghost-restyle всех золотых кнопок (по запросу владельца).
-- **Stage 4 (current) — DONE:** Data-driven baseline rates вместо чистых heuristic fallbacks.
-  - **Миграция `migrations/005_seed_rates.sql`** (Supabase, идемпотентная): сидит `market_rates` (54 строки — motor_yacht/catamaran/sailing_yacht × length bands 12-15m/15-20m/20-30m/30m+ × Mediterranean+Caribbean × high/shoulder/low; superyacht-band 30m+ только под motor_yacht в обоих регионах) + `expense_rates` (32 строки — региональные mooring/fuel/antifouling/registration на 5 регионов + 7 global benchmark'ов: insurance/maintenance/refit pct, provisioning per guest, comms/misc/classification fees). Marker `source = 'yachtworth_seed_v1'` для market_rates (DELETE+INSERT) и `notes = 'yachtworth_seed_v1'` для expense_rates (ON CONFLICT DO UPDATE — unique index `(category, region, coalesce(length_band,''))` никогда не блокирует re-run). Также создаёт SQL-функцию `get_roi_rates(p_yacht_type, p_region) → jsonb` (security definer, stable, search_path=public) — возвращает один JSON с обоими массивами за **один Supabase round-trip**.
-  - **Новый модуль `artifacts/api-server/src/lib/roi/rates.ts`** — `loadRoiRates({yachtType, region})` через `supabase.rpc("get_roi_rates", ...)`. Если Supabase не настроен / RPC отсутствует (миграция не накатана) / RPC бросает — возвращает `EMPTY_RATES` и каждый downstream-вызов деградирует на свой heuristic. ROI **никогда не падает** из-за загрузки ставок. Хелперы: `lengthBand(meters)` (`<15→12-15m`, `<20→15-20m`, `<30→20-30m`, `≥30→30m+`), `findMarketRate(rates, band, season)` (точное совпадение → fallback на `shoulder`), `findExpense(rates, category, region, band)` (приоритет: region+band → region-only → global).
-  - **`expenses.ts` fb()** теперь принимает `expenseRates: ExpenseRateRow[]` + `region` и каждое числовое значение пытается взять из DB (mooring_per_meter_month, fuel_per_meter_month, antifouling_per_meter_year, insurance/maintenance/refit_pct_of_value_year, provisioning_per_guest_month, comms/misc_monthly, registration_leisure/commercial_year, classification_leisure/commercial_year) → если нет, fallback на старую формулу с `REGION_MULT`. Owner overrides из Stage 2.5 по-прежнему имеют наивысший приоритет (через `pickMonthly`/`pickAnnual` в `buildExpenses`). Crew tier-формула оставлена как есть — owner всегда заполняет 6-позиционный crew breakdown (Stage 2.6), поэтому DB-сид для crew не нужен.
-  - **`revenue.ts` heuristicAiFallback** (срабатывает когда AI Responses + Chat completions оба упали или вернули нечитаемый JSON) теперь использует `findMarketRate` → берёт midpoint `(low+high)/2` как daily rate, low/high из сида как season range. Если строки нет — старая длина×регион формула, **с сохранённой pre-Stage-4 семантикой округления** (`weekly = round(L * perMeter * R)` сначала, `daily = round(weekly/7)` потом — никакого drift'а). Reasoning-строка прозрачно указывает источник: "Used internal market_rates baseline (motor_yacht · 15-20m · mediterranean · high)" vs "deterministic length-and-region heuristic". `season = "mixed"` маппится на `shoulder` для lookup (середина диапазона). AI path (`computeAiRevenue` с web_search) не тронут — продолжает работать так же; market_rates передаётся туда же, но используется только в fallback.
-  - **`index.ts` orchestrator** — один новый шаг "0. Data-driven baseline rates" перед revenue+expenses, `loadRoiRates` параллельно с YachtRow ничего не блокирует (yacht уже загружен в routes/roi.ts). `rates.market` → в `computeAiRevenue`, `rates.expense` → в `buildExpenses`.
-  - Architect re-review **PASS** после fixes: (1) единый round-trip через RPC, (2) preserved no-hit rounding, (3) ON CONFLICT DO UPDATE. Typecheck зелёный, api-server рестартован, smoke: `/api/healthz` 200 + `/api/roi/calculate` без токена 401.
-  - **Ручной шаг от владельца:** вставить `migrations/005_seed_rates.sql` в Supabase SQL editor (`yachtworth-prod`) → Run. До этого RPC `get_roi_rates` не существует → `loadRoiRates` логирует warn и возвращает empty → engine продолжает работать на старых heuristic'ах (нулевая регрессия). После накатки те же ROI-расчёты начнут использовать сидированные числа автоматически, без перезапуска api-server.
-  - **Hardening на потом (architect note, не сейчас):** unit-тест на инвариант округления в no-hit branch; убрать неиспользуемый `lengthMeters` из `LoadArgs` (оставил под будущую расширенную фильтрацию по band на SQL-стороне).
-  - **Crew breakdown:** миграция `migrations/004_crew_breakdown.sql` (ALTER TABLE yachts ADD COLUMN crew_breakdown jsonb, идемпотентная). Новая схема `CrewMember` (role/monthly_salary_eur/months_per_year 1-12) в OpenAPI, поле `crew_breakdown: CrewMember[]?` в YachtInput + Yacht. `YACHT_COLUMNS` в `routes/yachts.ts` + `routes/roi.ts` обновлены. Шаг Expenses в `app/roi/yacht-form.tsx` теперь начинается с секции CREW · BY POSITION: 6 строк (Captain / First officer / Engineer / Chef / Stewardess / Deckhand), у каждой `MoneyInput` оклада + степпер `− [N] +` месяцев работы в году (1–12, с haptic feedback). Под секцией золотая total-карточка с агрегатом. На submit фронт считает `monthly_crew_eur = round(sum(salary × months/12))` и шлёт **оба** поля (legacy field для ROI engine, который читает только `monthly_crew_eur`, не трогали). Prefill `hydrateCrew()`: если в БД лежит `crew_breakdown` → восстанавливает (с дополнением до 6 default rows), иначе если есть только legacy `monthly_crew_eur` → кладёт в Captain row (данные не теряются при первом редактировании после миграции). Валидация: любая заполненная зарплата должна парситься по `DEC_RE`, иначе step-level error. **Ручной шаг от владельца:** прогнать `migrations/004_crew_breakdown.sql` в Supabase SQL editor `yachtworth-prod` ПЕРЕД деплоем — иначе SELECT по `crew_breakdown` упадёт.
-  - **Ghost-кнопки (UI polish "блюр фон + золотой кант + золотые буквы"):** все CTAs/segmented toggles перерисованы с `backgroundColor: GOLD` → `backgroundColor: "rgba(201,169,97,0.10-0.14)" + borderWidth: 1.5 + borderColor: GOLD`, текст с `color: NAVY` → `color: GOLD`. Затронуто 11 поверхностей: `charter.tsx` (cta + calcBtn), `profile.tsx` (upgrade card), `history.tsx` (cta), `(auth)/sign-in.tsx` + `(auth)/sign-up.tsx` (primaryBtn), `settings.tsx` (segmentItemActive), `valuation/result.tsx` (primaryCta), `valuation/new.tsx` (unitsSegActive), `roi/calculate.tsx` + `roi/yacht-form.tsx` (pillActive + primaryBtn). Также все вложенные `Feather` иконки и `ActivityIndicator` в этих кнопках перекрашены NAVY → GOLD для консистентности на полупрозрачном фоне (architect re-review поймал leftover-ы, теперь чисто). НЕ тронуты намеренно (декоративные не-кнопочные элементы, нужен solid gold для визуальной идентичности): step dots в wizard'ах, progress fill в valuation form, radio dot + checkbox check (check остаётся NAVY на solid-gold checkbox bg), chart bars в roi/result, brand dots.
-  - Typecheck зелёный, api-server рестартован. Architect review: PASS после фикса leftover NAVY иконок/спиннеров.
+1. `001_estimates.sql` — yacht estimates persistence
+2. `002_charter_roi.sql` — yachts + roi_calculations + market_rates + expense_rates
+3. `003_yacht_expenses.sql` — 14 expense fields on yachts (8 monthly + 5 annual + commission %)
+4. `004_crew_breakdown.sql` — `yachts.crew_breakdown jsonb`
+5. `005_seed_rates.sql` — seeds market_rates (54 rows) + expense_rates (32 rows) + RPC `get_roi_rates`. Idempotent.
+6. `007_cost_estimates.sql` — cost_estimates table
+
+Until each is run, the corresponding feature degrades: POSTs silently no-op (warn-logged), GETs return empty/401, ROI engine falls back to heuristics.
+
+## Build status
+
+### Core estimates flow (Days 1–5) — DONE
+- Day 1: app skeleton + design system + tabs
+- Day 2: Clerk auth (Apple+Google+email) — `ClerkProvider` + `ClerkTokenBridge` → `setAuthTokenGetter` for api-client-react
+- Day 3+3.5: yacht **estimate** wizard (5-step: General / Market / Hull / Engines / Capacity), mode toggle (builder/specs), units toggle (metric/imperial — persisted globally, **API contract metric-only**)
+- Day 3.6: user-facing rename valuation → "estimate" (code names preserved for contract stability); legal disclaimer wired
+- Day 4: PDF export (`expo-print` + `expo-sharing`, helpers in `lib/pdf.ts`); Supabase persistence; History tab
+- Day 5: Profile + Settings (units toggle, About, Powered by PDYE card)
+- Day 6/7 (RevenueCat + paywall + App Store submit): **DEFERRED** by owner — Phase 2 prioritized first
+
+### Phase 2 — Charter ROI Intelligence (in progress, Pro-gate deferred to Day 6)
+- **Stage 1:** schema + OpenAPI + CRUD `/yachts` + stub `/roi/calculate`
+- **Stage 2:** Charter tab + yacht-form wizard (3 steps initially), one active yacht per user on v1 (newest by `updated_at`)
+- **Stage 2.5:** full expense questionnaire added to yacht form (Step 3: 8 monthly + 5 annual + commission %); form grew to 4 steps. Empty fields → `null` = "fall back to regional avg", not 0
+- **Stage 2.6:** crew_breakdown — 6 positions (Captain / 1st Officer / Engineer / Chef / Stewardess / Deckhand), salary + months_per_year (1-12) per position. Submits both `crew_breakdown` jsonb AND legacy `monthly_crew_eur` aggregate for engine compat. Ghost-button restyle across all CTAs (transparent + gold border + gold text).
+- **Stage 3:** real `/roi/calculate` — 3 pricing modes (manual_daily / manual_weekly / ai). AI mode → web_search comparables → midpoint rate. Engine in `lib/roi/`: loan annuity, depreciation (-5%/-3.5% step, 5y projection w/ 3% inflation, monthly seasonal Med weights), expenses (owner overrides → fallback heuristics), revenue (AI Responses → AI chat → deterministic heuristic — never 500s). Result: ROI%, payback, risk_score, recommendations, charts.
+- **Stage 4:** data-driven baseline via `migrations/005_seed_rates.sql` + `lib/roi/rates.ts`. Single round-trip via RPC `get_roi_rates(yachtType, region)`. Heuristic fallback when seed missing — zero regression.
+
+### Annual Cost Estimator (separate module, in progress)
+- **Stage A1:** backend foundation — pure deterministic calculator (no AI). `/cost-estimates` POST (soft auth — guests get calc, signed-in users get calc + save) + GET list + GET detail + DELETE. Crew rule: `salary × 12 × qty`, `qty>1` only for stewardess/deckhand (server-enforced clamp). Auto-estimate helpers prepared for future "Auto-fill" button.
+- **Stage A2:** 4-step wizard (`cost/new.tsx`) + minimal results screen (hero total/yr + per-day/per-week + category cards + 4 breakdown sections). Home tab second CTA wired.
+- **Stage A2.5:** 8 new annual maintenance fields (engine / generator / electronics / safety / tender / hull paint / rigging / watermaker), crew `months_per_year` stepper (1-12) for stew/deck, builder+model echo through to result header.
+- **Stage A3 (current — DONE):** History tab extended with 3-segment switch (Estimates / Cost / ROI). Each segment uses its own list hook with `enabled: signedIn && tab===X`, per-tab empty/error/loading states, per-tab card rendering. Deep-link `?id=` added to `cost/result.tsx` (via `useGetCostEstimate`) and `roi/result.tsx` (via `useGetRoiCalculation`). Region label map covers both `CharterRegion` and `OperationRegion` enums. A11y: `tablist`/`tab` roles on segment, `accessibilityRole`+`accessibilityLabel` on all CTAs and cards.
 
 ## Not in v1.0
 
-Push notifications, multi-language, corporate accounts, yacht photo upload, marketing site. All v1.1+.
+Push notifications, multi-language, corporate accounts, yacht photo upload, marketing site, multi-yacht management. All v1.1+.
 
-## Run & Operate
+## Deferred (not approved by owner)
 
-- `pnpm --filter @workspace/yachtworth-app run dev` — Expo dev server (Replit workflow `artifacts/yachtworth-app: expo`)
-- `pnpm --filter @workspace/api-server run dev` — Express API server (port 5000, served at `/api`)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks/Zod schemas from OpenAPI spec
+- V2 spec point 2: per-comparable freshness badges (`fresh/verify/stale`) — cosmetic, revisit after real-world stale-listing complaints
+- V2: broker tier, GDPR copy, free-tier hard limit on backend
+- Architect hardening notes: DB-level CHECK constraints (`>=0`, commission `[0,100]`), upper bounds on expense fields to prevent `numeric(12,2)` overflow, unit test for ROI no-hit rounding invariant
+- Cost cards: swipe-to-delete via `useDeleteCostEstimate` (hook generated, UI not wired)
+- A11y backfill on `cost/new` Step 2 crew toggles/steppers + Step 1–4 pills/Continue
 
-## Where things live
+## Run
 
-- `artifacts/yachtworth-app/` — Expo mobile app (frontend)
-  - `app/(tabs)/` — Home, History, Profile
-  - `constants/colors.ts` — brand palette (navy + gold, light + dark)
-  - `app.json` — splash background `#0B1E3F`
-- `artifacts/api-server/` — shared Express backend (will hold valuation AI + Clerk webhooks + Supabase calls)
-- `lib/api-spec/openapi.yaml` — single source of truth for the API contract
-- `lib/db/` — Drizzle schemas (will mirror Supabase tables)
+- `pnpm --filter @workspace/yachtworth-app run dev` — Expo (workflow `artifacts/yachtworth-app: expo`)
+- `pnpm --filter @workspace/api-server run dev` — Express (workflow `artifacts/api-server: API Server`, port 5000, served at `/api`)
+- `pnpm run typecheck` — full monorepo typecheck
+- `pnpm --filter @workspace/api-spec run codegen` — regen hooks + zod from openapi.yaml
 
 ## Architecture decisions
 
-- One shared backend (`api-server`) for both web and mobile, not a separate `yachtworth-api`. Standard monorepo pattern.
-- Supabase is the primary database; Drizzle schemas in `lib/db/` mirror the Supabase tables.
-- Brand colors are hard-referenced in screen files (not just `useColors()`) where the design always renders dark navy regardless of system theme — luxury identity must be consistent.
+- One shared backend (`api-server`) for both web and mobile, not a separate `yachtworth-api`.
+- Supabase is primary DB; Drizzle schemas in `lib/db/` mirror Supabase tables.
+- Brand navy/gold hard-referenced in screen files (not via `useColors()`) — luxury identity must render dark regardless of system theme.
+- API contract is **metric-only** (golden rule). Units conversion happens in UI; form-level `formUnits` is snapshotted at mount to prevent 3.28× corruption when user toggles Settings mid-form.
+- AI paths always have deterministic fallback → engine never returns 500 because of AI.
+- Soft auth on guest-friendly endpoints (`/valuations`, `/cost-estimates` POST): calc always returned; persistence only if signed in.
 
 ## User preferences
 
-- Russian-language conversation with the owner, simple words, no jargon
-- **App UI must be in English** (not Russian) — owner serves international yacht owners and brokers
+- Russian conversation with owner, simple words, no jargon
+- **App UI must be in English** (international audience)
 - Owner is non-technical
-- Do not re-ask questions already answered in the original briefing — full context is in this file
-- Brand visual: deep navy `#0B1E3F` + champagne gold `#C9A961`, Playfair Display + Inter
+- Do not re-ask questions already answered in this file
+- Brand visual: deep navy `#0B1E3F` + champagne gold `#C9A961`, Gilroy + Inter
 
-## Required secrets (will be requested per stage)
+## Required secrets
 
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (Day 1, schema)
-- `OPENAI_API_KEY` (Days 3–4, AI valuation)
-- Clerk keys (Day 2)
-- RevenueCat keys (Day 6)
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `YACHTWORTH_OPENAI_API_KEY` (optional — falls back to Replit AI proxy)
+- `CLERK_SECRET_KEY` (backend), `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (frontend)
+- RevenueCat keys (Day 6, deferred)
 
 ## Pointers
 
-- See the `expo` skill for mobile dev guidelines
-- See the `pnpm-workspace` skill for workspace structure
-
-## Annual Cost Estimator (separate module, in progress)
-
-Отдельный модуль от Charter ROI и Valuation. Owner choice: literal spec — 4-step wizard, отдельная история, **БЕЗ months_per_year (€/mo × 12 для всех позиций)**, quantity > 1 только для stewardess/deckhand.
-
-- **Stage A1 (current) — DONE:** backend foundation.
-  - **Миграция `migrations/007_cost_estimates.sql`** (`cost_estimates` table, scoped by `clerk_user_id`, RLS deny_all, index `(clerk_user_id, created_at desc)`). **Ручной шаг от владельца:** вставить в Supabase SQL editor `yachtworth-prod` → Run.
-  - **OpenAPI:** новый тег `cost`, enums `OperationRegion` (6 значений: mediterranean/northern_europe/caribbean/asia_pacific/middle_east/global), `UsageType` (private/mixed/charter_focused), `CostFinancingType` (cash/loan). Schemas `CrewPositionInput`, `CostMonthlyExpenses`, `CostAnnualExpenses`, `CostFinancingInput`, `CostEstimateInput`, `CostBreakdownEntry`, `CostCategorySummary`, `CostEstimateResult`, `CostEstimate`, `CostEstimateListItem/Response`, `CostEstimateDetail`. Endpoints: `POST /cost-estimates` (soft auth — guests получают расчёт, signed-in юзеры — ещё и сохранение), `GET /cost-estimates` (auth), `GET /cost-estimates/{id}` (auth + UUID guard), `DELETE /cost-estimates/{id}` (auth + UUID guard + count check).
-  - **Бэкенд `artifacts/api-server/src/lib/cost-estimate/index.ts`:** чистый детерминистический калькулятор (без AI). Crew: `salary × 12 × qty` где `qty=1` для всех кроме stewardess/deckhand (server-side enforce, clamp 1..4). Monthly ops × 12, annual maintenance passthrough. Routine maintenance показывается в maintenance-бакете, не в operations. Loan annuity через переиспользованный `annualLoanPayment` из `roi/loan.ts`. Charter break-even hint (weeks) только если usage=mixed/charter_focused. `category_summary` с цветами для будущего donut chart. `COST_DISCLAIMER` server-injected. Auto-estimate хелперы (`estimateYachtValue` интерполяция по якорям LOA 10/15/20/24/30/40/50/60м с 2.5%/year age depreciation, `estimateMooringMonthly` по региону, `estimateInsuranceAnnual` = value × 1%, `estimateMaintenanceMonthly` = value × 0.5%/mo) подготовлены, но в compute path НЕ вызываются — будут использованы фронтом в Step 3 для кнопки "Auto-fill estimate" (по спеке владельца).
-  - **Route `artifacts/api-server/src/routes/costEstimates.ts`:** zod-валидация через `CalculateCostEstimateBody`, IDOR-safe scoping по `clerk_user_id`, denorm колонки в insert для дешёвого list rendering. Если Supabase не настроен или insert падает — расчёт всё равно отдаётся (best-effort persistence).
-  - Registered в `routes/index.ts`. `COST_ESTIMATES_TABLE` константа в `lib/supabase.ts`.
-  - Codegen прогнан, typecheck зелёный, api-server рестартован. Smoke: 200/healthz, 400/empty, 401/list-no-auth, реальный расчёт 24м motor + Med + mixed + captain+2 stewardesses + loan 1M @ 6%/10y → 366,968€ (math reconciled). Quantity-clamp проверен: captain × 4 → клампится в 1; stewardess × 3 → принято.
-  - Architect re-review: 2 валидных пункта исправлены (crew quantity rule + integer clamp для term_years/year_built). Остальное (auto-estimate хелперы вне compute path) — by design, для UI Stage A3.
-- **Stage A2 (current) — DONE:** Frontend визард + минимальный Results screen. Owner может пройти end-to-end и увидеть числа.
-  - **Root Stack `app/_layout.tsx`** регистрирует `cost/new` + `cost/result` (presentation: card, headerless — кастомный navy back-bar внутри экранов, по образцу roi/*).
-  - **Home tab `app/(tabs)/index.tsx`** — второй CTA-card под "New estimate": "NEW · Annual cost calculator" с иконкой `bar-chart-2`, мягкий золотой бордер + navy-elev фон чтобы не конкурировать с главным CTA. Тапает `/cost/new`.
-  - **Wizard `app/cost/new.tsx`** — 4 шага в одном экране со степ-индикатором сверху + Continue/Calculate в футере:
-    - **Step 1 Basics:** опциональное название, 4-pill class (motor/sailing/catamaran/superyacht), length (units-aware через `useUnits()`, 5-120m или эквивалент в футах), year_built (1950-2026), 6-pill region, 3-card usage (private / mixed / charter-focused).
-    - **Step 2 Crew:** 8 позиций как toggle-карты с чек-боксом. Quantity-степпер (×1..×4) **рендерится ТОЛЬКО для stewardess/deckhand** — UI совпадает с серверным QUANTITY_ALLOWED. Salaries пре-заполняются спековыми дефолтами при включении тогла; captain автоматически включается при выборе class + length ≥15м. Внизу live "annual crew total" gold-карта (salary × 12 × qty).
-    - **Step 3 Expenses:** 5 monthly money-input + 5 annual + условный `broker_commission_pct` (только если usage=mixed/charter). Все опциональные с подсказкой "leave blank if unknown". `MoneyInput` компонент с суффиксом `€/mo`/`€/yr`/`%`.
-    - **Step 4 Financing:** cash/loan pills, при loan — условные loan_amount/rate (0-30%) / term_years (1-40).
-    - **Units-safety:** `formUnitsRef` снапшотит units на маунте, мид-форма переключение в Settings не интерпретирует length как 3.28× ошибку (тот же паттерн, что в roi/yacht-form). На submit конвертится в метры (golden rule сохранён).
-    - **Валидация:** per-step error gating — Continue блокирует переход если на текущем шаге есть ошибки, ошибки показываются только после клика Continue (`showErrors` стейт), pристейт скрывает при успешном переходе. На submit повторная проверка всех шагов.
-    - **Submit:** `useCalculateCostEstimate` hook → `router.replace("/cost/result", { data: JSON.stringify(envelope) })`. Mutation error отображается баннером.
-  - **Results screen `app/cost/result.tsx`** — минимальный, но полный (donut + PDF будут в A3/A5):
-    - Hero-карта: total/year (Gilroy 40px gold) + per-day + per-week чипы.
-    - Charter break-even pill (рендерится только если backend вернул число weeks).
-    - 4 category-карты с color swatch (color_hint с бэка) + % от total.
-    - 4 секции (Crew / Operations / Maintenance / Financing) — каждая рендерится только если non-empty, со списком line items + formula под каждой строкой.
-    - Legal disclaimer + "Powered by PDYE" footer + "New cost estimate" CTA → `/cost/new`.
-  - **Auth-поведение:** `POST /cost-estimates` soft-auth — wizard работает у гостей (только расчёт) и у залогиненных (расчёт + сохранение). Никакого auth-гейта в визарде.
-  - Typecheck зелёный (и api-server, и yachtworth-app). Architect re-review: ожидается.
-- **Stage A3 (next):** History screen `app/cost/history.tsx` + кнопка "Saved estimates" на Home или внутри wizard'а; deep-link `/cost/result?id=` через `useGetCostEstimate`; кнопка Delete; опциональный "Auto-fill estimate" на Step 3 (бэк-хелперы уже готовы).
-- **Stage A4:** Donut chart на result screen (react-native-svg) + Edit-reopen из истории.
-- **Stage A5:** PDF export (expo-print по образцу `lib/pdf.ts`).
+- `expo` skill — mobile dev guidelines
+- `pnpm-workspace` skill — workspace structure
+- `attached_assets/` — original PDYE spec docs (questionnaire, prompt spec, units toggle spec)
