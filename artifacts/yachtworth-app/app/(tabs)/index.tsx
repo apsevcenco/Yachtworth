@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -87,10 +88,13 @@ export default function HomeScreen() {
       >
         {/* Brand row */}
         <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <View style={styles.dot} />
-            <Text style={styles.brandLabel}>YACHTWORTH</Text>
-          </View>
+          <Image
+            source={require("../../assets/images/logo-wordmark.png")}
+            style={styles.brandLogo}
+            resizeMode="contain"
+            accessibilityLabel="Yachtworth"
+            accessible
+          />
           <Pressable
             hitSlop={12}
             accessibilityRole="button"
@@ -204,14 +208,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 32,
   },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: GOLD },
-  brandLabel: {
-    color: IVORY,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    letterSpacing: 3,
-  },
+  brandLogo: { width: 168, height: 36 },
   kicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",
