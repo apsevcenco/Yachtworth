@@ -295,10 +295,22 @@ export default function CharterPlannerScreen() {
             }
           />
         ) : tab === "calendar" ? (
-          <PlaceholderTab
-            icon="calendar"
-            title="Calendar coming next"
-            text="Master Gantt + per-yacht month view ship in the next update. Backend is ready — your charters will appear here as soon as the UI lands."
+          <CalendarTab
+            yachts={yachts}
+            charters={allCharters}
+            onAddYacht={() => setAddOpen(true)}
+            onTapCharter={(c) =>
+              router.push({
+                pathname: "/charter-form",
+                params: { id: c.id },
+              })
+            }
+            onTapDay={(yachtId, dateIso) =>
+              router.push({
+                pathname: "/charter-form",
+                params: { yacht_id: yachtId, start_date: dateIso },
+              })
+            }
           />
         ) : (
           <PlaceholderTab
@@ -483,6 +495,353 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
       {value}
+    </View>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Calendar tab — Master Gantt grid (yacht rows × day columns)
+// ────────────────────────────────────────────────────────────────────────────
+
+const DAY_W = 32;
+const ROW_H = 56;
+const YACHT_COL_W = 108;
+const HEADER_H = 36;
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function isoDate(y: number, m: number, d: number): string {
+  return `${y}-${pad2(m + 1)}-${pad2(d)}`;
+}
+
+function statusColorFor(c: Charter): string {
+  if (c.status === "confirmed") return STATUS_COLORS.chartered;
+  if (c.status === "tentative") return STATUS_COLORS.option;
+  if (c.status === "maintenance") return STATUS_COLORS.maintenance;
+  if (c.status === "blocked") return STATUS_COLORS.blocked;
+  return MUTED; // cancelled
+}
+
+function CalendarTab({
+  yachts,
+  charters,
+  onAddYacht,
+  onTapCharter,
+  onTapDay,
+}: {
+  yachts: Yacht[];
+  charters: Charter[];
+  onAddYacht: () => void;
+  onTapCharter: (c: Charter) => void;
+  onTapDay: (yachtId: string, dateIso: string) => void;
+}) {
+  const now = new Date();
+  const [monthCursor, setMonthCursor] = useState({
+    y: now.getFullYear(),
+    m: now.getMonth(),
+  });
+
+  const totalDays = daysInMonth(monthCursor.y, monthCursor.m);
+  const monthStart = isoDate(monthCursor.y, monthCursor.m, 1);
+  const monthEnd = isoDate(monthCursor.y, monthCursor.m, totalDays);
+  const todayY = now.getFullYear();
+  const todayM = now.getMonth();
+  const todayD = now.getDate();
+  const isCurrentMonth = todayY === monthCursor.y && todayM === monthCursor.m;
+
+  const monthCharters = useMemo(
+    () =>
+      charters.filter(
+        (c) => c.end_date >= monthStart && c.start_date <= monthEnd,
+      ),
+    [charters, monthStart, monthEnd],
+  );
+
+  const chartersByYacht = useMemo(() => {
+    const m = new Map<string, Charter[]>();
+    for (const c of monthCharters) {
+      const arr = m.get(c.yacht_id) ?? [];
+      arr.push(c);
+      m.set(c.yacht_id, arr);
+    }
+    return m;
+  }, [monthCharters]);
+
+  const goPrev = () => {
+    setMonthCursor((c) =>
+      c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 },
+    );
+  };
+  const goNext = () => {
+    setMonthCursor((c) =>
+      c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 },
+    );
+  };
+  const goToday = () => {
+    const d = new Date();
+    setMonthCursor({ y: d.getFullYear(), m: d.getMonth() });
+  };
+
+  if (yachts.length === 0) {
+    return (
+      <View style={styles.empty}>
+        <View style={styles.emptyIcon}>
+          <Feather name="calendar" size={28} color={GOLD} />
+        </View>
+        <Text style={styles.emptyTitle}>No yachts to schedule yet.</Text>
+        <Text style={styles.emptyText}>
+          Add a yacht first — then plan charters month by month.
+        </Text>
+        <Pressable
+          onPress={onAddYacht}
+          accessibilityRole="button"
+          accessibilityLabel="Add my first yacht"
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { opacity: pressed ? 0.85 : 1, marginTop: 18 },
+          ]}
+        >
+          <Feather name="plus" size={16} color={NAVY_DEEP} />
+          <Text style={styles.primaryBtnText}>Add my first yacht</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {/* Month nav */}
+      <View style={styles.calNavRow}>
+        <Pressable
+          onPress={goPrev}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
+          style={styles.calNavBtn}
+        >
+          <Feather name="chevron-left" size={20} color={IVORY} />
+        </Pressable>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text style={styles.calMonthLabel}>
+            {MONTH_NAMES[monthCursor.m]} {monthCursor.y}
+          </Text>
+        </View>
+        <Pressable
+          onPress={goNext}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
+          style={styles.calNavBtn}
+        >
+          <Feather name="chevron-right" size={20} color={IVORY} />
+        </Pressable>
+        {!isCurrentMonth ? (
+          <Pressable
+            onPress={goToday}
+            accessibilityRole="button"
+            accessibilityLabel="Jump to today"
+            style={({ pressed }) => [
+              styles.todayPill,
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={styles.todayPillText}>Today</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {/* Gantt grid */}
+      <View style={styles.ganttWrap}>
+        {/* Sticky left yacht column */}
+        <View style={styles.ganttLeftCol}>
+          <View style={styles.ganttLeftHeader}>
+            <Text style={styles.ganttLeftHeaderText}>YACHT</Text>
+          </View>
+          {yachts.map((y) => {
+            const list = chartersByYacht.get(y.id) ?? [];
+            const status = computeTodayStatus(list);
+            return (
+              <View key={y.id} style={styles.ganttLeftCell}>
+                <View
+                  style={[
+                    styles.ganttYachtDot,
+                    { backgroundColor: status.color },
+                  ]}
+                />
+                <Text style={styles.ganttYachtName} numberOfLines={1}>
+                  {y.name || yachtTitle(y)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Scrollable day columns */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: 12 }}
+        >
+          <View>
+            {/* Day header */}
+            <View style={[styles.ganttHeaderRow, { width: totalDays * DAY_W }]}>
+              {Array.from({ length: totalDays }, (_, i) => {
+                const dayNum = i + 1;
+                const isToday = isCurrentMonth && dayNum === todayD;
+                return (
+                  <View
+                    key={dayNum}
+                    style={[
+                      styles.ganttHeaderCell,
+                      isToday && styles.ganttHeaderCellToday,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.ganttHeaderText,
+                        isToday && { color: GOLD },
+                      ]}
+                    >
+                      {dayNum}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Yacht rows */}
+            {yachts.map((y) => {
+              const list = chartersByYacht.get(y.id) ?? [];
+              // Occupied days (1-based): union of all active charter spans clipped to month
+              const occupied = new Set<number>();
+              const monthStartD = new Date(monthStart + "T00:00:00Z");
+              const monthEndD = new Date(monthEnd + "T00:00:00Z");
+              for (const c of list) {
+                if (c.status === "cancelled") continue;
+                const cs = new Date(c.start_date + "T00:00:00Z");
+                const ce = new Date(c.end_date + "T00:00:00Z");
+                const a = cs < monthStartD ? monthStartD : cs;
+                const b = ce > monthEndD ? monthEndD : ce;
+                const startDay =
+                  Math.floor(
+                    (a.getTime() - monthStartD.getTime()) / 86400000,
+                  ) + 1;
+                const spanDays =
+                  Math.floor((b.getTime() - a.getTime()) / 86400000) + 1;
+                for (let k = 0; k < spanDays; k++) {
+                  occupied.add(startDay + k);
+                }
+              }
+              return (
+                <View
+                  key={y.id}
+                  style={[styles.ganttRow, { width: totalDays * DAY_W }]}
+                >
+                  {/* Empty-day tap cells (disabled on occupied days) */}
+                  {Array.from({ length: totalDays }, (_, i) => {
+                    const dayNum = i + 1;
+                    const isToday = isCurrentMonth && dayNum === todayD;
+                    const isOccupied = occupied.has(dayNum);
+                    const dateIso = isoDate(
+                      monthCursor.y,
+                      monthCursor.m,
+                      dayNum,
+                    );
+                    return (
+                      <Pressable
+                        key={dayNum}
+                        onPress={
+                          isOccupied
+                            ? undefined
+                            : () => onTapDay(y.id, dateIso)
+                        }
+                        disabled={isOccupied}
+                        accessibilityRole={isOccupied ? undefined : "button"}
+                        accessibilityLabel={
+                          isOccupied ? undefined : `Add charter on ${dateIso}`
+                        }
+                        style={[
+                          styles.ganttDayCell,
+                          isToday && styles.ganttDayCellToday,
+                        ]}
+                      />
+                    );
+                  })}
+
+                  {/* Charter bars overlay */}
+                  {list.map((c) => {
+                    if (c.status === "cancelled") return null;
+                    const cStart = new Date(c.start_date + "T00:00:00Z");
+                    const cEnd = new Date(c.end_date + "T00:00:00Z");
+                    const monthStartD = new Date(monthStart + "T00:00:00Z");
+                    const monthEndD = new Date(monthEnd + "T00:00:00Z");
+                    const a = cStart < monthStartD ? monthStartD : cStart;
+                    const b = cEnd > monthEndD ? monthEndD : cEnd;
+                    const startDay =
+                      Math.floor(
+                        (a.getTime() - monthStartD.getTime()) / 86400000,
+                      ) + 1;
+                    const spanDays =
+                      Math.floor((b.getTime() - a.getTime()) / 86400000) + 1;
+                    if (spanDays <= 0) return null;
+                    const color = statusColorFor(c);
+                    return (
+                      <Pressable
+                        key={c.id}
+                        onPress={() => onTapCharter(c)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Charter ${c.client_name || ""} ${c.start_date} to ${c.end_date}`}
+                        style={[
+                          styles.ganttBar,
+                          {
+                            left: (startDay - 1) * DAY_W + 2,
+                            width: spanDays * DAY_W - 4,
+                            backgroundColor: color,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={styles.ganttBarText}
+                          numberOfLines={1}
+                        >
+                          {c.client_name || "—"}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Legend */}
+      <View style={styles.legendRow}>
+        {(
+          [
+            { c: STATUS_COLORS.chartered, l: "Confirmed" },
+            { c: STATUS_COLORS.option, l: "Tentative" },
+            { c: STATUS_COLORS.maintenance, l: "Maintenance" },
+            { c: STATUS_COLORS.blocked, l: "Blocked" },
+          ] as { c: string; l: string }[]
+        ).map((x) => (
+          <View key={x.l} style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: x.c }]} />
+            <Text style={styles.legendText}>{x.l}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.calHint}>
+        Tap a bar to edit · Tap an empty day to add a charter
+      </Text>
     </View>
   );
 }
@@ -1060,4 +1419,163 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   typePillTextActive: { color: GOLD },
+
+  // Calendar / Gantt
+  calNavRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  calNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: NAVY_ELEV,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calMonthLabel: {
+    color: IVORY,
+    fontFamily: "Gilroy-Bold",
+    fontSize: 18,
+  },
+  todayPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: GOLD,
+  },
+  todayPillText: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  ganttWrap: {
+    flexDirection: "row",
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    overflow: "hidden",
+  },
+  ganttLeftCol: {
+    width: YACHT_COL_W,
+    borderRightWidth: 1,
+    borderRightColor: DIVIDER,
+    backgroundColor: NAVY_DEEP,
+  },
+  ganttLeftHeader: {
+    height: HEADER_H,
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: DIVIDER,
+  },
+  ganttLeftHeaderText: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  ganttLeftCell: {
+    height: ROW_H,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: DIVIDER,
+  },
+  ganttYachtDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  ganttYachtName: {
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    flex: 1,
+  },
+  ganttHeaderRow: {
+    flexDirection: "row",
+    height: HEADER_H,
+    borderBottomWidth: 1,
+    borderBottomColor: DIVIDER,
+  },
+  ganttHeaderCell: {
+    width: DAY_W,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ganttHeaderCellToday: {
+    backgroundColor: "rgba(201,169,97,0.10)",
+  },
+  ganttHeaderText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+  },
+  ganttRow: {
+    flexDirection: "row",
+    height: ROW_H,
+    borderBottomWidth: 1,
+    borderBottomColor: DIVIDER,
+    position: "relative",
+  },
+  ganttDayCell: {
+    width: DAY_W,
+    height: ROW_H,
+    borderRightWidth: 1,
+    borderRightColor: "rgba(247,243,236,0.04)",
+  },
+  ganttDayCellToday: {
+    backgroundColor: "rgba(201,169,97,0.06)",
+  },
+  ganttBar: {
+    position: "absolute",
+    top: 12,
+    height: ROW_H - 24,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+  },
+  ganttBarText: {
+    color: NAVY_DEEP,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+  },
+  legendRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 14,
+    paddingHorizontal: 4,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+  },
+  calHint: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 10,
+    fontStyle: "italic",
+  },
 });
