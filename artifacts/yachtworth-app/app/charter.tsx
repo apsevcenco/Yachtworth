@@ -20,7 +20,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useUnits } from "../../hooks/useUnits";
+import { useUnits } from "../hooks/useUnits";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -115,17 +115,29 @@ export default function CharterScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: (isWeb ? 67 : insets.top) + 24,
-          paddingBottom: insets.bottom + 120,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: NAVY }}>
+      <Pressable
+        onPress={() =>
+          router.canGoBack() ? router.back() : router.replace("/(tabs)/tools")
+        }
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 8 }]}
+      >
+        <Feather name="chevron-left" size={24} color={IVORY} />
+      </Pressable>
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: (isWeb ? 67 : insets.top) + 24,
+            paddingBottom: insets.bottom + 120,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerBlock}>
         <Text style={styles.kicker}>CHARTER ROI</Text>
         <Text style={styles.title}>Investment intelligence</Text>
@@ -313,7 +325,8 @@ export default function CharterScreen() {
           ) : null}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -483,5 +496,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     fontStyle: "italic",
+  },
+  backFab: {
+    position: "absolute",
+    left: 12,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(8,22,51,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

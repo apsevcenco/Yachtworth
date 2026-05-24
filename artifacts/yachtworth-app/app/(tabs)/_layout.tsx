@@ -13,16 +13,20 @@ function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "sailboat", selected: "sailboat.fill" }} />
+        <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="charter">
-        <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
-        <Label>Charter ROI</Label>
+      <NativeTabs.Trigger name="tools">
+        <Icon sf={{ default: "wrench.and.screwdriver", selected: "wrench.and.screwdriver.fill" }} />
+        <Label>Tools</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="history">
-        <Icon sf={{ default: "clock", selected: "clock.fill" }} />
-        <Label>History</Label>
+      <NativeTabs.Trigger name="my-yacht">
+        <Icon sf={{ default: "sailboat", selected: "sailboat.fill" }} />
+        <Label>My Yacht</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="pdye">
+        <Icon sf={{ default: "lock.shield", selected: "lock.shield.fill" }} />
+        <Label>PDYE</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
@@ -45,7 +49,7 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
-          fontSize: 11,
+          fontSize: 10,
           letterSpacing: 0.3,
         },
         tabBarStyle: {
@@ -79,6 +83,34 @@ function ClassicTabLayout() {
           title: "Home",
           tabBarIcon: ({ color }) =>
             isIOS ? (
+              <SymbolView name="house" tintColor={color} size={24} />
+            ) : (
+              <Feather name="home" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="tools"
+        options={{
+          title: "Tools",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView
+                name="wrench.and.screwdriver"
+                tintColor={color}
+                size={24}
+              />
+            ) : (
+              <Feather name="tool" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="my-yacht"
+        options={{
+          title: "My Yacht",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
               <SymbolView name="sailboat" tintColor={color} size={24} />
             ) : (
               <Feather name="anchor" size={22} color={color} />
@@ -86,26 +118,22 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="charter"
+        name="pdye"
         options={{
-          title: "Charter ROI",
-          tabBarIcon: ({ color }) =>
+          title: "PDYE",
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="chart.line.uptrend.xyaxis" tintColor={color} size={24} />
+              <SymbolView
+                name="lock.shield"
+                tintColor={focused ? "#C9A961" : color}
+                size={24}
+              />
             ) : (
-              <Feather name="trending-up" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: "History",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="clock" tintColor={color} size={24} />
-            ) : (
-              <Feather name="clock" size={22} color={color} />
+              <Feather
+                name="shield"
+                size={22}
+                color={focused ? "#C9A961" : color}
+              />
             ),
         }}
       />

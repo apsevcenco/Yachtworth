@@ -114,10 +114,18 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.menuGroup}>
+          {isSignedIn && (
+            <Row
+              icon="clock"
+              label="My valuations history"
+              onPress={() => router.push("/history")}
+            />
+          )}
           <Row
             icon="settings"
             label="Settings"
             onPress={() => router.push("/settings")}
+            last={!isSignedIn}
           />
           {isSignedIn && (
             <Row

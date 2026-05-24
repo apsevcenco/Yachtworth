@@ -30,7 +30,7 @@ import {
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useUnits } from "../../hooks/useUnits";
+import { useUnits } from "../hooks/useUnits";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -274,6 +274,17 @@ export default function HistoryScreen() {
         { paddingTop: (isWeb ? 67 : insets.top) + 24, paddingBottom: insets.bottom + 100 },
       ]}
     >
+      <Pressable
+        onPress={() =>
+          router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")
+        }
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 8 }]}
+      >
+        <Feather name="chevron-left" size={24} color={IVORY} />
+      </Pressable>
       <View style={styles.headerBlock}>
         <Text style={styles.kicker}>HISTORY</Text>
         <Text style={styles.title}>Your activity</Text>
@@ -652,5 +663,16 @@ const styles = StyleSheet.create({
     color: IVORY,
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
+  },
+  backFab: {
+    position: "absolute",
+    left: 12,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(8,22,51,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -84,6 +84,14 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
+        name="charter"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="history"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
         name="settings"
         options={{ headerShown: false, presentation: "card" }}
       />

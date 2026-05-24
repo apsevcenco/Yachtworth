@@ -22,13 +22,15 @@ Standalone luxury mobile app (iOS + Android) — AI-powered yacht **estimates** 
 ## Repo layout
 
 - `artifacts/yachtworth-app/app/` — Expo Router screens
-  - `(tabs)/` — Home, Charter, History, Profile
+  - `(tabs)/` — Home, Tools, My Yacht, PDYE, Profile (5-tab bottom nav)
   - `(auth)/sign-in.tsx` + `sign-up.tsx`
+  - `charter.tsx` + `history.tsx` — stack routes (out of tabs since restructure)
   - `valuation/new.tsx` + `result.tsx` — yacht **estimate** wizard
   - `roi/yacht-form.tsx` + `calculate.tsx` + `result.tsx` — Charter ROI
   - `cost/new.tsx` + `result.tsx` — Annual cost
   - `settings.tsx`
   - `hooks/useUnits.ts` (AsyncStorage key `yachtworth.units`)
+  - `components/ComingSoonModal.tsx` — reusable modal for SOON tools (AsyncStorage `yachtworth.coming_soon_notify`)
 - `artifacts/api-server/src/`
   - `routes/{valuations,estimates,yachts,roi,costEstimates}.ts`
   - `lib/{valuation,roi,cost-estimate}/` — engines
@@ -70,12 +72,23 @@ Until each is run, the corresponding feature degrades: POSTs silently no-op (war
 - **Stage 3:** real `/roi/calculate` — 3 pricing modes (manual_daily / manual_weekly / ai). AI mode → web_search comparables → midpoint rate. Engine in `lib/roi/`: loan annuity, depreciation (-5%/-3.5% step, 5y projection w/ 3% inflation, monthly seasonal Med weights), expenses (owner overrides → fallback heuristics), revenue (AI Responses → AI chat → deterministic heuristic — never 500s). Result: ROI%, payback, risk_score, recommendations, charts.
 - **Stage 4:** data-driven baseline via `migrations/005_seed_rates.sql` + `lib/roi/rates.ts`. Single round-trip via RPC `get_roi_rates(yachtType, region)`. Heuristic fallback when seed missing — zero regression.
 
+### Navigation restructure (current — DONE)
+Restructured per PDF spec while keeping all existing screens & flows. Brand unchanged (#0B1E3F + #C9A961).
+- **5-tab bottom nav** (was 4): Home / Tools / My Yacht / PDYE / Profile. NativeTabs (SF symbols: house / wrench.and.screwdriver / sailboat / lock.shield / person) + Classic fallback (Feather: home / tool / anchor / shield / user). PDYE gets gold tint when focused.
+- **Charter & History moved out of (tabs)** → root Stack screens (`app/charter.tsx`, `app/history.tsx`), `presentation: "card"`, with floating back-FAB (40×40 navy-tinted circle, top-left) to return to /tools (charter) or /profile (history).
+- **Home rewritten** — hero "Your yacht. Fully understood." + 2×2 role grid (Owner/Broker/Charter/Surveyor → sets `yachtworth.tools.role` in AsyncStorage AND pushes `/(tabs)/tools?role=X`) + 2 quick actions (New Valuation / My Yacht) + featured banner → /valuation/new.
+- **Tools tab (new)** — 12 cards (3 LIVE: AI Valuation, Annual Cost, Charter ROI; 9 SOON: Listing Generator, Yacht Verification, Digital Passport, Survey Builder, Maintenance Log, Broker CRM, Charter Planner, Flag Calculator, Marina Database). Role chip filter (All/Owner/Broker/Charter/Surveyor) persisted to `yachtworth.tools.role`; param `?role=X` from Home takes priority on mount. SOON tap → `ComingSoonModal`.
+- **My Yacht tab (new)** — empty state ("+ Add my yacht" → /roi/yacht-form) OR active yacht card (newest by `updated_at` from `useListYachts`) + 3 action rows: View Valuation (/valuation/new), View Cost Estimate (/cost/new), Digital Passport (SOON — opens modal). If >1 yacht: "Manage all N yachts" → /charter.
+- **PDYE tab (new)** — hero ("Off-market yacht transactions") with full-width gold CTA → opens pdyegroup.com via `expo-web-browser` + 3 info cards (NDA Protected / Deal Room / Success Fee Only) + bottom Register CTA.
+- **Profile** — added "My valuations history" row → /history (signed-in only) above Settings. Rest unchanged.
+- **ComingSoonModal** — BlurView backdrop + gold-bordered card with tool icon/title/desc + "Notify me when ready" (persists tool key to `yachtworth.coming_soon_notify` list, shows "We'll let you know" then auto-closes after 1.1s) + Close.
+
 ### Annual Cost Estimator (separate module, in progress)
 - **Stage A1:** backend foundation — pure deterministic calculator (no AI). `/cost-estimates` POST (soft auth — guests get calc, signed-in users get calc + save) + GET list + GET detail + DELETE. Crew rule: `salary × 12 × qty`, `qty>1` only for stewardess/deckhand (server-enforced clamp). Auto-estimate helpers prepared for future "Auto-fill" button.
 - **Stage A2:** 4-step wizard (`cost/new.tsx`) + minimal results screen (hero total/yr + per-day/per-week + category cards + 4 breakdown sections). Home tab second CTA wired.
 - **Stage A2.5:** 8 new annual maintenance fields (engine / generator / electronics / safety / tender / hull paint / rigging / watermaker), crew `months_per_year` stepper (1-12) for stew/deck, builder+model echo through to result header.
 - **Stage A3:** History tab extended with 3-segment switch (Estimates / Cost / ROI). Each segment uses its own list hook with `enabled: signedIn && tab===X`, per-tab empty/error/loading states, per-tab card rendering. Deep-link `?id=` added to `cost/result.tsx` (via `useGetCostEstimate`) and `roi/result.tsx` (via `useGetRoiCalculation`). Region label map covers both `CharterRegion` and `OperationRegion` enums. A11y: `tablist`/`tab` roles on segment, `accessibilityRole`+`accessibilityLabel` on all CTAs and cards.
-- **Stage A4 (current — DONE):** Delete-from-history. New `DELETE /estimates/:id` + `DELETE /roi/calculations/:id` (mirror `DELETE /cost-estimates/:id`): `isUuid` guard → 404, `softClerkAuth+requireAuth`, scoped delete by `clerk_user_id` + `id` with `{count:'exact'}` → 404 if zero, 204 on success (no IDOR leak). UI: each list row wrapped in `Swipeable` (react-native-gesture-handler) with red trash action → `Alert.alert` destructive confirm → mutate → invalidate matching list query key. Concurrent-safe via `pendingIds: Set<string>` (per-row spinner survives rapid multi-delete; architect-flagged single-flight bug fixed pre-merge).
+- **Stage A4 — DONE:** Delete-from-history. New `DELETE /estimates/:id` + `DELETE /roi/calculations/:id` (mirror `DELETE /cost-estimates/:id`): `isUuid` guard → 404, `softClerkAuth+requireAuth`, scoped delete by `clerk_user_id` + `id` with `{count:'exact'}` → 404 if zero, 204 on success (no IDOR leak). UI: each list row wrapped in `Swipeable` (react-native-gesture-handler) with red trash action → `Alert.alert` destructive confirm → mutate → invalidate matching list query key. Concurrent-safe via `pendingIds: Set<string>` (per-row spinner survives rapid multi-delete; architect-flagged single-flight bug fixed pre-merge).
 
 ## Not in v1.0
 

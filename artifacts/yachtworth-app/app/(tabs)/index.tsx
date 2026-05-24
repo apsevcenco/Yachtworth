@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -12,32 +12,67 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { useColors } from "@/hooks/useColors";
+import { TOOLS_ROLE_STORAGE_KEY } from "./tools";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
+const NAVY_DEEP = "#081633";
 const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
+const MUTED = "rgba(247,243,236,0.62)";
+const DIVIDER = "rgba(247,243,236,0.08)";
+
+type Role = "owner" | "broker" | "charter" | "surveyor";
+
+const ROLES: {
+  key: Role;
+  label: string;
+  subtitle: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+}[] = [
+  {
+    key: "owner",
+    label: "Owner",
+    subtitle: "Valuation · Costs · Passport",
+    icon: "anchor",
+  },
+  {
+    key: "broker",
+    label: "Broker",
+    subtitle: "Valuation · Listings · Co-brokerage",
+    icon: "briefcase",
+  },
+  {
+    key: "charter",
+    label: "Charter",
+    subtitle: "ROI · Planning · Reports",
+    icon: "calendar",
+  },
+  {
+    key: "surveyor",
+    label: "Surveyor",
+    subtitle: "Inspection · Reports · Valuation",
+    icon: "clipboard",
+  },
+];
 
 export default function HomeScreen() {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isWeb = Platform.OS === "web";
 
-  const onPressNew = () => {
+  const haptic = () => {
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    router.push("/valuation/new");
   };
 
-  const onPressCost = () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    router.push("/cost/new");
+  const goRole = async (role: Role) => {
+    haptic();
+    try {
+      await AsyncStorage.setItem(TOOLS_ROLE_STORAGE_KEY, role);
+    } catch {}
+    router.push({ pathname: "/(tabs)/tools", params: { role } });
   };
 
   return (
@@ -50,6 +85,7 @@ export default function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Brand row */}
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <View style={styles.dot} />
@@ -57,118 +93,105 @@ export default function HomeScreen() {
           </View>
           <Pressable
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
             onPress={() => {
-              if (Platform.OS !== "web") {
-                Haptics.selectionAsync();
-              }
+              if (Platform.OS !== "web") Haptics.selectionAsync();
             }}
           >
             <Feather name="bell" size={20} color={IVORY} />
           </Pressable>
         </View>
 
-        <Text style={styles.kicker}>AI market estimate, the discreet way</Text>
+        {/* Hero */}
+        <Text style={styles.kicker}>AI tools for the yachting industry</Text>
         <Text style={styles.hero}>
-          Know your{"\n"}yacht's worth.
+          Your yacht.{"\n"}Fully understood.
         </Text>
         <Text style={styles.subhero}>
-          A professional AI market estimate in under a minute — built for owners,
-          brokers and surveyors.
+          AI-powered tools for owners, brokers and surveyors.
         </Text>
 
-        <Pressable
-          onPress={onPressNew}
-          style={({ pressed }) => [
-            styles.ctaWrap,
-            { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
-          ]}
-        >
-          <BlurView
-            intensity={40}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.ctaInner}>
-            <Text style={styles.ctaText}>New estimate</Text>
-            <Feather name="arrow-up-right" size={20} color={GOLD} />
-          </View>
-        </Pressable>
-
-        <Pressable
-          onPress={onPressCost}
-          style={({ pressed }) => [
-            styles.ctaSecondary,
-            { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
-          ]}
-        >
-          <View style={styles.ctaInner}>
-            <View>
-              <Text style={styles.ctaSecondaryKicker}>NEW</Text>
-              <Text style={styles.ctaSecondaryText}>Annual cost calculator</Text>
-            </View>
-            <Feather name="bar-chart-2" size={20} color={GOLD} />
-          </View>
-        </Pressable>
-
-        <View style={styles.statsRow}>
-          <StatCard label="Estimates" value="—" />
-          <StatCard label="Plan" value="Free" />
-          <StatCard label="Remaining" value="1" />
+        {/* Role grid 2x2 */}
+        <View style={styles.grid}>
+          {ROLES.map((r) => (
+            <Pressable
+              key={r.key}
+              onPress={() => goRole(r.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`${r.label} role — opens tools filtered for ${r.label}`}
+              style={({ pressed }) => [
+                styles.roleCard,
+                { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
+              ]}
+            >
+              <View style={styles.roleIcon}>
+                <Feather name={r.icon} size={20} color={GOLD} />
+              </View>
+              <Text style={styles.roleLabel}>{r.label}</Text>
+              <Text style={styles.roleSub} numberOfLines={2}>
+                {r.subtitle}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
-        <Text style={styles.sectionTitle}>What you get</Text>
+        {/* Quick actions */}
+        <View style={styles.quickRow}>
+          <Pressable
+            onPress={() => {
+              haptic();
+              router.push("/valuation/new");
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="New valuation"
+            style={({ pressed }) => [styles.quickBtn, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Text style={styles.quickBtnText}>New Valuation</Text>
+            <Feather name="arrow-up-right" size={16} color={GOLD} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              haptic();
+              router.push("/(tabs)/my-yacht");
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="My yacht"
+            style={({ pressed }) => [styles.quickBtn, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Text style={styles.quickBtnText}>My Yacht</Text>
+            <Feather name="arrow-up-right" size={16} color={GOLD} />
+          </Pressable>
+        </View>
 
-        <FeatureCard
-          icon="trending-up"
-          title="Market price range"
-          subtitle="Base, optimistic and quick-sale estimates."
-        />
-        <FeatureCard
-          icon="file-text"
-          title="PDF report"
-          subtitle="Ready to share with a broker or buyer."
-        />
-        <FeatureCard
-          icon="archive"
-          title="Estimate history"
-          subtitle="All your yachts in one place, on the Pro plan."
-        />
+        {/* Featured tool */}
+        <Pressable
+          onPress={() => {
+            haptic();
+            router.push("/valuation/new");
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Featured: Start free AI valuation"
+          style={({ pressed }) => [styles.featured, { opacity: pressed ? 0.92 : 1 }]}
+        >
+          <View style={styles.featuredAccent} />
+          <View style={{ flex: 1, paddingLeft: 16 }}>
+            <Text style={styles.featuredKicker}>FEATURED TOOL</Text>
+            <Text style={styles.featuredTitle}>Know your yacht's worth</Text>
+            <Text style={styles.featuredText}>
+              AI valuation in under 1 min.
+            </Text>
+            <View style={styles.featuredCta}>
+              <Text style={styles.featuredCtaText}>Start free</Text>
+              <Feather name="arrow-right" size={14} color={GOLD} />
+            </View>
+          </View>
+        </Pressable>
 
         <View style={styles.footerNote}>
           <Text style={styles.footerNoteText}>by the team behind PDYE</Text>
         </View>
       </ScrollView>
-    </View>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ComponentProps<typeof Feather>["name"];
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <View style={styles.featureCard}>
-      <View style={styles.featureIcon}>
-        <Feather name={icon} size={18} color={GOLD} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureSubtitle}>{subtitle}</Text>
-      </View>
     </View>
   );
 }
@@ -179,15 +202,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 36,
+    marginBottom: 32,
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: GOLD,
-  },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: GOLD },
   brandLabel: {
     color: IVORY,
     fontFamily: "Inter_600SemiBold",
@@ -200,128 +218,123 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 2,
     textTransform: "uppercase",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   hero: {
     color: IVORY,
     fontFamily: "Gilroy-ExtraBold",
-    fontSize: 40,
-    lineHeight: 46,
+    fontSize: 38,
+    lineHeight: 44,
     letterSpacing: -0.5,
   },
   subhero: {
-    color: "rgba(247,243,236,0.7)",
+    color: MUTED,
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 14,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 12,
     marginBottom: 28,
   },
-  ctaWrap: {
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 14,
+  },
+  roleCard: {
+    width: "48.5%",
+    backgroundColor: NAVY_DEEP,
+    borderColor: DIVIDER,
+    borderWidth: 1,
     borderRadius: 14,
+    padding: 16,
+    minHeight: 116,
+  },
+  roleIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(201,169,97,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  roleLabel: {
+    color: IVORY,
+    fontFamily: "Gilroy-ExtraBold",
+    fontSize: 17,
+    marginBottom: 4,
+  },
+  roleSub: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  quickRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 18,
+  },
+  quickBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: GOLD,
     backgroundColor: "rgba(201,169,97,0.06)",
-    overflow: "hidden",
   },
-  ctaInner: {
-    paddingVertical: 18,
-    paddingHorizontal: 22,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  ctaText: {
+  quickBtnText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
-    letterSpacing: 0.2,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
-  ctaSecondary: {
-    marginTop: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(201,169,97,0.35)",
+  featured: {
+    flexDirection: "row",
     backgroundColor: NAVY_ELEV,
+    borderRadius: 16,
     overflow: "hidden",
+    padding: 18,
+    minHeight: 124,
   },
-  ctaSecondaryText: {
-    color: IVORY,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    letterSpacing: 0.1,
-    marginTop: 2,
+  featuredAccent: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: GOLD,
   },
-  ctaSecondaryKicker: {
+  featuredKicker: {
     color: GOLD,
     fontFamily: "Inter_700Bold",
     fontSize: 10,
     letterSpacing: 1.8,
+    marginBottom: 8,
   },
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 32,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: NAVY_ELEV,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-  },
-  statValue: {
+  featuredTitle: {
     color: IVORY,
     fontFamily: "Gilroy-ExtraBold",
-    fontSize: 22,
+    fontSize: 18,
+    marginBottom: 4,
   },
-  statLabel: {
-    color: "rgba(247,243,236,0.55)",
-    fontFamily: "Inter_500Medium",
-    fontSize: 11,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginTop: 4,
-  },
-  sectionTitle: {
-    color: IVORY,
-    fontFamily: "Gilroy-Regular",
-    fontSize: 20,
-    marginTop: 40,
-    marginBottom: 14,
-  },
-  featureCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    backgroundColor: NAVY_ELEV,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-  },
-  featureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(201,169,97,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  featureTitle: {
-    color: IVORY,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-  },
-  featureSubtitle: {
-    color: "rgba(247,243,236,0.6)",
+  featuredText: {
+    color: MUTED,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    marginTop: 2,
+    marginBottom: 12,
   },
-  footerNote: {
-    marginTop: 32,
-    alignItems: "center",
+  featuredCta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  featuredCtaText: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
+  footerNote: { marginTop: 32, alignItems: "center" },
   footerNoteText: {
     color: "rgba(201,169,97,0.7)",
     fontFamily: "Inter_500Medium",
