@@ -29,6 +29,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  exportFleetCsv,
+  exportFleetPdf,
+} from "../lib/charterExports";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -596,6 +600,45 @@ function CalendarTab({
     setMonthCursor({ y: d.getFullYear(), m: d.getMonth() });
   };
 
+  const [exporting, setExporting] = useState(false);
+  const runExport = async (kind: "pdf" | "csv") => {
+    if (monthCharters.length === 0) {
+      Alert.alert(
+        "Nothing to export",
+        "There are no charters in this month yet.",
+      );
+      return;
+    }
+    try {
+      setExporting(true);
+      const input = {
+        monthStart: new Date(monthCursor.y, monthCursor.m, 1),
+        yachts,
+        charters: monthCharters,
+      };
+      if (kind === "pdf") await exportFleetPdf(input);
+      else await exportFleetCsv(input);
+    } catch (err) {
+      Alert.alert(
+        "Export failed",
+        err instanceof Error ? err.message : "Could not create file.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+  const openExportMenu = () => {
+    Alert.alert(
+      "Export month",
+      `${MONTH_NAMES[monthCursor.m]} ${monthCursor.y} · ${monthCharters.length} charter${monthCharters.length === 1 ? "" : "s"}`,
+      [
+        { text: "Fleet PDF", onPress: () => runExport("pdf") },
+        { text: "CSV (Excel)", onPress: () => runExport("csv") },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
+  };
+
   if (yachts.length === 0) {
     return (
       <View style={styles.empty}>
@@ -662,6 +705,23 @@ function CalendarTab({
             <Text style={styles.todayPillText}>Today</Text>
           </Pressable>
         ) : null}
+        <Pressable
+          onPress={openExportMenu}
+          disabled={exporting}
+          accessibilityRole="button"
+          accessibilityLabel="Export this month"
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.exportBtn,
+            (pressed || exporting) && { opacity: 0.7 },
+          ]}
+        >
+          {exporting ? (
+            <ActivityIndicator color={GOLD} size="small" />
+          ) : (
+            <Feather name="share" size={15} color={GOLD} />
+          )}
+        </Pressable>
       </View>
 
       {/* Gantt grid */}
@@ -1772,6 +1832,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 10,
     fontStyle: "italic",
+  },
+
+  exportBtn: {
+    marginLeft: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: GOLD,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(201,169,97,0.08)",
   },
 
   // Clients tab

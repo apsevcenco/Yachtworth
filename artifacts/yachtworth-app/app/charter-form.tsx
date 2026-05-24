@@ -32,6 +32,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { exportCharterPdf } from "../lib/charterExports";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -381,6 +382,7 @@ export default function CharterFormScreen() {
     });
 
   const [yachtPickerOpen, setYachtPickerOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const pl = useMemo(() => calcPL(form), [form]);
 
@@ -1199,6 +1201,40 @@ export default function CharterFormScreen() {
               <ActivityIndicator color={RED} size="small" />
             ) : (
               <Feather name="trash-2" size={18} color={RED} />
+            )}
+          </Pressable>
+        )}
+        {editId && charterQ.data && (
+          <Pressable
+            onPress={async () => {
+              if (!charterQ.data) return;
+              try {
+                setExporting(true);
+                const y =
+                  yachts.find((x) => x.id === charterQ.data!.yacht_id) ?? null;
+                await exportCharterPdf(charterQ.data, y);
+              } catch (err) {
+                Alert.alert(
+                  "Export failed",
+                  err instanceof Error ? err.message : "Could not create PDF.",
+                );
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting}
+            style={[
+              styles.deleteBtn,
+              { marginLeft: 8, borderColor: GOLD },
+              exporting && { opacity: 0.5 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Export charter as PDF"
+          >
+            {exporting ? (
+              <ActivityIndicator color={GOLD} size="small" />
+            ) : (
+              <Feather name="download" size={18} color={GOLD} />
             )}
           </Pressable>
         )}
