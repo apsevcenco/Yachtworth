@@ -283,6 +283,12 @@ export default function CharterPlannerScreen() {
             onAdd={() => setAddOpen(true)}
             onTapYacht={(y) =>
               router.push({
+                pathname: "/charter-form",
+                params: { yacht_id: y.id },
+              })
+            }
+            onEditYacht={(y) =>
+              router.push({
                 pathname: "/roi/yacht-form",
                 params: { id: y.id },
               })
@@ -321,11 +327,13 @@ function FleetTab({
   chartersByYacht,
   onAdd,
   onTapYacht,
+  onEditYacht,
 }: {
   yachts: Yacht[];
   chartersByYacht: Map<string, Charter[]>;
   onAdd: () => void;
   onTapYacht: (y: Yacht) => void;
+  onEditYacht: (y: Yacht) => void;
 }) {
   if (yachts.length === 0) {
     return (
@@ -416,6 +424,18 @@ function FleetTab({
                   <Text style={styles.yachtFlag}>{y.flag} flag</Text>
                 ) : null}
               </View>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onEditYacht(y);
+                }}
+                hitSlop={10}
+                style={styles.cardEditBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${y.name}`}
+              >
+                <Feather name="edit-2" size={14} color={MUTED} />
+              </Pressable>
             </View>
             <View style={styles.cardDivider} />
             <Row
@@ -447,6 +467,10 @@ function FleetTab({
                 </Text>
               }
             />
+            <View style={styles.cardCta}>
+              <Feather name="plus" size={13} color={GOLD} />
+              <Text style={styles.cardCtaText}>Tap to add a charter</Text>
+            </View>
           </Pressable>
         );
       })}
@@ -560,7 +584,7 @@ function AddYachtModal({
           length_meters: lengthNum,
           year_built: yearNum,
           flag: flag.trim() || null,
-          marina_location: homePort.trim() || null,
+          home_port: homePort.trim() || null,
           notes: notes.trim() || null,
         },
       },
@@ -911,6 +935,30 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  cardEditBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: NAVY_DEEP,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: DIVIDER,
+  },
+  cardCtaText: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 
   primaryBtn: {

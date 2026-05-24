@@ -93,6 +93,14 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
+        name="charter-planner"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="charter-form"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
         name="history"
         options={{ headerShown: false, presentation: "card" }}
       />
