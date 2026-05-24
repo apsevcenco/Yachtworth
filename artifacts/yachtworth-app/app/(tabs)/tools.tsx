@@ -123,7 +123,8 @@ const TOOLS: Tool[] = [
     title: "Charter Planner",
     subtitle: "Trip planning · Per-trip P&L",
     roles: ["charter"],
-    status: "soon",
+    status: "live",
+    route: "/charter-planner",
   },
   {
     key: "flag_calculator",

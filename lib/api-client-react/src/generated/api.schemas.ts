@@ -363,6 +363,12 @@ export interface YachtInput {
   /** @nullable */
   flag?: string | null;
   /** @nullable */
+  home_port?: string | null;
+  /** @nullable */
+  photo_url?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
   commercial_registration?: boolean | null;
   /**
    * @minimum 0
@@ -499,6 +505,12 @@ export interface Yacht {
   marina_location?: string | null;
   /** @nullable */
   flag?: string | null;
+  /** @nullable */
+  home_port?: string | null;
+  /** @nullable */
+  photo_url?: string | null;
+  /** @nullable */
+  notes?: string | null;
   /** @nullable */
   commercial_registration?: boolean | null;
   /** @nullable */

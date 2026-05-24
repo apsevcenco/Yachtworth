@@ -1125,6 +1125,12 @@ components:
           type: ["string", "null"]
         flag:
           type: ["string", "null"]
+        home_port:
+          type: ["string", "null"]
+        photo_url:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
         commercial_registration:
           type: ["boolean", "null"]
         purchase_price_eur:
@@ -1253,6 +1259,12 @@ components:
         marina_location:
           type: ["string", "null"]
         flag:
+          type: ["string", "null"]
+        home_port:
+          type: ["string", "null"]
+        photo_url:
+          type: ["string", "null"]
+        notes:
           type: ["string", "null"]
         commercial_registration:
           type: ["boolean", "null"]

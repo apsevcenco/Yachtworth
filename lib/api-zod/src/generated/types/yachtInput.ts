@@ -58,6 +58,12 @@ export interface YachtInput {
   /** @nullable */
   flag?: string | null;
   /** @nullable */
+  home_port?: string | null;
+  /** @nullable */
+  photo_url?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
   commercial_registration?: boolean | null;
   /**
    * @minimum 0

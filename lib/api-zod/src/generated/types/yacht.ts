@@ -41,6 +41,12 @@ export interface Yacht {
   /** @nullable */
   flag?: string | null;
   /** @nullable */
+  home_port?: string | null;
+  /** @nullable */
+  photo_url?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
   commercial_registration?: boolean | null;
   /** @nullable */
   purchase_price_eur?: number | null;
