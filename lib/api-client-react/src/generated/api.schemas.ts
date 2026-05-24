@@ -996,6 +996,250 @@ export interface CostEstimateDetail {
   result: CostEstimateResult;
 }
 
+export type CharterStatus = (typeof CharterStatus)[keyof typeof CharterStatus];
+
+export const CharterStatus = {
+  confirmed: "confirmed",
+  tentative: "tentative",
+  maintenance: "maintenance",
+  blocked: "blocked",
+  cancelled: "cancelled",
+} as const;
+
+export type CharterRateType =
+  (typeof CharterRateType)[keyof typeof CharterRateType];
+
+export const CharterRateType = {
+  fixed: "fixed",
+  per_day: "per_day",
+} as const;
+
+export interface CharterInput {
+  yacht_id: string;
+  status?: CharterStatus | null;
+  /** @nullable */
+  client_name?: string | null;
+  /** @nullable */
+  client_email?: string | null;
+  /** @nullable */
+  client_phone?: string | null;
+  /** ISO date YYYY-MM-DD */
+  start_date: string;
+  /** ISO date YYYY-MM-DD */
+  end_date: string;
+  /** @nullable */
+  departure_port?: string | null;
+  /** @nullable */
+  return_port?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  engine_hours_before?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  engine_hours_after?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  fuel_liters?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  fuel_price_per_liter?: number | null;
+  /** @nullable */
+  captain_name?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  captain_day_rate?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 20
+   * @nullable
+   */
+  stewardess_count?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  stewardess_day_rate?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  extra_crew_cost?: number | null;
+  /** @nullable */
+  extra_crew_note?: string | null;
+  charter_rate_type?: CharterRateType | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  charter_rate?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  deposit_amount?: number | null;
+  /** @nullable */
+  deposit_date?: string | null;
+  /** @nullable */
+  deposit_received?: boolean | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  final_payment_amount?: number | null;
+  /** @nullable */
+  final_payment_date?: string | null;
+  /** @nullable */
+  final_payment_received?: boolean | null;
+  /** @nullable */
+  vat_applicable?: boolean | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  vat_percent?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  port_fees?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  provisioning?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  cleaning?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  other_expenses?: number | null;
+  /** @nullable */
+  other_expenses_note?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface Charter {
+  id: string;
+  yacht_id: string;
+  clerk_user_id: string;
+  created_at: string;
+  updated_at: string;
+  status: CharterStatus;
+  /** @nullable */
+  client_name?: string | null;
+  /** @nullable */
+  client_email?: string | null;
+  /** @nullable */
+  client_phone?: string | null;
+  start_date: string;
+  end_date: string;
+  /** @nullable */
+  departure_port?: string | null;
+  /** @nullable */
+  return_port?: string | null;
+  /** @nullable */
+  engine_hours_before?: number | null;
+  /** @nullable */
+  engine_hours_after?: number | null;
+  /** @nullable */
+  fuel_liters?: number | null;
+  /** @nullable */
+  fuel_price_per_liter?: number | null;
+  /** @nullable */
+  captain_name?: string | null;
+  /** @nullable */
+  captain_day_rate?: number | null;
+  stewardess_count: number;
+  /** @nullable */
+  stewardess_day_rate?: number | null;
+  /** @nullable */
+  extra_crew_cost?: number | null;
+  /** @nullable */
+  extra_crew_note?: string | null;
+  charter_rate_type: CharterRateType;
+  /** @nullable */
+  charter_rate?: number | null;
+  /** @nullable */
+  deposit_amount?: number | null;
+  /** @nullable */
+  deposit_date?: string | null;
+  deposit_received: boolean;
+  /** @nullable */
+  final_payment_amount?: number | null;
+  /** @nullable */
+  final_payment_date?: string | null;
+  final_payment_received: boolean;
+  vat_applicable: boolean;
+  vat_percent: number;
+  port_fees: number;
+  provisioning: number;
+  cleaning: number;
+  other_expenses: number;
+  /** @nullable */
+  other_expenses_note?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface CharterListResponse {
+  items: Charter[];
+}
+
+export interface Client {
+  id: string;
+  clerk_user_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  charters_count: number;
+  total_revenue_eur: number;
+  /** @nullable */
+  last_charter_date?: string | null;
+}
+
+export interface ClientListResponse {
+  items: Client[];
+}
+
+export interface ClientDetail {
+  client: Client;
+  charters: Charter[];
+}
+
 export type ListRoiCalculationsParams = {
   yacht_id?: string;
+};
+
+export type ListChartersParams = {
+  yacht_id?: string;
+  /**
+   * ISO date — only charters whose end_date >= this
+   */
+  start?: string;
+  /**
+   * ISO date — only charters whose start_date <= this
+   */
+  end?: string;
 };

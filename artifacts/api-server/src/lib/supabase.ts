@@ -44,3 +44,5 @@ export const ROI_CALCULATIONS_TABLE = "roi_calculations";
 export const MARKET_RATES_TABLE = "market_rates";
 export const EXPENSE_RATES_TABLE = "expense_rates";
 export const COST_ESTIMATES_TABLE = "cost_estimates";
+export const CHARTERS_TABLE = "charters";
+export const CLIENTS_TABLE = "clients";

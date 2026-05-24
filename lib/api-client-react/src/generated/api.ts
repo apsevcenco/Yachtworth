@@ -17,6 +17,11 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  Charter,
+  CharterInput,
+  CharterListResponse,
+  ClientDetail,
+  ClientListResponse,
   CostEstimate,
   CostEstimateDetail,
   CostEstimateInput,
@@ -25,6 +30,7 @@ import type {
   EstimateDetail,
   EstimateListResponse,
   HealthStatus,
+  ListChartersParams,
   ListRoiCalculationsParams,
   RoiCalculation,
   RoiCalculationDetail,
@@ -1575,3 +1581,601 @@ export const useDeleteRoiCalculation = <
 > => {
   return useMutation(getDeleteRoiCalculationMutationOptions(options));
 };
+
+/**
+ * @summary List charters (optionally filtered by yacht and date range)
+ */
+export const getListChartersUrl = (params?: ListChartersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/charters?${stringifiedParams}`
+    : `/api/charters`;
+};
+
+export const listCharters = async (
+  params?: ListChartersParams,
+  options?: RequestInit,
+): Promise<CharterListResponse> => {
+  return customFetch<CharterListResponse>(getListChartersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListChartersQueryKey = (params?: ListChartersParams) => {
+  return [`/api/charters`, ...(params ? [params] : [])] as const;
+};
+
+export const getListChartersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCharters>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListChartersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCharters>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListChartersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCharters>>> = ({
+    signal,
+  }) => listCharters(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCharters>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListChartersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCharters>>
+>;
+export type ListChartersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List charters (optionally filtered by yacht and date range)
+ */
+
+export function useListCharters<
+  TData = Awaited<ReturnType<typeof listCharters>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListChartersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCharters>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListChartersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a charter booking
+ */
+export const getCreateCharterUrl = () => {
+  return `/api/charters`;
+};
+
+export const createCharter = async (
+  charterInput: CharterInput,
+  options?: RequestInit,
+): Promise<Charter> => {
+  return customFetch<Charter>(getCreateCharterUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(charterInput),
+  });
+};
+
+export const getCreateCharterMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCharter>>,
+    TError,
+    { data: BodyType<CharterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCharter>>,
+  TError,
+  { data: BodyType<CharterInput> },
+  TContext
+> => {
+  const mutationKey = ["createCharter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCharter>>,
+    { data: BodyType<CharterInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createCharter(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCharterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCharter>>
+>;
+export type CreateCharterMutationBody = BodyType<CharterInput>;
+export type CreateCharterMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a charter booking
+ */
+export const useCreateCharter = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCharter>>,
+    TError,
+    { data: BodyType<CharterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCharter>>,
+  TError,
+  { data: BodyType<CharterInput> },
+  TContext
+> => {
+  return useMutation(getCreateCharterMutationOptions(options));
+};
+
+/**
+ * @summary Get a charter by id
+ */
+export const getGetCharterUrl = (id: string) => {
+  return `/api/charters/${id}`;
+};
+
+export const getCharter = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Charter> => {
+  return customFetch<Charter>(getGetCharterUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCharterQueryKey = (id: string) => {
+  return [`/api/charters/${id}`] as const;
+};
+
+export const getGetCharterQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCharter>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCharter>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCharterQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCharter>>> = ({
+    signal,
+  }) => getCharter(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCharter>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCharterQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCharter>>
+>;
+export type GetCharterQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a charter by id
+ */
+
+export function useGetCharter<
+  TData = Awaited<ReturnType<typeof getCharter>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCharter>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCharterQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a charter
+ */
+export const getUpdateCharterUrl = (id: string) => {
+  return `/api/charters/${id}`;
+};
+
+export const updateCharter = async (
+  id: string,
+  charterInput: CharterInput,
+  options?: RequestInit,
+): Promise<Charter> => {
+  return customFetch<Charter>(getUpdateCharterUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(charterInput),
+  });
+};
+
+export const getUpdateCharterMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCharter>>,
+    TError,
+    { id: string; data: BodyType<CharterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCharter>>,
+  TError,
+  { id: string; data: BodyType<CharterInput> },
+  TContext
+> => {
+  const mutationKey = ["updateCharter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCharter>>,
+    { id: string; data: BodyType<CharterInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCharter(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCharterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCharter>>
+>;
+export type UpdateCharterMutationBody = BodyType<CharterInput>;
+export type UpdateCharterMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a charter
+ */
+export const useUpdateCharter = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCharter>>,
+    TError,
+    { id: string; data: BodyType<CharterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCharter>>,
+  TError,
+  { id: string; data: BodyType<CharterInput> },
+  TContext
+> => {
+  return useMutation(getUpdateCharterMutationOptions(options));
+};
+
+/**
+ * @summary Delete a charter
+ */
+export const getDeleteCharterUrl = (id: string) => {
+  return `/api/charters/${id}`;
+};
+
+export const deleteCharter = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteCharterUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCharterMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCharter>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCharter>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteCharter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCharter>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCharter(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCharterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCharter>>
+>;
+
+export type DeleteCharterMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a charter
+ */
+export const useDeleteCharter = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCharter>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCharter>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteCharterMutationOptions(options));
+};
+
+/**
+ * @summary List clients with aggregate charter stats
+ */
+export const getListClientsUrl = () => {
+  return `/api/clients`;
+};
+
+export const listClients = async (
+  options?: RequestInit,
+): Promise<ClientListResponse> => {
+  return customFetch<ClientListResponse>(getListClientsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListClientsQueryKey = () => {
+  return [`/api/clients`] as const;
+};
+
+export const getListClientsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listClients>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listClients>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListClientsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listClients>>> = ({
+    signal,
+  }) => listClients({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listClients>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListClientsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listClients>>
+>;
+export type ListClientsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List clients with aggregate charter stats
+ */
+
+export function useListClients<
+  TData = Awaited<ReturnType<typeof listClients>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listClients>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListClientsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a client with their charters
+ */
+export const getGetClientUrl = (id: string) => {
+  return `/api/clients/${id}`;
+};
+
+export const getClient = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ClientDetail> => {
+  return customFetch<ClientDetail>(getGetClientUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetClientQueryKey = (id: string) => {
+  return [`/api/clients/${id}`] as const;
+};
+
+export const getGetClientQueryOptions = <
+  TData = Awaited<ReturnType<typeof getClient>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClient>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetClientQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getClient>>> = ({
+    signal,
+  }) => getClient(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getClient>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetClientQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getClient>>
+>;
+export type GetClientQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a client with their charters
+ */
+
+export function useGetClient<
+  TData = Awaited<ReturnType<typeof getClient>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClient>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClientQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

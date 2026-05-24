@@ -1910,3 +1910,511 @@ export const GetRoiCalculationResponse = zod.object({
 export const DeleteRoiCalculationParams = zod.object({
   id: zod.coerce.string(),
 });
+
+/**
+ * @summary List charters (optionally filtered by yacht and date range)
+ */
+export const ListChartersQueryParams = zod.object({
+  yacht_id: zod.coerce.string().optional(),
+  start: zod.coerce
+    .string()
+    .optional()
+    .describe("ISO date — only charters whose end_date >= this"),
+  end: zod.coerce
+    .string()
+    .optional()
+    .describe("ISO date — only charters whose start_date <= this"),
+});
+
+export const ListChartersResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      yacht_id: zod.string(),
+      clerk_user_id: zod.string(),
+      created_at: zod.string(),
+      updated_at: zod.string(),
+      status: zod.enum([
+        "confirmed",
+        "tentative",
+        "maintenance",
+        "blocked",
+        "cancelled",
+      ]),
+      client_name: zod.string().nullish(),
+      client_email: zod.string().nullish(),
+      client_phone: zod.string().nullish(),
+      start_date: zod.string(),
+      end_date: zod.string(),
+      departure_port: zod.string().nullish(),
+      return_port: zod.string().nullish(),
+      engine_hours_before: zod.number().nullish(),
+      engine_hours_after: zod.number().nullish(),
+      fuel_liters: zod.number().nullish(),
+      fuel_price_per_liter: zod.number().nullish(),
+      captain_name: zod.string().nullish(),
+      captain_day_rate: zod.number().nullish(),
+      stewardess_count: zod.number(),
+      stewardess_day_rate: zod.number().nullish(),
+      extra_crew_cost: zod.number().nullish(),
+      extra_crew_note: zod.string().nullish(),
+      charter_rate_type: zod.enum(["fixed", "per_day"]),
+      charter_rate: zod.number().nullish(),
+      deposit_amount: zod.number().nullish(),
+      deposit_date: zod.string().nullish(),
+      deposit_received: zod.boolean(),
+      final_payment_amount: zod.number().nullish(),
+      final_payment_date: zod.string().nullish(),
+      final_payment_received: zod.boolean(),
+      vat_applicable: zod.boolean(),
+      vat_percent: zod.number(),
+      port_fees: zod.number(),
+      provisioning: zod.number(),
+      cleaning: zod.number(),
+      other_expenses: zod.number(),
+      other_expenses_note: zod.string().nullish(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a charter booking
+ */
+export const createCharterBodyEngineHoursBeforeMin = 0;
+
+export const createCharterBodyEngineHoursAfterMin = 0;
+
+export const createCharterBodyFuelLitersMin = 0;
+
+export const createCharterBodyFuelPricePerLiterMin = 0;
+
+export const createCharterBodyCaptainDayRateMin = 0;
+
+export const createCharterBodyStewardessCountMin = 0;
+export const createCharterBodyStewardessCountMax = 20;
+
+export const createCharterBodyStewardessDayRateMin = 0;
+
+export const createCharterBodyExtraCrewCostMin = 0;
+
+export const createCharterBodyCharterRateMin = 0;
+
+export const createCharterBodyDepositAmountMin = 0;
+
+export const createCharterBodyFinalPaymentAmountMin = 0;
+
+export const createCharterBodyVatPercentMin = 0;
+export const createCharterBodyVatPercentMax = 100;
+
+export const createCharterBodyPortFeesMin = 0;
+
+export const createCharterBodyProvisioningMin = 0;
+
+export const createCharterBodyCleaningMin = 0;
+
+export const createCharterBodyOtherExpensesMin = 0;
+
+export const CreateCharterBody = zod.object({
+  yacht_id: zod.string(),
+  status: zod
+    .union([
+      zod.enum([
+        "confirmed",
+        "tentative",
+        "maintenance",
+        "blocked",
+        "cancelled",
+      ]),
+      zod.null(),
+    ])
+    .optional(),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  start_date: zod.string().describe("ISO date YYYY-MM-DD"),
+  end_date: zod.string().describe("ISO date YYYY-MM-DD"),
+  departure_port: zod.string().nullish(),
+  return_port: zod.string().nullish(),
+  engine_hours_before: zod
+    .number()
+    .min(createCharterBodyEngineHoursBeforeMin)
+    .nullish(),
+  engine_hours_after: zod
+    .number()
+    .min(createCharterBodyEngineHoursAfterMin)
+    .nullish(),
+  fuel_liters: zod.number().min(createCharterBodyFuelLitersMin).nullish(),
+  fuel_price_per_liter: zod
+    .number()
+    .min(createCharterBodyFuelPricePerLiterMin)
+    .nullish(),
+  captain_name: zod.string().nullish(),
+  captain_day_rate: zod
+    .number()
+    .min(createCharterBodyCaptainDayRateMin)
+    .nullish(),
+  stewardess_count: zod
+    .number()
+    .min(createCharterBodyStewardessCountMin)
+    .max(createCharterBodyStewardessCountMax)
+    .nullish(),
+  stewardess_day_rate: zod
+    .number()
+    .min(createCharterBodyStewardessDayRateMin)
+    .nullish(),
+  extra_crew_cost: zod
+    .number()
+    .min(createCharterBodyExtraCrewCostMin)
+    .nullish(),
+  extra_crew_note: zod.string().nullish(),
+  charter_rate_type: zod
+    .union([zod.enum(["fixed", "per_day"]), zod.null()])
+    .optional(),
+  charter_rate: zod.number().min(createCharterBodyCharterRateMin).nullish(),
+  deposit_amount: zod.number().min(createCharterBodyDepositAmountMin).nullish(),
+  deposit_date: zod.string().nullish(),
+  deposit_received: zod.boolean().nullish(),
+  final_payment_amount: zod
+    .number()
+    .min(createCharterBodyFinalPaymentAmountMin)
+    .nullish(),
+  final_payment_date: zod.string().nullish(),
+  final_payment_received: zod.boolean().nullish(),
+  vat_applicable: zod.boolean().nullish(),
+  vat_percent: zod
+    .number()
+    .min(createCharterBodyVatPercentMin)
+    .max(createCharterBodyVatPercentMax)
+    .nullish(),
+  port_fees: zod.number().min(createCharterBodyPortFeesMin).nullish(),
+  provisioning: zod.number().min(createCharterBodyProvisioningMin).nullish(),
+  cleaning: zod.number().min(createCharterBodyCleaningMin).nullish(),
+  other_expenses: zod.number().min(createCharterBodyOtherExpensesMin).nullish(),
+  other_expenses_note: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Get a charter by id
+ */
+export const GetCharterParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetCharterResponse = zod.object({
+  id: zod.string(),
+  yacht_id: zod.string(),
+  clerk_user_id: zod.string(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+  status: zod.enum([
+    "confirmed",
+    "tentative",
+    "maintenance",
+    "blocked",
+    "cancelled",
+  ]),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  start_date: zod.string(),
+  end_date: zod.string(),
+  departure_port: zod.string().nullish(),
+  return_port: zod.string().nullish(),
+  engine_hours_before: zod.number().nullish(),
+  engine_hours_after: zod.number().nullish(),
+  fuel_liters: zod.number().nullish(),
+  fuel_price_per_liter: zod.number().nullish(),
+  captain_name: zod.string().nullish(),
+  captain_day_rate: zod.number().nullish(),
+  stewardess_count: zod.number(),
+  stewardess_day_rate: zod.number().nullish(),
+  extra_crew_cost: zod.number().nullish(),
+  extra_crew_note: zod.string().nullish(),
+  charter_rate_type: zod.enum(["fixed", "per_day"]),
+  charter_rate: zod.number().nullish(),
+  deposit_amount: zod.number().nullish(),
+  deposit_date: zod.string().nullish(),
+  deposit_received: zod.boolean(),
+  final_payment_amount: zod.number().nullish(),
+  final_payment_date: zod.string().nullish(),
+  final_payment_received: zod.boolean(),
+  vat_applicable: zod.boolean(),
+  vat_percent: zod.number(),
+  port_fees: zod.number(),
+  provisioning: zod.number(),
+  cleaning: zod.number(),
+  other_expenses: zod.number(),
+  other_expenses_note: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Update a charter
+ */
+export const UpdateCharterParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const updateCharterBodyEngineHoursBeforeMin = 0;
+
+export const updateCharterBodyEngineHoursAfterMin = 0;
+
+export const updateCharterBodyFuelLitersMin = 0;
+
+export const updateCharterBodyFuelPricePerLiterMin = 0;
+
+export const updateCharterBodyCaptainDayRateMin = 0;
+
+export const updateCharterBodyStewardessCountMin = 0;
+export const updateCharterBodyStewardessCountMax = 20;
+
+export const updateCharterBodyStewardessDayRateMin = 0;
+
+export const updateCharterBodyExtraCrewCostMin = 0;
+
+export const updateCharterBodyCharterRateMin = 0;
+
+export const updateCharterBodyDepositAmountMin = 0;
+
+export const updateCharterBodyFinalPaymentAmountMin = 0;
+
+export const updateCharterBodyVatPercentMin = 0;
+export const updateCharterBodyVatPercentMax = 100;
+
+export const updateCharterBodyPortFeesMin = 0;
+
+export const updateCharterBodyProvisioningMin = 0;
+
+export const updateCharterBodyCleaningMin = 0;
+
+export const updateCharterBodyOtherExpensesMin = 0;
+
+export const UpdateCharterBody = zod.object({
+  yacht_id: zod.string(),
+  status: zod
+    .union([
+      zod.enum([
+        "confirmed",
+        "tentative",
+        "maintenance",
+        "blocked",
+        "cancelled",
+      ]),
+      zod.null(),
+    ])
+    .optional(),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  start_date: zod.string().describe("ISO date YYYY-MM-DD"),
+  end_date: zod.string().describe("ISO date YYYY-MM-DD"),
+  departure_port: zod.string().nullish(),
+  return_port: zod.string().nullish(),
+  engine_hours_before: zod
+    .number()
+    .min(updateCharterBodyEngineHoursBeforeMin)
+    .nullish(),
+  engine_hours_after: zod
+    .number()
+    .min(updateCharterBodyEngineHoursAfterMin)
+    .nullish(),
+  fuel_liters: zod.number().min(updateCharterBodyFuelLitersMin).nullish(),
+  fuel_price_per_liter: zod
+    .number()
+    .min(updateCharterBodyFuelPricePerLiterMin)
+    .nullish(),
+  captain_name: zod.string().nullish(),
+  captain_day_rate: zod
+    .number()
+    .min(updateCharterBodyCaptainDayRateMin)
+    .nullish(),
+  stewardess_count: zod
+    .number()
+    .min(updateCharterBodyStewardessCountMin)
+    .max(updateCharterBodyStewardessCountMax)
+    .nullish(),
+  stewardess_day_rate: zod
+    .number()
+    .min(updateCharterBodyStewardessDayRateMin)
+    .nullish(),
+  extra_crew_cost: zod
+    .number()
+    .min(updateCharterBodyExtraCrewCostMin)
+    .nullish(),
+  extra_crew_note: zod.string().nullish(),
+  charter_rate_type: zod
+    .union([zod.enum(["fixed", "per_day"]), zod.null()])
+    .optional(),
+  charter_rate: zod.number().min(updateCharterBodyCharterRateMin).nullish(),
+  deposit_amount: zod.number().min(updateCharterBodyDepositAmountMin).nullish(),
+  deposit_date: zod.string().nullish(),
+  deposit_received: zod.boolean().nullish(),
+  final_payment_amount: zod
+    .number()
+    .min(updateCharterBodyFinalPaymentAmountMin)
+    .nullish(),
+  final_payment_date: zod.string().nullish(),
+  final_payment_received: zod.boolean().nullish(),
+  vat_applicable: zod.boolean().nullish(),
+  vat_percent: zod
+    .number()
+    .min(updateCharterBodyVatPercentMin)
+    .max(updateCharterBodyVatPercentMax)
+    .nullish(),
+  port_fees: zod.number().min(updateCharterBodyPortFeesMin).nullish(),
+  provisioning: zod.number().min(updateCharterBodyProvisioningMin).nullish(),
+  cleaning: zod.number().min(updateCharterBodyCleaningMin).nullish(),
+  other_expenses: zod.number().min(updateCharterBodyOtherExpensesMin).nullish(),
+  other_expenses_note: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+export const UpdateCharterResponse = zod.object({
+  id: zod.string(),
+  yacht_id: zod.string(),
+  clerk_user_id: zod.string(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+  status: zod.enum([
+    "confirmed",
+    "tentative",
+    "maintenance",
+    "blocked",
+    "cancelled",
+  ]),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  start_date: zod.string(),
+  end_date: zod.string(),
+  departure_port: zod.string().nullish(),
+  return_port: zod.string().nullish(),
+  engine_hours_before: zod.number().nullish(),
+  engine_hours_after: zod.number().nullish(),
+  fuel_liters: zod.number().nullish(),
+  fuel_price_per_liter: zod.number().nullish(),
+  captain_name: zod.string().nullish(),
+  captain_day_rate: zod.number().nullish(),
+  stewardess_count: zod.number(),
+  stewardess_day_rate: zod.number().nullish(),
+  extra_crew_cost: zod.number().nullish(),
+  extra_crew_note: zod.string().nullish(),
+  charter_rate_type: zod.enum(["fixed", "per_day"]),
+  charter_rate: zod.number().nullish(),
+  deposit_amount: zod.number().nullish(),
+  deposit_date: zod.string().nullish(),
+  deposit_received: zod.boolean(),
+  final_payment_amount: zod.number().nullish(),
+  final_payment_date: zod.string().nullish(),
+  final_payment_received: zod.boolean(),
+  vat_applicable: zod.boolean(),
+  vat_percent: zod.number(),
+  port_fees: zod.number(),
+  provisioning: zod.number(),
+  cleaning: zod.number(),
+  other_expenses: zod.number(),
+  other_expenses_note: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a charter
+ */
+export const DeleteCharterParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary List clients with aggregate charter stats
+ */
+export const ListClientsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      clerk_user_id: zod.string(),
+      created_at: zod.string(),
+      updated_at: zod.string(),
+      name: zod.string(),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      charters_count: zod.number(),
+      total_revenue_eur: zod.number(),
+      last_charter_date: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a client with their charters
+ */
+export const GetClientParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetClientResponse = zod.object({
+  client: zod.object({
+    id: zod.string(),
+    clerk_user_id: zod.string(),
+    created_at: zod.string(),
+    updated_at: zod.string(),
+    name: zod.string(),
+    email: zod.string().nullish(),
+    phone: zod.string().nullish(),
+    notes: zod.string().nullish(),
+    charters_count: zod.number(),
+    total_revenue_eur: zod.number(),
+    last_charter_date: zod.string().nullish(),
+  }),
+  charters: zod.array(
+    zod.object({
+      id: zod.string(),
+      yacht_id: zod.string(),
+      clerk_user_id: zod.string(),
+      created_at: zod.string(),
+      updated_at: zod.string(),
+      status: zod.enum([
+        "confirmed",
+        "tentative",
+        "maintenance",
+        "blocked",
+        "cancelled",
+      ]),
+      client_name: zod.string().nullish(),
+      client_email: zod.string().nullish(),
+      client_phone: zod.string().nullish(),
+      start_date: zod.string(),
+      end_date: zod.string(),
+      departure_port: zod.string().nullish(),
+      return_port: zod.string().nullish(),
+      engine_hours_before: zod.number().nullish(),
+      engine_hours_after: zod.number().nullish(),
+      fuel_liters: zod.number().nullish(),
+      fuel_price_per_liter: zod.number().nullish(),
+      captain_name: zod.string().nullish(),
+      captain_day_rate: zod.number().nullish(),
+      stewardess_count: zod.number(),
+      stewardess_day_rate: zod.number().nullish(),
+      extra_crew_cost: zod.number().nullish(),
+      extra_crew_note: zod.string().nullish(),
+      charter_rate_type: zod.enum(["fixed", "per_day"]),
+      charter_rate: zod.number().nullish(),
+      deposit_amount: zod.number().nullish(),
+      deposit_date: zod.string().nullish(),
+      deposit_received: zod.boolean(),
+      final_payment_amount: zod.number().nullish(),
+      final_payment_date: zod.string().nullish(),
+      final_payment_received: zod.boolean(),
+      vat_applicable: zod.boolean(),
+      vat_percent: zod.number(),
+      port_fees: zod.number(),
+      provisioning: zod.number(),
+      cleaning: zod.number(),
+      other_expenses: zod.number(),
+      other_expenses_note: zod.string().nullish(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});

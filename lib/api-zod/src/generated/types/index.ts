@@ -6,8 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./charter";
+export * from "./charterInput";
+export * from "./charterListResponse";
+export * from "./charterRateType";
 export * from "./charterRegion";
 export * from "./charterSeason";
+export * from "./charterStatus";
+export * from "./client";
+export * from "./clientDetail";
+export * from "./clientListResponse";
 export * from "./comparable";
 export * from "./costAnnualExpenses";
 export * from "./costBreakdownEntry";
@@ -31,6 +39,7 @@ export * from "./estimateListResponse";
 export * from "./expenseBreakdown";
 export * from "./financingType";
 export * from "./healthStatus";
+export * from "./listChartersParams";
 export * from "./listRoiCalculationsParams";
 export * from "./managementStyle";
 export * from "./monthlyPoint";

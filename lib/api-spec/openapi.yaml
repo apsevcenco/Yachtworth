@@ -549,6 +549,229 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /charters:
+    get:
+      operationId: listCharters
+      tags: [charters]
+      summary: List charters (optionally filtered by yacht and date range)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: yacht_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: false
+          description: ISO date — only charters whose end_date >= this
+          schema:
+            type: string
+        - name: end
+          in: query
+          required: false
+          description: ISO date — only charters whose start_date <= this
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Charter list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharterListResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCharter
+      tags: [charters]
+      summary: Create a charter booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharterInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Charter"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /charters/{id}:
+    get:
+      operationId: getCharter
+      tags: [charters]
+      summary: Get a charter by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Charter detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Charter"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCharter
+      tags: [charters]
+      summary: Update a charter
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharterInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Charter"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCharter
+      tags: [charters]
+      summary: Delete a charter
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List clients with aggregate charter stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Client list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientListResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      summary: Get a client with their charters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Client detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -1631,3 +1854,259 @@ components:
           $ref: "#/components/schemas/CostEstimateInput"
         result:
           $ref: "#/components/schemas/CostEstimateResult"
+    CharterStatus:
+      type: string
+      enum: [confirmed, tentative, maintenance, blocked, cancelled]
+    CharterRateType:
+      type: string
+      enum: [fixed, per_day]
+    CharterInput:
+      type: object
+      required: [yacht_id, start_date, end_date]
+      properties:
+        yacht_id:
+          type: string
+        status:
+          oneOf:
+            - $ref: "#/components/schemas/CharterStatus"
+            - type: "null"
+        client_name:
+          type: ["string", "null"]
+        client_email:
+          type: ["string", "null"]
+        client_phone:
+          type: ["string", "null"]
+        start_date:
+          type: string
+          description: ISO date YYYY-MM-DD
+        end_date:
+          type: string
+          description: ISO date YYYY-MM-DD
+        departure_port:
+          type: ["string", "null"]
+        return_port:
+          type: ["string", "null"]
+        engine_hours_before:
+          type: ["number", "null"]
+          minimum: 0
+        engine_hours_after:
+          type: ["number", "null"]
+          minimum: 0
+        fuel_liters:
+          type: ["number", "null"]
+          minimum: 0
+        fuel_price_per_liter:
+          type: ["number", "null"]
+          minimum: 0
+        captain_name:
+          type: ["string", "null"]
+        captain_day_rate:
+          type: ["number", "null"]
+          minimum: 0
+        stewardess_count:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 20
+        stewardess_day_rate:
+          type: ["number", "null"]
+          minimum: 0
+        extra_crew_cost:
+          type: ["number", "null"]
+          minimum: 0
+        extra_crew_note:
+          type: ["string", "null"]
+        charter_rate_type:
+          oneOf:
+            - $ref: "#/components/schemas/CharterRateType"
+            - type: "null"
+        charter_rate:
+          type: ["number", "null"]
+          minimum: 0
+        deposit_amount:
+          type: ["number", "null"]
+          minimum: 0
+        deposit_date:
+          type: ["string", "null"]
+        deposit_received:
+          type: ["boolean", "null"]
+        final_payment_amount:
+          type: ["number", "null"]
+          minimum: 0
+        final_payment_date:
+          type: ["string", "null"]
+        final_payment_received:
+          type: ["boolean", "null"]
+        vat_applicable:
+          type: ["boolean", "null"]
+        vat_percent:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+        port_fees:
+          type: ["number", "null"]
+          minimum: 0
+        provisioning:
+          type: ["number", "null"]
+          minimum: 0
+        cleaning:
+          type: ["number", "null"]
+          minimum: 0
+        other_expenses:
+          type: ["number", "null"]
+          minimum: 0
+        other_expenses_note:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+    Charter:
+      type: object
+      required:
+        - id
+        - yacht_id
+        - clerk_user_id
+        - status
+        - start_date
+        - end_date
+        - charter_rate_type
+        - stewardess_count
+        - vat_applicable
+        - vat_percent
+        - port_fees
+        - provisioning
+        - cleaning
+        - other_expenses
+        - deposit_received
+        - final_payment_received
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        yacht_id:
+          type: string
+        clerk_user_id:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        status:
+          $ref: "#/components/schemas/CharterStatus"
+        client_name:
+          type: ["string", "null"]
+        client_email:
+          type: ["string", "null"]
+        client_phone:
+          type: ["string", "null"]
+        start_date:
+          type: string
+        end_date:
+          type: string
+        departure_port:
+          type: ["string", "null"]
+        return_port:
+          type: ["string", "null"]
+        engine_hours_before:
+          type: ["number", "null"]
+        engine_hours_after:
+          type: ["number", "null"]
+        fuel_liters:
+          type: ["number", "null"]
+        fuel_price_per_liter:
+          type: ["number", "null"]
+        captain_name:
+          type: ["string", "null"]
+        captain_day_rate:
+          type: ["number", "null"]
+        stewardess_count:
+          type: integer
+        stewardess_day_rate:
+          type: ["number", "null"]
+        extra_crew_cost:
+          type: ["number", "null"]
+        extra_crew_note:
+          type: ["string", "null"]
+        charter_rate_type:
+          $ref: "#/components/schemas/CharterRateType"
+        charter_rate:
+          type: ["number", "null"]
+        deposit_amount:
+          type: ["number", "null"]
+        deposit_date:
+          type: ["string", "null"]
+        deposit_received:
+          type: boolean
+        final_payment_amount:
+          type: ["number", "null"]
+        final_payment_date:
+          type: ["string", "null"]
+        final_payment_received:
+          type: boolean
+        vat_applicable:
+          type: boolean
+        vat_percent:
+          type: number
+        port_fees:
+          type: number
+        provisioning:
+          type: number
+        cleaning:
+          type: number
+        other_expenses:
+          type: number
+        other_expenses_note:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+    CharterListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Charter"
+    Client:
+      type: object
+      required: [id, clerk_user_id, name, created_at, updated_at, charters_count, total_revenue_eur]
+      properties:
+        id:
+          type: string
+        clerk_user_id:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        charters_count:
+          type: integer
+        total_revenue_eur:
+          type: number
+        last_charter_date:
+          type: ["string", "null"]
+    ClientListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Client"
+    ClientDetail:
+      type: object
+      required: [client, charters]
+      properties:
+        client:
+          $ref: "#/components/schemas/Client"
+        charters:
+          type: array
+          items:
+            $ref: "#/components/schemas/Charter"
