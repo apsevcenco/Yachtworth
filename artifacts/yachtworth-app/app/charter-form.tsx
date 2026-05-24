@@ -596,7 +596,7 @@ export default function CharterFormScreen() {
     >
       <Pressable
         onPress={() => router.back()}
-        style={[styles.backFab, { top: (isWeb ? 67 : insets.top) + 12 }]}
+        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 56 }]}
         accessibilityRole="button"
         accessibilityLabel="Go back"
       >
@@ -1459,13 +1459,15 @@ const styles = StyleSheet.create({
   backFab: {
     position: "absolute",
     left: 16,
-    zIndex: 10,
+    zIndex: 60,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: NAVY_ELEV,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(247,243,236,0.12)",
   },
 
   kicker: {
