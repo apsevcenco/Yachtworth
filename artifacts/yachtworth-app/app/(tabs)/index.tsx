@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 32,
   },
-  brandLogo: { width: 168, height: 36 },
+  brandLogo: { width: 154, height: 30 },
   kicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",
