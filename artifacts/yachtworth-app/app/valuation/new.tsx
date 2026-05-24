@@ -528,7 +528,7 @@ export default function NewValuationScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={[styles.headerBar, { paddingTop: insets.top + 12 }]}>
+        <View style={[styles.headerBar, { paddingTop: insets.top + 60 }]}>
           <Pressable onPress={onBack} hitSlop={16}>
             <Feather name="chevron-left" size={24} color={IVORY} />
           </Pressable>

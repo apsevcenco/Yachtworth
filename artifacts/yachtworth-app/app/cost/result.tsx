@@ -109,7 +109,7 @@ export default function CostResultScreen() {
 
   if (idParam && !inlineEnvelope && detailQuery.isLoading) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} />
         <View style={styles.empty}>
           <ActivityIndicator color={GOLD} />
@@ -120,7 +120,7 @@ export default function CostResultScreen() {
 
   if (!envelope) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} />
         <View style={styles.empty}>
           <Feather name="alert-circle" size={28} color={GOLD} />
@@ -143,7 +143,7 @@ export default function CostResultScreen() {
   const lenLabel = `${r.length_meters.toFixed(1)} m`;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
+    <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
       <TopBar onBack={() => router.back()} />
 
       <ScrollView

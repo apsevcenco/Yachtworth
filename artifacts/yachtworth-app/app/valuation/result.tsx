@@ -154,7 +154,7 @@ export default function ValuationResultScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: NAVY }]}>
-      <View style={[styles.headerBar, { paddingTop: insets.top + 12 }]}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + 60 }]}>
         <Pressable onPress={() => router.replace("/")} hitSlop={16}>
           <Feather name="x" size={22} color={IVORY} />
         </Pressable>

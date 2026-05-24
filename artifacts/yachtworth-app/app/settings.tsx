@@ -59,7 +59,7 @@ export default function SettingsScreen() {
       <View
         style={[
           styles.headerBar,
-          { paddingTop: (isWeb ? 12 : insets.top) + 8 },
+          { paddingTop: (isWeb ? 12 : insets.top) + 56 },
         ]}
       >
         <Pressable

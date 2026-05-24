@@ -9,14 +9,16 @@ import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/BrandHeader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 SplashScreen.preventAutoHideAsync();
@@ -48,7 +50,10 @@ function ClerkTokenBridge() {
 }
 
 function RootLayoutNav() {
+  const pathname = usePathname();
+  const showBrandHeader = !pathname.startsWith("/sign-");
   return (
+    <View style={{ flex: 1 }}>
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
@@ -96,6 +101,8 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>
+    {showBrandHeader ? <BrandHeader /> : null}
+    </View>
   );
 }
 

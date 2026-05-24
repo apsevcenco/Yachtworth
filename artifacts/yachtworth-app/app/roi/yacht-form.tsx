@@ -573,7 +573,7 @@ export default function YachtFormScreen() {
 
   if (isLoaded && !isSignedIn) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="Yacht profile" />
         <View style={styles.empty}>
           <Feather name="lock" size={26} color={GOLD} />
@@ -591,7 +591,7 @@ export default function YachtFormScreen() {
 
   if (editId && getYacht.isLoading) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="Edit yacht" />
         <View style={styles.empty}>
           <ActivityIndicator color={GOLD} />
@@ -602,7 +602,7 @@ export default function YachtFormScreen() {
 
   if (editId && (getYacht.isError || (!getYacht.isLoading && !getYacht.data))) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="Edit yacht" />
         <View style={styles.empty}>
           <Feather name="alert-circle" size={26} color={GOLD} />
@@ -626,7 +626,7 @@ export default function YachtFormScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: NAVY }}
     >
-      <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
         <TopBar
           onBack={goBack}
           title={editId ? "Edit yacht" : "New yacht profile"}

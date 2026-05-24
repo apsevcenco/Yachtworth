@@ -143,7 +143,7 @@ export default function RoiCalculateScreen() {
 
   if (!yachtId) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="Charter ROI" />
         <View style={styles.empty}>
           <Feather name="alert-circle" size={24} color={GOLD} />
@@ -158,7 +158,7 @@ export default function RoiCalculateScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: NAVY }}
     >
-      <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
         <TopBar onBack={() => router.back()} title="ROI scenario" />
 
         <ScrollView

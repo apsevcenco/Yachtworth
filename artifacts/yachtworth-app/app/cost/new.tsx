@@ -434,7 +434,7 @@ export default function CostNewScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: NAVY }}
     >
-      <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
         <TopBar onBack={goBack} title="Annual cost estimate" />
 
         <View style={styles.stepRow}>

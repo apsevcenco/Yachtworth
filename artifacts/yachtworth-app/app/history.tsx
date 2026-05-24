@@ -271,7 +271,7 @@ export default function HistoryScreen() {
     <View
       style={[
         styles.root,
-        { paddingTop: (isWeb ? 67 : insets.top) + 24, paddingBottom: insets.bottom + 100 },
+        { paddingTop: (isWeb ? 67 : insets.top) + 70, paddingBottom: insets.bottom + 100 },
       ]}
     >
       <Pressable
@@ -281,7 +281,7 @@ export default function HistoryScreen() {
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Go back"
-        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 8 }]}
+        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 56 }]}
       >
         <Feather name="chevron-left" size={24} color={IVORY} />
       </Pressable>

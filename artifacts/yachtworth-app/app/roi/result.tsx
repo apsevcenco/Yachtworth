@@ -64,7 +64,7 @@ export default function RoiResultScreen() {
 
   if (idParam && !inlineData && detailQuery.isLoading) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="ROI result" />
         <View style={styles.empty}>
           <ActivityIndicator color={GOLD} />
@@ -75,7 +75,7 @@ export default function RoiResultScreen() {
 
   if (!data) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="ROI result" />
         <View style={styles.empty}>
           <Feather name="alert-circle" size={26} color={GOLD} />
@@ -91,7 +91,7 @@ export default function RoiResultScreen() {
   const maxMonth = Math.max(...data.revenue_by_month.map((m) => m.value_eur)) || 1;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 16 }]}>
+    <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
       <TopBar onBack={() => router.back()} title="ROI result" />
       <ScrollView
         contentContainerStyle={{

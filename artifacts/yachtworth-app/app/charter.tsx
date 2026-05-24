@@ -123,7 +123,7 @@ export default function CharterScreen() {
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Go back"
-        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 8 }]}
+        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 56 }]}
       >
         <Feather name="chevron-left" size={24} color={IVORY} />
       </Pressable>
@@ -132,7 +132,7 @@ export default function CharterScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: (isWeb ? 67 : insets.top) + 24,
+            paddingTop: (isWeb ? 67 : insets.top) + 70,
             paddingBottom: insets.bottom + 120,
           },
         ]}
