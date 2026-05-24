@@ -4,7 +4,6 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -80,33 +79,12 @@ export default function HomeScreen() {
     <View style={[styles.root, { backgroundColor: NAVY }]}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: (isWeb ? 67 : insets.top) + 24,
+          paddingTop: (isWeb ? 67 : insets.top) + 70,
           paddingBottom: insets.bottom + 120,
           paddingHorizontal: 24,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Brand row */}
-        <View style={styles.header}>
-          <Image
-            source={require("../../assets/images/logo-wordmark.png")}
-            style={styles.brandLogo}
-            resizeMode="contain"
-            accessibilityLabel="Yachtworth"
-            accessible
-          />
-          <Pressable
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.selectionAsync();
-            }}
-          >
-            <Feather name="bell" size={20} color={IVORY} />
-          </Pressable>
-        </View>
-
         {/* Hero */}
         <Text style={styles.kicker}>AI tools for the yachting industry</Text>
         <Text style={styles.hero}>
@@ -202,13 +180,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 32,
-  },
-  brandLogo: { width: 154, height: 30 },
   kicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",

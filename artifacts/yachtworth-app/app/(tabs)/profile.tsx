@@ -47,7 +47,7 @@ export default function ProfileScreen() {
     <View style={styles.root}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: (isWeb ? 67 : insets.top) + 24,
+          paddingTop: (isWeb ? 67 : insets.top) + 70,
           paddingBottom: insets.bottom + 120,
           paddingHorizontal: 24,
         }}

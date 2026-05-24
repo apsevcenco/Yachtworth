@@ -182,7 +182,7 @@ export default function ToolsScreen() {
   );
 
   return (
-    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 24 }]}>
+    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 24,
