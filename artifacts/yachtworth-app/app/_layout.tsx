@@ -101,6 +101,10 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
+        name="client-detail"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
         name="history"
         options={{ headerShown: false, presentation: "card" }}
       />

@@ -2,11 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import {
   getListChartersQueryKey,
+  getListClientsQueryKey,
   getListYachtsQueryKey,
   useCreateYacht,
   useListCharters,
+  useListClients,
   useListYachts,
   type Charter,
+  type Client,
   type Yacht,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -313,10 +316,14 @@ export default function CharterPlannerScreen() {
             }
           />
         ) : (
-          <PlaceholderTab
-            icon="users"
-            title="Clients coming next"
-            text="Clients are already being saved when you create a charter. The list + history UI ships in the next update."
+          <ClientsTab
+            signedIn={Boolean(isSignedIn)}
+            onTapClient={(c) =>
+              router.push({
+                pathname: "/client-detail",
+                params: { id: c.id },
+              })
+            }
           />
         )}
       </ScrollView>
@@ -842,6 +849,194 @@ function CalendarTab({
       <Text style={styles.calHint}>
         Tap a bar to edit · Tap an empty day to add a charter
       </Text>
+    </View>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Clients tab — list of clients with aggregate stats + search
+// ────────────────────────────────────────────────────────────────────────────
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+}
+
+function fmtMoneyShort(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n >= 1000) return `€${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return `€${Math.round(n)}`;
+}
+
+function fmtDateShort(s: string | null | undefined): string {
+  if (!s) return "—";
+  try {
+    return new Date(s).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "2-digit",
+    });
+  } catch {
+    return s;
+  }
+}
+
+function ClientsTab({
+  signedIn,
+  onTapClient,
+}: {
+  signedIn: boolean;
+  onTapClient: (c: Client) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const q = useListClients({
+    query: {
+      queryKey: getListClientsQueryKey(),
+      enabled: signedIn,
+      staleTime: 30_000,
+    },
+  });
+
+  const all: Client[] = q.data?.items ?? [];
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return all;
+    return all.filter((c) => {
+      const hay = `${c.name} ${c.email ?? ""} ${c.phone ?? ""}`.toLowerCase();
+      return hay.includes(term);
+    });
+  }, [all, search]);
+
+  if (q.isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={GOLD} />
+      </View>
+    );
+  }
+
+  if (q.isError) {
+    return (
+      <View style={styles.empty}>
+        <View style={styles.emptyIcon}>
+          <Feather name="alert-circle" size={26} color={GOLD} />
+        </View>
+        <Text style={styles.emptyTitle}>Could not load clients</Text>
+        <Text style={styles.emptyText}>
+          {q.error instanceof Error
+            ? q.error.message
+            : "Pull to retry or check your connection."}
+        </Text>
+        <Pressable
+          onPress={() => q.refetch()}
+          accessibilityRole="button"
+          accessibilityLabel="Retry"
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { opacity: pressed ? 0.85 : 1, marginTop: 16 },
+          ]}
+        >
+          <Text style={styles.primaryBtnText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (all.length === 0) {
+    return (
+      <View style={styles.empty}>
+        <View style={styles.emptyIcon}>
+          <Feather name="users" size={26} color={GOLD} />
+        </View>
+        <Text style={styles.emptyTitle}>No clients yet.</Text>
+        <Text style={styles.emptyText}>
+          Clients appear here automatically when you save a charter with a
+          client name.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <View style={styles.searchWrap}>
+        <Feather name="search" size={16} color={MUTED} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search clients"
+          placeholderTextColor={MUTED}
+          style={styles.searchInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search clients"
+        />
+        {search.length > 0 ? (
+          <Pressable
+            onPress={() => setSearch("")}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
+            <Feather name="x" size={16} color={MUTED} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <Text style={styles.clientCount}>
+        {filtered.length} of {all.length} client
+        {all.length === 1 ? "" : "s"}
+      </Text>
+
+      {filtered.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>
+            No clients match “{search.trim()}”.
+          </Text>
+        </View>
+      ) : (
+        filtered.map((c) => (
+          <Pressable
+            key={c.id}
+            onPress={() => onTapClient(c)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open client ${c.name}, ${c.charters_count} charters`}
+            style={({ pressed }) => [
+              styles.clientCard,
+              pressed && { opacity: 0.9 },
+            ]}
+          >
+            <View style={styles.avatarSm}>
+              <Text style={styles.avatarSmText}>{initialsOf(c.name)}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.clientName} numberOfLines={1}>
+                {c.name}
+              </Text>
+              <Text style={styles.clientSub} numberOfLines={1}>
+                {c.charters_count} charter{c.charters_count === 1 ? "" : "s"}
+                {c.last_charter_date
+                  ? ` · last ${fmtDateShort(c.last_charter_date)}`
+                  : ""}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.clientRevenue}>
+                {fmtMoneyShort(c.total_revenue_eur)}
+              </Text>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={MUTED}
+                style={{ marginTop: 2 }}
+              />
+            </View>
+          </Pressable>
+        ))
+      )}
     </View>
   );
 }
@@ -1577,5 +1772,76 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 10,
     fontStyle: "italic",
+  },
+
+  // Clients tab
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: NAVY_ELEV,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  clientCount: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 1,
+    marginBottom: 10,
+    textTransform: "uppercase",
+  },
+  clientCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    marginBottom: 10,
+  },
+  avatarSm: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: NAVY_DEEP,
+    borderWidth: 1,
+    borderColor: GOLD,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarSmText: {
+    color: GOLD,
+    fontFamily: "Gilroy-ExtraBold",
+    fontSize: 14,
+  },
+  clientName: {
+    color: IVORY,
+    fontFamily: "Gilroy-ExtraBold",
+    fontSize: 15,
+  },
+  clientSub: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  clientRevenue: {
+    color: GOLD,
+    fontFamily: "Gilroy-ExtraBold",
+    fontSize: 14,
   },
 });

@@ -476,6 +476,7 @@ export default function CharterFormScreen() {
     const opts = {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ["/api/charters"] });
+        qc.invalidateQueries({ queryKey: ["/api/clients"] });
         if (editId) qc.invalidateQueries({ queryKey: [`/api/charters/${editId}`] });
         router.back();
       },
@@ -506,6 +507,7 @@ export default function CharterFormScreen() {
             {
               onSuccess: () => {
                 qc.invalidateQueries({ queryKey: ["/api/charters"] });
+                qc.invalidateQueries({ queryKey: ["/api/clients"] });
                 router.back();
               },
               onError: (err: unknown) => {
