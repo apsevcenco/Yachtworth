@@ -5,9 +5,15 @@ const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
 const NAVY_ELEV = "#142A52";
 const GOLD = "#C9A961";
+const GOLD_SOFT = "#B8965A";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.6)";
 const DIVIDER = "rgba(247,243,236,0.1)";
+const WHITE = "#FFFFFF";
+const INK = "#1A2238";
+const INK_MUTED = "#5B6477";
+const BEIGE = "#F5EFE3";
+const RULE = "#E6E1D6";
 
 export type ProposalLanguage =
   | "english"
@@ -645,22 +651,56 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
     yacht.year_built ? String(yacht.year_built) : null,
     yacht.length_meters ? `${yacht.length_meters.toFixed(1)} m` : null,
   ].filter(Boolean) as string[];
-  const heroPhoto = yacht.photo_url
-    ? `<div class="cover-photo" style="background-image:url('${escapeAttr(yacht.photo_url)}')"></div>`
-    : `<div class="cover-photo placeholder"><span>⚓</span></div>`;
+  const heroBg = yacht.photo_url
+    ? `style="background-image:url('${escapeAttr(yacht.photo_url)}')"`
+    : "";
+  const coverSubtitle = [yacht.builder, yacht.model, yacht.yacht_type ? humanize(yacht.yacht_type) : null]
+    .filter(Boolean)
+    .join(" · ");
+  const coverHeaderBits = [
+    "YACHTWORTH",
+    t("proposal", lang).toUpperCase(),
+    proposalTypeLabel(settings.proposal_type, lang).toUpperCase(),
+  ].join("   ·   ");
+  const guestsCell = [
+    yacht.guests != null ? String(yacht.guests) : null,
+    yacht.crew != null ? `+ ${yacht.crew} ${t("crew", lang).toLowerCase()}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const coverCells: { label: string; value: string }[] = [];
+  if (yacht.year_built) coverCells.push({ label: t("year_built", lang), value: String(yacht.year_built) });
+  if (yacht.length_meters) coverCells.push({ label: t("length", lang), value: `${yacht.length_meters.toFixed(1)} m` });
+  if (guestsCell) coverCells.push({ label: t("guests", lang), value: guestsCell });
+  if (yacht.flag) coverCells.push({ label: t("flag", lang), value: yacht.flag });
+  if (yacht.home_port) coverCells.push({ label: t("home_port", lang), value: yacht.home_port });
+  const askingPrice =
+    (settings.proposal_type === "sale" || settings.proposal_type === "both") &&
+    settings.sale_price_eur != null
+      ? formatEur(settings.sale_price_eur)
+      : null;
   const cover = `
-    <section class="page cover">
-      ${watermark ? `<div class="watermark">${escapeHtml(t("confidential", lang))}</div>` : ""}
+    <section class="page cover" ${heroBg}>
+      <div class="cover-shade"></div>
+      ${watermark ? `<div class="watermark cover-wm">${escapeHtml(t("confidential", lang))}</div>` : ""}
       <div class="cover-top">
-        <div class="brand">YACHTWORTH</div>
-        <div class="gold-line"></div>
-        <div class="proposal-label">${escapeHtml(t("proposal", lang))} · ${escapeHtml(proposalTypeLabel(settings.proposal_type, lang))}</div>
+        <div class="cover-eyebrow">${escapeHtml(coverHeaderBits)}</div>
       </div>
-      ${heroPhoto}
       <div class="cover-bottom">
-        <h1>${escapeHtml(yacht.name)}</h1>
-        ${subtitleParts.length ? `<div class="cover-sub">${escapeHtml(subtitleParts.join(" · "))}</div>` : ""}
-        <div class="cover-date">${escapeHtml(t("document_date", lang))}: ${escapeHtml(today)}</div>
+        <h1 class="cover-name">${escapeHtml(yacht.name)}</h1>
+        ${coverSubtitle ? `<div class="cover-sub">${escapeHtml(coverSubtitle)}</div>` : ""}
+        ${coverCells.length
+          ? `<div class="cover-grid">${coverCells
+              .map(
+                (c) =>
+                  `<div class="cc"><div class="cc-l">${escapeHtml(c.label.toUpperCase())}</div><div class="cc-v">${escapeHtml(c.value)}</div></div>`,
+              )
+              .join("")}</div>`
+          : ""}
+        ${askingPrice
+          ? `<div class="cover-price"><div class="cp-l">${escapeHtml(t("asking_price", lang).toUpperCase())}</div><div class="cp-v">${escapeHtml(askingPrice)}</div></div>`
+          : ""}
+        <div class="cover-foot">${escapeHtml(today)} · ${escapeHtml(t("confidential", lang))}</div>
       </div>
     </section>`;
 
@@ -706,11 +746,11 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
     .join("");
 
   const specPage = `
-    <section class="page">
-      ${watermark ? `<div class="watermark">${escapeHtml(t("confidential", lang))}</div>` : ""}
-      <div class="page-head">
-        <div class="brand small">YACHTWORTH</div>
-        <div class="page-title">${escapeHtml(yacht.name)}</div>
+    <section class="page light">
+      ${watermark ? `<div class="watermark light-wm">${escapeHtml(t("confidential", lang))}</div>` : ""}
+      <div class="page-head light">
+        <div class="ph-left">YACHTWORTH · ${escapeHtml(t("proposal", lang).toUpperCase())}</div>
+        <div class="ph-right">${escapeHtml(yacht.name)}</div>
       </div>
       <div class="gold-line"></div>
       <h2>${escapeHtml(t("specifications", lang))}</h2>
@@ -719,6 +759,10 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
         ? `<h2 class="mt">${escapeHtml(t("accommodation", lang))}</h2>
            <table class="kv"><tbody>${accomRows}</tbody></table>`
         : ""}
+      <div class="page-foot">
+        <div class="disclaimer">${escapeHtml(t("disclaimer", lang))}</div>
+        <div class="footer-brand">YACHTWORTH<br/><span>Powered by PDYE Group</span></div>
+      </div>
     </section>`;
 
   // ---- equipment (always rendered to guarantee 4-page output) ----
@@ -743,52 +787,74 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
     if (blocks.length) equipBody = `<div class="eq-grid">${blocks.join("")}</div>`;
   }
   const equipPage = `
-      <section class="page">
-        ${watermark ? `<div class="watermark">${escapeHtml(t("confidential", lang))}</div>` : ""}
-        <div class="page-head">
-          <div class="brand small">YACHTWORTH</div>
-          <div class="page-title">${escapeHtml(yacht.name)}</div>
+      <section class="page light">
+        ${watermark ? `<div class="watermark light-wm">${escapeHtml(t("confidential", lang))}</div>` : ""}
+        <div class="page-head light">
+          <div class="ph-left">YACHTWORTH · ${escapeHtml(t("proposal", lang).toUpperCase())}</div>
+          <div class="ph-right">${escapeHtml(yacht.name)}</div>
         </div>
         <div class="gold-line"></div>
         <h2>${escapeHtml(t("equipment", lang))}</h2>
         ${equipBody}
+        <div class="page-foot">
+          <div class="disclaimer">${escapeHtml(t("disclaimer", lang))}</div>
+          <div class="footer-brand">YACHTWORTH<br/><span>Powered by PDYE Group</span></div>
+        </div>
       </section>`;
 
   // ---- pricing + contact ----
-  const priceLines: string[] = [];
   const wantSale =
     (settings.proposal_type === "sale" || settings.proposal_type === "both") &&
     includes.has("pricing_sale");
   const wantCharter =
     (settings.proposal_type === "charter" || settings.proposal_type === "both") &&
     includes.has("pricing_charter");
+  const saleRows: { k: string; v: string }[] = [];
   if (wantSale && settings.sale_price_eur != null) {
-    priceLines.push(
-      `<div class="price-row"><span class="k">${escapeHtml(t("asking_price", lang))}</span><span class="v">${escapeHtml(formatEur(settings.sale_price_eur))}</span></div>`,
-    );
+    saleRows.push({ k: t("asking_price", lang), v: formatEur(settings.sale_price_eur) });
   }
+  const charterRows: { k: string; v: string }[] = [];
   if (wantCharter) {
-    if (settings.charter_low_eur_week != null) {
-      priceLines.push(
-        `<div class="price-row"><span class="k">${escapeHtml(t("low_season", lang))}</span><span class="v">${escapeHtml(formatEur(settings.charter_low_eur_week))} ${escapeHtml(t("per_week", lang))}</span></div>`,
-      );
-    }
     if (settings.charter_high_eur_week != null) {
-      priceLines.push(
-        `<div class="price-row"><span class="k">${escapeHtml(t("high_season", lang))}</span><span class="v">${escapeHtml(formatEur(settings.charter_high_eur_week))} ${escapeHtml(t("per_week", lang))}</span></div>`,
-      );
+      charterRows.push({
+        k: t("high_season", lang),
+        v: `${formatEur(settings.charter_high_eur_week)} ${t("per_week", lang)}`,
+      });
+    }
+    if (settings.charter_low_eur_week != null) {
+      charterRows.push({
+        k: t("low_season", lang),
+        v: `${formatEur(settings.charter_low_eur_week)} ${t("per_week", lang)}`,
+      });
     }
     if (settings.charter_apa_pct != null) {
-      priceLines.push(
-        `<div class="price-row"><span class="k">${escapeHtml(t("apa", lang))}</span><span class="v">${settings.charter_apa_pct}%</span></div>`,
-      );
+      charterRows.push({ k: t("apa", lang), v: `${settings.charter_apa_pct}%` });
     }
     if (settings.charter_vat_pct != null) {
-      priceLines.push(
-        `<div class="price-row"><span class="k">${escapeHtml(t("vat", lang))}</span><span class="v">${settings.charter_vat_pct}%</span></div>`,
-      );
+      charterRows.push({ k: t("vat", lang), v: `${settings.charter_vat_pct}%` });
     }
   }
+
+  const renderPriceBox = (title: string, rows: { k: string; v: string }[]) =>
+    `<div class="price-box">
+       <div class="price-title">${escapeHtml(title)}</div>
+       ${rows.length
+         ? rows
+             .map(
+               (r) =>
+                 `<div class="price-row"><span class="k">${escapeHtml(r.k)}</span><span class="v">${escapeHtml(r.v)}</span></div>`,
+             )
+             .join("")
+         : `<div class="price-empty">—</div>`}
+     </div>`;
+
+  const showSaleBox =
+    settings.proposal_type === "sale" || settings.proposal_type === "both";
+  const showCharterBox =
+    settings.proposal_type === "charter" || settings.proposal_type === "both";
+  const pricingBlocks: string[] = [];
+  if (showSaleBox) pricingBlocks.push(renderPriceBox(t("for_sale", lang).toUpperCase(), saleRows));
+  if (showCharterBox) pricingBlocks.push(renderPriceBox(t("for_charter", lang).toUpperCase(), charterRows));
 
   const contactLines: string[] = [];
   if (settings.broker_name) contactLines.push(escapeHtml(settings.broker_name));
@@ -800,17 +866,16 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
 
   // back page is always rendered to guarantee 4-page output
   const backPage = `
-      <section class="page">
-        ${watermark ? `<div class="watermark">${escapeHtml(t("confidential", lang))}</div>` : ""}
-        <div class="page-head">
-          <div class="brand small">YACHTWORTH</div>
-          <div class="page-title">${escapeHtml(yacht.name)}</div>
+      <section class="page light">
+        ${watermark ? `<div class="watermark light-wm">${escapeHtml(t("confidential", lang))}</div>` : ""}
+        <div class="page-head light">
+          <div class="ph-left">YACHTWORTH · ${escapeHtml(t("proposal", lang).toUpperCase())}</div>
+          <div class="ph-right">${escapeHtml(yacht.name)}</div>
         </div>
         <div class="gold-line"></div>
-        <h2>${escapeHtml(t("pricing", lang))}</h2>
-        ${priceLines.length
-          ? `<div class="prices">${priceLines.join("")}</div>`
-          : `<p class="empty">—</p>`}
+        ${pricingBlocks.length
+          ? `<div class="price-grid ${pricingBlocks.length === 1 ? "one" : "two"}">${pricingBlocks.join("")}</div>`
+          : ""}
         <h2 class="mt">${escapeHtml(t("contact", lang))}</h2>
         ${wantContact
           ? `<div class="contact-card">
@@ -818,8 +883,10 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
                ${contactLines.map((l) => `<div class="contact-line">${l}</div>`).join("")}
              </div>`
           : `<p class="empty">—</p>`}
-        <div class="disclaimer">${escapeHtml(t("disclaimer", lang))}</div>
-        <div class="footer-brand">YACHTWORTH · Powered by PDYE Group</div>
+        <div class="page-foot">
+          <div class="disclaimer">${escapeHtml(t("disclaimer", lang))}</div>
+          <div class="footer-brand">YACHTWORTH<br/><span>Powered by PDYE Group</span></div>
+        </div>
       </section>`;
 
   return `<!doctype html>
@@ -828,126 +895,207 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
 <style>
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: ${NAVY}; }
+  html, body { margin: 0; padding: 0; background: ${WHITE}; }
   body {
     font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
-    color: ${IVORY};
+    color: ${INK};
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .page {
     position: relative;
     width: 210mm; min-height: 297mm;
-    padding: 22mm 18mm;
-    background: ${NAVY};
+    background: ${WHITE};
     page-break-after: always;
     overflow: hidden;
   }
   .page:last-child { page-break-after: auto; }
+  .page.light { padding: 18mm 18mm 14mm; color: ${INK}; }
+
+  /* ---------- COVER (full-bleed photo) ---------- */
+  .cover {
+    padding: 0;
+    background-color: ${NAVY_DEEP};
+    background-size: cover;
+    background-position: center;
+    color: ${IVORY};
+  }
+  .cover-shade {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(to bottom,
+        rgba(11,30,63,0.55) 0%,
+        rgba(11,30,63,0.05) 28%,
+        rgba(11,30,63,0.05) 55%,
+        rgba(11,30,63,0.85) 100%);
+    pointer-events: none;
+  }
+  .cover-top {
+    position: absolute; top: 22mm; left: 18mm; right: 18mm;
+  }
+  .cover-eyebrow {
+    color: ${GOLD};
+    font-size: 11px; letter-spacing: 6px; font-weight: 700;
+    text-transform: uppercase;
+  }
+  .cover-bottom {
+    position: absolute; left: 18mm; right: 18mm; bottom: 22mm;
+  }
+  .cover-name {
+    color: ${WHITE};
+    font-size: 48px; line-height: 1.02;
+    margin: 0 0 6px; font-weight: 800; letter-spacing: -0.6px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  }
+  .cover-sub {
+    color: ${GOLD};
+    font-size: 13px; letter-spacing: 2px; margin-bottom: 22px;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .cover-grid {
+    display: flex; flex-wrap: wrap; gap: 0;
+    border-top: 1px solid rgba(247,243,236,0.25);
+    border-bottom: 1px solid rgba(247,243,236,0.25);
+    padding: 12px 0;
+  }
+  .cc { flex: 1 1 0; min-width: 70px; padding-right: 12px; }
+  .cc-l {
+    color: ${GOLD}; font-size: 9px; letter-spacing: 2px;
+    font-weight: 700; margin-bottom: 4px;
+  }
+  .cc-v { color: ${IVORY}; font-size: 13px; font-weight: 600; }
+  .cover-price {
+    margin-top: 18px;
+  }
+  .cp-l {
+    color: ${GOLD}; font-size: 10px; letter-spacing: 3px;
+    font-weight: 700; margin-bottom: 4px;
+  }
+  .cp-v {
+    color: ${WHITE}; font-size: 36px; font-weight: 800; letter-spacing: -0.3px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  }
+  .cover-foot {
+    margin-top: 14px; color: rgba(247,243,236,0.7);
+    font-size: 9.5px; letter-spacing: 2px; text-transform: uppercase;
+  }
+  .cover-wm { color: rgba(201,169,97,0.12); }
+
+  /* ---------- LIGHT INNER PAGE CHROME ---------- */
   .watermark {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-28deg);
-    font-size: 72px; font-weight: 800; letter-spacing: 10px;
-    color: rgba(201,169,97,0.07); pointer-events: none;
-    text-align: center; white-space: nowrap;
+    font-size: 86px; font-weight: 800; letter-spacing: 12px;
+    pointer-events: none; text-align: center; white-space: nowrap;
   }
-  .brand { color: ${GOLD}; font-size: 14px; letter-spacing: 6px; font-weight: 700; }
-  .brand.small { font-size: 10px; letter-spacing: 4px; }
-  .gold-line { height: 2px; background: ${GOLD}; margin: 10px 0 18px; }
+  .light-wm { color: rgba(201,169,97,0.08); }
 
-  /* cover */
-  .cover { display: flex; flex-direction: column; }
-  .cover-top { margin-bottom: 18px; }
-  .proposal-label {
-    color: ${IVORY}; font-size: 11px; letter-spacing: 3px;
-    text-transform: uppercase; font-weight: 600;
+  .page-head.light {
+    display: flex; justify-content: space-between; align-items: baseline;
+    background: ${WHITE};
   }
-  .cover-photo {
-    flex: 1; min-height: 360px; border-radius: 14px;
-    background-size: cover; background-position: center;
-    background-color: ${NAVY_ELEV};
-    border: 1px solid ${DIVIDER};
-    margin: 12px 0 22px;
-    display: flex; align-items: center; justify-content: center;
+  .ph-left {
+    color: ${GOLD}; font-size: 10px; letter-spacing: 4px;
+    font-weight: 700; text-transform: uppercase;
   }
-  .cover-photo.placeholder span { color: ${GOLD}; font-size: 80px; }
-  .cover-bottom h1 {
-    color: ${IVORY}; font-size: 44px; line-height: 1.05;
-    margin: 0 0 8px; font-weight: 800; letter-spacing: -0.6px;
+  .ph-right {
+    color: ${INK_MUTED}; font-size: 11px; font-weight: 500;
   }
-  .cover-sub { color: ${MUTED}; font-size: 14px; margin-bottom: 16px; }
-  .cover-date { color: ${GOLD}; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+  .gold-line { height: 1px; background: ${GOLD}; margin: 8px 0 18px; opacity: 0.85; }
 
-  /* interior page head */
-  .page-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .page-title { color: ${IVORY}; font-size: 13px; font-weight: 600; opacity: 0.85; }
-
-  h2 {
-    color: ${GOLD}; font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
-    margin: 0 0 12px; font-weight: 700;
+  .light h2 {
+    color: ${GOLD}; font-size: 11px; letter-spacing: 4px;
+    text-transform: uppercase; margin: 0 0 14px; font-weight: 700;
   }
-  h2.mt { margin-top: 22px; }
-  h3 {
-    color: ${IVORY}; font-size: 13px; margin: 0 0 8px; font-weight: 700;
+  .light h2.mt { margin-top: 24px; }
+  .light h3 {
+    color: ${GOLD_SOFT}; font-size: 10.5px; letter-spacing: 2px;
+    text-transform: uppercase; margin: 14px 0 8px; font-weight: 700;
   }
 
-  table.kv {
-    width: 100%; border-collapse: collapse;
-    background: ${NAVY_DEEP}; border-radius: 10px; overflow: hidden;
-    border: 1px solid ${DIVIDER};
+  /* spec tables (light) */
+  .light table.kv {
+    width: 100%; border-collapse: collapse; background: ${WHITE};
   }
-  table.kv th, table.kv td {
-    text-align: left; padding: 10px 14px; font-size: 12px;
-    border-bottom: 1px solid ${DIVIDER}; vertical-align: top;
+  .light table.kv th, .light table.kv td {
+    text-align: left; padding: 9px 0; font-size: 12px;
+    border-bottom: 1px solid ${RULE}; vertical-align: top;
   }
-  table.kv tr:last-child th, table.kv tr:last-child td { border-bottom: 0; }
-  table.kv th { color: ${GOLD}; font-weight: 600; width: 40%; }
-  table.kv td { color: ${IVORY}; }
+  .light table.kv tr:last-child th, .light table.kv tr:last-child td { border-bottom: 0; }
+  .light table.kv th { color: ${GOLD_SOFT}; font-weight: 600; width: 38%;
+    text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; }
+  .light table.kv td { color: ${INK}; font-weight: 500; }
 
-  .eq-grid { display: block; }
-  .eq-group {
-    background: ${NAVY_DEEP}; border: 1px solid ${DIVIDER};
-    border-radius: 10px; padding: 12px 16px; margin-bottom: 10px;
+  /* equipment (light) — inline tag list */
+  .light .eq-grid { display: block; }
+  .light .eq-group {
+    background: transparent; border: 0;
+    padding: 0; margin: 0 0 14px;
     page-break-inside: avoid;
   }
-  .eq-list { list-style: none; margin: 6px 0 0; padding: 0; }
-  .eq-list li {
-    padding: 4px 0; font-size: 11.5px; color: ${IVORY};
-    border-bottom: 1px solid ${DIVIDER};
+  .light .eq-list {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
   }
-  .eq-list li:last-child { border-bottom: 0; }
-  .eq-head { font-weight: 600; }
-  .eq-meta { color: ${MUTED}; margin-left: 8px; font-size: 10.5px; }
+  .light .eq-list li {
+    padding: 2px 0; font-size: 11.5px; color: ${INK}; border: 0;
+  }
+  .light .eq-head { font-weight: 600; color: ${INK}; }
+  .light .eq-meta { color: ${INK_MUTED}; margin-left: 6px; font-size: 10.5px; }
 
-  .prices {
-    background: ${NAVY_ELEV}; border-radius: 12px;
-    padding: 16px 18px; border: 1px solid rgba(201,169,97,0.25);
+  /* pricing grid (light) */
+  .price-grid { display: flex; gap: 14px; margin-bottom: 22px; }
+  .price-grid.two .price-box { flex: 1 1 0; }
+  .price-grid.one .price-box { flex: 1 1 0; }
+  .price-box {
+    background: ${BEIGE};
+    border-left: 4px solid ${GOLD};
+    padding: 14px 16px;
+  }
+  .price-title {
+    color: ${GOLD_SOFT}; font-size: 10px; letter-spacing: 3px;
+    font-weight: 700; text-transform: uppercase; margin-bottom: 10px;
   }
   .price-row {
     display: flex; justify-content: space-between;
-    margin: 6px 0; font-size: 13px;
+    margin: 5px 0; font-size: 12px;
+    border-bottom: 1px dotted ${RULE}; padding-bottom: 4px;
   }
-  .price-row .k { color: ${GOLD}; font-weight: 600; }
-  .price-row .v { color: ${IVORY}; font-weight: 700; }
+  .price-row:last-child { border-bottom: 0; }
+  .price-row .k { color: ${INK_MUTED}; font-weight: 500; }
+  .price-row .v { color: ${INK}; font-weight: 700; }
+  .price-empty { color: ${INK_MUTED}; font-size: 12px; }
 
+  /* contact card (light, beige + gold left border) */
   .contact-card {
-    background: ${NAVY_DEEP}; border: 1px solid ${DIVIDER};
-    border-radius: 12px; padding: 16px 18px;
+    background: ${BEIGE};
+    border-left: 4px solid ${GOLD};
+    padding: 14px 18px;
   }
   .contact-kicker {
-    color: ${GOLD}; font-size: 10px; letter-spacing: 2px;
-    text-transform: uppercase; margin-bottom: 8px;
+    color: ${GOLD_SOFT}; font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 8px; font-weight: 700;
   }
-  .contact-line { color: ${IVORY}; font-size: 12.5px; line-height: 1.7; }
+  .contact-line { color: ${INK}; font-size: 12.5px; line-height: 1.7; }
 
+  /* page foot (light) */
+  .page-foot {
+    position: absolute; left: 18mm; right: 18mm; bottom: 12mm;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding-top: 10px; border-top: 1px solid ${RULE};
+  }
   .disclaimer {
-    margin-top: 22px; color: ${MUTED}; font-size: 9.5px;
-    line-height: 1.55; font-style: italic;
+    color: ${INK_MUTED}; font-size: 8.5px; line-height: 1.55;
+    font-style: italic; max-width: 62%;
   }
   .footer-brand {
-    margin-top: 16px; padding-top: 12px; border-top: 1px solid ${DIVIDER};
-    color: ${GOLD}; font-size: 10px; letter-spacing: 3px; text-align: center;
+    color: ${GOLD}; font-size: 10px; letter-spacing: 3px;
+    font-weight: 700; text-align: right; text-transform: uppercase;
   }
-  .empty { color: ${MUTED}; font-size: 12px; }
+  .footer-brand span {
+    color: ${INK_MUTED}; font-size: 8px; letter-spacing: 1px;
+    font-weight: 500; text-transform: none;
+  }
+  .empty { color: ${INK_MUTED}; font-size: 12px; }
 </style></head><body>
   ${cover}
   ${specPage}
