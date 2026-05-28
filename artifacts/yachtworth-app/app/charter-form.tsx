@@ -567,7 +567,7 @@ export default function CharterFormScreen() {
   const preselectStart =
     typeof params.start_date === "string" ? params.start_date : "";
 
-  const yachtsQ = useListYachts({
+  const yachtsQ = useListYachts(undefined, {
     query: {
       queryKey: getListYachtsQueryKey(),
       enabled: Boolean(isSignedIn),

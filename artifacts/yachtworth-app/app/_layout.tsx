@@ -112,6 +112,14 @@ function RootLayoutNav() {
         name="settings"
         options={{ headerShown: false, presentation: "card" }}
       />
+      <Stack.Screen
+        name="my-yacht/edit"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="my-yacht/[id]"
+        options={{ headerShown: false, presentation: "card" }}
+      />
     </Stack>
     {showBrandHeader ? <BrandHeader /> : null}
     </View>

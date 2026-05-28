@@ -302,6 +302,24 @@ export const PricingMode = {
   ai: "ai",
 } as const;
 
+export type YachtVatStatus =
+  (typeof YachtVatStatus)[keyof typeof YachtVatStatus];
+
+export const YachtVatStatus = {
+  tax_paid_eu: "tax_paid_eu",
+  tax_not_paid: "tax_not_paid",
+  unknown: "unknown",
+} as const;
+
+export type YachtOwnerRole =
+  (typeof YachtOwnerRole)[keyof typeof YachtOwnerRole];
+
+export const YachtOwnerRole = {
+  owner: "owner",
+  broker: "broker",
+  manager: "manager",
+} as const;
+
 export interface CrewMember {
   /** Free-text role label (e.g. "Captain", "Chef") */
   role: string;
@@ -470,6 +488,50 @@ export interface YachtInput {
   charter_commission_pct?: number | null;
   /** @nullable */
   crew_breakdown?: CrewMember[] | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  draft_meters?: number | null;
+  /** @nullable */
+  registration_number?: string | null;
+  /** @nullable */
+  imo_number?: string | null;
+  /** @nullable */
+  hull_id?: string | null;
+  vat_status?: YachtVatStatus | null;
+  /** @nullable */
+  engine_maker?: string | null;
+  /** @nullable */
+  engine_model?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  engine_count?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  total_hp?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  crew_cabins?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  berths?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  heads?: number | null;
+  owner_role?: YachtOwnerRole | null;
+  /** @nullable */
+  is_archived?: boolean | null;
 }
 
 export interface Yacht {
@@ -555,6 +617,31 @@ export interface Yacht {
   charter_commission_pct?: number | null;
   /** @nullable */
   crew_breakdown?: CrewMember[] | null;
+  /** @nullable */
+  draft_meters?: number | null;
+  /** @nullable */
+  registration_number?: string | null;
+  /** @nullable */
+  imo_number?: string | null;
+  /** @nullable */
+  hull_id?: string | null;
+  vat_status?: YachtVatStatus | null;
+  /** @nullable */
+  engine_maker?: string | null;
+  /** @nullable */
+  engine_model?: string | null;
+  /** @nullable */
+  engine_count?: number | null;
+  /** @nullable */
+  total_hp?: number | null;
+  /** @nullable */
+  crew_cabins?: number | null;
+  /** @nullable */
+  berths?: number | null;
+  /** @nullable */
+  heads?: number | null;
+  owner_role?: YachtOwnerRole | null;
+  is_archived?: boolean;
 }
 
 export interface YachtListResponse {
@@ -1500,6 +1587,13 @@ export interface ClientDetail {
   client: Client;
   charters: Charter[];
 }
+
+export type ListYachtsParams = {
+  /**
+   * Include archived yachts in the result
+   */
+  include_archived?: boolean;
+};
 
 export type ListRoiCalculationsParams = {
   yacht_id?: string;

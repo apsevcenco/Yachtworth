@@ -67,7 +67,7 @@ export default function CharterScreen() {
   const { units } = useUnits();
   const queryClient = useQueryClient();
 
-  const query = useListYachts({
+  const query = useListYachts(undefined, {
     query: {
       queryKey: getListYachtsQueryKey(),
       enabled: Boolean(isSignedIn),

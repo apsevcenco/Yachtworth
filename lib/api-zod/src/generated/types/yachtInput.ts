@@ -7,7 +7,9 @@
  */
 import type { CrewMember } from "./crewMember";
 import type { FinancingType } from "./financingType";
+import type { YachtOwnerRole } from "./yachtOwnerRole";
 import type { YachtType } from "./yachtType";
+import type { YachtVatStatus } from "./yachtVatStatus";
 
 export interface YachtInput {
   /** @nullable */
@@ -165,4 +167,48 @@ export interface YachtInput {
   charter_commission_pct?: number | null;
   /** @nullable */
   crew_breakdown?: CrewMember[] | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  draft_meters?: number | null;
+  /** @nullable */
+  registration_number?: string | null;
+  /** @nullable */
+  imo_number?: string | null;
+  /** @nullable */
+  hull_id?: string | null;
+  vat_status?: YachtVatStatus | null;
+  /** @nullable */
+  engine_maker?: string | null;
+  /** @nullable */
+  engine_model?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  engine_count?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  total_hp?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  crew_cabins?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  berths?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  heads?: number | null;
+  owner_role?: YachtOwnerRole | null;
+  /** @nullable */
+  is_archived?: boolean | null;
 }

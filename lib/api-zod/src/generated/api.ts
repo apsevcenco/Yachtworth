@@ -375,6 +375,13 @@ export const DeleteEstimateParams = zod.object({
 /**
  * @summary List user's yacht profiles
  */
+export const ListYachtsQueryParams = zod.object({
+  include_archived: zod.coerce
+    .boolean()
+    .optional()
+    .describe("Include archived yachts in the result"),
+});
+
 export const listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const listYachtsResponseItemsItemCrewBreakdownItemMonthsPerYearMax = 12;
@@ -444,6 +451,27 @@ export const ListYachtsResponse = zod.object({
           }),
         )
         .nullish(),
+      draft_meters: zod.number().nullish(),
+      registration_number: zod.string().nullish(),
+      imo_number: zod.string().nullish(),
+      hull_id: zod.string().nullish(),
+      vat_status: zod
+        .union([
+          zod.enum(["tax_paid_eu", "tax_not_paid", "unknown"]),
+          zod.null(),
+        ])
+        .optional(),
+      engine_maker: zod.string().nullish(),
+      engine_model: zod.string().nullish(),
+      engine_count: zod.number().nullish(),
+      total_hp: zod.number().nullish(),
+      crew_cabins: zod.number().nullish(),
+      berths: zod.number().nullish(),
+      heads: zod.number().nullish(),
+      owner_role: zod
+        .union([zod.enum(["owner", "broker", "manager"]), zod.null()])
+        .optional(),
+      is_archived: zod.boolean().optional(),
     }),
   ),
 });
@@ -507,6 +535,18 @@ export const createYachtBodyCharterCommissionPctMax = 100;
 export const createYachtBodyCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const createYachtBodyCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const createYachtBodyDraftMetersMin = 0;
+
+export const createYachtBodyEngineCountMin = 0;
+
+export const createYachtBodyTotalHpMin = 0;
+
+export const createYachtBodyCrewCabinsMin = 0;
+
+export const createYachtBodyBerthsMin = 0;
+
+export const createYachtBodyHeadsMin = 0;
 
 export const CreateYachtBody = zod.object({
   name: zod.string().nullish(),
@@ -628,6 +668,24 @@ export const CreateYachtBody = zod.object({
       }),
     )
     .nullish(),
+  draft_meters: zod.number().min(createYachtBodyDraftMetersMin).nullish(),
+  registration_number: zod.string().nullish(),
+  imo_number: zod.string().nullish(),
+  hull_id: zod.string().nullish(),
+  vat_status: zod
+    .union([zod.enum(["tax_paid_eu", "tax_not_paid", "unknown"]), zod.null()])
+    .optional(),
+  engine_maker: zod.string().nullish(),
+  engine_model: zod.string().nullish(),
+  engine_count: zod.number().min(createYachtBodyEngineCountMin).nullish(),
+  total_hp: zod.number().min(createYachtBodyTotalHpMin).nullish(),
+  crew_cabins: zod.number().min(createYachtBodyCrewCabinsMin).nullish(),
+  berths: zod.number().min(createYachtBodyBerthsMin).nullish(),
+  heads: zod.number().min(createYachtBodyHeadsMin).nullish(),
+  owner_role: zod
+    .union([zod.enum(["owner", "broker", "manager"]), zod.null()])
+    .optional(),
+  is_archived: zod.boolean().nullish(),
 });
 
 /**
@@ -700,6 +758,24 @@ export const GetYachtResponse = zod.object({
       }),
     )
     .nullish(),
+  draft_meters: zod.number().nullish(),
+  registration_number: zod.string().nullish(),
+  imo_number: zod.string().nullish(),
+  hull_id: zod.string().nullish(),
+  vat_status: zod
+    .union([zod.enum(["tax_paid_eu", "tax_not_paid", "unknown"]), zod.null()])
+    .optional(),
+  engine_maker: zod.string().nullish(),
+  engine_model: zod.string().nullish(),
+  engine_count: zod.number().nullish(),
+  total_hp: zod.number().nullish(),
+  crew_cabins: zod.number().nullish(),
+  berths: zod.number().nullish(),
+  heads: zod.number().nullish(),
+  owner_role: zod
+    .union([zod.enum(["owner", "broker", "manager"]), zod.null()])
+    .optional(),
+  is_archived: zod.boolean().optional(),
 });
 
 /**
@@ -765,6 +841,18 @@ export const updateYachtBodyCharterCommissionPctMax = 100;
 export const updateYachtBodyCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const updateYachtBodyCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const updateYachtBodyDraftMetersMin = 0;
+
+export const updateYachtBodyEngineCountMin = 0;
+
+export const updateYachtBodyTotalHpMin = 0;
+
+export const updateYachtBodyCrewCabinsMin = 0;
+
+export const updateYachtBodyBerthsMin = 0;
+
+export const updateYachtBodyHeadsMin = 0;
 
 export const UpdateYachtBody = zod.object({
   name: zod.string().nullish(),
@@ -886,6 +974,24 @@ export const UpdateYachtBody = zod.object({
       }),
     )
     .nullish(),
+  draft_meters: zod.number().min(updateYachtBodyDraftMetersMin).nullish(),
+  registration_number: zod.string().nullish(),
+  imo_number: zod.string().nullish(),
+  hull_id: zod.string().nullish(),
+  vat_status: zod
+    .union([zod.enum(["tax_paid_eu", "tax_not_paid", "unknown"]), zod.null()])
+    .optional(),
+  engine_maker: zod.string().nullish(),
+  engine_model: zod.string().nullish(),
+  engine_count: zod.number().min(updateYachtBodyEngineCountMin).nullish(),
+  total_hp: zod.number().min(updateYachtBodyTotalHpMin).nullish(),
+  crew_cabins: zod.number().min(updateYachtBodyCrewCabinsMin).nullish(),
+  berths: zod.number().min(updateYachtBodyBerthsMin).nullish(),
+  heads: zod.number().min(updateYachtBodyHeadsMin).nullish(),
+  owner_role: zod
+    .union([zod.enum(["owner", "broker", "manager"]), zod.null()])
+    .optional(),
+  is_archived: zod.boolean().nullish(),
 });
 
 export const updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
@@ -951,6 +1057,24 @@ export const UpdateYachtResponse = zod.object({
       }),
     )
     .nullish(),
+  draft_meters: zod.number().nullish(),
+  registration_number: zod.string().nullish(),
+  imo_number: zod.string().nullish(),
+  hull_id: zod.string().nullish(),
+  vat_status: zod
+    .union([zod.enum(["tax_paid_eu", "tax_not_paid", "unknown"]), zod.null()])
+    .optional(),
+  engine_maker: zod.string().nullish(),
+  engine_model: zod.string().nullish(),
+  engine_count: zod.number().nullish(),
+  total_hp: zod.number().nullish(),
+  crew_cabins: zod.number().nullish(),
+  berths: zod.number().nullish(),
+  heads: zod.number().nullish(),
+  owner_role: zod
+    .union([zod.enum(["owner", "broker", "manager"]), zod.null()])
+    .optional(),
+  is_archived: zod.boolean().optional(),
 });
 
 /**

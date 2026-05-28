@@ -165,7 +165,7 @@ export default function CharterPlannerScreen() {
   const [tab, setTab] = useState<Tab>("fleet");
   const [addOpen, setAddOpen] = useState(false);
 
-  const yachtsQuery = useListYachts({
+  const yachtsQuery = useListYachts(undefined, {
     query: {
       queryKey: getListYachtsQueryKey(),
       enabled: Boolean(isSignedIn),

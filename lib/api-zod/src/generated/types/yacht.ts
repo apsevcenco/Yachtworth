@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CrewMember } from "./crewMember";
+import type { YachtOwnerRole } from "./yachtOwnerRole";
+import type { YachtVatStatus } from "./yachtVatStatus";
 
 export interface Yacht {
   id: string;
@@ -90,4 +92,29 @@ export interface Yacht {
   charter_commission_pct?: number | null;
   /** @nullable */
   crew_breakdown?: CrewMember[] | null;
+  /** @nullable */
+  draft_meters?: number | null;
+  /** @nullable */
+  registration_number?: string | null;
+  /** @nullable */
+  imo_number?: string | null;
+  /** @nullable */
+  hull_id?: string | null;
+  vat_status?: YachtVatStatus | null;
+  /** @nullable */
+  engine_maker?: string | null;
+  /** @nullable */
+  engine_model?: string | null;
+  /** @nullable */
+  engine_count?: number | null;
+  /** @nullable */
+  total_hp?: number | null;
+  /** @nullable */
+  crew_cabins?: number | null;
+  /** @nullable */
+  berths?: number | null;
+  /** @nullable */
+  heads?: number | null;
+  owner_role?: YachtOwnerRole | null;
+  is_archived?: boolean;
 }

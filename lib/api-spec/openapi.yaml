@@ -154,6 +154,13 @@ paths:
       summary: List user's yacht profiles
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: include_archived
+          required: false
+          schema:
+            type: boolean
+          description: Include archived yachts in the result
       responses:
         "200":
           description: Yacht list
@@ -1084,6 +1091,12 @@ components:
         * manual_daily  — user provides daily rate + number of charter days
         * manual_weekly — user provides weekly rate + number of charter weeks
         * ai            — engine asks AI (web-search) for plausible rate + weeks
+    YachtVatStatus:
+      type: string
+      enum: [tax_paid_eu, tax_not_paid, unknown]
+    YachtOwnerRole:
+      type: string
+      enum: [owner, broker, manager]
     YachtInput:
       type: object
       properties:
@@ -1206,6 +1219,45 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/CrewMember"
+        # — Migration 011 (My Yacht profile foundation) —
+        draft_meters:
+          type: ["number", "null"]
+          minimum: 0
+        registration_number:
+          type: ["string", "null"]
+        imo_number:
+          type: ["string", "null"]
+        hull_id:
+          type: ["string", "null"]
+        vat_status:
+          oneOf:
+            - $ref: "#/components/schemas/YachtVatStatus"
+            - type: "null"
+        engine_maker:
+          type: ["string", "null"]
+        engine_model:
+          type: ["string", "null"]
+        engine_count:
+          type: ["integer", "null"]
+          minimum: 0
+        total_hp:
+          type: ["integer", "null"]
+          minimum: 0
+        crew_cabins:
+          type: ["integer", "null"]
+          minimum: 0
+        berths:
+          type: ["integer", "null"]
+          minimum: 0
+        heads:
+          type: ["integer", "null"]
+          minimum: 0
+        owner_role:
+          oneOf:
+            - $ref: "#/components/schemas/YachtOwnerRole"
+            - type: "null"
+        is_archived:
+          type: ["boolean", "null"]
     CrewMember:
       type: object
       required: [role, monthly_salary_eur, months_per_year]
@@ -1312,6 +1364,39 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/CrewMember"
+        # — Migration 011 (My Yacht profile foundation) —
+        draft_meters:
+          type: ["number", "null"]
+        registration_number:
+          type: ["string", "null"]
+        imo_number:
+          type: ["string", "null"]
+        hull_id:
+          type: ["string", "null"]
+        vat_status:
+          oneOf:
+            - $ref: "#/components/schemas/YachtVatStatus"
+            - type: "null"
+        engine_maker:
+          type: ["string", "null"]
+        engine_model:
+          type: ["string", "null"]
+        engine_count:
+          type: ["integer", "null"]
+        total_hp:
+          type: ["integer", "null"]
+        crew_cabins:
+          type: ["integer", "null"]
+        berths:
+          type: ["integer", "null"]
+        heads:
+          type: ["integer", "null"]
+        owner_role:
+          oneOf:
+            - $ref: "#/components/schemas/YachtOwnerRole"
+            - type: "null"
+        is_archived:
+          type: boolean
     YachtListResponse:
       type: object
       required: [items]

@@ -32,6 +32,7 @@ import type {
   HealthStatus,
   ListChartersParams,
   ListRoiCalculationsParams,
+  ListYachtsParams,
   RoiCalculation,
   RoiCalculationDetail,
   RoiCalculationInput,
@@ -467,41 +468,57 @@ export const useDeleteEstimate = <
 /**
  * @summary List user's yacht profiles
  */
-export const getListYachtsUrl = () => {
-  return `/api/yachts`;
+export const getListYachtsUrl = (params?: ListYachtsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/yachts?${stringifiedParams}`
+    : `/api/yachts`;
 };
 
 export const listYachts = async (
+  params?: ListYachtsParams,
   options?: RequestInit,
 ): Promise<YachtListResponse> => {
-  return customFetch<YachtListResponse>(getListYachtsUrl(), {
+  return customFetch<YachtListResponse>(getListYachtsUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListYachtsQueryKey = () => {
-  return [`/api/yachts`] as const;
+export const getListYachtsQueryKey = (params?: ListYachtsParams) => {
+  return [`/api/yachts`, ...(params ? [params] : [])] as const;
 };
 
 export const getListYachtsQueryOptions = <
   TData = Awaited<ReturnType<typeof listYachts>>,
   TError = ErrorType<ErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listYachts>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListYachtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYachts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListYachtsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListYachtsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listYachts>>> = ({
     signal,
-  }) => listYachts({ signal, ...requestOptions });
+  }) => listYachts(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listYachts>>,
@@ -522,15 +539,18 @@ export type ListYachtsQueryError = ErrorType<ErrorResponse>;
 export function useListYachts<
   TData = Awaited<ReturnType<typeof listYachts>>,
   TError = ErrorType<ErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listYachts>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListYachtsQueryOptions(options);
+>(
+  params?: ListYachtsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYachts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListYachtsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

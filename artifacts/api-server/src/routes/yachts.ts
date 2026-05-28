@@ -9,7 +9,7 @@ const router: IRouter = Router();
 const MAX_YACHTS_PER_USER = 5;
 
 const YACHT_COLUMNS =
-  "id, clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, home_port, photo_url, notes, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown";
+  "id, clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, home_port, photo_url, notes, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown, draft_meters, registration_number, imo_number, hull_id, vat_status, engine_maker, engine_model, engine_count, total_hp, crew_cabins, berths, heads, owner_role, is_archived";
 
 router.get(
   "/yachts",
@@ -21,10 +21,17 @@ router.get(
       res.status(503).json({ error: "Yacht storage not configured" });
       return;
     }
-    const { data, error } = await sb
+    // Default list hides archived yachts. Pass `?include_archived=1` to see all.
+    const ia = req.query["include_archived"];
+    const includeArchived = ia === "1" || ia === "true";
+    let query = sb
       .from(YACHTS_TABLE)
       .select(YACHT_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+      .eq("clerk_user_id", req.userId!);
+    if (!includeArchived) {
+      query = query.eq("is_archived", false);
+    }
+    const { data, error } = await query
       .order("updated_at", { ascending: false })
       .limit(50);
     if (error) {
