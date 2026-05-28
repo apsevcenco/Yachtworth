@@ -9,6 +9,28 @@ import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import { isUuid } from "../lib/validators";
 import { calculateRoi } from "../lib/roi";
 import type { YachtRow } from "../lib/roi/types";
+import {
+  estimateCharterRate,
+  type AiRateEstimateRequest,
+  type RateRegion,
+  type RateSeason,
+  type RatePeriod,
+  type CharterType,
+} from "../lib/roi/aiRateEstimate";
+
+const VALID_REGIONS: ReadonlySet<RateRegion> = new Set([
+  "mediterranean",
+  "caribbean",
+  "northern_europe",
+  "asia_pacific_me",
+  "middle_east",
+]);
+const VALID_SEASONS: ReadonlySet<RateSeason> = new Set(["high", "shoulder", "low"]);
+const VALID_PERIODS: ReadonlySet<RatePeriod> = new Set(["day", "week"]);
+const VALID_CHARTER_TYPES: ReadonlySet<CharterType> = new Set([
+  "crewed",
+  "bareboat",
+]);
 
 const router: IRouter = Router();
 
@@ -233,6 +255,92 @@ router.delete(
       return;
     }
     res.status(204).send();
+  },
+);
+
+router.post(
+  "/roi/ai-rate-estimate",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const yachtId = typeof body["yacht_id"] === "string" ? body["yacht_id"] : "";
+    if (!isUuid(yachtId)) {
+      res.status(400).json({ error: "Invalid yacht_id" });
+      return;
+    }
+    const region = body["region"] as RateRegion;
+    const season = body["season"] as RateSeason;
+    const ratePeriod = body["rate_period"] as RatePeriod;
+    const charterTypeRaw = body["charter_type"];
+    if (!VALID_REGIONS.has(region)) {
+      res.status(400).json({ error: "Invalid region" });
+      return;
+    }
+    if (!VALID_SEASONS.has(season)) {
+      res.status(400).json({ error: "Invalid season (high|shoulder|low)" });
+      return;
+    }
+    if (!VALID_PERIODS.has(ratePeriod)) {
+      res.status(400).json({ error: "Invalid rate_period (day|week)" });
+      return;
+    }
+    let charterType: CharterType | null = null;
+    if (charterTypeRaw != null) {
+      if (
+        typeof charterTypeRaw !== "string" ||
+        !VALID_CHARTER_TYPES.has(charterTypeRaw as CharterType)
+      ) {
+        res.status(400).json({ error: "Invalid charter_type" });
+        return;
+      }
+      charterType = charterTypeRaw as CharterType;
+    }
+
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Storage not configured" });
+      return;
+    }
+
+    const { data: yacht, error: yErr } = await sb
+      .from(YACHTS_TABLE)
+      .select(YACHT_COLUMNS_FOR_ROI)
+      .eq("clerk_user_id", req.userId!)
+      .eq("id", yachtId)
+      .maybeSingle<YachtRow>();
+    if (yErr) {
+      req.log.error({ err: yErr.message }, "AI rate: load yacht failed");
+      res.status(503).json({ error: "Could not load yacht. Please try again." });
+      return;
+    }
+    if (!yacht) {
+      res.status(404).json({ error: "Yacht not found" });
+      return;
+    }
+
+    const request: AiRateEstimateRequest = {
+      yacht_id: yachtId,
+      region,
+      season,
+      rate_period: ratePeriod,
+      charter_type: charterType,
+    };
+
+    try {
+      const result = await estimateCharterRate(yacht, request);
+      res.json(result);
+    } catch (err) {
+      // Defensive: should never reach here because the helper never throws.
+      req.log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "AI rate estimate unexpected throw",
+      );
+      res.json({
+        success: false,
+        error: "Could not retrieve market rates. Please enter manually.",
+      });
+    }
   },
 );
 

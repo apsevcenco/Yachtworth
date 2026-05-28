@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useCalculateRoi } from "@workspace/api-client-react";
+import { AIRateEstimator } from "../../components/AIRateEstimator";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useMemo, useState } from "react";
@@ -207,6 +208,24 @@ export default function RoiCalculateScreen() {
 
           {isManual ? (
             <>
+              <AIRateEstimator
+                yachtId={yachtId}
+                region={region}
+                season={season === "mixed" ? "high" : season}
+                ratePeriod={pricingMode === "manual_daily" ? "day" : "week"}
+                onAccept={(acceptedRate, period) => {
+                  // If returned period mismatches current mode, convert.
+                  const wantsDaily = pricingMode === "manual_daily";
+                  const rateInWanted =
+                    wantsDaily && period === "week"
+                      ? Math.round(acceptedRate / 7)
+                      : !wantsDaily && period === "day"
+                        ? Math.round(acceptedRate * 7)
+                        : Math.round(acceptedRate);
+                  setRate(String(rateInWanted));
+                  setShowErrors(false);
+                }}
+              />
               <Field label={rateLabel} error={showErrors ? errors.rate : undefined}>
                 <MoneyInput
                   value={rate}

@@ -797,6 +797,72 @@ export interface RoiComparable {
   source_url?: string | null;
 }
 
+export type AiRateEstimateRequestSeason =
+  (typeof AiRateEstimateRequestSeason)[keyof typeof AiRateEstimateRequestSeason];
+
+export const AiRateEstimateRequestSeason = {
+  high: "high",
+  shoulder: "shoulder",
+  low: "low",
+} as const;
+
+export type AiRateEstimateRequestRatePeriod =
+  (typeof AiRateEstimateRequestRatePeriod)[keyof typeof AiRateEstimateRequestRatePeriod];
+
+export const AiRateEstimateRequestRatePeriod = {
+  day: "day",
+  week: "week",
+} as const;
+
+export interface AiRateEstimateRequest {
+  yacht_id: string;
+  region: CharterRegion;
+  season: AiRateEstimateRequestSeason;
+  rate_period: AiRateEstimateRequestRatePeriod;
+  charter_type?: "crewed" | "bareboat" | null;
+}
+
+export interface AiRateSeasonalRates {
+  /** @nullable */
+  high: number | null;
+  /** @nullable */
+  shoulder: number | null;
+  /** @nullable */
+  low: number | null;
+}
+
+export interface AiRateEstimateResult {
+  success: boolean;
+  /**
+   * Present and human-readable when success=false
+   * @nullable
+   */
+  error?: string | null;
+  /** @nullable */
+  rate?: number | null;
+  /** @nullable */
+  currency?: string | null;
+  period?: "day" | "week" | null;
+  season?: "high" | "shoulder" | "low" | null;
+  region?: CharterRegion | null;
+  confidence?: "high" | "medium" | "low" | null;
+  /** @nullable */
+  comparables_found?: number | null;
+  /** @nullable */
+  range_min?: number | null;
+  /** @nullable */
+  range_max?: number | null;
+  charter_type?: "crewed" | "bareboat" | null;
+  sources?: string[];
+  /** @nullable */
+  explanation?: string | null;
+  seasonal_rates?: AiRateSeasonalRates | null;
+  /** @nullable */
+  weekly_equivalent?: number | null;
+  /** @nullable */
+  ai_used?: boolean | null;
+}
+
 export interface ExpenseBreakdown {
   category: string;
   amount_eur: number;

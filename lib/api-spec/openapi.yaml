@@ -432,6 +432,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /roi/ai-rate-estimate:
+    post:
+      operationId: aiRateEstimate
+      tags: [roi]
+      summary: AI-driven charter rate lookup for a yacht
+      description: |
+        Researches current charter market rates via OpenAI gpt-5-mini with the
+        web_search_preview tool, falls back to /chat/completions, and returns
+        a structured estimate (rate, range, seasonal breakdown, sources,
+        confidence). Never throws on AI failure — returns success=false with
+        a user-facing error string instead.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiRateEstimateRequest"
+      responses:
+        "200":
+          description: Estimate returned (may be success=false)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiRateEstimateResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Yacht not found or not owned by caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Storage not configured (Supabase missing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /roi/calculations:
     get:
       operationId: listRoiCalculations
@@ -1615,6 +1665,92 @@ components:
           type: ["number", "null"]
         source_url:
           type: ["string", "null"]
+    AiRateEstimateRequest:
+      type: object
+      required: [yacht_id, region, season, rate_period]
+      properties:
+        yacht_id:
+          type: string
+        region:
+          $ref: "#/components/schemas/CharterRegion"
+        season:
+          type: string
+          enum: [high, shoulder, low]
+        rate_period:
+          type: string
+          enum: [day, week]
+        charter_type:
+          oneOf:
+            - type: string
+              enum: [crewed, bareboat]
+            - type: "null"
+    AiRateSeasonalRates:
+      type: object
+      required: [high, shoulder, low]
+      properties:
+        high:
+          type: ["number", "null"]
+        shoulder:
+          type: ["number", "null"]
+        low:
+          type: ["number", "null"]
+    AiRateEstimateResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        error:
+          type: ["string", "null"]
+          description: Present and human-readable when success=false
+        rate:
+          type: ["number", "null"]
+        currency:
+          type: ["string", "null"]
+        period:
+          oneOf:
+            - type: string
+              enum: [day, week]
+            - type: "null"
+        season:
+          oneOf:
+            - type: string
+              enum: [high, shoulder, low]
+            - type: "null"
+        region:
+          oneOf:
+            - $ref: "#/components/schemas/CharterRegion"
+            - type: "null"
+        confidence:
+          oneOf:
+            - type: string
+              enum: [high, medium, low]
+            - type: "null"
+        comparables_found:
+          type: ["integer", "null"]
+        range_min:
+          type: ["number", "null"]
+        range_max:
+          type: ["number", "null"]
+        charter_type:
+          oneOf:
+            - type: string
+              enum: [crewed, bareboat]
+            - type: "null"
+        sources:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: ["string", "null"]
+        seasonal_rates:
+          oneOf:
+            - $ref: "#/components/schemas/AiRateSeasonalRates"
+            - type: "null"
+        weekly_equivalent:
+          type: ["number", "null"]
+        ai_used:
+          type: ["boolean", "null"]
     ExpenseBreakdown:
       type: object
       required: [category, amount_eur]

@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./aiRateEstimateRequest";
+export * from "./aiRateEstimateRequestRatePeriod";
+export * from "./aiRateEstimateRequestSeason";
+export * from "./aiRateEstimateResult";
+export * from "./aiRateSeasonalRates";
 export * from "./centralAgentType";
 export * from "./charter";
 export * from "./charterDistributionEntry";

@@ -17,6 +17,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AiRateEstimateRequest,
+  AiRateEstimateResult,
   Charter,
   CharterInput,
   CharterListResponse,
@@ -1166,6 +1168,98 @@ export const useCalculateRoi = <
   TContext
 > => {
   return useMutation(getCalculateRoiMutationOptions(options));
+};
+
+/**
+ * Researches current charter market rates via OpenAI gpt-5-mini with the
+web_search_preview tool, falls back to /chat/completions, and returns
+a structured estimate (rate, range, seasonal breakdown, sources,
+confidence). Never throws on AI failure — returns success=false with
+a user-facing error string instead.
+
+ * @summary AI-driven charter rate lookup for a yacht
+ */
+export const getAiRateEstimateUrl = () => {
+  return `/api/roi/ai-rate-estimate`;
+};
+
+export const aiRateEstimate = async (
+  aiRateEstimateRequest: AiRateEstimateRequest,
+  options?: RequestInit,
+): Promise<AiRateEstimateResult> => {
+  return customFetch<AiRateEstimateResult>(getAiRateEstimateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiRateEstimateRequest),
+  });
+};
+
+export const getAiRateEstimateMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiRateEstimate>>,
+    TError,
+    { data: BodyType<AiRateEstimateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiRateEstimate>>,
+  TError,
+  { data: BodyType<AiRateEstimateRequest> },
+  TContext
+> => {
+  const mutationKey = ["aiRateEstimate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiRateEstimate>>,
+    { data: BodyType<AiRateEstimateRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return aiRateEstimate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiRateEstimateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiRateEstimate>>
+>;
+export type AiRateEstimateMutationBody = BodyType<AiRateEstimateRequest>;
+export type AiRateEstimateMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary AI-driven charter rate lookup for a yacht
+ */
+export const useAiRateEstimate = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiRateEstimate>>,
+    TError,
+    { data: BodyType<AiRateEstimateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiRateEstimate>>,
+  TError,
+  { data: BodyType<AiRateEstimateRequest> },
+  TContext
+> => {
+  return useMutation(getAiRateEstimateMutationOptions(options));
 };
 
 /**

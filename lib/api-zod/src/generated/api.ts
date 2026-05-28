@@ -1564,6 +1564,80 @@ export const CalculateRoiResponse = zod.object({
 });
 
 /**
+ * Researches current charter market rates via OpenAI gpt-5-mini with the
+web_search_preview tool, falls back to /chat/completions, and returns
+a structured estimate (rate, range, seasonal breakdown, sources,
+confidence). Never throws on AI failure — returns success=false with
+a user-facing error string instead.
+
+ * @summary AI-driven charter rate lookup for a yacht
+ */
+export const AiRateEstimateBody = zod.object({
+  yacht_id: zod.string(),
+  region: zod.enum([
+    "mediterranean",
+    "caribbean",
+    "northern_europe",
+    "asia_pacific_me",
+    "middle_east",
+  ]),
+  season: zod.enum(["high", "shoulder", "low"]),
+  rate_period: zod.enum(["day", "week"]),
+  charter_type: zod
+    .union([zod.enum(["crewed", "bareboat"]), zod.null()])
+    .optional(),
+});
+
+export const AiRateEstimateResponse = zod.object({
+  success: zod.boolean(),
+  error: zod
+    .string()
+    .nullish()
+    .describe("Present and human-readable when success=false"),
+  rate: zod.number().nullish(),
+  currency: zod.string().nullish(),
+  period: zod.union([zod.enum(["day", "week"]), zod.null()]).optional(),
+  season: zod
+    .union([zod.enum(["high", "shoulder", "low"]), zod.null()])
+    .optional(),
+  region: zod
+    .union([
+      zod.enum([
+        "mediterranean",
+        "caribbean",
+        "northern_europe",
+        "asia_pacific_me",
+        "middle_east",
+      ]),
+      zod.null(),
+    ])
+    .optional(),
+  confidence: zod
+    .union([zod.enum(["high", "medium", "low"]), zod.null()])
+    .optional(),
+  comparables_found: zod.number().nullish(),
+  range_min: zod.number().nullish(),
+  range_max: zod.number().nullish(),
+  charter_type: zod
+    .union([zod.enum(["crewed", "bareboat"]), zod.null()])
+    .optional(),
+  sources: zod.array(zod.string()).optional(),
+  explanation: zod.string().nullish(),
+  seasonal_rates: zod
+    .union([
+      zod.object({
+        high: zod.number().nullable(),
+        shoulder: zod.number().nullable(),
+        low: zod.number().nullable(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  weekly_equivalent: zod.number().nullish(),
+  ai_used: zod.boolean().nullish(),
+});
+
+/**
  * @summary List user's saved ROI calculations
  */
 export const ListRoiCalculationsQueryParams = zod.object({
