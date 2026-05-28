@@ -632,18 +632,15 @@ body {
 .spec-value { color: #1a1a1a; font-weight: 500; text-align: right; }
 .spec-value.accent { color: #C9A961; font-weight: 600; }
 
-/* Equipment — grouped, auto-balanced 2-col flow, never break a group */
+/* Equipment — grouped, 2-col grid, inline tag-style items */
 .eq-grid {
-  column-count: 2;
-  column-gap: 28px;
-  column-fill: balance;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm 28px;
 }
 .eq-group {
   break-inside: avoid;
-  -webkit-column-break-inside: avoid;
-  page-break-inside: avoid;
-  display: block;
-  margin-bottom: 5mm;
+  margin-bottom: 2mm;
 }
 .eq-title {
   font-size: 9px;
@@ -799,15 +796,12 @@ body {
 /* Footer — pinned to bottom of A4 page via flex parent */
 .ifooter {
   flex-shrink: 0;
-  margin-top: auto;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   border-top: 1px solid #f0f0f0;
   padding-top: 8px;
-  margin-left: 16mm;
-  margin-right: 16mm;
-  margin-bottom: 10mm;
+  margin: 0 16mm 10mm;
 }
 .footer-disclaimer {
   font-size: 8px;
