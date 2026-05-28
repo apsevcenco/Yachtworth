@@ -6,7 +6,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SECTION_TEMPLATES, sectionStatus } from "../../../lib/surveyTemplates";
+import { exportSurveyPdf } from "../../../lib/surveyPdf";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -93,11 +94,56 @@ export default function SurveySectionsScreen() {
     }
   };
 
-  const onGeneratePdf = () => {
-    Alert.alert(
-      "PDF export — coming soon",
-      "The professional multi-page PDF builder will be in the next update. Continue filling in sections.",
-    );
+  const [exporting, setExporting] = useState(false);
+  const onGeneratePdf = async () => {
+    if (!report) return;
+    setExporting(true);
+    try {
+      await exportSurveyPdf({
+        report: {
+          vessel_name: report.vessel_name,
+          vessel_type: report.vessel_type,
+          manufacturer: report.manufacturer,
+          model: report.model,
+          year_built: report.year_built,
+          flag: report.flag,
+          hin: report.hin,
+          lying: report.lying,
+          survey_date: report.survey_date,
+          survey_purpose: report.survey_purpose,
+          weather_conditions: report.weather_conditions,
+          sea_state: report.sea_state,
+          client_name: report.client_name,
+          client_email: report.client_email,
+          client_phone: report.client_phone,
+          surveyor_name: report.surveyor_name,
+          surveyor_qualification: report.surveyor_qualification,
+          surveyor_company: report.surveyor_company,
+          surveyor_phone: report.surveyor_phone,
+          surveyor_email: report.surveyor_email,
+        },
+        items: items.map((it) => ({
+          section_number: it.section_number,
+          section_name: it.section_name,
+          item_number: it.item_number,
+          description: it.description,
+          condition: it.condition,
+          notes: it.notes,
+          recommendation_level: it.recommendation_level,
+          recommendation_text: it.recommendation_text,
+          photo_urls: Array.isArray(it.photo_urls) ? it.photo_urls : [],
+          moisture_reading: it.moisture_reading,
+          moisture_level: it.moisture_level,
+          sort_order: it.sort_order,
+        })),
+        seaTrial: null,
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Please try again.";
+      Alert.alert("PDF export failed", msg);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (detailQ.isLoading || !report) {
@@ -198,10 +244,20 @@ export default function SurveySectionsScreen() {
       <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable
           onPress={onGeneratePdf}
-          style={({ pressed }) => [styles.pdfBtn, { opacity: pressed ? 0.85 : 1 }]}
+          disabled={exporting}
+          style={({ pressed }) => [
+            styles.pdfBtn,
+            { opacity: pressed || exporting ? 0.85 : 1 },
+          ]}
         >
-          <Feather name="file-text" size={16} color={NAVY} />
-          <Text style={styles.pdfBtnText}>Generate PDF Report</Text>
+          {exporting ? (
+            <ActivityIndicator color={NAVY} />
+          ) : (
+            <>
+              <Feather name="file-text" size={16} color={NAVY} />
+              <Text style={styles.pdfBtnText}>Generate PDF Report</Text>
+            </>
+          )}
         </Pressable>
       </View>
     </View>
