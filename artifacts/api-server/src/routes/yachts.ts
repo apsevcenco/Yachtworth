@@ -1,8 +1,19 @@
 import { Router, type IRouter } from "express";
-import { getSupabase, YACHTS_TABLE } from "../lib/supabase";
+import {
+  getSupabase,
+  YACHTS_TABLE,
+  YACHT_EQUIPMENT_TABLE,
+} from "../lib/supabase";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
-import { CreateYachtBody, UpdateYachtBody } from "@workspace/api-zod";
+import {
+  CreateYachtBody,
+  ReplaceYachtEquipmentBody,
+  UpdateYachtBody,
+} from "@workspace/api-zod";
 import { isUuid } from "../lib/validators";
+
+const EQUIPMENT_COLUMNS =
+  "id, yacht_id, category, equipment_type, quantity, brand, model, serial_number, year_installed, power_kw, power_hp, hours, capacity_liters, capacity_persons, panels_count, total_watts, zones_count, type_detail, notes";
 
 const router: IRouter = Router();
 
@@ -197,6 +208,120 @@ router.delete(
       return;
     }
     res.status(204).send();
+  },
+);
+
+// ── Equipment & Systems (T-Equipment) ──────────────────────────────────
+// One row per logical unit. PUT replaces all rows for the yacht atomically
+// (delete-then-insert). All fields besides category + equipment_type are
+// optional; user fills only what they have.
+
+router.get(
+  "/yachts/:id/equipment",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Equipment storage not configured" });
+      return;
+    }
+    // Verify yacht ownership before returning anything.
+    const { data: yacht, error: yErr } = await sb
+      .from(YACHTS_TABLE)
+      .select("id")
+      .eq("clerk_user_id", req.userId!)
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (yErr) {
+      req.log.error({ err: yErr.message }, "Equipment yacht check failed");
+      res.status(500).json({ error: yErr.message });
+      return;
+    }
+    if (!yacht) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(YACHT_EQUIPMENT_TABLE)
+      .select(EQUIPMENT_COLUMNS)
+      .eq("yacht_id", req.params["id"])
+      .eq("clerk_user_id", req.userId!)
+      .order("created_at", { ascending: true });
+    if (error) {
+      req.log.error({ err: error.message }, "List equipment failed");
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json({ items: data ?? [] });
+  },
+);
+
+router.put(
+  "/yachts/:id/equipment",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const parsed = ReplaceYachtEquipmentBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Equipment storage not configured" });
+      return;
+    }
+    // Ownership check
+    const { data: yacht, error: yErr } = await sb
+      .from(YACHTS_TABLE)
+      .select("id")
+      .eq("clerk_user_id", req.userId!)
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (yErr) {
+      req.log.error({ err: yErr.message }, "Equipment yacht check failed");
+      res.status(500).json({ error: yErr.message });
+      return;
+    }
+    if (!yacht) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    // Strip client-supplied id (server assigns fresh UUIDs) before
+    // handing the payload to the atomic RPC. The RPC runs delete+insert
+    // inside a single transaction so the user can never end up with a
+    // partially-replaced equipment set.
+    const items = parsed.data.items.map((it) => {
+      const { id: _drop, ...rest } = it;
+      void _drop;
+      return rest;
+    });
+    const { data, error } = await sb.rpc("replace_yacht_equipment", {
+      p_yacht_id: req.params["id"],
+      p_user_id: req.userId!,
+      p_items: items,
+    });
+    if (error) {
+      // ERRCODE 42501 is raised by the RPC when ownership fails — but the
+      // pre-check above already returns 404, so this branch is defensive.
+      req.log.error(
+        { err: error.message, code: error.code },
+        "Equipment replace RPC failed",
+      );
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    // RPC returns SETOF yacht_equipment → array of row objects.
+    res.json({ items: Array.isArray(data) ? data : [] });
   },
 );
 

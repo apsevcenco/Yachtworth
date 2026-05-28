@@ -302,6 +302,99 @@ export const PricingMode = {
   ai: "ai",
 } as const;
 
+export type EquipmentCategory =
+  (typeof EquipmentCategory)[keyof typeof EquipmentCategory];
+
+export const EquipmentCategory = {
+  power: "power",
+  water: "water",
+  navigation: "navigation",
+  safety: "safety",
+  comfort: "comfort",
+  toys: "toys",
+  deck: "deck",
+  sailing: "sailing",
+} as const;
+
+export interface EquipmentItem {
+  /**
+   * Server-assigned UUID. Omit when sending new items.
+   * @nullable
+   */
+  id?: string | null;
+  category: EquipmentCategory;
+  /** Stable machine key for this item (e.g. "generator", "watermaker",
+"starlink", "tender", "jetski", "bow_thruster"). One row per
+logical unit — multi-unit types use multiple rows.
+ */
+  equipment_type: string;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  quantity?: number | null;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  serial_number?: string | null;
+  /**
+   * @minimum 1900
+   * @maximum 2100
+   * @nullable
+   */
+  year_installed?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  power_kw?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  power_hp?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  hours?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  capacity_liters?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  capacity_persons?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  panels_count?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  total_watts?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  zones_count?: number | null;
+  /** @nullable */
+  type_detail?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface EquipmentList {
+  items: EquipmentItem[];
+}
+
 export type YachtVatStatus =
   (typeof YachtVatStatus)[keyof typeof YachtVatStatus];
 

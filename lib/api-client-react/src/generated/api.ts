@@ -26,6 +26,7 @@ import type {
   CostEstimateDetail,
   CostEstimateInput,
   CostEstimateListResponse,
+  EquipmentList,
   ErrorResponse,
   EstimateDetail,
   EstimateListResponse,
@@ -899,6 +900,180 @@ export const useDeleteYacht = <
   TContext
 > => {
   return useMutation(getDeleteYachtMutationOptions(options));
+};
+
+/**
+ * @summary List equipment items for a yacht
+ */
+export const getListYachtEquipmentUrl = (id: string) => {
+  return `/api/yachts/${id}/equipment`;
+};
+
+export const listYachtEquipment = async (
+  id: string,
+  options?: RequestInit,
+): Promise<EquipmentList> => {
+  return customFetch<EquipmentList>(getListYachtEquipmentUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListYachtEquipmentQueryKey = (id: string) => {
+  return [`/api/yachts/${id}/equipment`] as const;
+};
+
+export const getListYachtEquipmentQueryOptions = <
+  TData = Awaited<ReturnType<typeof listYachtEquipment>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYachtEquipment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListYachtEquipmentQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listYachtEquipment>>
+  > = ({ signal }) => listYachtEquipment(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listYachtEquipment>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListYachtEquipmentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listYachtEquipment>>
+>;
+export type ListYachtEquipmentQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List equipment items for a yacht
+ */
+
+export function useListYachtEquipment<
+  TData = Awaited<ReturnType<typeof listYachtEquipment>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYachtEquipment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListYachtEquipmentQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Replace all equipment rows for a yacht (delete-then-insert)
+ */
+export const getReplaceYachtEquipmentUrl = (id: string) => {
+  return `/api/yachts/${id}/equipment`;
+};
+
+export const replaceYachtEquipment = async (
+  id: string,
+  equipmentList: EquipmentList,
+  options?: RequestInit,
+): Promise<EquipmentList> => {
+  return customFetch<EquipmentList>(getReplaceYachtEquipmentUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(equipmentList),
+  });
+};
+
+export const getReplaceYachtEquipmentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof replaceYachtEquipment>>,
+    TError,
+    { id: string; data: BodyType<EquipmentList> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof replaceYachtEquipment>>,
+  TError,
+  { id: string; data: BodyType<EquipmentList> },
+  TContext
+> => {
+  const mutationKey = ["replaceYachtEquipment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof replaceYachtEquipment>>,
+    { id: string; data: BodyType<EquipmentList> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return replaceYachtEquipment(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReplaceYachtEquipmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof replaceYachtEquipment>>
+>;
+export type ReplaceYachtEquipmentMutationBody = BodyType<EquipmentList>;
+export type ReplaceYachtEquipmentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Replace all equipment rows for a yacht (delete-then-insert)
+ */
+export const useReplaceYachtEquipment = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof replaceYachtEquipment>>,
+    TError,
+    { id: string; data: BodyType<EquipmentList> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof replaceYachtEquipment>>,
+  TError,
+  { id: string; data: BodyType<EquipmentList> },
+  TContext
+> => {
+  return useMutation(getReplaceYachtEquipmentMutationOptions(options));
 };
 
 /**

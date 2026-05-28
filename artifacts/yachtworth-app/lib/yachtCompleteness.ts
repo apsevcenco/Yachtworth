@@ -1,4 +1,4 @@
-import type { Yacht } from "@workspace/api-client-react";
+import type { EquipmentItem, Yacht } from "@workspace/api-client-react";
 
 /**
  * Per-PDF spec weights. `brand` is treated as "Builder", `cabins` as "Guest
@@ -61,13 +61,42 @@ const isFilled = (v: unknown): boolean => {
   return true;
 };
 
-export function calcCompleteness(yacht: Partial<Yacht> | null | undefined): number {
+/**
+ * Bonus points (in % of final score, additive, capped at 100) awarded
+ * when the yacht has key equipment categories filled. Equipment is
+ * purely additive — a yacht with no equipment data is not penalised.
+ *
+ *   +3   at least one generator listed
+ *   +5   has BOTH a life raft AND an EPIRB
+ *   +3   has at least one navigation item (radar / chartplotter / AIS / autopilot)
+ *   +2   at least one tender listed
+ */
+const NAV_KEYS = new Set(["radar", "chartplotter", "ais", "autopilot"]);
+
+export function calcEquipmentBonus(
+  equipment: EquipmentItem[] | null | undefined,
+): number {
+  if (!equipment || equipment.length === 0) return 0;
+  let bonus = 0;
+  const has = (key: string) => equipment.some((e) => e.equipment_type === key);
+  if (has("generator")) bonus += 3;
+  if (has("life_rafts") && has("epirb")) bonus += 5;
+  if (equipment.some((e) => NAV_KEYS.has(e.equipment_type))) bonus += 3;
+  if (has("tender")) bonus += 2;
+  return bonus;
+}
+
+export function calcCompleteness(
+  yacht: Partial<Yacht> | null | undefined,
+  equipment?: EquipmentItem[] | null,
+): number {
   if (!yacht) return 0;
   const filled = COMPLETENESS_FIELDS.reduce((s, f) => {
     const val = (yacht as Record<string, unknown>)[f.key];
     return s + (isFilled(val) ? f.weight : 0);
   }, 0);
-  return Math.round((filled / TOTAL_WEIGHT) * 100);
+  const base = Math.round((filled / TOTAL_WEIGHT) * 100);
+  return Math.min(100, base + calcEquipmentBonus(equipment));
 }
 
 export function nextSuggestedField(

@@ -1,13 +1,17 @@
 import { Feather } from "@expo/vector-icons";
 import {
   getGetYachtQueryKey,
-  getListYachtsQueryKey,
+  getListYachtEquipmentQueryKey,
   useCreateYacht,
   useGetYacht,
+  useListYachtEquipment,
+  useReplaceYachtEquipment,
   useUpdateYacht,
+  type EquipmentItem,
   type Yacht,
   type YachtInput,
 } from "@workspace/api-client-react";
+import EquipmentSection from "../../components/EquipmentSection";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -207,6 +211,10 @@ export default function MyYachtEditScreen() {
   const [formUnits] = useState<"metric" | "imperial">(globalUnits);
 
   const [state, setState] = useState<FormState>(EMPTY);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  // Tracks an id returned by a successful create when the subsequent
+  // equipment PUT failed; ensures the retry updates rather than dupes.
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({
     basics: true,
     dimensions: true,
@@ -215,6 +223,7 @@ export default function MyYachtEditScreen() {
     accommodation: false,
     photo: false,
     notes: false,
+    equipment: false,
   });
 
   const getQ = useGetYacht(id ?? "", {
@@ -229,9 +238,22 @@ export default function MyYachtEditScreen() {
     if (isEdit && getQ.data) setState(fromYacht(getQ.data));
   }, [isEdit, getQ.data]);
 
+  // Equipment is loaded separately (different table) and saved separately.
+  const eqQ = useListYachtEquipment(id ?? "", {
+    query: {
+      queryKey: getListYachtEquipmentQueryKey(id ?? ""),
+      enabled: isEdit && Boolean(id),
+      staleTime: 0,
+    },
+  });
+  useEffect(() => {
+    if (isEdit && eqQ.data) setEquipment(eqQ.data.items);
+  }, [isEdit, eqQ.data]);
+
   const createM = useCreateYacht();
   const updateM = useUpdateYacht();
-  const saving = createM.isPending || updateM.isPending;
+  const replaceEqM = useReplaceYachtEquipment();
+  const saving = createM.isPending || updateM.isPending || replaceEqM.isPending;
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setState((s) => ({ ...s, [k]: v }));
@@ -270,14 +292,37 @@ export default function MyYachtEditScreen() {
     }
     const payload = toInput(state);
     try {
-      if (isEdit && id) {
-        await updateM.mutateAsync({ id, data: payload });
+      // Save yacht first to ensure we have an id, then replace equipment.
+      // `createdId` (set after a successful create on a previous attempt)
+      // makes retries idempotent: if equipment PUT failed last time, we
+      // do NOT create a duplicate yacht — we PATCH the existing one.
+      let yachtId = id ?? createdId;
+      if (yachtId) {
+        await updateM.mutateAsync({ id: yachtId, data: payload });
       } else {
-        await createM.mutateAsync({ data: payload });
+        const created = await createM.mutateAsync({ data: payload });
+        yachtId = created.id;
+        setCreatedId(yachtId);
+      }
+      // Equipment replace — only when we have an id (always now). Strip
+      // the server-assigned `id` field; PUT regenerates rows.
+      if (yachtId) {
+        await replaceEqM.mutateAsync({
+          id: yachtId,
+          data: {
+            items: equipment.map(({ id: _drop, ...rest }) => {
+              void _drop;
+              return rest;
+            }),
+          },
+        });
+        await qc.invalidateQueries({
+          queryKey: getListYachtEquipmentQueryKey(yachtId),
+        });
       }
       await qc.invalidateQueries({ queryKey: ["/api/yachts"] });
-      if (isEdit && id) {
-        await qc.invalidateQueries({ queryKey: getGetYachtQueryKey(id) });
+      if (yachtId) {
+        await qc.invalidateQueries({ queryKey: getGetYachtQueryKey(yachtId) });
       }
       router.back();
     } catch (e) {
@@ -594,6 +639,26 @@ export default function MyYachtEditScreen() {
                 style={styles.input}
               />
             </Field>
+          </Section>
+
+          {/* Section 8: EQUIPMENT & SYSTEMS */}
+          <Section
+            title="Equipment & Systems"
+            open={open.equipment}
+            onToggle={() => toggle("equipment")}
+          >
+            <Text style={styles.unitsHint}>
+              Toggle items you have. All fields are optional — fill what's
+              relevant. Equipment data powers your Yacht Passport and is never
+              shown to charter clients without your permission.
+            </Text>
+            <View style={{ marginTop: 8 }}>
+              <EquipmentSection
+                items={equipment}
+                onChange={setEquipment}
+                yachtType={state.yacht_type}
+              />
+            </View>
           </Section>
 
           {/* Section 7: NOTES */}

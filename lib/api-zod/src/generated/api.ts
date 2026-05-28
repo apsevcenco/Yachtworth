@@ -1085,6 +1085,299 @@ export const DeleteYachtParams = zod.object({
 });
 
 /**
+ * @summary List equipment items for a yacht
+ */
+export const ListYachtEquipmentParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const listYachtEquipmentResponseItemsItemQuantityMin = 0;
+
+export const listYachtEquipmentResponseItemsItemYearInstalledMin = 1900;
+export const listYachtEquipmentResponseItemsItemYearInstalledMax = 2100;
+
+export const listYachtEquipmentResponseItemsItemPowerKwMin = 0;
+
+export const listYachtEquipmentResponseItemsItemPowerHpMin = 0;
+
+export const listYachtEquipmentResponseItemsItemHoursMin = 0;
+
+export const listYachtEquipmentResponseItemsItemCapacityLitersMin = 0;
+
+export const listYachtEquipmentResponseItemsItemCapacityPersonsMin = 0;
+
+export const listYachtEquipmentResponseItemsItemPanelsCountMin = 0;
+
+export const listYachtEquipmentResponseItemsItemTotalWattsMin = 0;
+
+export const listYachtEquipmentResponseItemsItemZonesCountMin = 0;
+
+export const ListYachtEquipmentResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod
+        .string()
+        .nullish()
+        .describe("Server-assigned UUID. Omit when sending new items."),
+      category: zod.enum([
+        "power",
+        "water",
+        "navigation",
+        "safety",
+        "comfort",
+        "toys",
+        "deck",
+        "sailing",
+      ]),
+      equipment_type: zod
+        .string()
+        .describe(
+          'Stable machine key for this item (e.g. \"generator\", \"watermaker\",\n\"starlink\", \"tender\", \"jetski\", \"bow_thruster\"). One row per\nlogical unit — multi-unit types use multiple rows.\n',
+        ),
+      quantity: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemQuantityMin)
+        .nullish(),
+      brand: zod.string().nullish(),
+      model: zod.string().nullish(),
+      serial_number: zod.string().nullish(),
+      year_installed: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemYearInstalledMin)
+        .max(listYachtEquipmentResponseItemsItemYearInstalledMax)
+        .nullish(),
+      power_kw: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemPowerKwMin)
+        .nullish(),
+      power_hp: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemPowerHpMin)
+        .nullish(),
+      hours: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemHoursMin)
+        .nullish(),
+      capacity_liters: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemCapacityLitersMin)
+        .nullish(),
+      capacity_persons: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemCapacityPersonsMin)
+        .nullish(),
+      panels_count: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemPanelsCountMin)
+        .nullish(),
+      total_watts: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemTotalWattsMin)
+        .nullish(),
+      zones_count: zod
+        .number()
+        .min(listYachtEquipmentResponseItemsItemZonesCountMin)
+        .nullish(),
+      type_detail: zod.string().nullish(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Replace all equipment rows for a yacht (delete-then-insert)
+ */
+export const ReplaceYachtEquipmentParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const replaceYachtEquipmentBodyItemsItemQuantityMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemYearInstalledMin = 1900;
+export const replaceYachtEquipmentBodyItemsItemYearInstalledMax = 2100;
+
+export const replaceYachtEquipmentBodyItemsItemPowerKwMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemPowerHpMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemHoursMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemCapacityLitersMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemCapacityPersonsMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemPanelsCountMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemTotalWattsMin = 0;
+
+export const replaceYachtEquipmentBodyItemsItemZonesCountMin = 0;
+
+export const ReplaceYachtEquipmentBody = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod
+        .string()
+        .nullish()
+        .describe("Server-assigned UUID. Omit when sending new items."),
+      category: zod.enum([
+        "power",
+        "water",
+        "navigation",
+        "safety",
+        "comfort",
+        "toys",
+        "deck",
+        "sailing",
+      ]),
+      equipment_type: zod
+        .string()
+        .describe(
+          'Stable machine key for this item (e.g. \"generator\", \"watermaker\",\n\"starlink\", \"tender\", \"jetski\", \"bow_thruster\"). One row per\nlogical unit — multi-unit types use multiple rows.\n',
+        ),
+      quantity: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemQuantityMin)
+        .nullish(),
+      brand: zod.string().nullish(),
+      model: zod.string().nullish(),
+      serial_number: zod.string().nullish(),
+      year_installed: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemYearInstalledMin)
+        .max(replaceYachtEquipmentBodyItemsItemYearInstalledMax)
+        .nullish(),
+      power_kw: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemPowerKwMin)
+        .nullish(),
+      power_hp: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemPowerHpMin)
+        .nullish(),
+      hours: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemHoursMin)
+        .nullish(),
+      capacity_liters: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemCapacityLitersMin)
+        .nullish(),
+      capacity_persons: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemCapacityPersonsMin)
+        .nullish(),
+      panels_count: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemPanelsCountMin)
+        .nullish(),
+      total_watts: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemTotalWattsMin)
+        .nullish(),
+      zones_count: zod
+        .number()
+        .min(replaceYachtEquipmentBodyItemsItemZonesCountMin)
+        .nullish(),
+      type_detail: zod.string().nullish(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});
+
+export const replaceYachtEquipmentResponseItemsItemQuantityMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemYearInstalledMin = 1900;
+export const replaceYachtEquipmentResponseItemsItemYearInstalledMax = 2100;
+
+export const replaceYachtEquipmentResponseItemsItemPowerKwMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemPowerHpMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemHoursMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemCapacityLitersMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemCapacityPersonsMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemPanelsCountMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemTotalWattsMin = 0;
+
+export const replaceYachtEquipmentResponseItemsItemZonesCountMin = 0;
+
+export const ReplaceYachtEquipmentResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod
+        .string()
+        .nullish()
+        .describe("Server-assigned UUID. Omit when sending new items."),
+      category: zod.enum([
+        "power",
+        "water",
+        "navigation",
+        "safety",
+        "comfort",
+        "toys",
+        "deck",
+        "sailing",
+      ]),
+      equipment_type: zod
+        .string()
+        .describe(
+          'Stable machine key for this item (e.g. \"generator\", \"watermaker\",\n\"starlink\", \"tender\", \"jetski\", \"bow_thruster\"). One row per\nlogical unit — multi-unit types use multiple rows.\n',
+        ),
+      quantity: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemQuantityMin)
+        .nullish(),
+      brand: zod.string().nullish(),
+      model: zod.string().nullish(),
+      serial_number: zod.string().nullish(),
+      year_installed: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemYearInstalledMin)
+        .max(replaceYachtEquipmentResponseItemsItemYearInstalledMax)
+        .nullish(),
+      power_kw: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemPowerKwMin)
+        .nullish(),
+      power_hp: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemPowerHpMin)
+        .nullish(),
+      hours: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemHoursMin)
+        .nullish(),
+      capacity_liters: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemCapacityLitersMin)
+        .nullish(),
+      capacity_persons: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemCapacityPersonsMin)
+        .nullish(),
+      panels_count: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemPanelsCountMin)
+        .nullish(),
+      total_watts: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemTotalWattsMin)
+        .nullish(),
+      zones_count: zod
+        .number()
+        .min(replaceYachtEquipmentResponseItemsItemZonesCountMin)
+        .nullish(),
+      type_detail: zod.string().nullish(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
  * Runs the Charter ROI engine for the user's yacht. Pricing is set by
 `pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
 and `manual_charter_units`; ai mode estimates rate via web search and

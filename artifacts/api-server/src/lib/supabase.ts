@@ -46,3 +46,4 @@ export const EXPENSE_RATES_TABLE = "expense_rates";
 export const COST_ESTIMATES_TABLE = "cost_estimates";
 export const CHARTERS_TABLE = "charters";
 export const CLIENTS_TABLE = "clients";
+export const YACHT_EQUIPMENT_TABLE = "yacht_equipment";

@@ -2,14 +2,22 @@ import { Feather } from "@expo/vector-icons";
 import {
   getGetYachtQueryKey,
   getListChartersQueryKey,
+  getListYachtEquipmentQueryKey,
   getListYachtsQueryKey,
   useDeleteYacht,
   useGetYacht,
   useListCharters,
+  useListYachtEquipment,
   useUpdateYacht,
   type Charter,
+  type EquipmentItem,
   type Yacht,
 } from "@workspace/api-client-react";
+import {
+  EQUIPMENT_CATALOG,
+  EQUIPMENT_DEF_BY_KEY,
+  summarizeEquipment,
+} from "../../lib/equipmentConfig";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -95,6 +103,15 @@ export default function YachtDetailScreen() {
     query: { queryKey: getGetYachtQueryKey(id), enabled: Boolean(id), staleTime: 30_000 },
   });
   const yacht = yachtQ.data;
+
+  const equipmentQ = useListYachtEquipment(id, {
+    query: {
+      queryKey: getListYachtEquipmentQueryKey(id),
+      enabled: Boolean(id),
+      staleTime: 30_000,
+    },
+  });
+  const equipment = equipmentQ.data?.items ?? [];
 
   const updateM = useUpdateYacht();
   const deleteM = useDeleteYacht();
@@ -224,7 +241,12 @@ export default function YachtDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {tab === "overview" ? (
-          <OverviewTab yacht={yacht} units={units} onEdit={onEdit} />
+          <OverviewTab
+            yacht={yacht}
+            equipment={equipment}
+            units={units}
+            onEdit={onEdit}
+          />
         ) : tab === "history" ? (
           <HistoryTab yachtId={id} />
         ) : (
@@ -323,14 +345,16 @@ function MenuItem({
 
 function OverviewTab({
   yacht,
+  equipment,
   units,
   onEdit,
 }: {
   yacht: Yacht;
+  equipment: EquipmentItem[];
   units: "metric" | "imperial";
   onEdit: () => void;
 }) {
-  const pct = calcCompleteness(yacht);
+  const pct = calcCompleteness(yacht, equipment);
   const missing = missingFields(yacht).slice(0, 5);
 
   return (
@@ -410,11 +434,73 @@ function OverviewTab({
         <Row label="Heads / WC" value={yacht.heads != null ? String(yacht.heads) : "—"} />
       </ReadSection>
 
+      {equipment.length > 0 ? (
+        <ReadSection title="Equipment & Systems" onEdit={onEdit}>
+          <EquipmentOverview equipment={equipment} />
+        </ReadSection>
+      ) : null}
+
       {yacht.notes ? (
         <ReadSection title="Notes" onEdit={onEdit}>
           <Text style={styles.notesText}>{yacht.notes}</Text>
         </ReadSection>
       ) : null}
+    </View>
+  );
+}
+
+/* ─── Equipment overview (read-only) ─────────────────────────────── */
+
+function EquipmentOverview({ equipment }: { equipment: EquipmentItem[] }) {
+  // Group items by equipment_type so multi-unit types (generators, tenders,
+  // jet skis) render as a single line with a unit count + per-unit summary.
+  const grouped = new Map<string, EquipmentItem[]>();
+  for (const it of equipment) {
+    const arr = grouped.get(it.equipment_type) ?? [];
+    arr.push(it);
+    grouped.set(it.equipment_type, arr);
+  }
+  // Render in catalog order to keep grouping predictable.
+  const lines: { key: string; label: string; right: string }[] = [];
+  for (const group of EQUIPMENT_CATALOG) {
+    for (const def of group.items) {
+      const list = grouped.get(def.key);
+      if (!list || list.length === 0) continue;
+      const isMulti = def.kind === "multi";
+      let right: string;
+      if (isMulti) {
+        const summaries = list
+          .map((it) => summarizeEquipment(it))
+          .filter(Boolean);
+        right =
+          `${list.length} unit${list.length === 1 ? "" : "s"}` +
+          (summaries.length > 0 ? `  ·  ${summaries.join(" / ")}` : "");
+      } else {
+        right = summarizeEquipment(list[0]!) || "✓";
+      }
+      lines.push({ key: def.key, label: def.label, right });
+    }
+  }
+  if (lines.length === 0) {
+    // Defensive — items might reference unknown equipment_type keys after
+    // a catalog rename. Show generic line so they're still visible.
+    return (
+      <View style={{ gap: 6 }}>
+        {equipment.map((it) => (
+          <Row
+            key={`eq-${it.id ?? it.equipment_type}`}
+            label={EQUIPMENT_DEF_BY_KEY[it.equipment_type]?.label ?? it.equipment_type}
+            value={summarizeEquipment(it) || "✓"}
+          />
+        ))}
+      </View>
+    );
+  }
+  return (
+    <View style={{ gap: 6 }}>
+      {lines.map((l) => (
+        <Row key={l.key} label={l.label} value={l.right} />
+      ))}
     </View>
   );
 }

@@ -301,6 +301,81 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /yachts/{id}/equipment:
+    get:
+      operationId: listYachtEquipment
+      tags: [yachts]
+      summary: List equipment items for a yacht
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Equipment list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentList"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Yacht not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: replaceYachtEquipment
+      tags: [yachts]
+      summary: Replace all equipment rows for a yacht (delete-then-insert)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentList"
+      responses:
+        "200":
+          description: Equipment after replace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentList"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Yacht not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /roi/calculate:
     post:
       operationId: calculateRoi
@@ -1091,6 +1166,73 @@ components:
         * manual_daily  — user provides daily rate + number of charter days
         * manual_weekly — user provides weekly rate + number of charter weeks
         * ai            — engine asks AI (web-search) for plausible rate + weeks
+    EquipmentCategory:
+      type: string
+      enum: [power, water, navigation, safety, comfort, toys, deck, sailing]
+    EquipmentItem:
+      type: object
+      required: [category, equipment_type]
+      properties:
+        id:
+          type: ["string", "null"]
+          description: Server-assigned UUID. Omit when sending new items.
+        category:
+          $ref: "#/components/schemas/EquipmentCategory"
+        equipment_type:
+          type: string
+          description: |
+            Stable machine key for this item (e.g. "generator", "watermaker",
+            "starlink", "tender", "jetski", "bow_thruster"). One row per
+            logical unit — multi-unit types use multiple rows.
+        quantity:
+          type: ["integer", "null"]
+          minimum: 0
+        brand:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        serial_number:
+          type: ["string", "null"]
+        year_installed:
+          type: ["integer", "null"]
+          minimum: 1900
+          maximum: 2100
+        power_kw:
+          type: ["number", "null"]
+          minimum: 0
+        power_hp:
+          type: ["number", "null"]
+          minimum: 0
+        hours:
+          type: ["number", "null"]
+          minimum: 0
+        capacity_liters:
+          type: ["number", "null"]
+          minimum: 0
+        capacity_persons:
+          type: ["integer", "null"]
+          minimum: 0
+        panels_count:
+          type: ["integer", "null"]
+          minimum: 0
+        total_watts:
+          type: ["number", "null"]
+          minimum: 0
+        zones_count:
+          type: ["integer", "null"]
+          minimum: 0
+        type_detail:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+    EquipmentList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EquipmentItem"
     YachtVatStatus:
       type: string
       enum: [tax_paid_eu, tax_not_paid, unknown]

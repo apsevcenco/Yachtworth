@@ -56,12 +56,26 @@ Run sequentially in Supabase SQL editor of `yachtworth-prod`:
 8. `009_charter_planner_full.sql` — 35+ charter fields (APA, distribution jsonb, expanded crew, NOT NULL numerics)
 9. `010_central_agent_subagents.sql` — central_agent + sub_agents jsonb on charters
 10. `011_yacht_profile.sql` — yacht profile fields + `is_archived` (T009)
+11. `012_yacht_equipment.sql` — `yacht_equipment` table (~60 items across 8 categories, one row per logical unit; cascade-delete from yachts)
 
 Until each is run, the corresponding feature degrades (POSTs no-op warn-logged, GETs empty/401, engines fall back to heuristics).
 
 ## Build status
 
-### Current — T009 My Yacht Foundation Layer (May 28, 2026 — DONE)
+### Current — T-Equipment My Yacht Section 8 (May 28, 2026 — IN REVIEW)
+Per `attached_assets/2026-05-28_Replit_Prompt_MyYacht_Equipment_*.pdf`. Adds ~60-item Equipment & Systems section to Add/Edit Yacht form, persisted to a separate `yacht_equipment` table (one row per logical unit).
+- **migration 012:** `yacht_equipment` table with category CHECK (`power|water|navigation|safety|comfort|toys|deck|sailing`), 19 spec columns (brand, model, serial, year_installed, power_kw/hp, hours, capacity_liters, capacity_persons, panels_count, total_watts, zones_count, type_detail, notes, quantity), RLS deny_all, FK cascade-delete from yachts, indexes on yacht_id + clerk_user_id.
+- **OpenAPI:** new schemas `EquipmentCategory`/`EquipmentItem`/`EquipmentList`; routes `GET`+`PUT /yachts/{id}/equipment` (PUT = replace-all atomically). Codegen passed.
+- **Backend (`routes/yachts.ts`):** ownership pre-check, delete-then-insert PUT, strips client `id`. `YACHT_EQUIPMENT_TABLE` const in `supabase.ts`.
+- **Frontend:**
+  - `lib/equipmentConfig.ts` — declarative 7-group catalog (~60 items) + sailing group gated by yacht_type + `summarizeEquipment` helper for overview rendering.
+  - `components/EquipmentSection.tsx` — collapsible groups; `ToggleRow` (on/off → single row presence) + `MultiRow` (generators/tenders/jetskis with Add/Remove + maxUnits cap); `FieldInput` supports text/number/integer/select-as-pills/stepper with proper keyboard types.
+  - `app/my-yacht/edit.tsx` — Section 8 added; equipment loaded via `useListYachtEquipment`, saved after yacht PATCH/CREATE via `useReplaceYachtEquipment`, cache invalidated by yacht-id-scoped key.
+  - `app/my-yacht/[id].tsx` — Overview gains "Equipment & Systems" read-only block (catalog-order grouping, multi-units shown as "N units · summary / summary").
+  - `lib/yachtCompleteness.ts` — `calcEquipmentBonus` (+3 gen, +5 raft+EPIRB, +3 nav, +2 tender); `calcCompleteness(yacht, equipment?)` additive cap 100 — yachts without equipment data not penalised.
+- Equipment never flows into Charter Planner / Valuation / ROI / Cost. Owner runs migration 012 manually before feature works (GET 404 / PUT 503 until then — yacht form still saves).
+
+### T009 My Yacht Foundation Layer (May 28, 2026 — DONE)
 Per `attached_assets/2026-05-28_Replit_Prompt_MyYacht_Foundation_*.pdf`. Central yacht profile hub that all tools link to. Existing tools (Valuation/Cost/ROI/Charter Planner) **untouched**.
 - **migration 011:** adds `draft_meters`, `registration_number`, `imo_number`, `hull_id`, `vat_status` (`tax_paid_eu|tax_not_paid|unknown`), `engine_maker`, `engine_model`, `engine_count`, `total_hp`, `crew_cabins`, `berths`, `heads`, `owner_role` (`owner|broker|manager`), `is_archived`. CHECK constraints. Partial index on `(clerk_user_id) where is_archived=false`. Reuses `brand`(=builder), `length_meters`, `beam_meters`, `cabins`(=guest_cabins), `engine_hours`, `home_port`, `photo_url`, `notes`.
 - **OpenAPI:** new enums `YachtVatStatus` (renamed to avoid collision with valuations `VatStatus`) + `YachtOwnerRole`. `Yacht`+`YachtInput` extended. List endpoint accepts `?include_archived=true|1` (default hides archived).
