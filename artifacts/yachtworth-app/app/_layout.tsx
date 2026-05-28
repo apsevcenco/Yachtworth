@@ -120,6 +120,22 @@ function RootLayoutNav() {
         name="my-yacht/[id]"
         options={{ headerShown: false, presentation: "card" }}
       />
+      <Stack.Screen
+        name="listing/index"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="listing/form"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="listing/result"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="listing/my-listings"
+        options={{ headerShown: false, presentation: "card" }}
+      />
     </Stack>
     {showBrandHeader ? <BrandHeader /> : null}
     </View>

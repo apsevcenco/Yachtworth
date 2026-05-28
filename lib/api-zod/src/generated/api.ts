@@ -3545,3 +3545,266 @@ export const GetClientResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * Takes a yacht data snapshot + listing settings and asks Claude
+(claude-sonnet-4-6) to write professional broker listing copy.
+Falls back to a deterministic template if AI fails — never returns 500.
+
+ * @summary Generate yacht listing copy with Claude AI
+ */
+export const GenerateListingBody = zod.object({
+  yacht_id: zod.string().nullish(),
+  yacht: zod.object({
+    name: zod.string(),
+    type: zod.string(),
+    builder: zod.string().nullish(),
+    model: zod.string().nullish(),
+    year_built: zod.number(),
+    length_meters: zod.number(),
+    beam_meters: zod.number().nullish(),
+    guests: zod.number().nullish(),
+    cabins: zod.number().nullish(),
+    crew: zod.number().nullish(),
+    flag: zod.string().nullish(),
+    home_base: zod.string().nullish(),
+    operating_area: zod.string().nullish(),
+    max_speed_knots: zod.number().nullish(),
+    cruising_speed_knots: zod.number().nullish(),
+    range_nm: zod.number().nullish(),
+    engines: zod.string().nullish(),
+    highlights: zod.array(zod.string()).optional(),
+    equipment_highlights: zod.array(zod.string()).optional(),
+    custom_highlight: zod.string().nullish(),
+    asking_price_eur: zod.number().nullish(),
+    charter_rate_eur_week: zod.number().nullish(),
+    photo_url: zod.string().nullish(),
+  }),
+  settings: zod.object({
+    listing_type: zod.enum(["sale", "charter", "both"]),
+    style: zod.enum(["professional", "luxury", "technical", "concise"]),
+    language: zod.enum([
+      "english",
+      "french",
+      "italian",
+      "spanish",
+      "german",
+      "russian",
+    ]),
+    word_length: zod.enum(["short", "medium", "full"]),
+    tone: zod.enum(["neutral", "exclusive", "friendly"]),
+    sections: zod
+      .array(zod.string())
+      .describe(
+        "Section keys to include (overview, features, accommodation, performance, equipment, charter_info, call_to_action)",
+      ),
+    brokerage_name: zod.string().nullish(),
+    contact_email: zod.string().nullish(),
+  }),
+  seed: zod
+    .number()
+    .nullish()
+    .describe('Optional integer for \"regenerate\" variation hints'),
+});
+
+export const GenerateListingResponse = zod.object({
+  generated_text: zod.string(),
+  ai_used: zod.boolean(),
+  model: zod.string().nullish(),
+  warning: zod.string().nullish(),
+});
+
+/**
+ * @summary List user's saved listings
+ */
+export const ListListingsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      yacht_id: zod.string().nullish(),
+      yacht_name: zod.string(),
+      listing_type: zod.enum(["sale", "charter", "both"]),
+      style: zod.enum(["professional", "luxury", "technical", "concise"]),
+      language: zod.enum([
+        "english",
+        "french",
+        "italian",
+        "spanish",
+        "german",
+        "russian",
+      ]),
+      word_length: zod.enum(["short", "medium", "full"]),
+      preview: zod.string(),
+      created_at: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Persist a generated listing to user history
+ */
+export const SaveListingBody = zod.object({
+  yacht_id: zod.string().nullish(),
+  yacht_name: zod.string(),
+  listing_type: zod.enum(["sale", "charter", "both"]),
+  style: zod.enum(["professional", "luxury", "technical", "concise"]),
+  language: zod.enum([
+    "english",
+    "french",
+    "italian",
+    "spanish",
+    "german",
+    "russian",
+  ]),
+  word_length: zod.enum(["short", "medium", "full"]),
+  generated_text: zod.string(),
+  yacht_snapshot: zod
+    .union([
+      zod.object({
+        name: zod.string(),
+        type: zod.string(),
+        builder: zod.string().nullish(),
+        model: zod.string().nullish(),
+        year_built: zod.number(),
+        length_meters: zod.number(),
+        beam_meters: zod.number().nullish(),
+        guests: zod.number().nullish(),
+        cabins: zod.number().nullish(),
+        crew: zod.number().nullish(),
+        flag: zod.string().nullish(),
+        home_base: zod.string().nullish(),
+        operating_area: zod.string().nullish(),
+        max_speed_knots: zod.number().nullish(),
+        cruising_speed_knots: zod.number().nullish(),
+        range_nm: zod.number().nullish(),
+        engines: zod.string().nullish(),
+        highlights: zod.array(zod.string()).optional(),
+        equipment_highlights: zod.array(zod.string()).optional(),
+        custom_highlight: zod.string().nullish(),
+        asking_price_eur: zod.number().nullish(),
+        charter_rate_eur_week: zod.number().nullish(),
+        photo_url: zod.string().nullish(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  settings_snapshot: zod
+    .union([
+      zod.object({
+        listing_type: zod.enum(["sale", "charter", "both"]),
+        style: zod.enum(["professional", "luxury", "technical", "concise"]),
+        language: zod.enum([
+          "english",
+          "french",
+          "italian",
+          "spanish",
+          "german",
+          "russian",
+        ]),
+        word_length: zod.enum(["short", "medium", "full"]),
+        tone: zod.enum(["neutral", "exclusive", "friendly"]),
+        sections: zod
+          .array(zod.string())
+          .describe(
+            "Section keys to include (overview, features, accommodation, performance, equipment, charter_info, call_to_action)",
+          ),
+        brokerage_name: zod.string().nullish(),
+        contact_email: zod.string().nullish(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  ai_used: zod.boolean().nullish(),
+});
+
+/**
+ * @summary Get a saved listing
+ */
+export const GetListingParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetListingResponse = zod.object({
+  id: zod.string(),
+  clerk_user_id: zod.string(),
+  yacht_id: zod.string().nullish(),
+  yacht_name: zod.string(),
+  listing_type: zod.enum(["sale", "charter", "both"]),
+  style: zod.enum(["professional", "luxury", "technical", "concise"]),
+  language: zod.enum([
+    "english",
+    "french",
+    "italian",
+    "spanish",
+    "german",
+    "russian",
+  ]),
+  word_length: zod.enum(["short", "medium", "full"]),
+  generated_text: zod.string(),
+  yacht_snapshot: zod
+    .union([
+      zod.object({
+        name: zod.string(),
+        type: zod.string(),
+        builder: zod.string().nullish(),
+        model: zod.string().nullish(),
+        year_built: zod.number(),
+        length_meters: zod.number(),
+        beam_meters: zod.number().nullish(),
+        guests: zod.number().nullish(),
+        cabins: zod.number().nullish(),
+        crew: zod.number().nullish(),
+        flag: zod.string().nullish(),
+        home_base: zod.string().nullish(),
+        operating_area: zod.string().nullish(),
+        max_speed_knots: zod.number().nullish(),
+        cruising_speed_knots: zod.number().nullish(),
+        range_nm: zod.number().nullish(),
+        engines: zod.string().nullish(),
+        highlights: zod.array(zod.string()).optional(),
+        equipment_highlights: zod.array(zod.string()).optional(),
+        custom_highlight: zod.string().nullish(),
+        asking_price_eur: zod.number().nullish(),
+        charter_rate_eur_week: zod.number().nullish(),
+        photo_url: zod.string().nullish(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  settings_snapshot: zod
+    .union([
+      zod.object({
+        listing_type: zod.enum(["sale", "charter", "both"]),
+        style: zod.enum(["professional", "luxury", "technical", "concise"]),
+        language: zod.enum([
+          "english",
+          "french",
+          "italian",
+          "spanish",
+          "german",
+          "russian",
+        ]),
+        word_length: zod.enum(["short", "medium", "full"]),
+        tone: zod.enum(["neutral", "exclusive", "friendly"]),
+        sections: zod
+          .array(zod.string())
+          .describe(
+            "Section keys to include (overview, features, accommodation, performance, equipment, charter_info, call_to_action)",
+          ),
+        brokerage_name: zod.string().nullish(),
+        contact_email: zod.string().nullish(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  ai_used: zod.boolean(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+});
+
+/**
+ * @summary Delete a saved listing
+ */
+export const DeleteListingParams = zod.object({
+  id: zod.coerce.string(),
+});

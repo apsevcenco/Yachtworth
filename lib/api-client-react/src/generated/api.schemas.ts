@@ -1769,6 +1769,180 @@ export interface ClientDetail {
   charters: Charter[];
 }
 
+export type ListingType = (typeof ListingType)[keyof typeof ListingType];
+
+export const ListingType = {
+  sale: "sale",
+  charter: "charter",
+  both: "both",
+} as const;
+
+export type ListingStyle = (typeof ListingStyle)[keyof typeof ListingStyle];
+
+export const ListingStyle = {
+  professional: "professional",
+  luxury: "luxury",
+  technical: "technical",
+  concise: "concise",
+} as const;
+
+export type ListingLanguage =
+  (typeof ListingLanguage)[keyof typeof ListingLanguage];
+
+export const ListingLanguage = {
+  english: "english",
+  french: "french",
+  italian: "italian",
+  spanish: "spanish",
+  german: "german",
+  russian: "russian",
+} as const;
+
+export type ListingWordLength =
+  (typeof ListingWordLength)[keyof typeof ListingWordLength];
+
+export const ListingWordLength = {
+  short: "short",
+  medium: "medium",
+  full: "full",
+} as const;
+
+export type ListingTone = (typeof ListingTone)[keyof typeof ListingTone];
+
+export const ListingTone = {
+  neutral: "neutral",
+  exclusive: "exclusive",
+  friendly: "friendly",
+} as const;
+
+export interface ListingSettings {
+  listing_type: ListingType;
+  style: ListingStyle;
+  language: ListingLanguage;
+  word_length: ListingWordLength;
+  tone: ListingTone;
+  /** Section keys to include (overview, features, accommodation, performance, equipment, charter_info, call_to_action) */
+  sections: string[];
+  /** @nullable */
+  brokerage_name?: string | null;
+  /** @nullable */
+  contact_email?: string | null;
+}
+
+export interface YachtSnapshot {
+  name: string;
+  type: string;
+  /** @nullable */
+  builder?: string | null;
+  /** @nullable */
+  model?: string | null;
+  year_built: number;
+  length_meters: number;
+  /** @nullable */
+  beam_meters?: number | null;
+  /** @nullable */
+  guests?: number | null;
+  /** @nullable */
+  cabins?: number | null;
+  /** @nullable */
+  crew?: number | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  home_base?: string | null;
+  /** @nullable */
+  operating_area?: string | null;
+  /** @nullable */
+  max_speed_knots?: number | null;
+  /** @nullable */
+  cruising_speed_knots?: number | null;
+  /** @nullable */
+  range_nm?: number | null;
+  /** @nullable */
+  engines?: string | null;
+  highlights?: string[];
+  equipment_highlights?: string[];
+  /** @nullable */
+  custom_highlight?: string | null;
+  /** @nullable */
+  asking_price_eur?: number | null;
+  /** @nullable */
+  charter_rate_eur_week?: number | null;
+  /** @nullable */
+  photo_url?: string | null;
+}
+
+export interface ListingGenerateRequest {
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht: YachtSnapshot;
+  settings: ListingSettings;
+  /**
+   * Optional integer for "regenerate" variation hints
+   * @nullable
+   */
+  seed?: number | null;
+}
+
+export interface ListingGenerateResponse {
+  generated_text: string;
+  ai_used: boolean;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  warning?: string | null;
+}
+
+export interface ListingSaveInput {
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht_name: string;
+  listing_type: ListingType;
+  style: ListingStyle;
+  language: ListingLanguage;
+  word_length: ListingWordLength;
+  generated_text: string;
+  yacht_snapshot?: YachtSnapshot | null;
+  settings_snapshot?: ListingSettings | null;
+  /** @nullable */
+  ai_used?: boolean | null;
+}
+
+export interface Listing {
+  id: string;
+  clerk_user_id: string;
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht_name: string;
+  listing_type: ListingType;
+  style: ListingStyle;
+  language: ListingLanguage;
+  word_length: ListingWordLength;
+  generated_text: string;
+  yacht_snapshot?: YachtSnapshot | null;
+  settings_snapshot?: ListingSettings | null;
+  ai_used: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingListItem {
+  id: string;
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht_name: string;
+  listing_type: ListingType;
+  style: ListingStyle;
+  language: ListingLanguage;
+  word_length: ListingWordLength;
+  preview: string;
+  created_at: string;
+}
+
+export interface ListingListResponse {
+  items: ListingListItem[];
+}
+
 export type ListEstimatesParams = {
   /**
    * When provided, only estimates linked to this yacht profile are returned.

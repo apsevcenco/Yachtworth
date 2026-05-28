@@ -38,6 +38,11 @@ import type {
   ListEstimatesParams,
   ListRoiCalculationsParams,
   ListYachtsParams,
+  Listing,
+  ListingGenerateRequest,
+  ListingGenerateResponse,
+  ListingListResponse,
+  ListingSaveInput,
   RoiCalculation,
   RoiCalculationDetail,
   RoiCalculationInput,
@@ -2514,3 +2519,425 @@ export function useGetClient<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Takes a yacht data snapshot + listing settings and asks Claude
+(claude-sonnet-4-6) to write professional broker listing copy.
+Falls back to a deterministic template if AI fails — never returns 500.
+
+ * @summary Generate yacht listing copy with Claude AI
+ */
+export const getGenerateListingUrl = () => {
+  return `/api/listings/generate`;
+};
+
+export const generateListing = async (
+  listingGenerateRequest: ListingGenerateRequest,
+  options?: RequestInit,
+): Promise<ListingGenerateResponse> => {
+  return customFetch<ListingGenerateResponse>(getGenerateListingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(listingGenerateRequest),
+  });
+};
+
+export const getGenerateListingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateListing>>,
+    TError,
+    { data: BodyType<ListingGenerateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateListing>>,
+  TError,
+  { data: BodyType<ListingGenerateRequest> },
+  TContext
+> => {
+  const mutationKey = ["generateListing"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateListing>>,
+    { data: BodyType<ListingGenerateRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateListing(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateListingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateListing>>
+>;
+export type GenerateListingMutationBody = BodyType<ListingGenerateRequest>;
+export type GenerateListingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Generate yacht listing copy with Claude AI
+ */
+export const useGenerateListing = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateListing>>,
+    TError,
+    { data: BodyType<ListingGenerateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateListing>>,
+  TError,
+  { data: BodyType<ListingGenerateRequest> },
+  TContext
+> => {
+  return useMutation(getGenerateListingMutationOptions(options));
+};
+
+/**
+ * @summary List user's saved listings
+ */
+export const getListListingsUrl = () => {
+  return `/api/listings`;
+};
+
+export const listListings = async (
+  options?: RequestInit,
+): Promise<ListingListResponse> => {
+  return customFetch<ListingListResponse>(getListListingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListListingsQueryKey = () => {
+  return [`/api/listings`] as const;
+};
+
+export const getListListingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listListings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listListings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListListingsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listListings>>> = ({
+    signal,
+  }) => listListings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listListings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListListingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listListings>>
+>;
+export type ListListingsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's saved listings
+ */
+
+export function useListListings<
+  TData = Awaited<ReturnType<typeof listListings>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listListings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListListingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Persist a generated listing to user history
+ */
+export const getSaveListingUrl = () => {
+  return `/api/listings`;
+};
+
+export const saveListing = async (
+  listingSaveInput: ListingSaveInput,
+  options?: RequestInit,
+): Promise<Listing> => {
+  return customFetch<Listing>(getSaveListingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(listingSaveInput),
+  });
+};
+
+export const getSaveListingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveListing>>,
+    TError,
+    { data: BodyType<ListingSaveInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveListing>>,
+  TError,
+  { data: BodyType<ListingSaveInput> },
+  TContext
+> => {
+  const mutationKey = ["saveListing"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveListing>>,
+    { data: BodyType<ListingSaveInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveListing(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveListingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveListing>>
+>;
+export type SaveListingMutationBody = BodyType<ListingSaveInput>;
+export type SaveListingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Persist a generated listing to user history
+ */
+export const useSaveListing = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveListing>>,
+    TError,
+    { data: BodyType<ListingSaveInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveListing>>,
+  TError,
+  { data: BodyType<ListingSaveInput> },
+  TContext
+> => {
+  return useMutation(getSaveListingMutationOptions(options));
+};
+
+/**
+ * @summary Get a saved listing
+ */
+export const getGetListingUrl = (id: string) => {
+  return `/api/listings/${id}`;
+};
+
+export const getListing = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Listing> => {
+  return customFetch<Listing>(getGetListingUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetListingQueryKey = (id: string) => {
+  return [`/api/listings/${id}`] as const;
+};
+
+export const getGetListingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getListing>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getListing>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetListingQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getListing>>> = ({
+    signal,
+  }) => getListing(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getListing>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetListingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getListing>>
+>;
+export type GetListingQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a saved listing
+ */
+
+export function useGetListing<
+  TData = Awaited<ReturnType<typeof getListing>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getListing>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetListingQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a saved listing
+ */
+export const getDeleteListingUrl = (id: string) => {
+  return `/api/listings/${id}`;
+};
+
+export const deleteListing = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteListingUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteListingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteListing>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteListing>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteListing"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteListing>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteListing(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteListingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteListing>>
+>;
+
+export type DeleteListingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a saved listing
+ */
+export const useDeleteListing = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteListing>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteListing>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteListingMutationOptions(options));
+};

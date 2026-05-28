@@ -7,6 +7,7 @@ import roiRouter from "./roi";
 import costEstimatesRouter from "./costEstimates";
 import chartersRouter from "./charters";
 import clientsRouter from "./clients";
+import listingsRouter from "./listings";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(roiRouter);
 router.use(costEstimatesRouter);
 router.use(chartersRouter);
 router.use(clientsRouter);
+router.use(listingsRouter);
 
 export default router;

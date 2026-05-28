@@ -20,6 +20,8 @@ tags:
     description: Charter ROI intelligence (authenticated)
   - name: cost
     description: Annual ownership cost estimator (separate module)
+  - name: listings
+    description: AI-powered yacht listing copy generation (Claude)
 paths:
   /healthz:
     get:
@@ -906,6 +908,158 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClientDetail"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/generate:
+    post:
+      operationId: generateListing
+      tags: [listings]
+      summary: Generate yacht listing copy with Claude AI
+      description: |
+        Takes a yacht data snapshot + listing settings and asks Claude
+        (claude-sonnet-4-6) to write professional broker listing copy.
+        Falls back to a deterministic template if AI fails — never returns 500.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingGenerateRequest"
+      responses:
+        "200":
+          description: Listing generated (may be ai_used=false on fallback)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingGenerateResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings:
+    get:
+      operationId: listListings
+      tags: [listings]
+      summary: List user's saved listings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingListResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: saveListing
+      tags: [listings]
+      summary: Persist a generated listing to user history
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingSaveInput"
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Storage not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [listings]
+      summary: Get a saved listing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteListing
+      tags: [listings]
+      summary: Delete a saved listing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
         "401":
           description: Unauthenticated
           content:
@@ -2773,3 +2927,214 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Charter"
+    ListingType:
+      type: string
+      enum: [sale, charter, both]
+    ListingStyle:
+      type: string
+      enum: [professional, luxury, technical, concise]
+    ListingLanguage:
+      type: string
+      enum: [english, french, italian, spanish, german, russian]
+    ListingWordLength:
+      type: string
+      enum: [short, medium, full]
+    ListingTone:
+      type: string
+      enum: [neutral, exclusive, friendly]
+    ListingSettings:
+      type: object
+      required: [listing_type, style, language, word_length, sections, tone]
+      properties:
+        listing_type:
+          $ref: "#/components/schemas/ListingType"
+        style:
+          $ref: "#/components/schemas/ListingStyle"
+        language:
+          $ref: "#/components/schemas/ListingLanguage"
+        word_length:
+          $ref: "#/components/schemas/ListingWordLength"
+        tone:
+          $ref: "#/components/schemas/ListingTone"
+        sections:
+          type: array
+          description: Section keys to include (overview, features, accommodation, performance, equipment, charter_info, call_to_action)
+          items:
+            type: string
+        brokerage_name:
+          type: ["string", "null"]
+        contact_email:
+          type: ["string", "null"]
+    YachtSnapshot:
+      type: object
+      required: [name, type, year_built, length_meters]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        builder:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        year_built:
+          type: integer
+        length_meters:
+          type: number
+        beam_meters:
+          type: ["number", "null"]
+        guests:
+          type: ["integer", "null"]
+        cabins:
+          type: ["integer", "null"]
+        crew:
+          type: ["integer", "null"]
+        flag:
+          type: ["string", "null"]
+        home_base:
+          type: ["string", "null"]
+        operating_area:
+          type: ["string", "null"]
+        max_speed_knots:
+          type: ["number", "null"]
+        cruising_speed_knots:
+          type: ["number", "null"]
+        range_nm:
+          type: ["number", "null"]
+        engines:
+          type: ["string", "null"]
+        highlights:
+          type: array
+          items:
+            type: string
+        equipment_highlights:
+          type: array
+          items:
+            type: string
+        custom_highlight:
+          type: ["string", "null"]
+        asking_price_eur:
+          type: ["number", "null"]
+        charter_rate_eur_week:
+          type: ["number", "null"]
+        photo_url:
+          type: ["string", "null"]
+    ListingGenerateRequest:
+      type: object
+      required: [yacht, settings]
+      properties:
+        yacht_id:
+          type: ["string", "null"]
+        yacht:
+          $ref: "#/components/schemas/YachtSnapshot"
+        settings:
+          $ref: "#/components/schemas/ListingSettings"
+        seed:
+          type: ["integer", "null"]
+          description: Optional integer for "regenerate" variation hints
+    ListingGenerateResponse:
+      type: object
+      required: [generated_text, ai_used]
+      properties:
+        generated_text:
+          type: string
+        ai_used:
+          type: boolean
+        model:
+          type: ["string", "null"]
+        warning:
+          type: ["string", "null"]
+    ListingSaveInput:
+      type: object
+      required: [yacht_name, listing_type, style, language, word_length, generated_text]
+      properties:
+        yacht_id:
+          type: ["string", "null"]
+        yacht_name:
+          type: string
+        listing_type:
+          $ref: "#/components/schemas/ListingType"
+        style:
+          $ref: "#/components/schemas/ListingStyle"
+        language:
+          $ref: "#/components/schemas/ListingLanguage"
+        word_length:
+          $ref: "#/components/schemas/ListingWordLength"
+        generated_text:
+          type: string
+        yacht_snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/YachtSnapshot"
+            - type: "null"
+        settings_snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/ListingSettings"
+            - type: "null"
+        ai_used:
+          type: ["boolean", "null"]
+    Listing:
+      type: object
+      required: [id, clerk_user_id, yacht_name, listing_type, style, language, word_length, generated_text, ai_used, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        clerk_user_id:
+          type: string
+        yacht_id:
+          type: ["string", "null"]
+        yacht_name:
+          type: string
+        listing_type:
+          $ref: "#/components/schemas/ListingType"
+        style:
+          $ref: "#/components/schemas/ListingStyle"
+        language:
+          $ref: "#/components/schemas/ListingLanguage"
+        word_length:
+          $ref: "#/components/schemas/ListingWordLength"
+        generated_text:
+          type: string
+        yacht_snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/YachtSnapshot"
+            - type: "null"
+        settings_snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/ListingSettings"
+            - type: "null"
+        ai_used:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    ListingListItem:
+      type: object
+      required: [id, yacht_name, listing_type, style, language, word_length, preview, created_at]
+      properties:
+        id:
+          type: string
+        yacht_id:
+          type: ["string", "null"]
+        yacht_name:
+          type: string
+        listing_type:
+          $ref: "#/components/schemas/ListingType"
+        style:
+          $ref: "#/components/schemas/ListingStyle"
+        language:
+          $ref: "#/components/schemas/ListingLanguage"
+        word_length:
+          $ref: "#/components/schemas/ListingWordLength"
+        preview:
+          type: string
+        created_at:
+          type: string
+    ListingListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingListItem"

@@ -121,6 +121,13 @@ export default function ProfileScreen() {
               onPress={() => router.push("/history")}
             />
           )}
+          {isSignedIn && (
+            <Row
+              icon="file-text"
+              label="My listings"
+              onPress={() => router.push("/listing/my-listings")}
+            />
+          )}
           <Row
             icon="settings"
             label="Settings"

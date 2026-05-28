@@ -74,8 +74,9 @@ const TOOLS: Tool[] = [
     icon: "file-text",
     title: "Listing Generator",
     subtitle: "AI-powered listing copy",
-    roles: ["broker"],
-    status: "soon",
+    roles: ["broker", "owner"],
+    status: "live",
+    route: "/listing",
   },
   {
     key: "yacht_verification",

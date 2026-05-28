@@ -15,7 +15,7 @@ Standalone luxury mobile app (iOS + Android) — AI-powered yacht **estimates** 
 - **Backend:** shared `artifacts/api-server` Express 5 at `/api`
 - **DB:** Supabase `yachtworth-prod` (Frankfurt). RLS `deny_all`; service-role bypasses; everything scoped by `clerk_user_id` (no IDOR).
 - **Auth:** Clerk — Apple SSO + Google SSO + email/password. `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`.
-- **AI:** OpenAI `gpt-5-mini` via Responses API + `web_search_preview` → `/chat/completions` fallback → deterministic heuristic. Key: `YACHTWORTH_OPENAI_API_KEY` → Replit AI proxy.
+- **AI:** OpenAI `gpt-5-mini` via Responses API + `web_search_preview` → `/chat/completions` fallback → deterministic heuristic. Key: `YACHTWORTH_OPENAI_API_KEY` → Replit AI proxy. Listing copy uses Anthropic `claude-sonnet-4-6` via Replit AI Integrations proxy (`AI_INTEGRATIONS_ANTHROPIC_*`).
 - **Subscriptions (deferred):** RevenueCat. Pro €49.99/mo, Basic €19.99/mo, Free 1 estimate/mo, 7-day trial.
 - **Deployment:** Render (separate service from PDYE).
 
@@ -56,6 +56,7 @@ Run sequentially in Supabase SQL editor of `yachtworth-prod`. All idempotent.
 12. `013_yacht_photos.sql` — `photo_urls jsonb` + `cover_photo_url`; Supabase Storage bucket `yacht-photos` (public, 5 MB cap, image/* allow-list) + `public_read_yacht_photos` policy
 13. `014_roi_check_constraints.sql` — DB-level CHECK constraints (commission/VAT/APA `[0,100]`, prices/loans/revenue/expenses `>=0`)
 14. `015_link_history_to_yachts.sql` — nullable `yacht_id` FK on estimates + cost_estimates (ON DELETE SET NULL) + partial indexes
+15. `016_listings.sql` — `listings` table (yacht_snapshot/settings_snapshot jsonb, RLS deny_all, indexes on clerk_user_id + yacht_id)
 
 Until each is run the corresponding feature degrades (POSTs no-op warn-logged, GETs empty/401, engines fall back to heuristics).
 
@@ -70,6 +71,7 @@ Until each is run the corresponding feature degrades (POSTs no-op warn-logged, G
 - **Equipment** (T-Equipment): Section 8 in Add/Edit Yacht = ~60 items in 7 collapsible groups (sailing gated by yacht_type). `yacht_equipment` table (one row per logical unit), `ToggleRow` + `MultiRow` (generators/tenders/jetskis w/ Add/Remove + maxUnits). PUT = replace-all atomically. Read-only block on Detail Overview. `calcEquipmentBonus` adds completeness bonus, never penalises. Equipment never flows into ROI/Cost/Charter/Valuation.
 - **Photo Upload** (T-PhotoUpload): Section 6 = real multi-photo uploader. Up to 10 photos/yacht, auto-compressed ≤800 KB JPEG (1920px, 75%→55% second pass). First = cover; long-press = set cover. Backend writes via service-role (mobile never touches storage creds), `multer` memoryStorage 5 MB cap. Routes: `POST /yachts/:id/photos` (multipart), `DELETE`, `PATCH …/cover`. Storage upload rolled back if DB update fails. `DELETE /yachts/:id` best-effort storage cleanup. Multipart endpoints NOT in OpenAPI (frontend fetches directly via `getBaseUrl()` + `getAuthToken()`). iOS ActionSheet / Android Alert source picker. Sequential uploads keep order deterministic.
 - **History merge** (T-LinkHistoryToYacht, May 28): estimates + cost_estimates link to `yacht_id`. YachtCard Valuations/Costs actions navigate with `?yacht_id=`; wizards read `useLocalSearchParams`. Yacht Detail → History merges 3 parallel filtered queries (charters/estimates/cost-estimates) sorted desc by ts. New `EstimateRow` + `CostRow` w/ kind label.
+- **Listing Generator** (T-ListingGenerator, May 28): Tools card → `/listing` flow. Entry picker = active yachts from My Yacht + manual button. `form.tsx` = yacht snapshot (basics/flag/perf/highlights/equipment tags/pricing) + settings (listing_type/style/language/word_length/tone/sections/brokerage). `POST /listings/generate` calls Claude `claude-sonnet-4-6` via Anthropic helper with broker-grade system prompt; 3-level fallback to deterministic template (never 500). `result.tsx` renders markdown subset (h2/h3/**bold**/bullets), in-place edit, Copy/Regenerate (with seed)/Save/Export PDF/Share. PDF via `lib/listingPdf.ts` (navy/gold branded, hero photo placeholder, optional broker footer). "My Listings" under Profile → list/preview/open/delete. RLS deny_all; soft auth + requireAuth; isUuid guards; `generated_text` capped at 20000 chars; brokerage/email sanitised.
 - **Collapse-on-entry UX** (May 28): every screen entry (mount, back-nav, post-save return) resets collapsible sections — only the first stays open. Implemented via `useFocusEffect` in `my-yacht/edit.tsx` + `charter-form.tsx`; `EquipmentSection.tsx` initial state opens first visible group.
 
 ## Not in v1.0
