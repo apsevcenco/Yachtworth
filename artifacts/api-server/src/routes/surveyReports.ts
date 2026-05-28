@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import multer from "multer";
 import {
   CreateSurveyReportBody,
   UpdateSurveyReportBody,
@@ -11,10 +12,75 @@ import {
   SURVEY_REPORTS_TABLE,
   SURVEY_ITEMS_TABLE,
   SURVEY_SEA_TRIAL_TABLE,
+  SURVEY_ITEM_PHOTOS_BUCKET,
 } from "../lib/supabase";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
+
+const MAX_PHOTOS_PER_ITEM = 10;
+const PHOTO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+
+const itemPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: PHOTO_UPLOAD_MAX_BYTES, files: 1 },
+});
+
+const itemPhotoMw: import("express").RequestHandler = (req, res, next) => {
+  itemPhotoUpload.single("file")(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: `File too large. Max ${PHOTO_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
+        });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    next(err);
+  });
+};
+
+function storagePathFromPublicUrl(publicUrl: string): string | null {
+  const marker = `/storage/v1/object/public/${SURVEY_ITEM_PHOTOS_BUCKET}/`;
+  const idx = publicUrl.indexOf(marker);
+  if (idx < 0) return null;
+  return publicUrl.slice(idx + marker.length);
+}
+
+/**
+ * Loads a survey item AND verifies the parent report belongs to the user.
+ * Returns the item row (with current photo_urls + report_id) or an error status.
+ */
+async function loadOwnedItem(
+  itemId: string,
+  userId: string,
+): Promise<
+  | { ok: true; item: { id: string; report_id: string; photo_urls: string[] } }
+  | { status: 404 | 503; error: string }
+> {
+  const sb = getSupabase();
+  if (!sb) return { status: 503, error: "Survey storage not configured" };
+  const { data: item, error } = await sb
+    .from(SURVEY_ITEMS_TABLE)
+    .select("id, report_id, photo_urls")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error) return { status: 503, error: error.message };
+  if (!item) return { status: 404, error: "Not found" };
+  const owned = await verifyOwnership(sb, item.report_id as string, userId);
+  if (!owned) return { status: 404, error: "Not found" };
+  const raw = (item as { photo_urls?: unknown }).photo_urls;
+  const photo_urls = Array.isArray(raw)
+    ? raw.filter((x): x is string => typeof x === "string")
+    : [];
+  return {
+    ok: true,
+    item: { id: item.id as string, report_id: item.report_id as string, photo_urls },
+  };
+}
 
 const REPORT_LIST_COLUMNS =
   "id,yacht_id,vessel_name,manufacturer,model,lying,survey_date,survey_purpose,status,total_recommendations_a,total_recommendations_b,total_recommendations_c,total_recommendations_d,created_at,updated_at";
@@ -445,6 +511,133 @@ router.put(
       return;
     }
     res.json(data);
+  },
+);
+
+// ── ITEM PHOTOS — UPLOAD ──────────────────────────────────────────
+router.post(
+  "/survey-items/:itemId/photos",
+  softClerkAuth(),
+  requireAuth(),
+  itemPhotoMw,
+  async (req, res): Promise<void> => {
+    const itemId = req.params["itemId"] ?? "";
+    if (!isUuid(itemId)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const file = req.file;
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      res.status(400).json({ error: "Missing file" });
+      return;
+    }
+    const loaded = await loadOwnedItem(itemId, req.userId!);
+    if ("status" in loaded) {
+      res.status(loaded.status).json({ error: loaded.error });
+      return;
+    }
+    if (loaded.item.photo_urls.length >= MAX_PHOTOS_PER_ITEM) {
+      res.status(400).json({
+        error: `Photo limit reached (${MAX_PHOTOS_PER_ITEM} per item).`,
+      });
+      return;
+    }
+    const sb = getSupabase()!;
+    const ext =
+      file.mimetype === "image/png"
+        ? "png"
+        : file.mimetype === "image/webp"
+          ? "webp"
+          : "jpg";
+    const objectPath = `${loaded.item.report_id}/${itemId}/${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}.${ext}`;
+
+    const up = await sb.storage
+      .from(SURVEY_ITEM_PHOTOS_BUCKET)
+      .upload(objectPath, file.buffer, {
+        contentType: file.mimetype || "image/jpeg",
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (up.error) {
+      req.log.error({ err: up.error.message }, "survey item photo upload failed");
+      res.status(502).json({ error: up.error.message });
+      return;
+    }
+    const { data: pub } = sb.storage
+      .from(SURVEY_ITEM_PHOTOS_BUCKET)
+      .getPublicUrl(objectPath);
+    const publicUrl = pub.publicUrl;
+    const nextPhotos = [...loaded.item.photo_urls, publicUrl];
+
+    const { error: upErr } = await sb
+      .from(SURVEY_ITEMS_TABLE)
+      .update({ photo_urls: nextPhotos })
+      .eq("id", itemId);
+    if (upErr) {
+      await sb.storage.from(SURVEY_ITEM_PHOTOS_BUCKET).remove([objectPath]);
+      req.log.error(
+        { err: upErr.message },
+        "survey item DB update failed (rolled back storage)",
+      );
+      res.status(500).json({ error: upErr.message });
+      return;
+    }
+    res.json({ url: publicUrl, photo_urls: nextPhotos });
+  },
+);
+
+// ── ITEM PHOTOS — DELETE ──────────────────────────────────────────
+router.delete(
+  "/survey-items/:itemId/photos",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const itemId = req.params["itemId"] ?? "";
+    if (!isUuid(itemId)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const body = (req.body ?? {}) as { url?: unknown };
+    const url = typeof body.url === "string" ? body.url : "";
+    if (!url) {
+      res.status(400).json({ error: "Missing url" });
+      return;
+    }
+    const loaded = await loadOwnedItem(itemId, req.userId!);
+    if ("status" in loaded) {
+      res.status(loaded.status).json({ error: loaded.error });
+      return;
+    }
+    if (!loaded.item.photo_urls.includes(url)) {
+      res.status(400).json({ error: "URL is not in this item's photos" });
+      return;
+    }
+    const path = storagePathFromPublicUrl(url);
+    if (!path || !path.startsWith(`${loaded.item.report_id}/${itemId}/`)) {
+      res.status(400).json({ error: "URL is not in this item's storage folder" });
+      return;
+    }
+    const sb = getSupabase()!;
+    const nextPhotos = loaded.item.photo_urls.filter((p) => p !== url);
+    const { error: upErr } = await sb
+      .from(SURVEY_ITEMS_TABLE)
+      .update({ photo_urls: nextPhotos })
+      .eq("id", itemId);
+    if (upErr) {
+      req.log.error({ err: upErr.message }, "survey item photo DB delete failed");
+      res.status(500).json({ error: upErr.message });
+      return;
+    }
+    const rm = await sb.storage.from(SURVEY_ITEM_PHOTOS_BUCKET).remove([path]);
+    if (rm.error) {
+      req.log.warn(
+        { err: rm.error.message, path },
+        "survey item photo storage delete failed (DB already updated)",
+      );
+    }
+    res.json({ photo_urls: nextPhotos });
   },
 );
 

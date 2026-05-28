@@ -7,7 +7,7 @@ import {
   useReplaceSurveyItems,
 } from "@workspace/api-client-react";
 import { useRouter, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SECTION_TEMPLATES } from "../../lib/surveyTemplates";
+import { loadSurveyorProfile } from "../../lib/surveyorProfile";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -49,6 +50,22 @@ export default function SurveyNewScreen() {
 
   const [open, setOpen] = useState<SectionKey>("vessel");
   useFocusEffect(useCallback(() => setOpen("vessel"), []));
+
+  // Pre-fill surveyor block from stored profile (one-shot on mount).
+  useEffect(() => {
+    let cancelled = false;
+    loadSurveyorProfile().then((p) => {
+      if (cancelled) return;
+      if (p.name) setSurveyorName(p.name);
+      if (p.qualification) setQualification(p.qualification);
+      if (p.company) setCompany(p.company);
+      if (p.phone) setSurveyorPhone(p.phone);
+      if (p.email) setSurveyorEmail(p.email);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Vessel
   const [vesselName, setVesselName] = useState("");

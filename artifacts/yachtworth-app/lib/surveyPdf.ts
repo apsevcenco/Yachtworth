@@ -60,23 +60,28 @@ export interface SurveyReportForPdf {
   surveyor_company?: string | null;
   surveyor_phone?: string | null;
   surveyor_email?: string | null;
+  surveyor_signature_url?: string | null;
 }
 
 export interface SurveySeaTrialForPdf {
-  test_date?: string | null;
+  trial_date?: string | null;
   location?: string | null;
-  duration_hours?: number | null;
-  tickover_p?: number | null;
-  tickover_s?: number | null;
+  weather?: string | null;
+  sea_state?: string | null;
   narrative?: string | null;
-  rpm_rows?: Array<{
-    rpm: number | null;
-    coolant_p: number | null;
-    coolant_s: number | null;
-    oil_p: number | null;
-    oil_s: number | null;
-    speed: number | null;
+  rpm_table?: Array<{
+    rpm?: number | null;
+    coolant_p?: number | null;
+    coolant_s?: number | null;
+    oil_p?: number | null;
+    oil_s?: number | null;
+    speed?: number | null;
   }> | null;
+  tickover_rpm?: number | null;
+  tickover_speed?: number | null;
+  max_rpm?: number | null;
+  max_speed?: number | null;
+  additional_observations?: string | null;
 }
 
 export interface SurveyPdfInput {
@@ -330,7 +335,23 @@ function buildRecsSummary(
   </section>`;
 }
 
-function buildDeclarationSection(num: number, surveyor?: string | null): string {
+function buildDeclarationSection(
+  num: number,
+  surveyor?: string | null,
+  signatureUrl?: string | null,
+): string {
+  // Accept either a public https URL or a data:image/* URI (saved from
+  // the in-app signature pad). Anything else is ignored so we never leak
+  // raw user input into the PDF's <img src>.
+  const sig =
+    typeof signatureUrl === "string" &&
+    (/^https?:\/\//i.test(signatureUrl) ||
+      /^data:image\/(png|jpeg|webp);base64,/i.test(signatureUrl))
+      ? signatureUrl
+      : null;
+  const sigBlock = sig
+    ? `<img class="sig-img" src="${esc(sig)}" alt="Signature" />`
+    : `<div class="sig-line"></div>`;
   return `<section class="page section-page">
     <div class="page-head">
       <div class="brand-eyebrow">YACHTWORTH · CONDITION SURVEY</div>
@@ -340,7 +361,7 @@ function buildDeclarationSection(num: number, surveyor?: string | null): string 
     <h2 class="sec-title">Declaration</h2>
     <div class="static-text">${nl2br(DECLARATION_TEXT)}</div>
     <div class="sig-block">
-      <div class="sig-line"></div>
+      ${sigBlock}
       <div class="sig-label">Signature</div>
       <div class="sig-name">${esc(surveyor ?? "")}</div>
     </div>
@@ -405,11 +426,14 @@ function buildSeaTrialSection(
   }
 
   const meta: Array<[string, string]> = [
-    ["Date", fmtDate(st.test_date)],
+    ["Date", fmtDate(st.trial_date)],
     ["Location", st.location ?? "—"],
-    ["Duration", st.duration_hours != null ? `${st.duration_hours} h` : "—"],
-    ["Tickover (P)", st.tickover_p != null ? `${st.tickover_p} rpm` : "—"],
-    ["Tickover (S)", st.tickover_s != null ? `${st.tickover_s} rpm` : "—"],
+    ["Weather", st.weather ?? "—"],
+    ["Sea state", st.sea_state ?? "—"],
+    ["Tickover", st.tickover_rpm != null ? `${st.tickover_rpm} rpm` : "—"],
+    ["Tickover speed", st.tickover_speed != null ? `${st.tickover_speed} kts` : "—"],
+    ["Max rpm", st.max_rpm != null ? `${st.max_rpm} rpm` : "—"],
+    ["Max speed", st.max_speed != null ? `${st.max_speed} kts` : "—"],
   ];
   const metaHtml = meta
     .map(
@@ -418,7 +442,7 @@ function buildSeaTrialSection(
     )
     .join("");
 
-  const rows = (st.rpm_rows ?? [])
+  const rows = (st.rpm_table ?? [])
     .map(
       (r) => `<tr>
         <td>${esc(r.rpm != null ? String(r.rpm) : "—")}</td>
@@ -432,7 +456,7 @@ function buildSeaTrialSection(
     .join("");
 
   const rpmTable =
-    (st.rpm_rows ?? []).length === 0
+    (st.rpm_table ?? []).length === 0
       ? ""
       : `<table class="rpm-table">
           <thead><tr>
@@ -452,6 +476,7 @@ function buildSeaTrialSection(
     <table class="spec-table compact">${metaHtml}</table>
     ${rpmTable}
     ${st.narrative ? `<div class="static-text" style="margin-top:14px">${nl2br(st.narrative)}</div>` : ""}
+    ${st.additional_observations ? `<div class="static-text" style="margin-top:14px"><strong>Additional observations:</strong><br/>${nl2br(st.additional_observations)}</div>` : ""}
   </section>`;
 }
 
@@ -477,7 +502,13 @@ export function buildSurveyPdfHtml(input: SurveyPdfInput): string {
     } else if (sec.kind === "auto_recs") {
       pages.push(buildRecsSummary(items, sec.number));
     } else if (sec.kind === "declaration") {
-      pages.push(buildDeclarationSection(sec.number, report.surveyor_name));
+      pages.push(
+        buildDeclarationSection(
+          sec.number,
+          report.surveyor_name,
+          report.surveyor_signature_url,
+        ),
+      );
     } else if (sec.kind === "pictures") {
       pages.push(buildPicturesSection(sec.number, items));
     } else if (sec.kind === "sea_trial") {
@@ -489,7 +520,14 @@ export function buildSurveyPdfHtml(input: SurveyPdfInput): string {
   const hasAutoRecs = SECTION_TEMPLATES.some((s) => s.kind === "auto_recs");
   if (!hasAutoRecs) pages.push(buildRecsSummary(items, 23));
   const hasDeclaration = SECTION_TEMPLATES.some((s) => s.kind === "declaration");
-  if (!hasDeclaration) pages.push(buildDeclarationSection(26, report.surveyor_name));
+  if (!hasDeclaration)
+    pages.push(
+      buildDeclarationSection(
+        26,
+        report.surveyor_name,
+        report.surveyor_signature_url,
+      ),
+    );
 
   // Fallback Glossary text if not in template list
   const hasGlossary = SECTION_TEMPLATES.some(
@@ -648,6 +686,7 @@ export function buildSurveyPdfHtml(input: SurveyPdfInput): string {
   /* Signature block */
   .sig-block { margin-top: 18mm; }
   .sig-line { border-bottom: 1px solid ${NAVY}; width: 60%; margin-bottom: 6px; height: 14mm; }
+  .sig-img { width: 60%; max-height: 30mm; object-fit: contain; display: block; margin-bottom: 4px; }
   .sig-label { color: ${MUTED}; font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; }
   .sig-name { color: ${NAVY}; font-size: 12px; font-weight: 700; margin-top: 4px; }
 

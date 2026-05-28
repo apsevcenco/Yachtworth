@@ -121,6 +121,7 @@ export default function SurveySectionsScreen() {
           surveyor_company: report.surveyor_company,
           surveyor_phone: report.surveyor_phone,
           surveyor_email: report.surveyor_email,
+          surveyor_signature_url: report.surveyor_signature_url,
         },
         items: items.map((it) => ({
           section_number: it.section_number,
@@ -136,7 +137,7 @@ export default function SurveySectionsScreen() {
           moisture_level: it.moisture_level,
           sort_order: it.sort_order,
         })),
-        seaTrial: null,
+        seaTrial: data?.sea_trial ?? null,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Please try again.";
@@ -207,16 +208,13 @@ export default function SurveySectionsScreen() {
                   if (sec.kind === "items") {
                     router.push(`/survey/${reportId}/section/${sec.number}`);
                   } else if (sec.kind === "auto_recs") {
-                    Alert.alert(
-                      "Auto-generated",
-                      "Section 23 is auto-filled from items where you set a recommendation.",
-                    );
+                    router.push(`/survey/${reportId}/recommendations`);
                   } else if (sec.kind === "sea_trial") {
-                    Alert.alert("Sea Trial — coming soon", "RPM table + narrative entry in next update.");
+                    router.push(`/survey/${reportId}/sea-trial`);
                   } else if (sec.kind === "pictures") {
                     Alert.alert("Pictures gallery", "All photos from all items will be collected here in the PDF.");
                   } else if (sec.kind === "declaration") {
-                    Alert.alert("Declaration", "Standard declaration text + your signature appear here in the PDF.");
+                    router.push(`/survey/${reportId}/signature`);
                   } else {
                     Alert.alert(sec.name, sec.staticContent ?? "Static section text.");
                   }

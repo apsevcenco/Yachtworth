@@ -53,3 +53,4 @@ export const PROPOSALS_TABLE = "proposals";
 export const SURVEY_REPORTS_TABLE = "survey_reports";
 export const SURVEY_ITEMS_TABLE = "survey_items";
 export const SURVEY_SEA_TRIAL_TABLE = "survey_sea_trial";
+export const SURVEY_ITEM_PHOTOS_BUCKET = "survey-item-photos";

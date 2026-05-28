@@ -136,6 +136,11 @@ export default function ProfileScreen() {
             />
           )}
           <Row
+            icon="briefcase"
+            label="Surveyor profile"
+            onPress={() => router.push("/surveyor-profile")}
+          />
+          <Row
             icon="settings"
             label="Settings"
             onPress={() => router.push("/settings")}

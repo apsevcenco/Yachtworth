@@ -7,9 +7,12 @@ import {
   useReplaceSurveyItems,
 } from "@workspace/api-client-react";
 import type { SurveyItem } from "@workspace/api-client-react";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -31,6 +34,12 @@ import {
   type ConditionLevel,
   type RecLevel,
 } from "../../../../lib/surveyTemplates";
+import {
+  deleteSurveyItemPhoto,
+  uploadSurveyItemPhoto,
+} from "../../../../lib/surveyItemPhotoUpload";
+
+const MAX_ITEM_PHOTOS = 10;
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -108,6 +117,99 @@ export default function SurveySectionScreen() {
     | null
   >(null);
   const [saving, setSaving] = useState(false);
+  // itemId of the item currently uploading; null = idle.
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+
+  const pickAndUploadPhoto = async (idx: number, itemId: string) => {
+    const editableItem = editable[idx];
+    if (!editableItem) return;
+    if (editableItem.photo_urls.length >= MAX_ITEM_PHOTOS) {
+      Alert.alert("Limit reached", `Up to ${MAX_ITEM_PHOTOS} photos per item.`);
+      return;
+    }
+    const doUpload = async (uri: string) => {
+      setUploadingItemId(itemId);
+      try {
+        const r = await uploadSurveyItemPhoto(itemId, uri);
+        // Update only the local row's photo_urls. We deliberately do NOT
+        // invalidate the report query here — a refetch would re-run the
+        // `setEditable(mine)` effect and silently discard any unsaved
+        // notes/recommendation edits in this section.
+        updateItem(idx, { photo_urls: r.photo_urls });
+      } catch (e) {
+        Alert.alert("Upload failed", (e as Error).message);
+      } finally {
+        setUploadingItemId(null);
+      }
+    };
+    const fromCamera = async () => {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Camera access needed", "Enable camera in Settings.");
+        return;
+      }
+      const r = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+      if (r.canceled || !r.assets?.[0]) return;
+      await doUpload(r.assets[0].uri);
+    };
+    const fromLibrary = async () => {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Photo access needed", "Enable photo library in Settings.");
+        return;
+      }
+      const r = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+      if (r.canceled || !r.assets?.[0]) return;
+      await doUpload(r.assets[0].uri);
+    };
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Take photo", "Choose from library"],
+          cancelButtonIndex: 0,
+        },
+        (i) => {
+          if (i === 1) void fromCamera();
+          else if (i === 2) void fromLibrary();
+        },
+      );
+    } else {
+      Alert.alert("Add photo", undefined, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Take photo", onPress: fromCamera },
+        { text: "Choose from library", onPress: fromLibrary },
+      ]);
+    }
+  };
+
+  const removePhoto = (idx: number, itemId: string, url: string) => {
+    Alert.alert("Remove photo?", undefined, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setUploadingItemId(itemId);
+          try {
+            const r = await deleteSurveyItemPhoto(itemId, url);
+            // Same reasoning as upload: avoid invalidate to preserve
+            // unsaved edits in this section's other fields.
+            updateItem(idx, { photo_urls: r.photo_urls });
+          } catch (e) {
+            Alert.alert("Delete failed", (e as Error).message);
+          } finally {
+            setUploadingItemId(null);
+          }
+        },
+      },
+    ]);
+  };
 
   useEffect(() => {
     const mine = allItems
@@ -278,6 +380,56 @@ export default function SurveySectionScreen() {
                   style={[styles.input, { minHeight: 60, marginTop: 6, textAlignVertical: "top" }]}
                 />
               )}
+
+              {/* Photos — only after item has been saved (needs server id) */}
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.fieldLabel}>
+                  Photos ({it.photo_urls.length}/{MAX_ITEM_PHOTOS})
+                </Text>
+                {!it.id ? (
+                  <View style={styles.photoHint}>
+                    <Feather name="info" size={12} color={MUTED} />
+                    <Text style={styles.photoHintText}>
+                      Save section once to attach photos to this item.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.photoGrid}>
+                    {it.photo_urls.map((url) => (
+                      <View key={url} style={styles.photoThumbWrap}>
+                        <Image
+                          source={{ uri: url }}
+                          style={styles.photoThumb}
+                          contentFit="cover"
+                        />
+                        <Pressable
+                          onPress={() => removePhoto(idx, it.id!, url)}
+                          hitSlop={8}
+                          style={styles.photoRemove}
+                        >
+                          <Feather name="x" size={12} color={IVORY} />
+                        </Pressable>
+                      </View>
+                    ))}
+                    {it.photo_urls.length < MAX_ITEM_PHOTOS && (
+                      <Pressable
+                        onPress={() => pickAndUploadPhoto(idx, it.id!)}
+                        disabled={uploadingItemId === it.id}
+                        style={({ pressed }) => [
+                          styles.photoAdd,
+                          { opacity: pressed || uploadingItemId === it.id ? 0.6 : 1 },
+                        ]}
+                      >
+                        {uploadingItemId === it.id ? (
+                          <ActivityIndicator color={GOLD} size="small" />
+                        ) : (
+                          <Feather name="plus" size={20} color={GOLD} />
+                        )}
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </View>
 
               {showMoisture && (
                 <View style={{ marginTop: 10, flexDirection: "row", gap: 8 }}>
@@ -546,4 +698,43 @@ const styles = StyleSheet.create({
     borderTopColor: DIVIDER,
   },
   sheetRowText: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 14 },
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  photoThumbWrap: { position: "relative" },
+  photoThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: NAVY_ELEV,
+  },
+  photoRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoAdd: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "rgba(201,169,97,0.4)",
+    borderStyle: "dashed",
+    backgroundColor: "rgba(201,169,97,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  photoHintText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 11 },
 });
