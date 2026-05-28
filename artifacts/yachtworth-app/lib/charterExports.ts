@@ -2,6 +2,13 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import type { Charter, Yacht } from "@workspace/api-client-react";
+import {
+  calcCharter,
+  DEFAULT_DISTRIBUTION,
+  type CharterCalcInput,
+  type CharterCalcResult,
+  type DistributionEntry,
+} from "./charterCalc";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -75,73 +82,64 @@ function fmtDateIso(s: string | null | undefined): string {
   return m ? m[1]! : "";
 }
 
-function daysBetween(a: string, b: string): number {
-  const start = new Date(a + "T00:00:00Z").getTime();
-  const end = new Date(b + "T00:00:00Z").getTime();
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
-  return Math.round((end - start) / 86400000) + 1;
-}
-
-export interface CharterPnl {
-  days: number;
-  gross_revenue: number;
-  vat_amount: number;
-  net_revenue: number;
-  fuel_cost: number;
-  captain_total: number;
-  stew_total: number;
-  extra_crew: number;
-  total_crew: number;
-  port_fees: number;
-  provisioning: number;
-  cleaning: number;
-  other_expenses: number;
-  total_expenses: number;
-  net_profit: number;
-  margin: number;
-}
-
-export function computeCharterPnl(c: Charter): CharterPnl {
-  const days = daysBetween(c.start_date, c.end_date);
-  const rate = c.charter_rate ?? 0;
-  const gross_revenue = c.charter_rate_type === "per_day" ? rate * days : rate;
-  const vat_pct = c.vat_percent ?? 0;
-  const vat_amount =
-    c.vat_applicable && vat_pct > 0
-      ? (gross_revenue * vat_pct) / (100 + vat_pct)
-      : 0;
-  const net_revenue = gross_revenue - vat_amount;
-  const fuel_cost = (c.fuel_liters ?? 0) * (c.fuel_price_per_liter ?? 0);
-  const captain_total = (c.captain_day_rate ?? 0) * days;
-  const stew_total = c.stewardess_count * (c.stewardess_day_rate ?? 0) * days;
-  const extra_crew = c.extra_crew_cost ?? 0;
-  const total_crew = captain_total + stew_total + extra_crew;
-  const port_fees = c.port_fees ?? 0;
-  const provisioning = c.provisioning ?? 0;
-  const cleaning = c.cleaning ?? 0;
-  const other_expenses = c.other_expenses ?? 0;
-  const total_expenses = port_fees + provisioning + cleaning + other_expenses;
-  const net_profit = net_revenue - total_crew - fuel_cost - total_expenses;
-  const margin = net_revenue > 0 ? (net_profit / net_revenue) * 100 : 0;
+/** Build CharterCalcInput from a persisted Charter. Mirrors form's toCalcInput. */
+function charterToCalcInput(c: Charter): CharterCalcInput {
+  const dist: DistributionEntry[] = Array.isArray(c.distribution)
+    ? c.distribution.map((d) => ({
+        name: d.name,
+        type: d.type,
+        value: d.value,
+      }))
+    : [];
   return {
-    days,
-    gross_revenue,
-    vat_amount,
-    net_revenue,
-    fuel_cost,
-    captain_total,
-    stew_total,
-    extra_crew,
-    total_crew,
-    port_fees,
-    provisioning,
-    cleaning,
-    other_expenses,
-    total_expenses,
-    net_profit,
-    margin,
+    start_date: c.start_date,
+    end_date: c.end_date,
+    charter_rate_type: c.charter_rate_type,
+    charter_rate: c.charter_rate ?? 0,
+    vat_applicable: c.vat_applicable ?? false,
+    vat_percent: c.vat_percent ?? 0,
+    apa_enabled: c.apa_enabled ?? false,
+    apa_percent: c.apa_percent ?? 0,
+    apa_fuel: c.apa_fuel ?? 0,
+    apa_provisioning: c.apa_provisioning ?? 0,
+    apa_beverages: c.apa_beverages ?? 0,
+    apa_marina_fees: c.apa_marina_fees ?? 0,
+    apa_communications: c.apa_communications ?? 0,
+    apa_crew_gratuities: c.apa_crew_gratuities ?? 0,
+    apa_activities: c.apa_activities ?? 0,
+    apa_other: c.apa_other ?? 0,
+    captain_day_rate: c.captain_day_rate ?? 0,
+    first_officer_day_rate: c.first_officer_day_rate ?? 0,
+    stewardess_count: c.stewardess_count ?? 0,
+    stewardess_day_rate: c.stewardess_day_rate ?? 0,
+    chef_included: c.chef_included ?? false,
+    chef_day_rate: c.chef_day_rate ?? 0,
+    deckhand_count: c.deckhand_count ?? 0,
+    deckhand_day_rate: c.deckhand_day_rate ?? 0,
+    extra_crew_cost: c.extra_crew_cost ?? 0,
+    engine_hours_before: c.engine_hours_before ?? 0,
+    engine_hours_after: c.engine_hours_after ?? 0,
+    fuel_liters: c.fuel_liters ?? 0,
+    fuel_price_per_liter: c.fuel_price_per_liter ?? 0,
+    port_fees: c.port_fees ?? 0,
+    provisioning: c.provisioning ?? 0,
+    cleaning: c.cleaning ?? 0,
+    other_expenses: c.other_expenses ?? 0,
+    transfer_fee: c.transfer_fee ?? 0,
+    transfer_fee_paid_by: c.transfer_fee_paid_by ?? "client",
+    extra_service_amount: c.extra_service_amount ?? 0,
+    damage_amount: c.damage_amount ?? 0,
+    damage_paid_by: c.damage_paid_by ?? "client",
+    distribution: dist.length > 0 ? dist : DEFAULT_DISTRIBUTION.map((d) => ({ ...d })),
   };
 }
+
+/** Backwards-compatible wrapper — returns full CharterCalcResult. */
+export function computeCharterPnl(c: Charter): CharterCalcResult {
+  return calcCharter(charterToCalcInput(c));
+}
+
+export type { CharterCalcResult as CharterPnl };
 
 function yachtTitle(y: Yacht | null | undefined): string {
   if (!y) return "Yacht";
@@ -200,6 +198,12 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+const CONTRACT_LABEL: Record<string, string> = {
+  not_signed: "Not signed",
+  sent: "Sent",
+  signed: "Signed",
+};
+
 export function buildCharterPdfHtml(
   charter: Charter,
   yacht: Yacht | null,
@@ -216,9 +220,12 @@ export function buildCharterPdfHtml(
   const rateLine =
     charter.charter_rate_type === "per_day"
       ? `${eur(charter.charter_rate ?? 0)} / day × ${p.days} days`
-      : `Fixed price ${eur(charter.charter_rate ?? 0)}`;
+      : charter.charter_rate_type === "per_week"
+        ? `${eur(charter.charter_rate ?? 0)} / week × ${(p.days / 7).toFixed(1)} weeks`
+        : `Fixed price ${eur(charter.charter_rate ?? 0)}`;
 
   const profitColor = p.net_profit >= 0 ? GREEN : RED;
+  const vatPct = charter.vat_applicable ? (charter.vat_percent ?? 0) : 0;
 
   return `<!doctype html>
 <html><head><meta charset="utf-8" />
@@ -249,64 +256,123 @@ export function buildCharterPdfHtml(
     <div class="hero">
       <div class="hero-label">Net profit</div>
       <div class="hero-profit">${escapeHtml(eur2(p.net_profit))}</div>
-      <div class="hero-margin">Margin ${p.margin.toFixed(1)}% on net revenue ${escapeHtml(eur(p.net_revenue))}</div>
+      <div class="hero-margin">Margin ${p.margin.toFixed(1)}% on revenue ${escapeHtml(eur(p.gross_revenue))}</div>
       <div class="status-pill">${escapeHtml(statusLbl)}</div>
     </div>
 
-    <h2>Client</h2>
+    <h2>Client & contract</h2>
     <div class="card">
       <div class="row"><span class="k">Name</span><span class="v">${escapeHtml(charter.client_name ?? "—")}</span></div>
+      ${charter.contact_name ? `<div class="row"><span class="k">Contact</span><span class="v">${escapeHtml(charter.contact_name)}</span></div>` : ""}
       ${charter.client_email ? `<div class="row"><span class="k">Email</span><span class="v">${escapeHtml(charter.client_email)}</span></div>` : ""}
       ${charter.client_phone ? `<div class="row"><span class="k">Phone</span><span class="v">${escapeHtml(charter.client_phone)}</span></div>` : ""}
-      ${charter.departure_port ? `<div class="row"><span class="k">Departure port</span><span class="v">${escapeHtml(charter.departure_port)}</span></div>` : ""}
-      ${charter.return_port ? `<div class="row"><span class="k">Return port</span><span class="v">${escapeHtml(charter.return_port)}</span></div>` : ""}
+      <div class="row"><span class="k">Contract</span><span class="v">${escapeHtml(CONTRACT_LABEL[charter.contract_status ?? ""] ?? (charter.contract_status ?? "—"))}${charter.contract_date ? " · " + escapeHtml(fmtDate(charter.contract_date)) : ""}</span></div>
     </div>
 
-    <h2>Revenue</h2>
+    <h2>Logistics</h2>
     <div class="card">
-      <div class="row"><span class="k">${escapeHtml(rateLine)}</span><span class="v">${escapeHtml(eur(p.gross_revenue))}</span></div>
-      ${charter.vat_applicable && p.vat_amount > 0 ? `<div class="row"><span class="k">VAT (${charter.vat_percent}% incl.)</span><span class="v">− ${escapeHtml(eur(p.vat_amount))}</span></div>` : ""}
-      <div class="row divider"><span class="k">Net revenue</span><span class="v gold">${escapeHtml(eur(p.net_revenue))}</span></div>
+      ${charter.mooring_port ? `<div class="row"><span class="k">Mooring (home base)</span><span class="v">${escapeHtml(charter.mooring_port)}</span></div>` : ""}
+      ${charter.departure_port ? `<div class="row"><span class="k">Departure port${charter.departure_time ? " · " + escapeHtml(charter.departure_time) : ""}</span><span class="v">${escapeHtml(charter.departure_port)}</span></div>` : ""}
+      ${charter.return_port ? `<div class="row"><span class="k">Return port${charter.return_time ? " · " + escapeHtml(charter.return_time) : ""}</span><span class="v">${escapeHtml(charter.return_port)}</span></div>` : ""}
+      ${charter.pickup_port ? `<div class="row"><span class="k">Client pickup</span><span class="v">${escapeHtml(charter.pickup_port)}</span></div>` : ""}
+      ${charter.dropoff_port ? `<div class="row"><span class="k">Client drop-off</span><span class="v">${escapeHtml(charter.dropoff_port)}</span></div>` : ""}
+      ${(charter.transfer_fee ?? 0) > 0 ? `<div class="row"><span class="k">Transfer fee · paid by ${escapeHtml(charter.transfer_fee_paid_by ?? "client")}${charter.transfer_fee_note ? " · " + escapeHtml(charter.transfer_fee_note) : ""}</span><span class="v">${escapeHtml(eur(charter.transfer_fee ?? 0))}</span></div>` : ""}
+    </div>
+
+    <h2>Revenue (VAT added on top)</h2>
+    <div class="card">
+      <div class="row"><span class="k">${escapeHtml(rateLine)}</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
+      ${charter.vat_applicable && vatPct > 0 ? `<div class="row"><span class="k">+ VAT (${vatPct}%)</span><span class="v">${escapeHtml(eur(p.vat_amount))}</span></div>` : ""}
+      <div class="row divider"><span class="k">Total to client (excl. APA)</span><span class="v gold">${escapeHtml(eur(p.total_to_client))}</span></div>
+      ${charter.apa_enabled ? `<div class="row"><span class="k">+ APA fund (${charter.apa_percent ?? 0}%)</span><span class="v">${escapeHtml(eur(p.apa_amount))}</span></div><div class="row divider"><span class="k">Total invoice (incl. APA)</span><span class="v gold">${escapeHtml(eur(p.total_invoice_to_client))}</span></div>` : ""}
       ${charter.deposit_amount != null ? `<div class="row"><span class="k">Deposit ${charter.deposit_received ? "(received)" : "(due)"}${charter.deposit_date ? " · " + escapeHtml(fmtDate(charter.deposit_date)) : ""}</span><span class="v">${escapeHtml(eur(charter.deposit_amount))}</span></div>` : ""}
       ${charter.final_payment_amount != null ? `<div class="row"><span class="k">Final payment ${charter.final_payment_received ? "(received)" : "(due)"}${charter.final_payment_date ? " · " + escapeHtml(fmtDate(charter.final_payment_date)) : ""}</span><span class="v">${escapeHtml(eur(charter.final_payment_amount))}</span></div>` : ""}
     </div>
 
+    ${
+      charter.apa_enabled
+        ? `<h2>APA fund (pass-through)</h2>
+    <div class="card">
+      <div class="row"><span class="k">Collected</span><span class="v">${escapeHtml(eur(p.apa_amount))}</span></div>
+      ${(charter.apa_fuel ?? 0) > 0 ? `<div class="row"><span class="k">— Fuel</span><span class="v">${escapeHtml(eur(charter.apa_fuel ?? 0))}</span></div>` : ""}
+      ${(charter.apa_provisioning ?? 0) > 0 ? `<div class="row"><span class="k">— Provisioning</span><span class="v">${escapeHtml(eur(charter.apa_provisioning ?? 0))}</span></div>` : ""}
+      ${(charter.apa_beverages ?? 0) > 0 ? `<div class="row"><span class="k">— Beverages</span><span class="v">${escapeHtml(eur(charter.apa_beverages ?? 0))}</span></div>` : ""}
+      ${(charter.apa_marina_fees ?? 0) > 0 ? `<div class="row"><span class="k">— Marina fees</span><span class="v">${escapeHtml(eur(charter.apa_marina_fees ?? 0))}</span></div>` : ""}
+      ${(charter.apa_communications ?? 0) > 0 ? `<div class="row"><span class="k">— Communications</span><span class="v">${escapeHtml(eur(charter.apa_communications ?? 0))}</span></div>` : ""}
+      ${(charter.apa_crew_gratuities ?? 0) > 0 ? `<div class="row"><span class="k">— Crew gratuities</span><span class="v">${escapeHtml(eur(charter.apa_crew_gratuities ?? 0))}</span></div>` : ""}
+      ${(charter.apa_activities ?? 0) > 0 ? `<div class="row"><span class="k">— Activities${charter.apa_activities_note ? " · " + escapeHtml(charter.apa_activities_note) : ""}</span><span class="v">${escapeHtml(eur(charter.apa_activities ?? 0))}</span></div>` : ""}
+      ${(charter.apa_other ?? 0) > 0 ? `<div class="row"><span class="k">— Other${charter.apa_other_note ? " · " + escapeHtml(charter.apa_other_note) : ""}</span><span class="v">${escapeHtml(eur(charter.apa_other ?? 0))}</span></div>` : ""}
+      <div class="row divider"><span class="k">Total APA spent</span><span class="v">${escapeHtml(eur(p.apa_spent))}</span></div>
+      <div class="row"><span class="k">${p.apa_balance >= 0 ? "Refund to client" : "Client owes"}</span><span class="v gold">${escapeHtml(eur(Math.abs(p.apa_balance)))}</span></div>
+    </div>`
+        : ""
+    }
+
     <h2>Crew</h2>
     <div class="card">
       ${p.captain_total > 0 ? `<div class="row"><span class="k">Captain · ${eur(charter.captain_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.captain_total))}</span></div>` : ""}
-      ${p.stew_total > 0 ? `<div class="row"><span class="k">Stewardess × ${charter.stewardess_count} · ${eur(charter.stewardess_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.stew_total))}</span></div>` : ""}
-      ${p.extra_crew > 0 ? `<div class="row"><span class="k">Extra crew${charter.extra_crew_note ? " · " + escapeHtml(charter.extra_crew_note) : ""}</span><span class="v">${escapeHtml(eur(p.extra_crew))}</span></div>` : ""}
+      ${p.first_officer_total > 0 ? `<div class="row"><span class="k">First officer · ${eur(charter.first_officer_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.first_officer_total))}</span></div>` : ""}
+      ${p.stewardess_total > 0 ? `<div class="row"><span class="k">Stewardess × ${charter.stewardess_count} · ${eur(charter.stewardess_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.stewardess_total))}</span></div>` : ""}
+      ${p.chef_total > 0 ? `<div class="row"><span class="k">Chef · ${eur(charter.chef_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.chef_total))}</span></div>` : ""}
+      ${p.deckhand_total > 0 ? `<div class="row"><span class="k">Deckhand × ${charter.deckhand_count} · ${eur(charter.deckhand_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.deckhand_total))}</span></div>` : ""}
+      ${(charter.extra_crew_cost ?? 0) > 0 ? `<div class="row"><span class="k">Extra crew${charter.extra_crew_note ? " · " + escapeHtml(charter.extra_crew_note) : ""}</span><span class="v">${escapeHtml(eur(charter.extra_crew_cost ?? 0))}</span></div>` : ""}
       ${p.total_crew === 0 ? `<div class="row"><span class="k">No crew costs entered</span><span class="v">—</span></div>` : `<div class="row divider"><span class="k">Total crew</span><span class="v">${escapeHtml(eur(p.total_crew))}</span></div>`}
     </div>
 
-    <h2>Fuel</h2>
+    <h2>Fuel & engine</h2>
     <div class="card">
-      ${charter.engine_hours_before != null || charter.engine_hours_after != null ? `<div class="row"><span class="k">Engine hours</span><span class="v">${charter.engine_hours_before ?? "—"} → ${charter.engine_hours_after ?? "—"}</span></div>` : ""}
+      ${charter.engine_hours_before != null || charter.engine_hours_after != null ? `<div class="row"><span class="k">Engine hours</span><span class="v">${charter.engine_hours_before ?? "—"} → ${charter.engine_hours_after ?? "—"} (${p.engine_hours_used.toFixed(1)} used)</span></div>` : ""}
       ${(charter.fuel_liters ?? 0) > 0 ? `<div class="row"><span class="k">${charter.fuel_liters} L × ${eur2(charter.fuel_price_per_liter ?? 0)}/L</span><span class="v">${escapeHtml(eur(p.fuel_cost))}</span></div>` : `<div class="row"><span class="k">No fuel data entered</span><span class="v">—</span></div>`}
     </div>
 
-    <h2>Other expenses</h2>
+    <h2>Owner expenses</h2>
     <div class="card">
-      ${p.port_fees > 0 ? `<div class="row"><span class="k">Port fees</span><span class="v">${escapeHtml(eur(p.port_fees))}</span></div>` : ""}
-      ${p.provisioning > 0 ? `<div class="row"><span class="k">Provisioning</span><span class="v">${escapeHtml(eur(p.provisioning))}</span></div>` : ""}
-      ${p.cleaning > 0 ? `<div class="row"><span class="k">Cleaning</span><span class="v">${escapeHtml(eur(p.cleaning))}</span></div>` : ""}
-      ${p.other_expenses > 0 ? `<div class="row"><span class="k">Other${charter.other_expenses_note ? " · " + escapeHtml(charter.other_expenses_note) : ""}</span><span class="v">${escapeHtml(eur(p.other_expenses))}</span></div>` : ""}
-      ${p.total_expenses === 0 ? `<div class="row"><span class="k">No expenses entered</span><span class="v">—</span></div>` : `<div class="row divider"><span class="k">Total expenses</span><span class="v">${escapeHtml(eur(p.total_expenses))}</span></div>`}
+      ${(charter.port_fees ?? 0) > 0 ? `<div class="row"><span class="k">Port fees</span><span class="v">${escapeHtml(eur(charter.port_fees ?? 0))}</span></div>` : ""}
+      ${(charter.provisioning ?? 0) > 0 ? `<div class="row"><span class="k">Provisioning</span><span class="v">${escapeHtml(eur(charter.provisioning ?? 0))}</span></div>` : ""}
+      ${(charter.cleaning ?? 0) > 0 ? `<div class="row"><span class="k">Cleaning</span><span class="v">${escapeHtml(eur(charter.cleaning ?? 0))}</span></div>` : ""}
+      ${(charter.other_expenses ?? 0) > 0 ? `<div class="row"><span class="k">Other${charter.other_expenses_note ? " · " + escapeHtml(charter.other_expenses_note) : ""}</span><span class="v">${escapeHtml(eur(charter.other_expenses ?? 0))}</span></div>` : ""}
+      ${(charter.port_fees ?? 0) + (charter.provisioning ?? 0) + (charter.cleaning ?? 0) + (charter.other_expenses ?? 0) === 0 ? `<div class="row"><span class="k">No owner expenses entered</span><span class="v">—</span></div>` : ""}
     </div>
+
+    ${
+      (charter.extra_service_amount ?? 0) > 0 ||
+      (charter.damage_amount ?? 0) > 0 ||
+      (charter.refund_amount ?? 0) > 0
+        ? `<h2>Extras, damage & refund</h2>
+    <div class="card">
+      ${(charter.extra_service_amount ?? 0) > 0 ? `<div class="row"><span class="k">Extra services${charter.extra_service_note ? " · " + escapeHtml(charter.extra_service_note) : ""}</span><span class="v">+ ${escapeHtml(eur(charter.extra_service_amount ?? 0))}</span></div>` : ""}
+      ${(charter.damage_amount ?? 0) > 0 ? `<div class="row"><span class="k">Damage · paid by ${escapeHtml(charter.damage_paid_by ?? "client")}${charter.damage_note ? " · " + escapeHtml(charter.damage_note) : ""}</span><span class="v">${escapeHtml(eur(charter.damage_amount ?? 0))}</span></div>` : ""}
+      ${(charter.refund_amount ?? 0) > 0 ? `<div class="row"><span class="k">Refund${charter.refund_reason ? " · " + escapeHtml(charter.refund_reason) : ""}</span><span class="v">− ${escapeHtml(eur(charter.refund_amount ?? 0))}</span></div>` : ""}
+    </div>`
+        : ""
+    }
 
     <h2>Profit & loss</h2>
     <div class="card">
-      <div class="row"><span class="k">Net revenue</span><span class="v">${escapeHtml(eur(p.net_revenue))}</span></div>
+      <div class="row"><span class="k">Base net revenue</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
+      ${p.gross_revenue !== p.base_net ? `<div class="row"><span class="k">+ Transfer / extras</span><span class="v">${escapeHtml(eur(p.gross_revenue - p.base_net))}</span></div>` : ""}
+      ${p.aa_commission > 0 ? `<div class="row"><span class="k">AA commission</span><span class="v">− ${escapeHtml(eur(p.aa_commission))}</span></div>` : ""}
+      ${p.agent_commission > 0 ? `<div class="row"><span class="k">Agent commission</span><span class="v">− ${escapeHtml(eur(p.agent_commission))}</span></div>` : ""}
       <div class="row"><span class="k">Crew</span><span class="v">− ${escapeHtml(eur(p.total_crew))}</span></div>
       <div class="row"><span class="k">Fuel</span><span class="v">− ${escapeHtml(eur(p.fuel_cost))}</span></div>
-      <div class="row"><span class="k">Other expenses</span><span class="v">− ${escapeHtml(eur(p.total_expenses))}</span></div>
-      <div class="row divider"><span class="k">Net profit</span><span class="v" style="color:${profitColor}">${escapeHtml(eur2(p.net_profit))}</span></div>
+      ${p.damage_absorbed > 0 ? `<div class="row"><span class="k">Damage absorbed</span><span class="v">− ${escapeHtml(eur(p.damage_absorbed))}</span></div>` : ""}
+      <div class="row divider"><span class="k">Net profit · margin ${p.margin.toFixed(1)}%</span><span class="v" style="color:${profitColor}">${escapeHtml(eur2(p.net_profit))}</span></div>
     </div>
+
+    ${
+      p.distribution_results.length > 0
+        ? `<h2>Income distribution (on base net)</h2>
+    <div class="card">
+      ${p.distribution_results.map((r) => `<div class="row"><span class="k">${escapeHtml(r.name)} (${r.pct.toFixed(0)}%)</span><span class="v">${escapeHtml(eur(r.amount))}</span></div>`).join("")}
+      <div class="row divider"><span class="k">${p.distribution_balanced ? "Balanced ✓" : p.distribution_difference >= 0 ? "Undistributed" : "Over-distributed"}</span><span class="v gold">${escapeHtml(eur(Math.abs(p.distribution_difference)))}</span></div>
+    </div>`
+        : ""
+    }
 
     ${charter.notes ? `<h2>Notes</h2><div class="card"><div class="row"><span class="k" style="color:${IVORY}">${escapeHtml(charter.notes)}</span></div></div>` : ""}
 
     <div class="footer">
-      Indicative P&amp;L based on entered data · Not a certified accounting statement · Yachtworth
+      Indicative P&amp;L based on entered data · APA is pass-through, not P&amp;L · Not a certified accounting statement · Yachtworth
     </div>
   </div>
 </body></html>`;
@@ -358,16 +424,18 @@ export function buildFleetPdfHtml(input: FleetMonthInput): string {
   }
 
   // Fleet totals
-  let totGross = 0;
-  let totNet = 0;
+  let totBaseNet = 0;
+  let totVat = 0;
+  let totInvoice = 0;
   let totProfit = 0;
   let totDays = 0;
   let countCharters = 0;
   for (const c of charters) {
     if (c.status === "cancelled" || c.status === "blocked") continue;
     const p = computeCharterPnl(c);
-    totGross += p.gross_revenue;
-    totNet += p.net_revenue;
+    totBaseNet += p.base_net;
+    totVat += p.vat_amount;
+    totInvoice += p.total_invoice_to_client;
     totProfit += p.net_profit;
     totDays += p.days;
     countCharters += 1;
@@ -393,22 +461,22 @@ export function buildFleetPdfHtml(input: FleetMonthInput): string {
           <td>${escapeHtml(fmtDate(c.start_date))} → ${escapeHtml(fmtDate(c.end_date))}</td>
           <td>${escapeHtml(c.client_name ?? "—")}</td>
           <td class="num">${p.days}</td>
-          <td class="num">${escapeHtml(eur(p.gross_revenue))}</td>
-          <td class="num">${escapeHtml(eur(p.net_revenue))}</td>
+          <td class="num">${escapeHtml(eur(p.base_net))}</td>
+          <td class="num">${escapeHtml(eur(p.vat_amount))}</td>
           <td class="num" style="color:${profitColor}">${escapeHtml(eur(p.net_profit))}</td>
           <td>${escapeHtml(statusLbl)}</td>
         </tr>`;
         })
         .join("");
-      let yGross = 0,
-        yNet = 0,
+      let yBase = 0,
+        yVat = 0,
         yProfit = 0,
         yDays = 0;
       for (const c of list) {
         if (c.status === "cancelled" || c.status === "blocked") continue;
         const p = computeCharterPnl(c);
-        yGross += p.gross_revenue;
-        yNet += p.net_revenue;
+        yBase += p.base_net;
+        yVat += p.vat_amount;
         yProfit += p.net_profit;
         yDays += p.days;
       }
@@ -417,16 +485,16 @@ export function buildFleetPdfHtml(input: FleetMonthInput): string {
       <table>
         <thead><tr>
           <th>Dates</th><th>Client</th>
-          <th class="num">Days</th><th class="num">Gross</th>
-          <th class="num">Net</th><th class="num">Profit</th>
+          <th class="num">Days</th><th class="num">Base net</th>
+          <th class="num">VAT</th><th class="num">Profit</th>
           <th>Status</th>
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr>
           <td colspan="2"><strong>Subtotal</strong></td>
           <td class="num"><strong>${yDays}</strong></td>
-          <td class="num"><strong>${escapeHtml(eur(yGross))}</strong></td>
-          <td class="num"><strong>${escapeHtml(eur(yNet))}</strong></td>
+          <td class="num"><strong>${escapeHtml(eur(yBase))}</strong></td>
+          <td class="num"><strong>${escapeHtml(eur(yVat))}</strong></td>
           <td class="num"><strong style="color:${yProfit >= 0 ? GREEN : RED}">${escapeHtml(eur(yProfit))}</strong></td>
           <td></td>
         </tr></tfoot>
@@ -471,15 +539,15 @@ export function buildFleetPdfHtml(input: FleetMonthInput): string {
 
     <div class="hero">
       <div><div class="kpi-label">Days booked</div><div class="kpi-value">${totDays}</div></div>
-      <div><div class="kpi-label">Gross revenue</div><div class="kpi-value">${escapeHtml(eur(totGross))}</div></div>
-      <div><div class="kpi-label">Net revenue</div><div class="kpi-value gold">${escapeHtml(eur(totNet))}</div></div>
+      <div><div class="kpi-label">Base net</div><div class="kpi-value gold">${escapeHtml(eur(totBaseNet))}</div></div>
+      <div><div class="kpi-label">Invoice incl. APA</div><div class="kpi-value">${escapeHtml(eur(totInvoice))}</div></div>
       <div><div class="kpi-label">Net profit</div><div class="kpi-value" style="color:${totProfitColor}">${escapeHtml(eur(totProfit))}</div></div>
     </div>
 
     ${yachtSections || `<div class="empty">No charters this month.</div>`}
 
     <div class="footer">
-      Excludes cancelled and blocked entries from totals · Indicative figures · Yachtworth
+      Excludes cancelled and blocked entries from totals · VAT shown separately (added on top) · APA is pass-through · Yachtworth
     </div>
   </div>
 </body></html>`;
@@ -523,29 +591,42 @@ export function buildFleetCsv(input: FleetMonthInput): string {
   const header = [
     "Yacht",
     "Status",
+    "Contract",
     "Start date",
     "End date",
     "Days",
     "Client",
+    "Contact",
     "Email",
     "Phone",
+    "Mooring",
     "Departure port",
     "Return port",
     "Rate type",
     "Rate (EUR)",
-    "Gross revenue",
+    "Base net",
     "VAT amount",
-    "Net revenue",
+    "Total to client",
+    "APA collected",
+    "Total invoice",
     "Fuel cost",
     "Crew cost",
     "Port fees",
     "Provisioning",
     "Cleaning",
     "Other",
-    "Total expenses",
+    "Transfer fee",
+    "Extra services",
+    "Damage",
+    "Refund",
+    "AA commission",
+    "Agent commission",
+    "Owner share",
     "Net profit",
     "Margin %",
   ];
+  const rateTypeLabel = (t: string) =>
+    t === "per_day" ? "Per day" : t === "per_week" ? "Per week" : "Fixed";
   const sorted = [...charters].sort((a, b) =>
     a.start_date.localeCompare(b.start_date),
   );
@@ -555,27 +636,38 @@ export function buildFleetCsv(input: FleetMonthInput): string {
     const p = computeCharterPnl(c);
     const row: (string | number | null)[] = [
       yachtTitle(y),
-      STATUS_LABEL[c.status] ?? c.status,
+      STATUS_LABEL[c.status ?? ""] ?? (c.status ?? ""),
+      CONTRACT_LABEL[c.contract_status ?? ""] ?? (c.contract_status ?? ""),
       fmtDateIso(c.start_date),
       fmtDateIso(c.end_date),
       p.days,
       c.client_name ?? null,
+      c.contact_name ?? null,
       c.client_email ?? null,
       c.client_phone ?? null,
+      c.mooring_port ?? null,
       c.departure_port ?? null,
       c.return_port ?? null,
-      c.charter_rate_type === "per_day" ? "Per day" : "Fixed",
+      rateTypeLabel(c.charter_rate_type),
       c.charter_rate ?? null,
-      p.gross_revenue.toFixed(2),
+      p.base_net.toFixed(2),
       p.vat_amount.toFixed(2),
-      p.net_revenue.toFixed(2),
+      p.total_to_client.toFixed(2),
+      p.apa_amount.toFixed(2),
+      p.total_invoice_to_client.toFixed(2),
       p.fuel_cost.toFixed(2),
       p.total_crew.toFixed(2),
-      p.port_fees.toFixed(2),
-      p.provisioning.toFixed(2),
-      p.cleaning.toFixed(2),
-      p.other_expenses.toFixed(2),
-      p.total_expenses.toFixed(2),
+      (c.port_fees ?? 0).toFixed(2),
+      (c.provisioning ?? 0).toFixed(2),
+      (c.cleaning ?? 0).toFixed(2),
+      (c.other_expenses ?? 0).toFixed(2),
+      (c.transfer_fee ?? 0).toFixed(2),
+      (c.extra_service_amount ?? 0).toFixed(2),
+      (c.damage_amount ?? 0).toFixed(2),
+      (c.refund_amount ?? 0).toFixed(2),
+      p.aa_commission.toFixed(2),
+      p.agent_commission.toFixed(2),
+      p.boat_owner_receives.toFixed(2),
       p.net_profit.toFixed(2),
       p.margin.toFixed(1),
     ];

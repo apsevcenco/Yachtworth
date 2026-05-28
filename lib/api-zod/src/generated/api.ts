@@ -1941,6 +1941,8 @@ export const ListChartersQueryParams = zod.object({
     .describe("ISO date — only charters whose start_date <= this"),
 });
 
+export const listChartersResponseItemsItemDistributionItemValueMin = 0;
+
 export const ListChartersResponse = zod.object({
   items: zod.array(
     zod.object({
@@ -1973,7 +1975,7 @@ export const ListChartersResponse = zod.object({
       stewardess_day_rate: zod.number().nullish(),
       extra_crew_cost: zod.number().nullish(),
       extra_crew_note: zod.string().nullish(),
-      charter_rate_type: zod.enum(["fixed", "per_day"]),
+      charter_rate_type: zod.enum(["fixed", "per_day", "per_week"]),
       charter_rate: zod.number().nullish(),
       deposit_amount: zod.number().nullish(),
       deposit_date: zod.string().nullish(),
@@ -1989,6 +1991,54 @@ export const ListChartersResponse = zod.object({
       other_expenses: zod.number(),
       other_expenses_note: zod.string().nullish(),
       notes: zod.string().nullish(),
+      contact_name: zod.string().nullish(),
+      contract_status: zod.enum(["not_signed", "sent", "signed"]).optional(),
+      contract_date: zod.string().nullish(),
+      mooring_port: zod.string().nullish(),
+      pickup_port: zod.string().nullish(),
+      dropoff_port: zod.string().nullish(),
+      transfer_fee: zod.number().optional(),
+      transfer_fee_note: zod.string().nullish(),
+      transfer_fee_paid_by: zod.enum(["client", "owner", "agent"]).optional(),
+      departure_time: zod.string().nullish(),
+      return_time: zod.string().nullish(),
+      apa_enabled: zod.boolean().optional(),
+      apa_percent: zod.number().optional(),
+      apa_amount: zod.number().optional(),
+      apa_fuel: zod.number().optional(),
+      apa_provisioning: zod.number().optional(),
+      apa_beverages: zod.number().optional(),
+      apa_marina_fees: zod.number().optional(),
+      apa_communications: zod.number().optional(),
+      apa_crew_gratuities: zod.number().optional(),
+      apa_activities: zod.number().optional(),
+      apa_activities_note: zod.string().nullish(),
+      apa_other: zod.number().optional(),
+      apa_other_note: zod.string().nullish(),
+      refund_amount: zod.number().optional(),
+      refund_reason: zod.string().nullish(),
+      extra_service_amount: zod.number().optional(),
+      extra_service_note: zod.string().nullish(),
+      damage_amount: zod.number().optional(),
+      damage_note: zod.string().nullish(),
+      damage_paid_by: zod.enum(["client", "insurance", "owner"]).optional(),
+      first_officer_name: zod.string().nullish(),
+      first_officer_day_rate: zod.number().optional(),
+      chef_included: zod.boolean().optional(),
+      chef_day_rate: zod.number().optional(),
+      deckhand_count: zod.number().optional(),
+      deckhand_day_rate: zod.number().optional(),
+      distribution: zod
+        .array(
+          zod.object({
+            name: zod.string(),
+            type: zod.enum(["percent", "fixed"]),
+            value: zod
+              .number()
+              .min(listChartersResponseItemsItemDistributionItemValueMin),
+          }),
+        )
+        .optional(),
     }),
   ),
 });
@@ -2029,6 +2079,46 @@ export const createCharterBodyProvisioningMin = 0;
 export const createCharterBodyCleaningMin = 0;
 
 export const createCharterBodyOtherExpensesMin = 0;
+
+export const createCharterBodyTransferFeeMin = 0;
+
+export const createCharterBodyApaPercentMin = 0;
+export const createCharterBodyApaPercentMax = 100;
+
+export const createCharterBodyApaAmountMin = 0;
+
+export const createCharterBodyApaFuelMin = 0;
+
+export const createCharterBodyApaProvisioningMin = 0;
+
+export const createCharterBodyApaBeveragesMin = 0;
+
+export const createCharterBodyApaMarinaFeesMin = 0;
+
+export const createCharterBodyApaCommunicationsMin = 0;
+
+export const createCharterBodyApaCrewGratuitiesMin = 0;
+
+export const createCharterBodyApaActivitiesMin = 0;
+
+export const createCharterBodyApaOtherMin = 0;
+
+export const createCharterBodyRefundAmountMin = 0;
+
+export const createCharterBodyExtraServiceAmountMin = 0;
+
+export const createCharterBodyDamageAmountMin = 0;
+
+export const createCharterBodyFirstOfficerDayRateMin = 0;
+
+export const createCharterBodyChefDayRateMin = 0;
+
+export const createCharterBodyDeckhandCountMin = 0;
+export const createCharterBodyDeckhandCountMax = 20;
+
+export const createCharterBodyDeckhandDayRateMin = 0;
+
+export const createCharterBodyDistributionItemValueMin = 0;
 
 export const CreateCharterBody = zod.object({
   yacht_id: zod.string(),
@@ -2084,7 +2174,7 @@ export const CreateCharterBody = zod.object({
     .nullish(),
   extra_crew_note: zod.string().nullish(),
   charter_rate_type: zod
-    .union([zod.enum(["fixed", "per_day"]), zod.null()])
+    .union([zod.enum(["fixed", "per_day", "per_week"]), zod.null()])
     .optional(),
   charter_rate: zod.number().min(createCharterBodyCharterRateMin).nullish(),
   deposit_amount: zod.number().min(createCharterBodyDepositAmountMin).nullish(),
@@ -2108,6 +2198,87 @@ export const CreateCharterBody = zod.object({
   other_expenses: zod.number().min(createCharterBodyOtherExpensesMin).nullish(),
   other_expenses_note: zod.string().nullish(),
   notes: zod.string().nullish(),
+  contact_name: zod.string().nullish(),
+  contract_status: zod
+    .union([zod.enum(["not_signed", "sent", "signed"]), zod.null()])
+    .optional(),
+  contract_date: zod.string().nullish(),
+  mooring_port: zod.string().nullish(),
+  pickup_port: zod.string().nullish(),
+  dropoff_port: zod.string().nullish(),
+  transfer_fee: zod.number().min(createCharterBodyTransferFeeMin).nullish(),
+  transfer_fee_note: zod.string().nullish(),
+  transfer_fee_paid_by: zod
+    .union([zod.enum(["client", "owner", "agent"]), zod.null()])
+    .optional(),
+  departure_time: zod.string().nullish(),
+  return_time: zod.string().nullish(),
+  apa_enabled: zod.boolean().nullish(),
+  apa_percent: zod
+    .number()
+    .min(createCharterBodyApaPercentMin)
+    .max(createCharterBodyApaPercentMax)
+    .nullish(),
+  apa_amount: zod.number().min(createCharterBodyApaAmountMin).nullish(),
+  apa_fuel: zod.number().min(createCharterBodyApaFuelMin).nullish(),
+  apa_provisioning: zod
+    .number()
+    .min(createCharterBodyApaProvisioningMin)
+    .nullish(),
+  apa_beverages: zod.number().min(createCharterBodyApaBeveragesMin).nullish(),
+  apa_marina_fees: zod
+    .number()
+    .min(createCharterBodyApaMarinaFeesMin)
+    .nullish(),
+  apa_communications: zod
+    .number()
+    .min(createCharterBodyApaCommunicationsMin)
+    .nullish(),
+  apa_crew_gratuities: zod
+    .number()
+    .min(createCharterBodyApaCrewGratuitiesMin)
+    .nullish(),
+  apa_activities: zod.number().min(createCharterBodyApaActivitiesMin).nullish(),
+  apa_activities_note: zod.string().nullish(),
+  apa_other: zod.number().min(createCharterBodyApaOtherMin).nullish(),
+  apa_other_note: zod.string().nullish(),
+  refund_amount: zod.number().min(createCharterBodyRefundAmountMin).nullish(),
+  refund_reason: zod.string().nullish(),
+  extra_service_amount: zod
+    .number()
+    .min(createCharterBodyExtraServiceAmountMin)
+    .nullish(),
+  extra_service_note: zod.string().nullish(),
+  damage_amount: zod.number().min(createCharterBodyDamageAmountMin).nullish(),
+  damage_note: zod.string().nullish(),
+  damage_paid_by: zod
+    .union([zod.enum(["client", "insurance", "owner"]), zod.null()])
+    .optional(),
+  first_officer_name: zod.string().nullish(),
+  first_officer_day_rate: zod
+    .number()
+    .min(createCharterBodyFirstOfficerDayRateMin)
+    .nullish(),
+  chef_included: zod.boolean().nullish(),
+  chef_day_rate: zod.number().min(createCharterBodyChefDayRateMin).nullish(),
+  deckhand_count: zod
+    .number()
+    .min(createCharterBodyDeckhandCountMin)
+    .max(createCharterBodyDeckhandCountMax)
+    .nullish(),
+  deckhand_day_rate: zod
+    .number()
+    .min(createCharterBodyDeckhandDayRateMin)
+    .nullish(),
+  distribution: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent", "fixed"]),
+        value: zod.number().min(createCharterBodyDistributionItemValueMin),
+      }),
+    )
+    .nullish(),
 });
 
 /**
@@ -2116,6 +2287,8 @@ export const CreateCharterBody = zod.object({
 export const GetCharterParams = zod.object({
   id: zod.coerce.string(),
 });
+
+export const getCharterResponseDistributionItemValueMin = 0;
 
 export const GetCharterResponse = zod.object({
   id: zod.string(),
@@ -2147,7 +2320,7 @@ export const GetCharterResponse = zod.object({
   stewardess_day_rate: zod.number().nullish(),
   extra_crew_cost: zod.number().nullish(),
   extra_crew_note: zod.string().nullish(),
-  charter_rate_type: zod.enum(["fixed", "per_day"]),
+  charter_rate_type: zod.enum(["fixed", "per_day", "per_week"]),
   charter_rate: zod.number().nullish(),
   deposit_amount: zod.number().nullish(),
   deposit_date: zod.string().nullish(),
@@ -2163,6 +2336,52 @@ export const GetCharterResponse = zod.object({
   other_expenses: zod.number(),
   other_expenses_note: zod.string().nullish(),
   notes: zod.string().nullish(),
+  contact_name: zod.string().nullish(),
+  contract_status: zod.enum(["not_signed", "sent", "signed"]).optional(),
+  contract_date: zod.string().nullish(),
+  mooring_port: zod.string().nullish(),
+  pickup_port: zod.string().nullish(),
+  dropoff_port: zod.string().nullish(),
+  transfer_fee: zod.number().optional(),
+  transfer_fee_note: zod.string().nullish(),
+  transfer_fee_paid_by: zod.enum(["client", "owner", "agent"]).optional(),
+  departure_time: zod.string().nullish(),
+  return_time: zod.string().nullish(),
+  apa_enabled: zod.boolean().optional(),
+  apa_percent: zod.number().optional(),
+  apa_amount: zod.number().optional(),
+  apa_fuel: zod.number().optional(),
+  apa_provisioning: zod.number().optional(),
+  apa_beverages: zod.number().optional(),
+  apa_marina_fees: zod.number().optional(),
+  apa_communications: zod.number().optional(),
+  apa_crew_gratuities: zod.number().optional(),
+  apa_activities: zod.number().optional(),
+  apa_activities_note: zod.string().nullish(),
+  apa_other: zod.number().optional(),
+  apa_other_note: zod.string().nullish(),
+  refund_amount: zod.number().optional(),
+  refund_reason: zod.string().nullish(),
+  extra_service_amount: zod.number().optional(),
+  extra_service_note: zod.string().nullish(),
+  damage_amount: zod.number().optional(),
+  damage_note: zod.string().nullish(),
+  damage_paid_by: zod.enum(["client", "insurance", "owner"]).optional(),
+  first_officer_name: zod.string().nullish(),
+  first_officer_day_rate: zod.number().optional(),
+  chef_included: zod.boolean().optional(),
+  chef_day_rate: zod.number().optional(),
+  deckhand_count: zod.number().optional(),
+  deckhand_day_rate: zod.number().optional(),
+  distribution: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent", "fixed"]),
+        value: zod.number().min(getCharterResponseDistributionItemValueMin),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -2205,6 +2424,46 @@ export const updateCharterBodyProvisioningMin = 0;
 export const updateCharterBodyCleaningMin = 0;
 
 export const updateCharterBodyOtherExpensesMin = 0;
+
+export const updateCharterBodyTransferFeeMin = 0;
+
+export const updateCharterBodyApaPercentMin = 0;
+export const updateCharterBodyApaPercentMax = 100;
+
+export const updateCharterBodyApaAmountMin = 0;
+
+export const updateCharterBodyApaFuelMin = 0;
+
+export const updateCharterBodyApaProvisioningMin = 0;
+
+export const updateCharterBodyApaBeveragesMin = 0;
+
+export const updateCharterBodyApaMarinaFeesMin = 0;
+
+export const updateCharterBodyApaCommunicationsMin = 0;
+
+export const updateCharterBodyApaCrewGratuitiesMin = 0;
+
+export const updateCharterBodyApaActivitiesMin = 0;
+
+export const updateCharterBodyApaOtherMin = 0;
+
+export const updateCharterBodyRefundAmountMin = 0;
+
+export const updateCharterBodyExtraServiceAmountMin = 0;
+
+export const updateCharterBodyDamageAmountMin = 0;
+
+export const updateCharterBodyFirstOfficerDayRateMin = 0;
+
+export const updateCharterBodyChefDayRateMin = 0;
+
+export const updateCharterBodyDeckhandCountMin = 0;
+export const updateCharterBodyDeckhandCountMax = 20;
+
+export const updateCharterBodyDeckhandDayRateMin = 0;
+
+export const updateCharterBodyDistributionItemValueMin = 0;
 
 export const UpdateCharterBody = zod.object({
   yacht_id: zod.string(),
@@ -2260,7 +2519,7 @@ export const UpdateCharterBody = zod.object({
     .nullish(),
   extra_crew_note: zod.string().nullish(),
   charter_rate_type: zod
-    .union([zod.enum(["fixed", "per_day"]), zod.null()])
+    .union([zod.enum(["fixed", "per_day", "per_week"]), zod.null()])
     .optional(),
   charter_rate: zod.number().min(updateCharterBodyCharterRateMin).nullish(),
   deposit_amount: zod.number().min(updateCharterBodyDepositAmountMin).nullish(),
@@ -2284,7 +2543,90 @@ export const UpdateCharterBody = zod.object({
   other_expenses: zod.number().min(updateCharterBodyOtherExpensesMin).nullish(),
   other_expenses_note: zod.string().nullish(),
   notes: zod.string().nullish(),
+  contact_name: zod.string().nullish(),
+  contract_status: zod
+    .union([zod.enum(["not_signed", "sent", "signed"]), zod.null()])
+    .optional(),
+  contract_date: zod.string().nullish(),
+  mooring_port: zod.string().nullish(),
+  pickup_port: zod.string().nullish(),
+  dropoff_port: zod.string().nullish(),
+  transfer_fee: zod.number().min(updateCharterBodyTransferFeeMin).nullish(),
+  transfer_fee_note: zod.string().nullish(),
+  transfer_fee_paid_by: zod
+    .union([zod.enum(["client", "owner", "agent"]), zod.null()])
+    .optional(),
+  departure_time: zod.string().nullish(),
+  return_time: zod.string().nullish(),
+  apa_enabled: zod.boolean().nullish(),
+  apa_percent: zod
+    .number()
+    .min(updateCharterBodyApaPercentMin)
+    .max(updateCharterBodyApaPercentMax)
+    .nullish(),
+  apa_amount: zod.number().min(updateCharterBodyApaAmountMin).nullish(),
+  apa_fuel: zod.number().min(updateCharterBodyApaFuelMin).nullish(),
+  apa_provisioning: zod
+    .number()
+    .min(updateCharterBodyApaProvisioningMin)
+    .nullish(),
+  apa_beverages: zod.number().min(updateCharterBodyApaBeveragesMin).nullish(),
+  apa_marina_fees: zod
+    .number()
+    .min(updateCharterBodyApaMarinaFeesMin)
+    .nullish(),
+  apa_communications: zod
+    .number()
+    .min(updateCharterBodyApaCommunicationsMin)
+    .nullish(),
+  apa_crew_gratuities: zod
+    .number()
+    .min(updateCharterBodyApaCrewGratuitiesMin)
+    .nullish(),
+  apa_activities: zod.number().min(updateCharterBodyApaActivitiesMin).nullish(),
+  apa_activities_note: zod.string().nullish(),
+  apa_other: zod.number().min(updateCharterBodyApaOtherMin).nullish(),
+  apa_other_note: zod.string().nullish(),
+  refund_amount: zod.number().min(updateCharterBodyRefundAmountMin).nullish(),
+  refund_reason: zod.string().nullish(),
+  extra_service_amount: zod
+    .number()
+    .min(updateCharterBodyExtraServiceAmountMin)
+    .nullish(),
+  extra_service_note: zod.string().nullish(),
+  damage_amount: zod.number().min(updateCharterBodyDamageAmountMin).nullish(),
+  damage_note: zod.string().nullish(),
+  damage_paid_by: zod
+    .union([zod.enum(["client", "insurance", "owner"]), zod.null()])
+    .optional(),
+  first_officer_name: zod.string().nullish(),
+  first_officer_day_rate: zod
+    .number()
+    .min(updateCharterBodyFirstOfficerDayRateMin)
+    .nullish(),
+  chef_included: zod.boolean().nullish(),
+  chef_day_rate: zod.number().min(updateCharterBodyChefDayRateMin).nullish(),
+  deckhand_count: zod
+    .number()
+    .min(updateCharterBodyDeckhandCountMin)
+    .max(updateCharterBodyDeckhandCountMax)
+    .nullish(),
+  deckhand_day_rate: zod
+    .number()
+    .min(updateCharterBodyDeckhandDayRateMin)
+    .nullish(),
+  distribution: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent", "fixed"]),
+        value: zod.number().min(updateCharterBodyDistributionItemValueMin),
+      }),
+    )
+    .nullish(),
 });
+
+export const updateCharterResponseDistributionItemValueMin = 0;
 
 export const UpdateCharterResponse = zod.object({
   id: zod.string(),
@@ -2316,7 +2658,7 @@ export const UpdateCharterResponse = zod.object({
   stewardess_day_rate: zod.number().nullish(),
   extra_crew_cost: zod.number().nullish(),
   extra_crew_note: zod.string().nullish(),
-  charter_rate_type: zod.enum(["fixed", "per_day"]),
+  charter_rate_type: zod.enum(["fixed", "per_day", "per_week"]),
   charter_rate: zod.number().nullish(),
   deposit_amount: zod.number().nullish(),
   deposit_date: zod.string().nullish(),
@@ -2332,6 +2674,52 @@ export const UpdateCharterResponse = zod.object({
   other_expenses: zod.number(),
   other_expenses_note: zod.string().nullish(),
   notes: zod.string().nullish(),
+  contact_name: zod.string().nullish(),
+  contract_status: zod.enum(["not_signed", "sent", "signed"]).optional(),
+  contract_date: zod.string().nullish(),
+  mooring_port: zod.string().nullish(),
+  pickup_port: zod.string().nullish(),
+  dropoff_port: zod.string().nullish(),
+  transfer_fee: zod.number().optional(),
+  transfer_fee_note: zod.string().nullish(),
+  transfer_fee_paid_by: zod.enum(["client", "owner", "agent"]).optional(),
+  departure_time: zod.string().nullish(),
+  return_time: zod.string().nullish(),
+  apa_enabled: zod.boolean().optional(),
+  apa_percent: zod.number().optional(),
+  apa_amount: zod.number().optional(),
+  apa_fuel: zod.number().optional(),
+  apa_provisioning: zod.number().optional(),
+  apa_beverages: zod.number().optional(),
+  apa_marina_fees: zod.number().optional(),
+  apa_communications: zod.number().optional(),
+  apa_crew_gratuities: zod.number().optional(),
+  apa_activities: zod.number().optional(),
+  apa_activities_note: zod.string().nullish(),
+  apa_other: zod.number().optional(),
+  apa_other_note: zod.string().nullish(),
+  refund_amount: zod.number().optional(),
+  refund_reason: zod.string().nullish(),
+  extra_service_amount: zod.number().optional(),
+  extra_service_note: zod.string().nullish(),
+  damage_amount: zod.number().optional(),
+  damage_note: zod.string().nullish(),
+  damage_paid_by: zod.enum(["client", "insurance", "owner"]).optional(),
+  first_officer_name: zod.string().nullish(),
+  first_officer_day_rate: zod.number().optional(),
+  chef_included: zod.boolean().optional(),
+  chef_day_rate: zod.number().optional(),
+  deckhand_count: zod.number().optional(),
+  deckhand_day_rate: zod.number().optional(),
+  distribution: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent", "fixed"]),
+        value: zod.number().min(updateCharterResponseDistributionItemValueMin),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -2368,6 +2756,8 @@ export const ListClientsResponse = zod.object({
 export const GetClientParams = zod.object({
   id: zod.coerce.string(),
 });
+
+export const getClientResponseChartersItemDistributionItemValueMin = 0;
 
 export const GetClientResponse = zod.object({
   client: zod.object({
@@ -2414,7 +2804,7 @@ export const GetClientResponse = zod.object({
       stewardess_day_rate: zod.number().nullish(),
       extra_crew_cost: zod.number().nullish(),
       extra_crew_note: zod.string().nullish(),
-      charter_rate_type: zod.enum(["fixed", "per_day"]),
+      charter_rate_type: zod.enum(["fixed", "per_day", "per_week"]),
       charter_rate: zod.number().nullish(),
       deposit_amount: zod.number().nullish(),
       deposit_date: zod.string().nullish(),
@@ -2430,6 +2820,54 @@ export const GetClientResponse = zod.object({
       other_expenses: zod.number(),
       other_expenses_note: zod.string().nullish(),
       notes: zod.string().nullish(),
+      contact_name: zod.string().nullish(),
+      contract_status: zod.enum(["not_signed", "sent", "signed"]).optional(),
+      contract_date: zod.string().nullish(),
+      mooring_port: zod.string().nullish(),
+      pickup_port: zod.string().nullish(),
+      dropoff_port: zod.string().nullish(),
+      transfer_fee: zod.number().optional(),
+      transfer_fee_note: zod.string().nullish(),
+      transfer_fee_paid_by: zod.enum(["client", "owner", "agent"]).optional(),
+      departure_time: zod.string().nullish(),
+      return_time: zod.string().nullish(),
+      apa_enabled: zod.boolean().optional(),
+      apa_percent: zod.number().optional(),
+      apa_amount: zod.number().optional(),
+      apa_fuel: zod.number().optional(),
+      apa_provisioning: zod.number().optional(),
+      apa_beverages: zod.number().optional(),
+      apa_marina_fees: zod.number().optional(),
+      apa_communications: zod.number().optional(),
+      apa_crew_gratuities: zod.number().optional(),
+      apa_activities: zod.number().optional(),
+      apa_activities_note: zod.string().nullish(),
+      apa_other: zod.number().optional(),
+      apa_other_note: zod.string().nullish(),
+      refund_amount: zod.number().optional(),
+      refund_reason: zod.string().nullish(),
+      extra_service_amount: zod.number().optional(),
+      extra_service_note: zod.string().nullish(),
+      damage_amount: zod.number().optional(),
+      damage_note: zod.string().nullish(),
+      damage_paid_by: zod.enum(["client", "insurance", "owner"]).optional(),
+      first_officer_name: zod.string().nullish(),
+      first_officer_day_rate: zod.number().optional(),
+      chef_included: zod.boolean().optional(),
+      chef_day_rate: zod.number().optional(),
+      deckhand_count: zod.number().optional(),
+      deckhand_day_rate: zod.number().optional(),
+      distribution: zod
+        .array(
+          zod.object({
+            name: zod.string(),
+            type: zod.enum(["percent", "fixed"]),
+            value: zod
+              .number()
+              .min(getClientResponseChartersItemDistributionItemValueMin),
+          }),
+        )
+        .optional(),
     }),
   ),
 });

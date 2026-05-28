@@ -1871,7 +1871,30 @@ components:
       enum: [confirmed, tentative, maintenance, blocked, cancelled]
     CharterRateType:
       type: string
-      enum: [fixed, per_day]
+      enum: [fixed, per_day, per_week]
+    ContractStatus:
+      type: string
+      enum: [not_signed, sent, signed]
+    TransferPaidBy:
+      type: string
+      enum: [client, owner, agent]
+    DamagePaidBy:
+      type: string
+      enum: [client, insurance, owner]
+    DistributionSplitType:
+      type: string
+      enum: [percent, fixed]
+    CharterDistributionEntry:
+      type: object
+      required: [name, type, value]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/DistributionSplitType"
+        value:
+          type: number
+          minimum: 0
     CharterInput:
       type: object
       required: [yacht_id, start_date, end_date]
@@ -1970,6 +1993,111 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        # — Phase 3.1 (May 2026 update) —
+        contact_name:
+          type: ["string", "null"]
+        contract_status:
+          oneOf:
+            - $ref: "#/components/schemas/ContractStatus"
+            - type: "null"
+        contract_date:
+          type: ["string", "null"]
+        mooring_port:
+          type: ["string", "null"]
+        pickup_port:
+          type: ["string", "null"]
+        dropoff_port:
+          type: ["string", "null"]
+        transfer_fee:
+          type: ["number", "null"]
+          minimum: 0
+        transfer_fee_note:
+          type: ["string", "null"]
+        transfer_fee_paid_by:
+          oneOf:
+            - $ref: "#/components/schemas/TransferPaidBy"
+            - type: "null"
+        departure_time:
+          type: ["string", "null"]
+        return_time:
+          type: ["string", "null"]
+        apa_enabled:
+          type: ["boolean", "null"]
+        apa_percent:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+        apa_amount:
+          type: ["number", "null"]
+          minimum: 0
+        apa_fuel:
+          type: ["number", "null"]
+          minimum: 0
+        apa_provisioning:
+          type: ["number", "null"]
+          minimum: 0
+        apa_beverages:
+          type: ["number", "null"]
+          minimum: 0
+        apa_marina_fees:
+          type: ["number", "null"]
+          minimum: 0
+        apa_communications:
+          type: ["number", "null"]
+          minimum: 0
+        apa_crew_gratuities:
+          type: ["number", "null"]
+          minimum: 0
+        apa_activities:
+          type: ["number", "null"]
+          minimum: 0
+        apa_activities_note:
+          type: ["string", "null"]
+        apa_other:
+          type: ["number", "null"]
+          minimum: 0
+        apa_other_note:
+          type: ["string", "null"]
+        refund_amount:
+          type: ["number", "null"]
+          minimum: 0
+        refund_reason:
+          type: ["string", "null"]
+        extra_service_amount:
+          type: ["number", "null"]
+          minimum: 0
+        extra_service_note:
+          type: ["string", "null"]
+        damage_amount:
+          type: ["number", "null"]
+          minimum: 0
+        damage_note:
+          type: ["string", "null"]
+        damage_paid_by:
+          oneOf:
+            - $ref: "#/components/schemas/DamagePaidBy"
+            - type: "null"
+        first_officer_name:
+          type: ["string", "null"]
+        first_officer_day_rate:
+          type: ["number", "null"]
+          minimum: 0
+        chef_included:
+          type: ["boolean", "null"]
+        chef_day_rate:
+          type: ["number", "null"]
+          minimum: 0
+        deckhand_count:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 20
+        deckhand_day_rate:
+          type: ["number", "null"]
+          minimum: 0
+        distribution:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/CharterDistributionEntry"
     Charter:
       type: object
       required:
@@ -2070,6 +2198,85 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        # — Phase 3.1 fields —
+        contact_name:
+          type: ["string", "null"]
+        contract_status:
+          $ref: "#/components/schemas/ContractStatus"
+        contract_date:
+          type: ["string", "null"]
+        mooring_port:
+          type: ["string", "null"]
+        pickup_port:
+          type: ["string", "null"]
+        dropoff_port:
+          type: ["string", "null"]
+        transfer_fee:
+          type: number
+        transfer_fee_note:
+          type: ["string", "null"]
+        transfer_fee_paid_by:
+          $ref: "#/components/schemas/TransferPaidBy"
+        departure_time:
+          type: ["string", "null"]
+        return_time:
+          type: ["string", "null"]
+        apa_enabled:
+          type: boolean
+        apa_percent:
+          type: number
+        apa_amount:
+          type: number
+        apa_fuel:
+          type: number
+        apa_provisioning:
+          type: number
+        apa_beverages:
+          type: number
+        apa_marina_fees:
+          type: number
+        apa_communications:
+          type: number
+        apa_crew_gratuities:
+          type: number
+        apa_activities:
+          type: number
+        apa_activities_note:
+          type: ["string", "null"]
+        apa_other:
+          type: number
+        apa_other_note:
+          type: ["string", "null"]
+        refund_amount:
+          type: number
+        refund_reason:
+          type: ["string", "null"]
+        extra_service_amount:
+          type: number
+        extra_service_note:
+          type: ["string", "null"]
+        damage_amount:
+          type: number
+        damage_note:
+          type: ["string", "null"]
+        damage_paid_by:
+          $ref: "#/components/schemas/DamagePaidBy"
+        first_officer_name:
+          type: ["string", "null"]
+        first_officer_day_rate:
+          type: number
+        chef_included:
+          type: boolean
+        chef_day_rate:
+          type: number
+        deckhand_count:
+          type: integer
+        deckhand_day_rate:
+          type: number
+        distribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/CharterDistributionEntry"
     CharterListResponse:
       type: object
       required: [items]

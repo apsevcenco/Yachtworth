@@ -7,6 +7,7 @@
  */
 
 export * from "./charter";
+export * from "./charterDistributionEntry";
 export * from "./charterInput";
 export * from "./charterListResponse";
 export * from "./charterRateType";
@@ -17,6 +18,7 @@ export * from "./client";
 export * from "./clientDetail";
 export * from "./clientListResponse";
 export * from "./comparable";
+export * from "./contractStatus";
 export * from "./costAnnualExpenses";
 export * from "./costBreakdownEntry";
 export * from "./costCategorySummary";
@@ -31,6 +33,8 @@ export * from "./costFinancingType";
 export * from "./costMonthlyExpenses";
 export * from "./crewMember";
 export * from "./crewPositionInput";
+export * from "./damagePaidBy";
+export * from "./distributionSplitType";
 export * from "./engineConfig";
 export * from "./errorResponse";
 export * from "./estimateDetail";
@@ -55,6 +59,7 @@ export * from "./roiCalculationListResponse";
 export * from "./roiCalculationMarketRating";
 export * from "./roiComparable";
 export * from "./saleRegion";
+export * from "./transferPaidBy";
 export * from "./usageType";
 export * from "./valuation";
 export * from "./valuationConfidence";

@@ -12,6 +12,10 @@ import {
   type CharterInput,
   type CharterStatus,
   type CharterRateType,
+  type ContractStatus,
+  type TransferPaidBy,
+  type DamagePaidBy,
+  type CharterDistributionEntry,
   type Yacht,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,8 +35,17 @@ import {
   TextInput,
   View,
 } from "react-native";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { exportCharterPdf } from "../lib/charterExports";
+import {
+  calcCharter,
+  DEFAULT_DISTRIBUTION,
+  type CharterCalcInput,
+  type DistributionEntry,
+} from "../lib/charterCalc";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -58,35 +71,79 @@ const STATUS_OPTIONS: { value: CharterStatus; label: string; color: string }[] =
     { value: "cancelled", label: "Cancelled", color: DARK_GREY },
   ];
 
+const CONTRACT_OPTIONS: { value: ContractStatus; label: string }[] = [
+  { value: "not_signed", label: "Not signed" },
+  { value: "sent", label: "Sent" },
+  { value: "signed", label: "Signed" },
+];
+
+const TRANSFER_PAID_OPTIONS: { value: TransferPaidBy; label: string }[] = [
+  { value: "client", label: "Client" },
+  { value: "owner", label: "Owner" },
+  { value: "agent", label: "Agent" },
+];
+
+const DAMAGE_PAID_OPTIONS: { value: DamagePaidBy; label: string }[] = [
+  { value: "client", label: "Client" },
+  { value: "insurance", label: "Insurance" },
+  { value: "owner", label: "Owner" },
+];
+
 type SectionId =
   | "basics"
+  | "logistics"
   | "vessel"
   | "crew"
   | "revenue"
+  | "apa"
   | "expenses"
+  | "extras"
+  | "distribution"
   | "pl"
   | "notes";
 
 type FormState = {
+  // Basics
   yacht_id: string;
   status: CharterStatus;
   client_name: string;
+  contact_name: string;
   client_email: string;
   client_phone: string;
   start_date: string;
   end_date: string;
+  departure_time: string;
+  return_time: string;
+  contract_status: ContractStatus;
+  contract_date: string;
+  // Logistics
   departure_port: string;
   return_port: string;
+  mooring_port: string;
+  pickup_port: string;
+  dropoff_port: string;
+  transfer_fee: string;
+  transfer_fee_note: string;
+  transfer_fee_paid_by: TransferPaidBy;
+  // Vessel
   engine_hours_before: string;
   engine_hours_after: string;
   fuel_liters: string;
   fuel_price_per_liter: string;
+  // Crew
   captain_name: string;
   captain_day_rate: string;
+  first_officer_name: string;
+  first_officer_day_rate: string;
   stewardess_count: number;
   stewardess_day_rate: string;
+  chef_included: boolean;
+  chef_day_rate: string;
+  deckhand_count: number;
+  deckhand_day_rate: string;
   extra_crew_cost: string;
   extra_crew_note: string;
+  // Revenue
   charter_rate_type: CharterRateType;
   charter_rate: string;
   deposit_amount: string;
@@ -97,11 +154,36 @@ type FormState = {
   final_payment_received: boolean;
   vat_applicable: boolean;
   vat_percent: string;
+  // APA
+  apa_enabled: boolean;
+  apa_percent: string;
+  apa_fuel: string;
+  apa_provisioning: string;
+  apa_beverages: string;
+  apa_marina_fees: string;
+  apa_communications: string;
+  apa_crew_gratuities: string;
+  apa_activities: string;
+  apa_activities_note: string;
+  apa_other: string;
+  apa_other_note: string;
+  // Expenses (owner-side)
   port_fees: string;
   provisioning: string;
   cleaning: string;
   other_expenses: string;
   other_expenses_note: string;
+  // Extras / damage / refund
+  extra_service_amount: string;
+  extra_service_note: string;
+  damage_amount: string;
+  damage_note: string;
+  damage_paid_by: DamagePaidBy;
+  refund_amount: string;
+  refund_reason: string;
+  // Distribution
+  distribution: DistributionEntry[];
+  // Notes
   notes: string;
 };
 
@@ -109,20 +191,37 @@ const emptyForm = (yachtId = ""): FormState => ({
   yacht_id: yachtId,
   status: "confirmed",
   client_name: "",
+  contact_name: "",
   client_email: "",
   client_phone: "",
   start_date: "",
   end_date: "",
+  departure_time: "",
+  return_time: "",
+  contract_status: "not_signed",
+  contract_date: "",
   departure_port: "",
   return_port: "",
+  mooring_port: "",
+  pickup_port: "",
+  dropoff_port: "",
+  transfer_fee: "",
+  transfer_fee_note: "",
+  transfer_fee_paid_by: "client",
   engine_hours_before: "",
   engine_hours_after: "",
   fuel_liters: "",
   fuel_price_per_liter: "",
   captain_name: "",
   captain_day_rate: "",
+  first_officer_name: "",
+  first_officer_day_rate: "",
   stewardess_count: 0,
   stewardess_day_rate: "",
+  chef_included: false,
+  chef_day_rate: "",
+  deckhand_count: 0,
+  deckhand_day_rate: "",
   extra_crew_cost: "",
   extra_crew_note: "",
   charter_rate_type: "fixed",
@@ -135,53 +234,121 @@ const emptyForm = (yachtId = ""): FormState => ({
   final_payment_received: false,
   vat_applicable: false,
   vat_percent: "",
+  apa_enabled: false,
+  apa_percent: "30",
+  apa_fuel: "",
+  apa_provisioning: "",
+  apa_beverages: "",
+  apa_marina_fees: "",
+  apa_communications: "",
+  apa_crew_gratuities: "",
+  apa_activities: "",
+  apa_activities_note: "",
+  apa_other: "",
+  apa_other_note: "",
   port_fees: "",
   provisioning: "",
   cleaning: "",
   other_expenses: "",
   other_expenses_note: "",
+  extra_service_amount: "",
+  extra_service_note: "",
+  damage_amount: "",
+  damage_note: "",
+  damage_paid_by: "client",
+  refund_amount: "",
+  refund_reason: "",
+  distribution: DEFAULT_DISTRIBUTION.map((d) => ({ ...d })),
   notes: "",
 });
 
 function fromCharter(c: Charter): FormState {
+  const dist = Array.isArray(c.distribution) ? c.distribution : [];
   return {
     yacht_id: c.yacht_id,
     status: c.status,
     client_name: c.client_name ?? "",
+    contact_name: c.contact_name ?? "",
     client_email: c.client_email ?? "",
     client_phone: c.client_phone ?? "",
     start_date: c.start_date,
     end_date: c.end_date,
+    departure_time: c.departure_time ?? "",
+    return_time: c.return_time ?? "",
+    contract_status: c.contract_status ?? "not_signed",
+    contract_date: c.contract_date ?? "",
     departure_port: c.departure_port ?? "",
     return_port: c.return_port ?? "",
+    mooring_port: c.mooring_port ?? "",
+    pickup_port: c.pickup_port ?? "",
+    dropoff_port: c.dropoff_port ?? "",
+    transfer_fee: c.transfer_fee != null ? c.transfer_fee.toString() : "",
+    transfer_fee_note: c.transfer_fee_note ?? "",
+    transfer_fee_paid_by: c.transfer_fee_paid_by ?? "client",
     engine_hours_before: c.engine_hours_before?.toString() ?? "",
     engine_hours_after: c.engine_hours_after?.toString() ?? "",
     fuel_liters: c.fuel_liters?.toString() ?? "",
     fuel_price_per_liter: c.fuel_price_per_liter?.toString() ?? "",
     captain_name: c.captain_name ?? "",
     captain_day_rate: c.captain_day_rate?.toString() ?? "",
+    first_officer_name: c.first_officer_name ?? "",
+    first_officer_day_rate: c.first_officer_day_rate != null ? c.first_officer_day_rate.toString() : "",
     stewardess_count: c.stewardess_count ?? 0,
     stewardess_day_rate: c.stewardess_day_rate?.toString() ?? "",
+    chef_included: c.chef_included ?? false,
+    chef_day_rate: c.chef_day_rate != null ? c.chef_day_rate.toString() : "",
+    deckhand_count: c.deckhand_count ?? 0,
+    deckhand_day_rate: c.deckhand_day_rate != null ? c.deckhand_day_rate.toString() : "",
     extra_crew_cost: c.extra_crew_cost?.toString() ?? "",
     extra_crew_note: c.extra_crew_note ?? "",
     charter_rate_type: c.charter_rate_type,
     charter_rate: c.charter_rate?.toString() ?? "",
     deposit_amount: c.deposit_amount?.toString() ?? "",
     deposit_date: c.deposit_date ?? "",
-    deposit_received: c.deposit_received,
+    deposit_received: c.deposit_received ?? false,
     final_payment_amount: c.final_payment_amount?.toString() ?? "",
     final_payment_date: c.final_payment_date ?? "",
-    final_payment_received: c.final_payment_received,
-    vat_applicable: c.vat_applicable,
+    final_payment_received: c.final_payment_received ?? false,
+    vat_applicable: c.vat_applicable ?? false,
     vat_percent: c.vat_percent?.toString() ?? "",
+    apa_enabled: c.apa_enabled ?? false,
+    apa_percent: c.apa_percent != null ? c.apa_percent.toString() : "30",
+    apa_fuel: c.apa_fuel != null ? c.apa_fuel.toString() : "",
+    apa_provisioning: c.apa_provisioning != null ? c.apa_provisioning.toString() : "",
+    apa_beverages: c.apa_beverages != null ? c.apa_beverages.toString() : "",
+    apa_marina_fees: c.apa_marina_fees != null ? c.apa_marina_fees.toString() : "",
+    apa_communications: c.apa_communications != null ? c.apa_communications.toString() : "",
+    apa_crew_gratuities: c.apa_crew_gratuities != null ? c.apa_crew_gratuities.toString() : "",
+    apa_activities: c.apa_activities != null ? c.apa_activities.toString() : "",
+    apa_activities_note: c.apa_activities_note ?? "",
+    apa_other: c.apa_other != null ? c.apa_other.toString() : "",
+    apa_other_note: c.apa_other_note ?? "",
     port_fees: c.port_fees?.toString() ?? "",
     provisioning: c.provisioning?.toString() ?? "",
     cleaning: c.cleaning?.toString() ?? "",
     other_expenses: c.other_expenses?.toString() ?? "",
     other_expenses_note: c.other_expenses_note ?? "",
+    extra_service_amount: c.extra_service_amount != null ? c.extra_service_amount.toString() : "",
+    extra_service_note: c.extra_service_note ?? "",
+    damage_amount: c.damage_amount != null ? c.damage_amount.toString() : "",
+    damage_note: c.damage_note ?? "",
+    damage_paid_by: c.damage_paid_by ?? "client",
+    refund_amount: c.refund_amount != null ? c.refund_amount.toString() : "",
+    refund_reason: c.refund_reason ?? "",
+    distribution:
+      dist.length > 0
+        ? dist.map((d) => ({ name: d.name, type: d.type, value: d.value }))
+        : DEFAULT_DISTRIBUTION.map((d) => ({ ...d })),
     notes: c.notes ?? "",
   };
 }
+
+const num = (s: string): number => {
+  const v = s.trim().replace(",", ".");
+  if (!v) return 0;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
 
 const numOrNull = (s: string): number | null => {
   const v = s.trim().replace(",", ".");
@@ -201,15 +368,10 @@ const dateOrNull = (s: string): string | null => {
   const v = s.trim();
   if (!v) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
-  const d = new Date(v + "T00:00:00Z");
-  if (!Number.isFinite(d.getTime())) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)!;
+  const t = Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!);
+  if (!Number.isFinite(t)) return null;
   return v;
-};
-
-const isValidDateField = (s: string): boolean => {
-  const v = s.trim();
-  if (!v) return true;
-  return dateOrNull(v) !== null;
 };
 
 function toInput(f: FormState): CharterInput {
@@ -218,20 +380,37 @@ function toInput(f: FormState): CharterInput {
     yacht_id: f.yacht_id,
     status: f.status,
     client_name: clientName || null,
+    contact_name: f.contact_name.trim() || null,
     client_email: f.client_email.trim() || null,
     client_phone: f.client_phone.trim() || null,
     start_date: f.start_date,
     end_date: f.end_date,
+    departure_time: f.departure_time.trim() || null,
+    return_time: f.return_time.trim() || null,
+    contract_status: f.contract_status,
+    contract_date: dateOrNull(f.contract_date),
     departure_port: f.departure_port.trim() || null,
     return_port: f.return_port.trim() || null,
+    mooring_port: f.mooring_port.trim() || null,
+    pickup_port: f.pickup_port.trim() || null,
+    dropoff_port: f.dropoff_port.trim() || null,
+    transfer_fee: numOrNull(f.transfer_fee),
+    transfer_fee_note: f.transfer_fee_note.trim() || null,
+    transfer_fee_paid_by: f.transfer_fee_paid_by,
     engine_hours_before: numOrNull(f.engine_hours_before),
     engine_hours_after: numOrNull(f.engine_hours_after),
     fuel_liters: numOrNull(f.fuel_liters),
     fuel_price_per_liter: numOrNull(f.fuel_price_per_liter),
     captain_name: f.captain_name.trim() || null,
     captain_day_rate: numOrNull(f.captain_day_rate),
+    first_officer_name: f.first_officer_name.trim() || null,
+    first_officer_day_rate: numOrNull(f.first_officer_day_rate),
     stewardess_count: f.stewardess_count,
     stewardess_day_rate: numOrNull(f.stewardess_day_rate),
+    chef_included: f.chef_included,
+    chef_day_rate: numOrNull(f.chef_day_rate),
+    deckhand_count: f.deckhand_count,
+    deckhand_day_rate: numOrNull(f.deckhand_day_rate),
     extra_crew_cost: numOrNull(f.extra_crew_cost),
     extra_crew_note: f.extra_crew_note.trim() || null,
     charter_rate_type: f.charter_rate_type,
@@ -244,68 +423,79 @@ function toInput(f: FormState): CharterInput {
     final_payment_received: f.final_payment_received,
     vat_applicable: f.vat_applicable,
     vat_percent: numOrNull(f.vat_percent),
+    apa_enabled: f.apa_enabled,
+    apa_percent: numOrNull(f.apa_percent),
+    apa_fuel: numOrNull(f.apa_fuel),
+    apa_provisioning: numOrNull(f.apa_provisioning),
+    apa_beverages: numOrNull(f.apa_beverages),
+    apa_marina_fees: numOrNull(f.apa_marina_fees),
+    apa_communications: numOrNull(f.apa_communications),
+    apa_crew_gratuities: numOrNull(f.apa_crew_gratuities),
+    apa_activities: numOrNull(f.apa_activities),
+    apa_activities_note: f.apa_activities_note.trim() || null,
+    apa_other: numOrNull(f.apa_other),
+    apa_other_note: f.apa_other_note.trim() || null,
     port_fees: numOrNull(f.port_fees),
     provisioning: numOrNull(f.provisioning),
     cleaning: numOrNull(f.cleaning),
     other_expenses: numOrNull(f.other_expenses),
     other_expenses_note: f.other_expenses_note.trim() || null,
+    extra_service_amount: numOrNull(f.extra_service_amount),
+    extra_service_note: f.extra_service_note.trim() || null,
+    damage_amount: numOrNull(f.damage_amount),
+    damage_note: f.damage_note.trim() || null,
+    damage_paid_by: f.damage_paid_by,
+    refund_amount: numOrNull(f.refund_amount),
+    refund_reason: f.refund_reason.trim() || null,
+    distribution: f.distribution.map(
+      (d) =>
+        ({ name: d.name, type: d.type, value: d.value }) as CharterDistributionEntry,
+    ),
     notes: f.notes.trim() || null,
   };
 }
 
-function daysBetween(a: string, b: string): number {
-  const sd = dateOrNull(a);
-  const ed = dateOrNull(b);
-  if (!sd || !ed) return 0;
-  const start = new Date(sd + "T00:00:00Z").getTime();
-  const end = new Date(ed + "T00:00:00Z").getTime();
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
-  return Math.round((end - start) / 86400000) + 1;
-}
-
-function calcPL(f: FormState) {
-  const days = daysBetween(f.start_date, f.end_date);
-  const before = numOrNull(f.engine_hours_before) ?? 0;
-  const after = numOrNull(f.engine_hours_after) ?? 0;
-  const engine_hours_used = Math.max(0, after - before);
-  const liters = numOrNull(f.fuel_liters) ?? 0;
-  const price = numOrNull(f.fuel_price_per_liter) ?? 0;
-  const fuel_cost = liters * price;
-  const captain_rate = numOrNull(f.captain_day_rate) ?? 0;
-  const captain_total = captain_rate * days;
-  const stew_rate = numOrNull(f.stewardess_day_rate) ?? 0;
-  const stew_total = f.stewardess_count * stew_rate * days;
-  const extra_crew = numOrNull(f.extra_crew_cost) ?? 0;
-  const total_crew = captain_total + stew_total + extra_crew;
-  const rate = numOrNull(f.charter_rate) ?? 0;
-  const gross_revenue =
-    f.charter_rate_type === "per_day" ? rate * days : rate;
-  const vat_pct = numOrNull(f.vat_percent) ?? 0;
-  const vat_amount =
-    f.vat_applicable && vat_pct > 0
-      ? (gross_revenue * vat_pct) / (100 + vat_pct)
-      : 0;
-  const net_revenue = gross_revenue - vat_amount;
-  const port_fees = numOrNull(f.port_fees) ?? 0;
-  const provisioning = numOrNull(f.provisioning) ?? 0;
-  const cleaning = numOrNull(f.cleaning) ?? 0;
-  const other = numOrNull(f.other_expenses) ?? 0;
-  const total_expenses = port_fees + provisioning + cleaning + other;
-  const net_profit = net_revenue - total_crew - fuel_cost - total_expenses;
-  const margin = net_revenue > 0 ? (net_profit / net_revenue) * 100 : 0;
+function toCalcInput(f: FormState): CharterCalcInput {
   return {
-    days,
-    engine_hours_used,
-    fuel_cost,
-    captain_total,
-    stew_total,
-    total_crew,
-    gross_revenue,
-    vat_amount,
-    net_revenue,
-    total_expenses,
-    net_profit,
-    margin,
+    start_date: f.start_date || null,
+    end_date: f.end_date || null,
+    charter_rate_type: f.charter_rate_type,
+    charter_rate: num(f.charter_rate),
+    vat_applicable: f.vat_applicable,
+    vat_percent: num(f.vat_percent),
+    apa_enabled: f.apa_enabled,
+    apa_percent: num(f.apa_percent),
+    apa_fuel: num(f.apa_fuel),
+    apa_provisioning: num(f.apa_provisioning),
+    apa_beverages: num(f.apa_beverages),
+    apa_marina_fees: num(f.apa_marina_fees),
+    apa_communications: num(f.apa_communications),
+    apa_crew_gratuities: num(f.apa_crew_gratuities),
+    apa_activities: num(f.apa_activities),
+    apa_other: num(f.apa_other),
+    captain_day_rate: num(f.captain_day_rate),
+    first_officer_day_rate: num(f.first_officer_day_rate),
+    stewardess_count: f.stewardess_count,
+    stewardess_day_rate: num(f.stewardess_day_rate),
+    chef_included: f.chef_included,
+    chef_day_rate: num(f.chef_day_rate),
+    deckhand_count: f.deckhand_count,
+    deckhand_day_rate: num(f.deckhand_day_rate),
+    extra_crew_cost: num(f.extra_crew_cost),
+    engine_hours_before: num(f.engine_hours_before),
+    engine_hours_after: num(f.engine_hours_after),
+    fuel_liters: num(f.fuel_liters),
+    fuel_price_per_liter: num(f.fuel_price_per_liter),
+    port_fees: num(f.port_fees),
+    provisioning: num(f.provisioning),
+    cleaning: num(f.cleaning),
+    other_expenses: num(f.other_expenses),
+    transfer_fee: num(f.transfer_fee),
+    transfer_fee_paid_by: f.transfer_fee_paid_by,
+    extra_service_amount: num(f.extra_service_amount),
+    damage_amount: num(f.damage_amount),
+    damage_paid_by: f.damage_paid_by,
+    distribution: f.distribution,
   };
 }
 
@@ -365,14 +555,15 @@ export default function CharterFormScreen() {
     }
   }, [editId, charterQ.data, hydrated]);
 
-  // Auto-select first yacht for new charter if none preselected
   useEffect(() => {
     if (!editId && !form.yacht_id && yachts.length > 0) {
       setForm((f) => ({ ...f, yacht_id: yachts[0]!.id }));
     }
   }, [editId, form.yacht_id, yachts]);
 
-  const [collapsed, setCollapsed] = useState<Set<SectionId>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<SectionId>>(
+    new Set(["apa", "extras", "distribution", "notes"]),
+  );
   const toggle = (s: SectionId) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -383,8 +574,14 @@ export default function CharterFormScreen() {
 
   const [yachtPickerOpen, setYachtPickerOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dateField, setDateField] = useState<
+    null | keyof Pick<
+      FormState,
+      "start_date" | "end_date" | "deposit_date" | "final_payment_date" | "contract_date"
+    >
+  >(null);
 
-  const pl = useMemo(() => calcPL(form), [form]);
+  const calc = useMemo(() => calcCharter(toCalcInput(form)), [form]);
 
   const createM = useCreateCharter();
   const updateM = useUpdateCharter();
@@ -396,6 +593,28 @@ export default function CharterFormScreen() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  // --- Distribution helpers ---
+  const updateDist = (idx: number, patch: Partial<DistributionEntry>) =>
+    setForm((f) => ({
+      ...f,
+      distribution: f.distribution.map((d, i) =>
+        i === idx ? { ...d, ...patch } : d,
+      ),
+    }));
+  const addDist = () =>
+    setForm((f) => ({
+      ...f,
+      distribution: [
+        ...f.distribution,
+        { name: "Partner", type: "percent", value: 0 },
+      ],
+    }));
+  const removeDist = (idx: number) =>
+    setForm((f) => ({
+      ...f,
+      distribution: f.distribution.filter((_, i) => i !== idx),
+    }));
+
   // ---- Save / Delete ----
   const handleSave = () => {
     if (!form.yacht_id) {
@@ -403,13 +622,10 @@ export default function CharterFormScreen() {
       return;
     }
     if (!dateOrNull(form.start_date) || !dateOrNull(form.end_date)) {
-      Alert.alert(
-        "Dates required",
-        "Please enter start and end dates in YYYY-MM-DD format.",
-      );
+      Alert.alert("Dates required", "Please pick start and end dates.");
       return;
     }
-    if (pl.days <= 0) {
+    if (calc.days <= 0) {
       Alert.alert(
         "Invalid dates",
         "End date must be on or after the start date.",
@@ -423,47 +639,49 @@ export default function CharterFormScreen() {
       );
       return;
     }
-    // Numeric fields — surface invalid entries instead of silently nulling
     const numericFields: { key: keyof FormState; label: string }[] = [
       { key: "engine_hours_before", label: "Engine hours before" },
       { key: "engine_hours_after", label: "Engine hours after" },
       { key: "fuel_liters", label: "Fuel liters" },
       { key: "fuel_price_per_liter", label: "Fuel price per liter" },
       { key: "captain_day_rate", label: "Captain day rate" },
+      { key: "first_officer_day_rate", label: "First officer day rate" },
       { key: "stewardess_day_rate", label: "Stewardess day rate" },
+      { key: "chef_day_rate", label: "Chef day rate" },
+      { key: "deckhand_day_rate", label: "Deckhand day rate" },
       { key: "extra_crew_cost", label: "Additional crew cost" },
       { key: "charter_rate", label: "Charter rate" },
       { key: "deposit_amount", label: "Deposit amount" },
       { key: "final_payment_amount", label: "Final payment amount" },
       { key: "vat_percent", label: "VAT %" },
+      { key: "apa_percent", label: "APA %" },
+      { key: "apa_fuel", label: "APA fuel" },
+      { key: "apa_provisioning", label: "APA provisioning" },
+      { key: "apa_beverages", label: "APA beverages" },
+      { key: "apa_marina_fees", label: "APA marina fees" },
+      { key: "apa_communications", label: "APA communications" },
+      { key: "apa_crew_gratuities", label: "APA crew gratuities" },
+      { key: "apa_activities", label: "APA activities" },
+      { key: "apa_other", label: "APA other" },
       { key: "port_fees", label: "Port fees" },
       { key: "provisioning", label: "Provisioning" },
       { key: "cleaning", label: "Cleaning" },
       { key: "other_expenses", label: "Other expenses" },
+      { key: "transfer_fee", label: "Transfer fee" },
+      { key: "extra_service_amount", label: "Extra service amount" },
+      { key: "damage_amount", label: "Damage amount" },
+      { key: "refund_amount", label: "Refund amount" },
     ];
-    for (const f of numericFields) {
-      const v = form[f.key];
+    for (const fld of numericFields) {
+      const v = form[fld.key];
       if (typeof v === "string" && !isValidNumeric(v)) {
         Alert.alert(
           "Invalid number",
-          `${f.label} must be a positive number (use a dot for decimals, e.g. 1.5).`,
+          `${fld.label} must be a positive number (use a dot for decimals, e.g. 1.5).`,
         );
         return;
       }
     }
-    // Optional date fields — block if filled but malformed
-    if (!isValidDateField(form.deposit_date)) {
-      Alert.alert("Invalid date", "Deposit date must be YYYY-MM-DD or empty.");
-      return;
-    }
-    if (!isValidDateField(form.final_payment_date)) {
-      Alert.alert(
-        "Invalid date",
-        "Final payment date must be YYYY-MM-DD or empty.",
-      );
-      return;
-    }
-    // VAT toggle requires a percent value
     if (form.vat_applicable) {
       const pct = numOrNull(form.vat_percent);
       if (pct === null || pct <= 0) {
@@ -474,7 +692,31 @@ export default function CharterFormScreen() {
         return;
       }
     }
-    const body = toInput(form);
+    // Distribution warning — non-blocking
+    if (
+      form.distribution.length > 0 &&
+      calc.base_net > 0 &&
+      !calc.distribution_balanced
+    ) {
+      const diff = calc.distribution_difference;
+      const proceed = () => {
+        const body = toInput(form);
+        doSave(body);
+      };
+      Alert.alert(
+        "Distribution does not sum to 100%",
+        `Distributed ${eur(calc.distribution_total)} of ${eur(calc.base_net)} (${diff >= 0 ? "leftover" : "over"} ${eur(Math.abs(diff))}). Save anyway?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Save anyway", onPress: proceed },
+        ],
+      );
+      return;
+    }
+    doSave(toInput(form));
+  };
+
+  const doSave = (body: CharterInput) => {
     const opts = {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ["/api/charters"] });
@@ -592,6 +834,26 @@ export default function CharterFormScreen() {
 
   const headerPad = (isWeb ? 67 : insets.top) + 60;
 
+  const onPickDate = (event: DateTimePickerEvent, picked?: Date) => {
+    const field = dateField;
+    // Android dismisses synchronously; iOS keeps modal open until close button.
+    if (Platform.OS !== "ios") setDateField(null);
+    if (event.type === "dismissed" || !picked || !field) return;
+    const y = picked.getFullYear();
+    const m = String(picked.getMonth() + 1).padStart(2, "0");
+    const d = String(picked.getDate()).padStart(2, "0");
+    set(field, `${y}-${m}-${d}`);
+  };
+
+  const datePickerInitial = (): Date => {
+    if (!dateField) return new Date();
+    const v = form[dateField];
+    const parsed = dateOrNull(v);
+    if (!parsed) return new Date();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(parsed)!;
+    return new Date(+m[1]!, +m[2]! - 1, +m[3]!);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
@@ -636,6 +898,13 @@ export default function CharterFormScreen() {
             autoCapitalize="words"
             placeholder="Full name"
           />
+          <Field
+            label="Contact (alternate)"
+            value={form.contact_name}
+            onChangeText={(v) => set("contact_name", v)}
+            autoCapitalize="words"
+            placeholder="Agent / broker / secondary contact"
+          />
           <View style={styles.row2}>
             <View style={{ flex: 1 }}>
               <Field
@@ -676,9 +945,7 @@ export default function CharterFormScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Set status ${opt.label}`}
                 >
-                  <View
-                    style={[styles.dot, { backgroundColor: opt.color }]}
-                  />
+                  <View style={[styles.dot, { backgroundColor: opt.color }]} />
                   <Text
                     style={[
                       styles.statusPillText,
@@ -696,37 +963,97 @@ export default function CharterFormScreen() {
           <View style={styles.row2}>
             <View style={{ flex: 1 }}>
               <Text style={styles.subLabel}>Start</Text>
-              <TextInput
+              <DateField
                 value={form.start_date}
-                onChangeText={(v) => set("start_date", v)}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={MUTED}
-                style={styles.input}
-                autoCapitalize="none"
+                onPress={() => setDateField("start_date")}
               />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.subLabel}>End</Text>
-              <TextInput
+              <DateField
                 value={form.end_date}
-                onChangeText={(v) => set("end_date", v)}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                onPress={() => setDateField("end_date")}
+              />
+            </View>
+          </View>
+          {calc.days > 0 ? (
+            <Text style={styles.computed}>
+              Duration: <Text style={{ color: GOLD }}>{calc.days} days</Text>
+            </Text>
+          ) : (
+            <Text style={[styles.computed, { color: MUTED }]}>
+              Pick valid dates to see duration
+            </Text>
+          )}
+
+          <View style={styles.row2}>
+            <View style={{ flex: 1 }}>
+              <Field
+                label="Departure time"
+                value={form.departure_time}
+                onChangeText={(v) => set("departure_time", v)}
+                placeholder="e.g. 10:00"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field
+                label="Return time"
+                value={form.return_time}
+                onChangeText={(v) => set("return_time", v)}
+                placeholder="e.g. 18:00"
                 autoCapitalize="none"
               />
             </View>
           </View>
-          {pl.days > 0 ? (
-            <Text style={styles.computed}>
-              Duration: <Text style={{ color: GOLD }}>{pl.days} days</Text>
-            </Text>
-          ) : (
-            <Text style={[styles.computed, { color: MUTED }]}>
-              Enter valid dates to see duration
-            </Text>
-          )}
 
+          <Text style={[styles.fieldLabel, { marginTop: 10 }]}>
+            Contract status
+          </Text>
+          <View style={styles.pillRow}>
+            {CONTRACT_OPTIONS.map((opt) => {
+              const active = form.contract_status === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => set("contract_status", opt.value)}
+                  style={[styles.modePill, active && styles.modePillActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Contract ${opt.label}`}
+                >
+                  <Text
+                    style={[
+                      styles.modePillText,
+                      active && { color: GOLD },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.subLabel}>Contract date</Text>
+          <DateField
+            value={form.contract_date}
+            onPress={() => setDateField("contract_date")}
+          />
+        </Section>
+
+        {/* SECTION 2: LOGISTICS */}
+        <Section
+          id="logistics"
+          title="Logistics"
+          icon="map-pin"
+          collapsed={collapsed.has("logistics")}
+          onToggle={() => toggle("logistics")}
+        >
+          <Field
+            label="Mooring port (home base)"
+            value={form.mooring_port}
+            onChangeText={(v) => set("mooring_port", v)}
+            placeholder="e.g. Palma de Mallorca"
+          />
           <View style={styles.row2}>
             <View style={{ flex: 1 }}>
               <Field
@@ -745,9 +1072,65 @@ export default function CharterFormScreen() {
               />
             </View>
           </View>
+          <View style={styles.row2}>
+            <View style={{ flex: 1 }}>
+              <Field
+                label="Client pickup port"
+                value={form.pickup_port}
+                onChangeText={(v) => set("pickup_port", v)}
+                placeholder="Port name"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field
+                label="Client drop-off port"
+                value={form.dropoff_port}
+                onChangeText={(v) => set("dropoff_port", v)}
+                placeholder="Port name"
+              />
+            </View>
+          </View>
+
+          <Field
+            label="Transfer fee (€)"
+            value={form.transfer_fee}
+            onChangeText={(v) => set("transfer_fee", v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          <Field
+            label="Transfer fee note"
+            value={form.transfer_fee_note}
+            onChangeText={(v) => set("transfer_fee_note", v)}
+            placeholder="e.g. delivery to charter base"
+          />
+          <Text style={styles.fieldLabel}>Transfer fee paid by</Text>
+          <View style={styles.pillRow}>
+            {TRANSFER_PAID_OPTIONS.map((opt) => {
+              const active = form.transfer_fee_paid_by === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => set("transfer_fee_paid_by", opt.value)}
+                  style={[styles.modePill, active && styles.modePillActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Transfer paid by ${opt.label}`}
+                >
+                  <Text
+                    style={[
+                      styles.modePillText,
+                      active && { color: GOLD },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </Section>
 
-        {/* SECTION 2: VESSEL */}
+        {/* SECTION 3: VESSEL */}
         <Section
           id="vessel"
           title="Vessel"
@@ -796,11 +1179,11 @@ export default function CharterFormScreen() {
               />
             </View>
           </View>
-          {pl.engine_hours_used > 0 && (
+          {calc.engine_hours_used > 0 && (
             <Text style={styles.computed}>
               Engine hours used:{" "}
               <Text style={{ color: GOLD }}>
-                {pl.engine_hours_used.toFixed(1)} hrs
+                {calc.engine_hours_used.toFixed(1)} hrs
               </Text>
             </Text>
           )}
@@ -825,15 +1208,15 @@ export default function CharterFormScreen() {
               />
             </View>
           </View>
-          {pl.fuel_cost > 0 && (
+          {calc.fuel_cost > 0 && (
             <Text style={styles.computed}>
               Fuel cost:{" "}
-              <Text style={{ color: GOLD }}>{eur(pl.fuel_cost)}</Text>
+              <Text style={{ color: GOLD }}>{eur(calc.fuel_cost)}</Text>
             </Text>
           )}
         </Section>
 
-        {/* SECTION 3: CREW */}
+        {/* SECTION 4: CREW */}
         <Section
           id="crew"
           title="Crew"
@@ -855,42 +1238,46 @@ export default function CharterFormScreen() {
             keyboardType="decimal-pad"
             placeholder="0"
           />
-          {pl.captain_total > 0 && (
+          {calc.captain_total > 0 && (
             <Text style={styles.computed}>
               Captain total:{" "}
-              <Text style={{ color: GOLD }}>{eur(pl.captain_total)}</Text>
+              <Text style={{ color: GOLD }}>{eur(calc.captain_total)}</Text>
+            </Text>
+          )}
+
+          <Field
+            label="First officer name"
+            value={form.first_officer_name}
+            onChangeText={(v) => set("first_officer_name", v)}
+            autoCapitalize="words"
+            placeholder="Full name (optional)"
+          />
+          <Field
+            label="First officer day rate (€/day)"
+            value={form.first_officer_day_rate}
+            onChangeText={(v) => set("first_officer_day_rate", v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          {calc.first_officer_total > 0 && (
+            <Text style={styles.computed}>
+              First officer total:{" "}
+              <Text style={{ color: GOLD }}>
+                {eur(calc.first_officer_total)}
+              </Text>
             </Text>
           )}
 
           <Text style={[styles.fieldLabel, { marginTop: 12 }]}>
             Stewardess count
           </Text>
-          <View style={styles.stepperRow}>
-            <Pressable
-              onPress={() =>
-                set("stewardess_count", Math.max(0, form.stewardess_count - 1))
-              }
-              style={styles.stepBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Decrease stewardess count"
-            >
-              <Feather name="minus" size={16} color={IVORY} />
-            </Pressable>
-            <Text style={styles.stepValue}>{form.stewardess_count}</Text>
-            <Pressable
-              onPress={() =>
-                set(
-                  "stewardess_count",
-                  Math.min(20, form.stewardess_count + 1),
-                )
-              }
-              style={styles.stepBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Increase stewardess count"
-            >
-              <Feather name="plus" size={16} color={IVORY} />
-            </Pressable>
-          </View>
+          <Stepper
+            value={form.stewardess_count}
+            onChange={(n) => set("stewardess_count", n)}
+            min={0}
+            max={20}
+            label="stewardess"
+          />
           <Field
             label="Stewardess day rate (€/day each)"
             value={form.stewardess_day_rate}
@@ -898,10 +1285,57 @@ export default function CharterFormScreen() {
             keyboardType="decimal-pad"
             placeholder="0"
           />
-          {pl.stew_total > 0 && (
+          {calc.stewardess_total > 0 && (
             <Text style={styles.computed}>
               Stewardess total:{" "}
-              <Text style={{ color: GOLD }}>{eur(pl.stew_total)}</Text>
+              <Text style={{ color: GOLD }}>{eur(calc.stewardess_total)}</Text>
+            </Text>
+          )}
+
+          <ToggleRow
+            label="Chef included"
+            value={form.chef_included}
+            onValueChange={(v) => set("chef_included", v)}
+          />
+          {form.chef_included && (
+            <>
+              <Field
+                label="Chef day rate (€/day)"
+                value={form.chef_day_rate}
+                onChangeText={(v) => set("chef_day_rate", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              {calc.chef_total > 0 && (
+                <Text style={styles.computed}>
+                  Chef total:{" "}
+                  <Text style={{ color: GOLD }}>{eur(calc.chef_total)}</Text>
+                </Text>
+              )}
+            </>
+          )}
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>
+            Deckhand count
+          </Text>
+          <Stepper
+            value={form.deckhand_count}
+            onChange={(n) => set("deckhand_count", n)}
+            min={0}
+            max={20}
+            label="deckhand"
+          />
+          <Field
+            label="Deckhand day rate (€/day each)"
+            value={form.deckhand_day_rate}
+            onChangeText={(v) => set("deckhand_day_rate", v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          {calc.deckhand_total > 0 && (
+            <Text style={styles.computed}>
+              Deckhand total:{" "}
+              <Text style={{ color: GOLD }}>{eur(calc.deckhand_total)}</Text>
             </Text>
           )}
 
@@ -916,16 +1350,16 @@ export default function CharterFormScreen() {
             label="Extras description"
             value={form.extra_crew_note}
             onChangeText={(v) => set("extra_crew_note", v)}
-            placeholder="e.g. chef, deckhand"
+            placeholder="e.g. masseuse, photographer"
           />
 
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>TOTAL CREW COST</Text>
-            <Text style={styles.totalValue}>{eur(pl.total_crew)}</Text>
+            <Text style={styles.totalValue}>{eur(calc.total_crew)}</Text>
           </View>
         </Section>
 
-        {/* SECTION 4: REVENUE */}
+        {/* SECTION 5: REVENUE */}
         <Section
           id="revenue"
           title="Revenue"
@@ -935,16 +1369,13 @@ export default function CharterFormScreen() {
         >
           <Text style={styles.fieldLabel}>Charter rate type</Text>
           <View style={styles.pillRow}>
-            {(["fixed", "per_day"] as CharterRateType[]).map((t) => {
+            {(["fixed", "per_day", "per_week"] as CharterRateType[]).map((t) => {
               const active = form.charter_rate_type === t;
               return (
                 <Pressable
                   key={t}
                   onPress={() => set("charter_rate_type", t)}
-                  style={[
-                    styles.modePill,
-                    active && styles.modePillActive,
-                  ]}
+                  style={[styles.modePill, active && styles.modePillActive]}
                   accessibilityRole="button"
                   accessibilityLabel={`Rate type ${t}`}
                 >
@@ -954,7 +1385,11 @@ export default function CharterFormScreen() {
                       active && { color: GOLD },
                     ]}
                   >
-                    {t === "fixed" ? "Fixed total" : "Per day"}
+                    {t === "fixed"
+                      ? "Fixed total"
+                      : t === "per_day"
+                        ? "Per day"
+                        : "Per week"}
                   </Text>
                 </Pressable>
               );
@@ -964,20 +1399,25 @@ export default function CharterFormScreen() {
           <Field
             label={
               form.charter_rate_type === "per_day"
-                ? "Charter rate (€/day)"
-                : "Charter rate (€ total)"
+                ? "Charter rate (€/day, net)"
+                : form.charter_rate_type === "per_week"
+                  ? "Charter rate (€/week, net)"
+                  : "Charter rate (€ net, total)"
             }
             value={form.charter_rate}
             onChangeText={(v) => set("charter_rate", v)}
             keyboardType="decimal-pad"
             placeholder="0"
           />
-          {form.charter_rate_type === "per_day" && pl.days > 0 && pl.gross_revenue > 0 && (
-            <Text style={styles.computed}>
-              × {pl.days} days ={" "}
-              <Text style={{ color: GOLD }}>{eur(pl.gross_revenue)}</Text>
-            </Text>
-          )}
+          {form.charter_rate_type !== "fixed" &&
+            calc.days > 0 &&
+            calc.base_net > 0 && (
+              <Text style={styles.computed}>
+                ={" "}
+                <Text style={{ color: GOLD }}>{eur(calc.base_net)}</Text> base
+                net over {calc.days} day{calc.days === 1 ? "" : "s"}
+              </Text>
+            )}
 
           <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Deposit</Text>
           <View style={styles.row2}>
@@ -991,12 +1431,10 @@ export default function CharterFormScreen() {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Field
-                label="Date"
+              <Text style={styles.fieldLabel}>Date</Text>
+              <DateField
                 value={form.deposit_date}
-                onChangeText={(v) => set("deposit_date", v)}
-                placeholder="YYYY-MM-DD"
-                autoCapitalize="none"
+                onPress={() => setDateField("deposit_date")}
               />
             </View>
           </View>
@@ -1020,12 +1458,10 @@ export default function CharterFormScreen() {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Field
-                label="Date"
+              <Text style={styles.fieldLabel}>Date</Text>
+              <DateField
                 value={form.final_payment_date}
-                onChangeText={(v) => set("final_payment_date", v)}
-                placeholder="YYYY-MM-DD"
-                autoCapitalize="none"
+                onPress={() => setDateField("final_payment_date")}
               />
             </View>
           </View>
@@ -1036,7 +1472,7 @@ export default function CharterFormScreen() {
           />
 
           <ToggleRow
-            label="Apply VAT"
+            label="Apply VAT (added on top)"
             value={form.vat_applicable}
             onValueChange={(v) => set("vat_applicable", v)}
           />
@@ -1051,22 +1487,162 @@ export default function CharterFormScreen() {
           )}
 
           <View style={styles.revenueBox}>
-            <RevLine label="Gross revenue" value={eur(pl.gross_revenue)} />
-            <RevLine label="VAT amount" value={eur(pl.vat_amount)} />
+            <RevLine label="Base net rate" value={eur(calc.base_net)} />
+            <RevLine
+              label={`+ VAT (${form.vat_applicable ? num(form.vat_percent).toFixed(0) : 0}%)`}
+              value={eur(calc.vat_amount)}
+            />
             <View style={styles.revDivider} />
             <RevLine
-              label="Net revenue"
-              value={eur(pl.net_revenue)}
+              label="Total to client"
+              value={eur(calc.total_to_client)}
               bold
               gold
             />
+            {form.apa_enabled && (
+              <>
+                <RevLine
+                  label={`+ APA (${num(form.apa_percent).toFixed(0)}%)`}
+                  value={eur(calc.apa_amount)}
+                />
+                <View style={styles.revDivider} />
+                <RevLine
+                  label="Total invoice (incl. APA)"
+                  value={eur(calc.total_invoice_to_client)}
+                  bold
+                  gold
+                />
+              </>
+            )}
           </View>
         </Section>
 
-        {/* SECTION 5: EXPENSES */}
+        {/* SECTION 6: APA */}
+        <Section
+          id="apa"
+          title="APA Fund (pass-through)"
+          icon="briefcase"
+          collapsed={collapsed.has("apa")}
+          onToggle={() => toggle("apa")}
+        >
+          <ToggleRow
+            label="Enable APA"
+            value={form.apa_enabled}
+            onValueChange={(v) => set("apa_enabled", v)}
+          />
+          {form.apa_enabled && (
+            <>
+              <Field
+                label="APA % of base net"
+                value={form.apa_percent}
+                onChangeText={(v) => set("apa_percent", v)}
+                keyboardType="decimal-pad"
+                placeholder="30"
+              />
+              <Text style={[styles.computed, { color: MUTED }]}>
+                APA fund collected:{" "}
+                <Text style={{ color: GOLD }}>{eur(calc.apa_amount)}</Text>
+              </Text>
+
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
+                APA spending (itemized)
+              </Text>
+              <Field
+                label="Fuel (APA)"
+                value={form.apa_fuel}
+                onChangeText={(v) => set("apa_fuel", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Provisioning (APA)"
+                value={form.apa_provisioning}
+                onChangeText={(v) => set("apa_provisioning", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Beverages"
+                value={form.apa_beverages}
+                onChangeText={(v) => set("apa_beverages", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Marina fees"
+                value={form.apa_marina_fees}
+                onChangeText={(v) => set("apa_marina_fees", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Communications"
+                value={form.apa_communications}
+                onChangeText={(v) => set("apa_communications", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Crew gratuities"
+                value={form.apa_crew_gratuities}
+                onChangeText={(v) => set("apa_crew_gratuities", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Water activities"
+                value={form.apa_activities}
+                onChangeText={(v) => set("apa_activities", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Activities note"
+                value={form.apa_activities_note}
+                onChangeText={(v) => set("apa_activities_note", v)}
+                placeholder="e.g. jet-ski rental, tours"
+              />
+              <Field
+                label="Other (APA)"
+                value={form.apa_other}
+                onChangeText={(v) => set("apa_other", v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Field
+                label="Other note"
+                value={form.apa_other_note}
+                onChangeText={(v) => set("apa_other_note", v)}
+                placeholder="What was it for?"
+              />
+
+              <View style={styles.revenueBox}>
+                <RevLine label="APA collected" value={eur(calc.apa_amount)} />
+                <RevLine label="APA spent" value={eur(calc.apa_spent)} />
+                <View style={styles.revDivider} />
+                <RevLine
+                  label={
+                    calc.apa_balance >= 0
+                      ? "Balance (refund to client)"
+                      : "Balance (client owes)"
+                  }
+                  value={eur(Math.abs(calc.apa_balance))}
+                  bold
+                  gold
+                />
+                <Text style={[styles.computed, { color: MUTED, marginTop: 8 }]}>
+                  APA is pass-through — not counted as revenue or expense in
+                  P&L.
+                </Text>
+              </View>
+            </>
+          )}
+        </Section>
+
+        {/* SECTION 7: OWNER EXPENSES */}
         <Section
           id="expenses"
-          title="Expenses"
+          title="Owner expenses"
           icon="trending-down"
           collapsed={collapsed.has("expenses")}
           onToggle={() => toggle("expenses")}
@@ -1105,48 +1681,228 @@ export default function CharterFormScreen() {
             onChangeText={(v) => set("other_expenses_note", v)}
             placeholder="What was it for?"
           />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>TOTAL EXPENSES</Text>
-            <Text style={styles.totalValue}>{eur(pl.total_expenses)}</Text>
+        </Section>
+
+        {/* SECTION 8: EXTRAS / DAMAGE / REFUND */}
+        <Section
+          id="extras"
+          title="Extras, damage & refund"
+          icon="plus-circle"
+          collapsed={collapsed.has("extras")}
+          onToggle={() => toggle("extras")}
+        >
+          <Field
+            label="Extra services charged to client (€)"
+            value={form.extra_service_amount}
+            onChangeText={(v) => set("extra_service_amount", v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          <Field
+            label="Extra services note"
+            value={form.extra_service_note}
+            onChangeText={(v) => set("extra_service_note", v)}
+            placeholder="e.g. private chef night, spa"
+          />
+
+          <Field
+            label="Damage / loss (€)"
+            value={form.damage_amount}
+            onChangeText={(v) => set("damage_amount", v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          <Field
+            label="Damage note"
+            value={form.damage_note}
+            onChangeText={(v) => set("damage_note", v)}
+            placeholder="What happened?"
+          />
+          <Text style={styles.fieldLabel}>Damage paid by</Text>
+          <View style={styles.pillRow}>
+            {DAMAGE_PAID_OPTIONS.map((opt) => {
+              const active = form.damage_paid_by === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => set("damage_paid_by", opt.value)}
+                  style={[styles.modePill, active && styles.modePillActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Damage paid by ${opt.label}`}
+                >
+                  <Text
+                    style={[
+                      styles.modePillText,
+                      active && { color: GOLD },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Field
+            label="Refund issued (€)"
+            value={form.refund_amount}
+            onChangeText={(v) => set("refund_amount", v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          <Field
+            label="Refund reason"
+            value={form.refund_reason}
+            onChangeText={(v) => set("refund_reason", v)}
+            placeholder="Why a refund?"
+          />
+        </Section>
+
+        {/* SECTION 9: INCOME DISTRIBUTION */}
+        <Section
+          id="distribution"
+          title="Income distribution"
+          icon="pie-chart"
+          collapsed={collapsed.has("distribution")}
+          onToggle={() => toggle("distribution")}
+        >
+          <Text style={[styles.computed, { color: MUTED, marginTop: 0 }]}>
+            Distributes the base net rate (€{calc.base_net.toFixed(2)}).
+            Default: 80% owner, 10% AA, 10% agent.
+          </Text>
+          {form.distribution.map((d, idx) => {
+            const res = calc.distribution_results[idx];
+            return (
+              <View key={idx} style={styles.distRow}>
+                <TextInput
+                  value={d.name}
+                  onChangeText={(v) => updateDist(idx, { name: v })}
+                  placeholder="Party name"
+                  placeholderTextColor={MUTED}
+                  style={[styles.input, { flex: 1.4 }]}
+                />
+                <Pressable
+                  onPress={() =>
+                    updateDist(idx, {
+                      type: d.type === "percent" ? "fixed" : "percent",
+                    })
+                  }
+                  style={styles.distTypeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Toggle type for ${d.name}`}
+                >
+                  <Text style={styles.distTypeBtnText}>
+                    {d.type === "percent" ? "%" : "€"}
+                  </Text>
+                </Pressable>
+                <TextInput
+                  value={String(d.value)}
+                  onChangeText={(v) =>
+                    updateDist(idx, {
+                      value: Number(v.replace(",", ".")) || 0,
+                    })
+                  }
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={MUTED}
+                  style={[styles.input, { width: 70 }]}
+                />
+                <Pressable
+                  onPress={() => removeDist(idx)}
+                  style={styles.distRemoveBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${d.name}`}
+                >
+                  <Feather name="x" size={16} color={RED} />
+                </Pressable>
+                {res && (
+                  <Text style={styles.distAmount}>{eur(res.amount)}</Text>
+                )}
+              </View>
+            );
+          })}
+          <Pressable
+            onPress={addDist}
+            style={styles.addDistBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Add distribution party"
+          >
+            <Feather name="plus" size={14} color={GOLD} />
+            <Text style={styles.addDistBtnText}>Add party</Text>
+          </Pressable>
+
+          <View style={styles.revenueBox}>
+            <RevLine
+              label="Distributed total"
+              value={eur(calc.distribution_total)}
+            />
+            <RevLine label="Of base net" value={eur(calc.base_net)} />
+            <View style={styles.revDivider} />
+            <RevLine
+              label={
+                calc.distribution_balanced
+                  ? "Balanced ✓"
+                  : calc.distribution_difference >= 0
+                    ? "Undistributed"
+                    : "Over-distributed"
+              }
+              value={eur(Math.abs(calc.distribution_difference))}
+              bold
+              gold
+            />
           </View>
         </Section>
 
-        {/* SECTION 6: P&L SUMMARY */}
+        {/* SECTION 10: P&L SUMMARY */}
         <Section
           id="pl"
-          title="P&L Summary"
+          title="P&L Summary & Payout"
           icon="bar-chart-2"
           collapsed={collapsed.has("pl")}
           onToggle={() => toggle("pl")}
         >
           <View style={styles.plCard}>
             <Text style={styles.plTitle}>P&L THIS CHARTER</Text>
-            <PLRow label="Net revenue" value={eur(pl.net_revenue)} />
+            <PLRow label="Base net revenue" value={eur(calc.base_net)} />
+            {calc.gross_revenue !== calc.base_net && (
+              <PLRow
+                label="+ Transfer / extras to client"
+                value={eur(calc.gross_revenue - calc.base_net)}
+              />
+            )}
+            <PLRow
+              label="− AA commission"
+              value={eur(calc.aa_commission)}
+              negative
+            />
+            <PLRow
+              label="− Agent commission"
+              value={eur(calc.agent_commission)}
+              negative
+            />
             <PLRow
               label="− Crew costs"
-              value={eur(pl.total_crew)}
+              value={eur(calc.total_crew)}
               negative
             />
-            <PLRow
-              label="− Fuel"
-              value={eur(pl.fuel_cost)}
-              negative
-            />
-            <PLRow
-              label="− Expenses"
-              value={eur(pl.total_expenses)}
-              negative
-            />
+            <PLRow label="− Fuel" value={eur(calc.fuel_cost)} negative />
+            {calc.damage_absorbed > 0 && (
+              <PLRow
+                label="− Damage absorbed"
+                value={eur(calc.damage_absorbed)}
+                negative
+              />
+            )}
             <View style={styles.plDivider} />
             <View style={styles.plProfitRow}>
               <Text style={styles.plProfitLabel}>NET PROFIT</Text>
               <Text
                 style={[
                   styles.plProfitValue,
-                  { color: pl.net_profit >= 0 ? GREEN : RED },
+                  { color: calc.net_profit >= 0 ? GREEN : RED },
                 ]}
               >
-                {eur(pl.net_profit)}
+                {eur(calc.net_profit)}
               </Text>
             </View>
             <View style={styles.plMarginRow}>
@@ -1154,16 +1910,49 @@ export default function CharterFormScreen() {
               <Text
                 style={[
                   styles.plMarginValue,
-                  { color: pl.margin >= 0 ? GREEN : RED },
+                  { color: calc.margin >= 0 ? GREEN : RED },
                 ]}
               >
-                {pl.margin.toFixed(1)}%
+                {calc.margin.toFixed(1)}%
               </Text>
             </View>
           </View>
+
+          <View style={[styles.plCard, { marginTop: 12 }]}>
+            <Text style={styles.plTitle}>PAYOUT SUMMARY</Text>
+            <PLRow
+              label="Total invoiced to client"
+              value={eur(calc.total_invoice_to_client)}
+            />
+            <PLRow label="− VAT (passed to tax)" value={eur(calc.vat_amount)} negative />
+            <PLRow
+              label="− APA fund (pass-through)"
+              value={eur(calc.apa_amount)}
+              negative
+            />
+            <View style={styles.plDivider} />
+            {calc.distribution_results.map((p, i) => (
+              <PLRow
+                key={i}
+                label={`${p.name} (${p.pct.toFixed(0)}%)`}
+                value={eur(p.amount)}
+              />
+            ))}
+            {calc.boat_owner_receives > 0 && (
+              <>
+                <View style={styles.plDivider} />
+                <View style={styles.plProfitRow}>
+                  <Text style={styles.plProfitLabel}>BOAT OWNER RECEIVES</Text>
+                  <Text style={[styles.plProfitValue, { color: GOLD }]}>
+                    {eur(calc.boat_owner_receives)}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
         </Section>
 
-        {/* SECTION 7: NOTES */}
+        {/* SECTION 11: NOTES */}
         <Section
           id="notes"
           title="Notes"
@@ -1259,6 +2048,43 @@ export default function CharterFormScreen() {
         </Pressable>
       </View>
 
+      {/* Date picker */}
+      {dateField !== null &&
+        (Platform.OS === "ios" ? (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setDateField(null)}
+          >
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => setDateField(null)}
+            />
+            <View style={styles.iosDateSheet}>
+              <DateTimePicker
+                value={datePickerInitial()}
+                mode="date"
+                display="inline"
+                themeVariant="dark"
+                onChange={onPickDate}
+              />
+              <Pressable
+                onPress={() => setDateField(null)}
+                style={[styles.primaryBtn, { alignSelf: "center" }]}
+              >
+                <Text style={styles.primaryBtnText}>Done</Text>
+              </Pressable>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={datePickerInitial()}
+            mode="date"
+            onChange={onPickDate}
+          />
+        ))}
+
       {/* Yacht picker modal */}
       <Modal
         visible={yachtPickerOpen}
@@ -1271,16 +2097,18 @@ export default function CharterFormScreen() {
           onPress={() => setYachtPickerOpen(false)}
         />
         <View style={styles.modalRoot} pointerEvents="box-none">
-          <View style={styles.sheet}>
+          <View
+            style={[
+              styles.sheet,
+              { maxHeight: "75%", paddingBottom: Math.max(insets.bottom, 14) },
+            ]}
+          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Select yacht</Text>
             {yachts.length === 0 ? (
-              <Text style={styles.emptyText}>
-                You don&apos;t have any yachts yet. Add one from the Fleet
-                view first.
-              </Text>
+              <Text style={styles.emptyText}>No yachts. Add one first.</Text>
             ) : (
-              <ScrollView style={{ maxHeight: 360 }}>
+              <ScrollView style={{ maxHeight: 400 }}>
                 {yachts.map((y) => {
                   const active = y.id === form.yacht_id;
                   return (
@@ -1294,8 +2122,6 @@ export default function CharterFormScreen() {
                         styles.yachtRow,
                         active && { borderColor: GOLD },
                       ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Select ${y.name}`}
                     >
                       <Feather name="anchor" size={20} color={GOLD} />
                       <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1310,9 +2136,7 @@ export default function CharterFormScreen() {
                             .join(" · ") || "—"}
                         </Text>
                       </View>
-                      {active && (
-                        <Feather name="check" size={18} color={GOLD} />
-                      )}
+                      {active && <Feather name="check" size={18} color={GOLD} />}
                     </Pressable>
                   );
                 })}
@@ -1388,7 +2212,12 @@ function Field({
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
-  keyboardType?: "default" | "decimal-pad" | "number-pad" | "email-address" | "phone-pad";
+  keyboardType?:
+    | "default"
+    | "decimal-pad"
+    | "number-pad"
+    | "email-address"
+    | "phone-pad";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   multiline?: boolean;
 }) {
@@ -1405,6 +2234,64 @@ function Field({
         multiline={multiline}
         style={[styles.input, multiline && { minHeight: 70, paddingTop: 10 }]}
       />
+    </View>
+  );
+}
+
+function DateField({
+  value,
+  onPress,
+}: {
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.input, styles.dateFieldBtn]}
+      accessibilityRole="button"
+      accessibilityLabel="Pick date"
+    >
+      <Text style={{ color: value ? IVORY : MUTED }}>
+        {value || "YYYY-MM-DD"}
+      </Text>
+      <Feather name="calendar" size={16} color={GOLD} />
+    </Pressable>
+  );
+}
+
+function Stepper({
+  value,
+  onChange,
+  min,
+  max,
+  label,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  min: number;
+  max: number;
+  label: string;
+}) {
+  return (
+    <View style={styles.stepperRow}>
+      <Pressable
+        onPress={() => onChange(Math.max(min, value - 1))}
+        style={styles.stepBtn}
+        accessibilityRole="button"
+        accessibilityLabel={`Decrease ${label} count`}
+      >
+        <Feather name="minus" size={16} color={IVORY} />
+      </Pressable>
+      <Text style={styles.stepValue}>{value}</Text>
+      <Pressable
+        onPress={() => onChange(Math.min(max, value + 1))}
+        style={styles.stepBtn}
+        accessibilityRole="button"
+        accessibilityLabel={`Increase ${label} count`}
+      >
+        <Feather name="plus" size={16} color={IVORY} />
+      </Pressable>
     </View>
   );
 }
@@ -1507,7 +2394,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(247,243,236,0.12)",
   },
-
   kicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",
@@ -1521,8 +2407,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 14,
   },
-
-  // Section
   section: {
     backgroundColor: NAVY_ELEV,
     borderRadius: 14,
@@ -1559,8 +2443,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: DIVIDER,
   },
-
-  // Fields
   fieldLabel: {
     color: MUTED,
     fontFamily: "Inter_500Medium",
@@ -1595,8 +2477,6 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 8,
   },
-
-  // Pills
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
   statusPill: {
     flexDirection: "row",
@@ -1616,7 +2496,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
   modePill: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 10,
     backgroundColor: NAVY_DEEP,
@@ -1632,15 +2512,16 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 13,
   },
-
-  // Yacht picker trigger
   yachtPicker: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
-  // Stepper
+  dateFieldBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   stepperRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1664,8 +2545,6 @@ const styles = StyleSheet.create({
     minWidth: 30,
     textAlign: "center",
   },
-
-  // Toggle
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1678,8 +2557,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 14,
   },
-
-  // Total
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1700,8 +2577,6 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-Bold",
     fontSize: 18,
   },
-
-  // Revenue box
   revenueBox: {
     marginTop: 16,
     padding: 14,
@@ -1727,13 +2602,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 14,
   },
-  revDivider: {
-    height: 1,
-    backgroundColor: DIVIDER,
-    marginVertical: 8,
-  },
-
-  // P&L card
+  revDivider: { height: 1, backgroundColor: DIVIDER, marginVertical: 8 },
   plCard: {
     padding: 16,
     backgroundColor: NAVY_DEEP,
@@ -1781,8 +2650,63 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   plMarginValue: { fontFamily: "Inter_500Medium", fontSize: 14 },
-
-  // Bottom bar
+  distRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: "wrap",
+  },
+  distTypeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: NAVY_DEEP,
+    borderWidth: 1,
+    borderColor: GOLD + "55",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  distTypeBtnText: {
+    color: GOLD,
+    fontFamily: "Gilroy-Bold",
+    fontSize: 16,
+  },
+  distRemoveBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(231,76,60,0.12)",
+    borderWidth: 1,
+    borderColor: RED + "55",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  distAmount: {
+    color: GOLD,
+    fontFamily: "Gilroy-Bold",
+    fontSize: 13,
+    marginLeft: "auto",
+    minWidth: 80,
+    textAlign: "right",
+  },
+  addDistBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: GOLD,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
+  addDistBtnText: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+  },
   bottomBar: {
     position: "absolute",
     left: 0,
@@ -1823,8 +2747,6 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
   },
-
-  // Primary btn (for sign-in fallback)
   primaryBtn: {
     backgroundColor: GOLD,
     paddingHorizontal: 22,
@@ -1837,7 +2759,6 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
   },
-
   emptyTitle: {
     color: IVORY,
     fontFamily: "Gilroy-Bold",
@@ -1851,8 +2772,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
   },
-
-  // Modal
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -1864,6 +2783,20 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingHorizontal: 20,
     paddingTop: 10,
+    borderTopWidth: 1,
+    borderColor: DIVIDER,
+  },
+  iosDateSheet: {
+    backgroundColor: NAVY,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 24,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopWidth: 1,
     borderColor: DIVIDER,
   },

@@ -5,8 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CharterDistributionEntry } from "./charterDistributionEntry";
 import type { CharterRateType } from "./charterRateType";
 import type { CharterStatus } from "./charterStatus";
+import type { ContractStatus } from "./contractStatus";
+import type { DamagePaidBy } from "./damagePaidBy";
+import type { TransferPaidBy } from "./transferPaidBy";
 
 export interface Charter {
   id: string;
@@ -69,4 +73,56 @@ export interface Charter {
   other_expenses_note?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  contact_name?: string | null;
+  contract_status?: ContractStatus;
+  /** @nullable */
+  contract_date?: string | null;
+  /** @nullable */
+  mooring_port?: string | null;
+  /** @nullable */
+  pickup_port?: string | null;
+  /** @nullable */
+  dropoff_port?: string | null;
+  transfer_fee?: number;
+  /** @nullable */
+  transfer_fee_note?: string | null;
+  transfer_fee_paid_by?: TransferPaidBy;
+  /** @nullable */
+  departure_time?: string | null;
+  /** @nullable */
+  return_time?: string | null;
+  apa_enabled?: boolean;
+  apa_percent?: number;
+  apa_amount?: number;
+  apa_fuel?: number;
+  apa_provisioning?: number;
+  apa_beverages?: number;
+  apa_marina_fees?: number;
+  apa_communications?: number;
+  apa_crew_gratuities?: number;
+  apa_activities?: number;
+  /** @nullable */
+  apa_activities_note?: string | null;
+  apa_other?: number;
+  /** @nullable */
+  apa_other_note?: string | null;
+  refund_amount?: number;
+  /** @nullable */
+  refund_reason?: string | null;
+  extra_service_amount?: number;
+  /** @nullable */
+  extra_service_note?: string | null;
+  damage_amount?: number;
+  /** @nullable */
+  damage_note?: string | null;
+  damage_paid_by?: DamagePaidBy;
+  /** @nullable */
+  first_officer_name?: string | null;
+  first_officer_day_rate?: number;
+  chef_included?: boolean;
+  chef_day_rate?: number;
+  deckhand_count?: number;
+  deckhand_day_rate?: number;
+  distribution?: CharterDistributionEntry[];
 }

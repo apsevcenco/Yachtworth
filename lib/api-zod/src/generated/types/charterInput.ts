@@ -5,8 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CharterDistributionEntry } from "./charterDistributionEntry";
 import type { CharterRateType } from "./charterRateType";
 import type { CharterStatus } from "./charterStatus";
+import type { ContractStatus } from "./contractStatus";
+import type { DamagePaidBy } from "./damagePaidBy";
+import type { TransferPaidBy } from "./transferPaidBy";
 
 export interface CharterInput {
   yacht_id: string;
@@ -126,4 +130,133 @@ export interface CharterInput {
   other_expenses_note?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  contact_name?: string | null;
+  contract_status?: ContractStatus | null;
+  /** @nullable */
+  contract_date?: string | null;
+  /** @nullable */
+  mooring_port?: string | null;
+  /** @nullable */
+  pickup_port?: string | null;
+  /** @nullable */
+  dropoff_port?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  transfer_fee?: number | null;
+  /** @nullable */
+  transfer_fee_note?: string | null;
+  transfer_fee_paid_by?: TransferPaidBy | null;
+  /** @nullable */
+  departure_time?: string | null;
+  /** @nullable */
+  return_time?: string | null;
+  /** @nullable */
+  apa_enabled?: boolean | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  apa_percent?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_amount?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_fuel?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_provisioning?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_beverages?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_marina_fees?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_communications?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_crew_gratuities?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_activities?: number | null;
+  /** @nullable */
+  apa_activities_note?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_other?: number | null;
+  /** @nullable */
+  apa_other_note?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  refund_amount?: number | null;
+  /** @nullable */
+  refund_reason?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  extra_service_amount?: number | null;
+  /** @nullable */
+  extra_service_note?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  damage_amount?: number | null;
+  /** @nullable */
+  damage_note?: string | null;
+  damage_paid_by?: DamagePaidBy | null;
+  /** @nullable */
+  first_officer_name?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  first_officer_day_rate?: number | null;
+  /** @nullable */
+  chef_included?: boolean | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  chef_day_rate?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 20
+   * @nullable
+   */
+  deckhand_count?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  deckhand_day_rate?: number | null;
+  /** @nullable */
+  distribution?: CharterDistributionEntry[] | null;
 }

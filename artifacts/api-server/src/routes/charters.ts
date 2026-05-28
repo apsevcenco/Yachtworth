@@ -7,7 +7,9 @@ import { isUuid } from "../lib/validators";
 const router: IRouter = Router();
 
 const CHARTER_COLUMNS =
-  "id, yacht_id, clerk_user_id, created_at, updated_at, status, client_name, client_email, client_phone, start_date, end_date, departure_port, return_port, engine_hours_before, engine_hours_after, fuel_liters, fuel_price_per_liter, captain_name, captain_day_rate, stewardess_count, stewardess_day_rate, extra_crew_cost, extra_crew_note, charter_rate_type, charter_rate, deposit_amount, deposit_date, deposit_received, final_payment_amount, final_payment_date, final_payment_received, vat_applicable, vat_percent, port_fees, provisioning, cleaning, other_expenses, other_expenses_note, notes";
+  "id, yacht_id, clerk_user_id, created_at, updated_at, status, client_name, client_email, client_phone, start_date, end_date, departure_port, return_port, engine_hours_before, engine_hours_after, fuel_liters, fuel_price_per_liter, captain_name, captain_day_rate, stewardess_count, stewardess_day_rate, extra_crew_cost, extra_crew_note, charter_rate_type, charter_rate, deposit_amount, deposit_date, deposit_received, final_payment_amount, final_payment_date, final_payment_received, vat_applicable, vat_percent, port_fees, provisioning, cleaning, other_expenses, other_expenses_note, notes, " +
+  // Phase 3.1 (May 2026) — VAT-on-top + APA + distribution + extra fields
+  "contact_name, contract_status, contract_date, mooring_port, pickup_port, dropoff_port, transfer_fee, transfer_fee_note, transfer_fee_paid_by, departure_time, return_time, apa_enabled, apa_percent, apa_amount, apa_fuel, apa_provisioning, apa_beverages, apa_marina_fees, apa_communications, apa_crew_gratuities, apa_activities, apa_activities_note, apa_other, apa_other_note, refund_amount, refund_reason, extra_service_amount, extra_service_note, damage_amount, damage_note, damage_paid_by, first_officer_name, first_officer_day_rate, chef_included, chef_day_rate, deckhand_count, deckhand_day_rate, distribution";
 
 function isIsoDate(v: unknown): v is string {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -17,6 +19,42 @@ function normalizeClientName(name: string | null | undefined): string | null {
   if (!name) return null;
   const trimmed = name.trim().replace(/\s+/g, " ");
   return trimmed.length > 0 ? trimmed : null;
+}
+
+// Charter columns that are NOT NULL with a numeric DB default. Clients may
+// legitimately send `null` for "empty" fields; coerce to the migration default
+// so DB defaults are honored without round-tripping. Map = column → default.
+// NB: apa_percent default is 30, not 0 (migration 009).
+const NOT_NULL_NUMERIC_DEFAULTS: Record<string, number> = {
+  transfer_fee: 0,
+  apa_percent: 30,
+  apa_amount: 0,
+  apa_fuel: 0,
+  apa_provisioning: 0,
+  apa_beverages: 0,
+  apa_marina_fees: 0,
+  apa_communications: 0,
+  apa_crew_gratuities: 0,
+  apa_activities: 0,
+  apa_other: 0,
+  refund_amount: 0,
+  extra_service_amount: 0,
+  damage_amount: 0,
+  first_officer_day_rate: 0,
+  chef_day_rate: 0,
+  deckhand_count: 0,
+  deckhand_day_rate: 0,
+};
+
+// Only coerce keys that are explicitly present and `null`. Missing/undefined
+// keys (PATCH semantics) are left untouched so partial updates don't clobber
+// existing column values with defaults.
+function normalizeCharterPayload<T extends Record<string, unknown>>(p: T): T {
+  const out: Record<string, unknown> = { ...p };
+  for (const [k, def] of Object.entries(NOT_NULL_NUMERIC_DEFAULTS)) {
+    if (k in out && out[k] === null) out[k] = def;
+  }
+  return out as T;
 }
 
 async function assertYachtOwned(
@@ -111,11 +149,11 @@ router.post(
       res.status(404).json({ error: "Yacht not found" });
       return;
     }
-    const insertPayload = {
+    const insertPayload = normalizeCharterPayload({
       ...parsed.data,
       client_name: normalizeClientName(parsed.data.client_name),
       clerk_user_id: req.userId!,
-    };
+    });
     const { data, error } = await sb
       .from(CHARTERS_TABLE)
       .insert(insertPayload)
@@ -126,12 +164,13 @@ router.post(
       res.status(500).json({ error: error.message });
       return;
     }
+    const row = data as unknown as Record<string, unknown>;
     await upsertClientFromCharter(
       sb,
       req.userId!,
-      data.client_name,
-      data.client_email,
-      data.client_phone,
+      (row["client_name"] as string | null) ?? null,
+      (row["client_email"] as string | null) ?? null,
+      (row["client_phone"] as string | null) ?? null,
     ).catch((err: unknown) => {
       req.log.warn(
         { err: err instanceof Error ? err.message : String(err) },
@@ -202,10 +241,10 @@ router.patch(
       res.status(404).json({ error: "Yacht not found" });
       return;
     }
-    const updatePayload = {
+    const updatePayload = normalizeCharterPayload({
       ...parsed.data,
       client_name: normalizeClientName(parsed.data.client_name),
-    };
+    });
     const { data, error } = await sb
       .from(CHARTERS_TABLE)
       .update(updatePayload)
@@ -222,12 +261,13 @@ router.patch(
       res.status(404).json({ error: "Not found" });
       return;
     }
+    const row = data as unknown as Record<string, unknown>;
     await upsertClientFromCharter(
       sb,
       req.userId!,
-      data.client_name,
-      data.client_email,
-      data.client_phone,
+      (row["client_name"] as string | null) ?? null,
+      (row["client_email"] as string | null) ?? null,
+      (row["client_phone"] as string | null) ?? null,
     ).catch((err: unknown) => {
       req.log.warn(
         { err: err instanceof Error ? err.message : String(err) },

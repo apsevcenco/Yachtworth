@@ -12,4 +12,5 @@ export type CharterRateType =
 export const CharterRateType = {
   fixed: "fixed",
   per_day: "per_day",
+  per_week: "per_week",
 } as const;

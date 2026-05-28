@@ -1024,7 +1024,49 @@ export type CharterRateType =
 export const CharterRateType = {
   fixed: "fixed",
   per_day: "per_day",
+  per_week: "per_week",
 } as const;
+
+export type ContractStatus =
+  (typeof ContractStatus)[keyof typeof ContractStatus];
+
+export const ContractStatus = {
+  not_signed: "not_signed",
+  sent: "sent",
+  signed: "signed",
+} as const;
+
+export type TransferPaidBy =
+  (typeof TransferPaidBy)[keyof typeof TransferPaidBy];
+
+export const TransferPaidBy = {
+  client: "client",
+  owner: "owner",
+  agent: "agent",
+} as const;
+
+export type DamagePaidBy = (typeof DamagePaidBy)[keyof typeof DamagePaidBy];
+
+export const DamagePaidBy = {
+  client: "client",
+  insurance: "insurance",
+  owner: "owner",
+} as const;
+
+export type DistributionSplitType =
+  (typeof DistributionSplitType)[keyof typeof DistributionSplitType];
+
+export const DistributionSplitType = {
+  percent: "percent",
+  fixed: "fixed",
+} as const;
+
+export interface CharterDistributionEntry {
+  name: string;
+  type: DistributionSplitType;
+  /** @minimum 0 */
+  value: number;
+}
 
 export interface CharterInput {
   yacht_id: string;
@@ -1144,6 +1186,135 @@ export interface CharterInput {
   other_expenses_note?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  contact_name?: string | null;
+  contract_status?: ContractStatus | null;
+  /** @nullable */
+  contract_date?: string | null;
+  /** @nullable */
+  mooring_port?: string | null;
+  /** @nullable */
+  pickup_port?: string | null;
+  /** @nullable */
+  dropoff_port?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  transfer_fee?: number | null;
+  /** @nullable */
+  transfer_fee_note?: string | null;
+  transfer_fee_paid_by?: TransferPaidBy | null;
+  /** @nullable */
+  departure_time?: string | null;
+  /** @nullable */
+  return_time?: string | null;
+  /** @nullable */
+  apa_enabled?: boolean | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  apa_percent?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_amount?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_fuel?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_provisioning?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_beverages?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_marina_fees?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_communications?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_crew_gratuities?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_activities?: number | null;
+  /** @nullable */
+  apa_activities_note?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  apa_other?: number | null;
+  /** @nullable */
+  apa_other_note?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  refund_amount?: number | null;
+  /** @nullable */
+  refund_reason?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  extra_service_amount?: number | null;
+  /** @nullable */
+  extra_service_note?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  damage_amount?: number | null;
+  /** @nullable */
+  damage_note?: string | null;
+  damage_paid_by?: DamagePaidBy | null;
+  /** @nullable */
+  first_officer_name?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  first_officer_day_rate?: number | null;
+  /** @nullable */
+  chef_included?: boolean | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  chef_day_rate?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 20
+   * @nullable
+   */
+  deckhand_count?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  deckhand_day_rate?: number | null;
+  /** @nullable */
+  distribution?: CharterDistributionEntry[] | null;
 }
 
 export interface Charter {
@@ -1207,6 +1378,58 @@ export interface Charter {
   other_expenses_note?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  contact_name?: string | null;
+  contract_status?: ContractStatus;
+  /** @nullable */
+  contract_date?: string | null;
+  /** @nullable */
+  mooring_port?: string | null;
+  /** @nullable */
+  pickup_port?: string | null;
+  /** @nullable */
+  dropoff_port?: string | null;
+  transfer_fee?: number;
+  /** @nullable */
+  transfer_fee_note?: string | null;
+  transfer_fee_paid_by?: TransferPaidBy;
+  /** @nullable */
+  departure_time?: string | null;
+  /** @nullable */
+  return_time?: string | null;
+  apa_enabled?: boolean;
+  apa_percent?: number;
+  apa_amount?: number;
+  apa_fuel?: number;
+  apa_provisioning?: number;
+  apa_beverages?: number;
+  apa_marina_fees?: number;
+  apa_communications?: number;
+  apa_crew_gratuities?: number;
+  apa_activities?: number;
+  /** @nullable */
+  apa_activities_note?: string | null;
+  apa_other?: number;
+  /** @nullable */
+  apa_other_note?: string | null;
+  refund_amount?: number;
+  /** @nullable */
+  refund_reason?: string | null;
+  extra_service_amount?: number;
+  /** @nullable */
+  extra_service_note?: string | null;
+  damage_amount?: number;
+  /** @nullable */
+  damage_note?: string | null;
+  damage_paid_by?: DamagePaidBy;
+  /** @nullable */
+  first_officer_name?: string | null;
+  first_officer_day_rate?: number;
+  chef_included?: boolean;
+  chef_day_rate?: number;
+  deckhand_count?: number;
+  deckhand_day_rate?: number;
+  distribution?: CharterDistributionEntry[];
 }
 
 export interface CharterListResponse {
