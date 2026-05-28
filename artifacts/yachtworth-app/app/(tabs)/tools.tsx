@@ -79,6 +79,15 @@ const TOOLS: Tool[] = [
     route: "/listing",
   },
   {
+    key: "yacht_proposal",
+    icon: "file",
+    title: "Yacht Proposal",
+    subtitle: "PDF specification sheet",
+    roles: ["broker", "owner"],
+    status: "live",
+    route: "/yacht-proposal",
+  },
+  {
     key: "yacht_verification",
     icon: "shield",
     title: "Yacht Verification",

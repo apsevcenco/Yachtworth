@@ -1943,6 +1943,118 @@ export interface ListingListResponse {
   items: ListingListItem[];
 }
 
+export type ProposalType = (typeof ProposalType)[keyof typeof ProposalType];
+
+export const ProposalType = {
+  sale: "sale",
+  charter: "charter",
+  both: "both",
+} as const;
+
+export type ProposalLanguage =
+  (typeof ProposalLanguage)[keyof typeof ProposalLanguage];
+
+export const ProposalLanguage = {
+  english: "english",
+  french: "french",
+  italian: "italian",
+  spanish: "spanish",
+  german: "german",
+  russian: "russian",
+} as const;
+
+export interface ProposalSettings {
+  proposal_type: ProposalType;
+  language: ProposalLanguage;
+  /** Document sections to include
+(cover, specs, accommodation, equipment, pricing_sale,
+pricing_charter, contact, watermark_confidential).
+ */
+  sections: string[];
+  /** @nullable */
+  sale_price_eur?: number | null;
+  /** @nullable */
+  charter_low_eur_week?: number | null;
+  /** @nullable */
+  charter_high_eur_week?: number | null;
+  /** @nullable */
+  charter_apa_pct?: number | null;
+  /** @nullable */
+  charter_vat_pct?: number | null;
+  /** @nullable */
+  broker_name?: string | null;
+  /** @nullable */
+  broker_company?: string | null;
+  /** @nullable */
+  broker_email?: string | null;
+  /** @nullable */
+  broker_phone?: string | null;
+  /** @nullable */
+  broker_website?: string | null;
+}
+
+/**
+ * Loose snapshot of the yacht details used to build the proposal PDF.
+ * @nullable
+ */
+export type ProposalSaveInputYachtSnapshot = { [key: string]: unknown } | null;
+
+export type ProposalSaveInputEquipmentSnapshotItem = { [key: string]: unknown };
+
+export interface ProposalSaveInput {
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht_name: string;
+  proposal_type: ProposalType;
+  language: ProposalLanguage;
+  /**
+   * Loose snapshot of the yacht details used to build the proposal PDF.
+   * @nullable
+   */
+  yacht_snapshot?: ProposalSaveInputYachtSnapshot;
+  settings_snapshot?: ProposalSettings | null;
+  /** @nullable */
+  equipment_snapshot?: ProposalSaveInputEquipmentSnapshotItem[] | null;
+}
+
+/**
+ * @nullable
+ */
+export type ProposalYachtSnapshot = { [key: string]: unknown } | null;
+
+export type ProposalEquipmentSnapshotItem = { [key: string]: unknown };
+
+export interface Proposal {
+  id: string;
+  clerk_user_id: string;
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht_name: string;
+  proposal_type: ProposalType;
+  language: ProposalLanguage;
+  /** @nullable */
+  yacht_snapshot?: ProposalYachtSnapshot;
+  settings_snapshot?: ProposalSettings | null;
+  /** @nullable */
+  equipment_snapshot?: ProposalEquipmentSnapshotItem[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalListItem {
+  id: string;
+  /** @nullable */
+  yacht_id?: string | null;
+  yacht_name: string;
+  proposal_type: ProposalType;
+  language: ProposalLanguage;
+  created_at: string;
+}
+
+export interface ProposalListResponse {
+  items: ProposalListItem[];
+}
+
 export type ListEstimatesParams = {
   /**
    * When provided, only estimates linked to this yacht profile are returned.

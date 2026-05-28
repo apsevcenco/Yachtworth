@@ -49,3 +49,4 @@ export const CLIENTS_TABLE = "clients";
 export const YACHT_EQUIPMENT_TABLE = "yacht_equipment";
 export const YACHT_PHOTOS_BUCKET = "yacht-photos";
 export const LISTINGS_TABLE = "listings";
+export const PROPOSALS_TABLE = "proposals";

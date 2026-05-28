@@ -3808,3 +3808,150 @@ export const GetListingResponse = zod.object({
 export const DeleteListingParams = zod.object({
   id: zod.coerce.string(),
 });
+
+/**
+ * @summary List user's saved yacht proposals
+ */
+export const ListProposalsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      yacht_id: zod.string().nullish(),
+      yacht_name: zod.string(),
+      proposal_type: zod.enum(["sale", "charter", "both"]),
+      language: zod.enum([
+        "english",
+        "french",
+        "italian",
+        "spanish",
+        "german",
+        "russian",
+      ]),
+      created_at: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Persist a generated proposal to user history
+ */
+export const SaveProposalBody = zod.object({
+  yacht_id: zod.string().nullish(),
+  yacht_name: zod.string(),
+  proposal_type: zod.enum(["sale", "charter", "both"]),
+  language: zod.enum([
+    "english",
+    "french",
+    "italian",
+    "spanish",
+    "german",
+    "russian",
+  ]),
+  yacht_snapshot: zod
+    .record(zod.string(), zod.unknown())
+    .nullish()
+    .describe(
+      "Loose snapshot of the yacht details used to build the proposal PDF.",
+    ),
+  settings_snapshot: zod
+    .union([
+      zod.object({
+        proposal_type: zod.enum(["sale", "charter", "both"]),
+        language: zod.enum([
+          "english",
+          "french",
+          "italian",
+          "spanish",
+          "german",
+          "russian",
+        ]),
+        sections: zod
+          .array(zod.string())
+          .describe(
+            "Document sections to include\n(cover, specs, accommodation, equipment, pricing_sale,\npricing_charter, contact, watermark_confidential).\n",
+          ),
+        sale_price_eur: zod.number().nullish(),
+        charter_low_eur_week: zod.number().nullish(),
+        charter_high_eur_week: zod.number().nullish(),
+        charter_apa_pct: zod.number().nullish(),
+        charter_vat_pct: zod.number().nullish(),
+        broker_name: zod.string().nullish(),
+        broker_company: zod.string().nullish(),
+        broker_email: zod.string().nullish(),
+        broker_phone: zod.string().nullish(),
+        broker_website: zod.string().nullish(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  equipment_snapshot: zod
+    .array(zod.record(zod.string(), zod.unknown()))
+    .nullish(),
+});
+
+/**
+ * @summary Get a saved proposal
+ */
+export const GetProposalParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProposalResponse = zod.object({
+  id: zod.string(),
+  clerk_user_id: zod.string(),
+  yacht_id: zod.string().nullish(),
+  yacht_name: zod.string(),
+  proposal_type: zod.enum(["sale", "charter", "both"]),
+  language: zod.enum([
+    "english",
+    "french",
+    "italian",
+    "spanish",
+    "german",
+    "russian",
+  ]),
+  yacht_snapshot: zod.record(zod.string(), zod.unknown()).nullish(),
+  settings_snapshot: zod
+    .union([
+      zod.object({
+        proposal_type: zod.enum(["sale", "charter", "both"]),
+        language: zod.enum([
+          "english",
+          "french",
+          "italian",
+          "spanish",
+          "german",
+          "russian",
+        ]),
+        sections: zod
+          .array(zod.string())
+          .describe(
+            "Document sections to include\n(cover, specs, accommodation, equipment, pricing_sale,\npricing_charter, contact, watermark_confidential).\n",
+          ),
+        sale_price_eur: zod.number().nullish(),
+        charter_low_eur_week: zod.number().nullish(),
+        charter_high_eur_week: zod.number().nullish(),
+        charter_apa_pct: zod.number().nullish(),
+        charter_vat_pct: zod.number().nullish(),
+        broker_name: zod.string().nullish(),
+        broker_company: zod.string().nullish(),
+        broker_email: zod.string().nullish(),
+        broker_phone: zod.string().nullish(),
+        broker_website: zod.string().nullish(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  equipment_snapshot: zod
+    .array(zod.record(zod.string(), zod.unknown()))
+    .nullish(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+});
+
+/**
+ * @summary Delete a saved proposal
+ */
+export const DeleteProposalParams = zod.object({
+  id: zod.coerce.string(),
+});

@@ -43,6 +43,9 @@ import type {
   ListingGenerateResponse,
   ListingListResponse,
   ListingSaveInput,
+  Proposal,
+  ProposalListResponse,
+  ProposalSaveInput,
   RoiCalculation,
   RoiCalculationDetail,
   RoiCalculationInput,
@@ -2940,4 +2943,336 @@ export const useDeleteListing = <
   TContext
 > => {
   return useMutation(getDeleteListingMutationOptions(options));
+};
+
+/**
+ * @summary List user's saved yacht proposals
+ */
+export const getListProposalsUrl = () => {
+  return `/api/proposals`;
+};
+
+export const listProposals = async (
+  options?: RequestInit,
+): Promise<ProposalListResponse> => {
+  return customFetch<ProposalListResponse>(getListProposalsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListProposalsQueryKey = () => {
+  return [`/api/proposals`] as const;
+};
+
+export const getListProposalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProposals>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listProposals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListProposalsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listProposals>>> = ({
+    signal,
+  }) => listProposals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProposals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProposalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProposals>>
+>;
+export type ListProposalsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's saved yacht proposals
+ */
+
+export function useListProposals<
+  TData = Awaited<ReturnType<typeof listProposals>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listProposals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProposalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Persist a generated proposal to user history
+ */
+export const getSaveProposalUrl = () => {
+  return `/api/proposals`;
+};
+
+export const saveProposal = async (
+  proposalSaveInput: ProposalSaveInput,
+  options?: RequestInit,
+): Promise<Proposal> => {
+  return customFetch<Proposal>(getSaveProposalUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(proposalSaveInput),
+  });
+};
+
+export const getSaveProposalMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveProposal>>,
+    TError,
+    { data: BodyType<ProposalSaveInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveProposal>>,
+  TError,
+  { data: BodyType<ProposalSaveInput> },
+  TContext
+> => {
+  const mutationKey = ["saveProposal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveProposal>>,
+    { data: BodyType<ProposalSaveInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveProposal(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveProposalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveProposal>>
+>;
+export type SaveProposalMutationBody = BodyType<ProposalSaveInput>;
+export type SaveProposalMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Persist a generated proposal to user history
+ */
+export const useSaveProposal = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveProposal>>,
+    TError,
+    { data: BodyType<ProposalSaveInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveProposal>>,
+  TError,
+  { data: BodyType<ProposalSaveInput> },
+  TContext
+> => {
+  return useMutation(getSaveProposalMutationOptions(options));
+};
+
+/**
+ * @summary Get a saved proposal
+ */
+export const getGetProposalUrl = (id: string) => {
+  return `/api/proposals/${id}`;
+};
+
+export const getProposal = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Proposal> => {
+  return customFetch<Proposal>(getGetProposalUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProposalQueryKey = (id: string) => {
+  return [`/api/proposals/${id}`] as const;
+};
+
+export const getGetProposalQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProposal>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProposal>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProposalQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProposal>>> = ({
+    signal,
+  }) => getProposal(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProposal>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProposalQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProposal>>
+>;
+export type GetProposalQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a saved proposal
+ */
+
+export function useGetProposal<
+  TData = Awaited<ReturnType<typeof getProposal>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProposal>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProposalQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a saved proposal
+ */
+export const getDeleteProposalUrl = (id: string) => {
+  return `/api/proposals/${id}`;
+};
+
+export const deleteProposal = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteProposalUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProposalMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProposal>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProposal>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteProposal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProposal>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteProposal(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProposalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProposal>>
+>;
+
+export type DeleteProposalMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a saved proposal
+ */
+export const useDeleteProposal = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProposal>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProposal>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteProposalMutationOptions(options));
 };

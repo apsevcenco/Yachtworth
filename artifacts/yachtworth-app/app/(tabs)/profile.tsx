@@ -128,6 +128,13 @@ export default function ProfileScreen() {
               onPress={() => router.push("/listing/my-listings")}
             />
           )}
+          {isSignedIn && (
+            <Row
+              icon="file"
+              label="My proposals"
+              onPress={() => router.push("/yacht-proposal/my-proposals")}
+            />
+          )}
           <Row
             icon="settings"
             label="Settings"
