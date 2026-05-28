@@ -4,10 +4,14 @@ import * as FileSystem from "expo-file-system/legacy";
 import type { Charter, Yacht } from "@workspace/api-client-react";
 import {
   calcCharter,
-  DEFAULT_DISTRIBUTION,
+  DEFAULT_CENTRAL_AGENT_TYPE,
+  DEFAULT_CENTRAL_AGENT_VALUE,
   type CharterCalcInput,
   type CharterCalcResult,
+  type CentralAgentType,
   type DistributionEntry,
+  type SubAgent,
+  type SubAgentType,
 } from "./charterCalc";
 
 const NAVY = "#0B1E3F";
@@ -130,7 +134,19 @@ function charterToCalcInput(c: Charter): CharterCalcInput {
     extra_service_amount: c.extra_service_amount ?? 0,
     damage_amount: c.damage_amount ?? 0,
     damage_paid_by: c.damage_paid_by ?? "client",
-    distribution: dist.length > 0 ? dist : DEFAULT_DISTRIBUTION.map((d) => ({ ...d })),
+    central_agent_name: c.central_agent_name ?? "Central Agent",
+    central_agent_type: (c.central_agent_type ?? DEFAULT_CENTRAL_AGENT_TYPE) as CentralAgentType,
+    central_agent_value: c.central_agent_value ?? DEFAULT_CENTRAL_AGENT_VALUE,
+    sub_agents: Array.isArray(c.sub_agents)
+      ? c.sub_agents.map(
+          (s): SubAgent => ({
+            name: s.name,
+            type: s.type as SubAgentType,
+            value: s.value ?? 0,
+          }),
+        )
+      : [],
+    distribution: dist,
   };
 }
 
@@ -351,23 +367,22 @@ export function buildCharterPdfHtml(
     <div class="card">
       <div class="row"><span class="k">Base net revenue</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
       ${p.gross_revenue !== p.base_net ? `<div class="row"><span class="k">+ Transfer / extras</span><span class="v">${escapeHtml(eur(p.gross_revenue - p.base_net))}</span></div>` : ""}
-      ${p.aa_commission > 0 ? `<div class="row"><span class="k">AA commission</span><span class="v">− ${escapeHtml(eur(p.aa_commission))}</span></div>` : ""}
-      ${p.agent_commission > 0 ? `<div class="row"><span class="k">Agent commission</span><span class="v">− ${escapeHtml(eur(p.agent_commission))}</span></div>` : ""}
+      ${p.central_agent_amount > 0 ? `<div class="row"><span class="k">${escapeHtml(charter.central_agent_name ?? "Central Agent")} commission</span><span class="v">− ${escapeHtml(eur(p.central_agent_amount))}</span></div>` : ""}
+      ${p.sub_agent_results.map((r) => `<div class="row"><span class="k">${escapeHtml(r.name)} commission</span><span class="v">− ${escapeHtml(eur(r.amount))}</span></div>`).join("")}
       <div class="row"><span class="k">Crew</span><span class="v">− ${escapeHtml(eur(p.total_crew))}</span></div>
       <div class="row"><span class="k">Fuel</span><span class="v">− ${escapeHtml(eur(p.fuel_cost))}</span></div>
       ${p.damage_absorbed > 0 ? `<div class="row"><span class="k">Damage absorbed</span><span class="v">− ${escapeHtml(eur(p.damage_absorbed))}</span></div>` : ""}
       <div class="row divider"><span class="k">Net profit · margin ${p.margin.toFixed(1)}%</span><span class="v" style="color:${profitColor}">${escapeHtml(eur2(p.net_profit))}</span></div>
     </div>
 
-    ${
-      p.distribution_results.length > 0
-        ? `<h2>Income distribution (on base net)</h2>
+    <h2>Income distribution (on base net)</h2>
     <div class="card">
-      ${p.distribution_results.map((r) => `<div class="row"><span class="k">${escapeHtml(r.name)} (${r.pct.toFixed(0)}%)</span><span class="v">${escapeHtml(eur(r.amount))}</span></div>`).join("")}
-      <div class="row divider"><span class="k">${p.distribution_balanced ? "Balanced ✓" : p.distribution_difference >= 0 ? "Undistributed" : "Over-distributed"}</span><span class="v gold">${escapeHtml(eur(Math.abs(p.distribution_difference)))}</span></div>
-    </div>`
-        : ""
-    }
+      <div class="row"><span class="k">Base net</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
+      ${p.central_agent_amount > 0 ? `<div class="row"><span class="k">− ${escapeHtml(charter.central_agent_name ?? "Central Agent")}</span><span class="v">${escapeHtml(eur(p.central_agent_amount))}</span></div>` : ""}
+      ${p.sub_agent_results.map((r) => `<div class="row"><span class="k">− ${escapeHtml(r.name)}</span><span class="v">${escapeHtml(eur(r.amount))}</span></div>`).join("")}
+      ${p.distribution_results.map((r) => `<div class="row"><span class="k">− ${escapeHtml(r.name)}</span><span class="v">${escapeHtml(eur(r.amount))}</span></div>`).join("")}
+      <div class="row divider"><span class="k">${p.distribution_balanced ? "Boat Owner receives" : "Over-distributed (owner short)"}</span><span class="v gold">${escapeHtml(eur(Math.abs(p.boat_owner_receives)))}</span></div>
+    </div>
 
     ${charter.notes ? `<h2>Notes</h2><div class="card"><div class="row"><span class="k" style="color:${IVORY}">${escapeHtml(charter.notes)}</span></div></div>` : ""}
 
@@ -619,9 +634,10 @@ export function buildFleetCsv(input: FleetMonthInput): string {
     "Extra services",
     "Damage",
     "Refund",
-    "AA commission",
-    "Agent commission",
-    "Owner share",
+    "Central Agent",
+    "Central Agent name",
+    "Sub-agents total",
+    "Boat Owner receives",
     "Net profit",
     "Margin %",
   ];
@@ -665,8 +681,9 @@ export function buildFleetCsv(input: FleetMonthInput): string {
       (c.extra_service_amount ?? 0).toFixed(2),
       (c.damage_amount ?? 0).toFixed(2),
       (c.refund_amount ?? 0).toFixed(2),
-      p.aa_commission.toFixed(2),
-      p.agent_commission.toFixed(2),
+      p.central_agent_amount.toFixed(2),
+      c.central_agent_name ?? "Central Agent",
+      p.sub_agent_total.toFixed(2),
       p.boat_owner_receives.toFixed(2),
       p.net_profit.toFixed(2),
       p.margin.toFixed(1),

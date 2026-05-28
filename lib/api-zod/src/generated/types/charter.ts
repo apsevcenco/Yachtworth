@@ -5,11 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CentralAgentType } from "./centralAgentType";
 import type { CharterDistributionEntry } from "./charterDistributionEntry";
 import type { CharterRateType } from "./charterRateType";
 import type { CharterStatus } from "./charterStatus";
 import type { ContractStatus } from "./contractStatus";
 import type { DamagePaidBy } from "./damagePaidBy";
+import type { SubAgent } from "./subAgent";
 import type { TransferPaidBy } from "./transferPaidBy";
 
 export interface Charter {
@@ -125,4 +127,9 @@ export interface Charter {
   deckhand_count?: number;
   deckhand_day_rate?: number;
   distribution?: CharterDistributionEntry[];
+  /** @nullable */
+  central_agent_name?: string | null;
+  central_agent_type?: CentralAgentType;
+  central_agent_value?: number;
+  sub_agents?: SubAgent[];
 }

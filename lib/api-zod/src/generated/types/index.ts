@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./centralAgentType";
 export * from "./charter";
 export * from "./charterDistributionEntry";
 export * from "./charterInput";
@@ -59,6 +60,8 @@ export * from "./roiCalculationListResponse";
 export * from "./roiCalculationMarketRating";
 export * from "./roiComparable";
 export * from "./saleRegion";
+export * from "./subAgent";
+export * from "./subAgentType";
 export * from "./transferPaidBy";
 export * from "./usageType";
 export * from "./valuation";

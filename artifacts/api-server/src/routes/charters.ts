@@ -9,7 +9,9 @@ const router: IRouter = Router();
 const CHARTER_COLUMNS =
   "id, yacht_id, clerk_user_id, created_at, updated_at, status, client_name, client_email, client_phone, start_date, end_date, departure_port, return_port, engine_hours_before, engine_hours_after, fuel_liters, fuel_price_per_liter, captain_name, captain_day_rate, stewardess_count, stewardess_day_rate, extra_crew_cost, extra_crew_note, charter_rate_type, charter_rate, deposit_amount, deposit_date, deposit_received, final_payment_amount, final_payment_date, final_payment_received, vat_applicable, vat_percent, port_fees, provisioning, cleaning, other_expenses, other_expenses_note, notes, " +
   // Phase 3.1 (May 2026) — VAT-on-top + APA + distribution + extra fields
-  "contact_name, contract_status, contract_date, mooring_port, pickup_port, dropoff_port, transfer_fee, transfer_fee_note, transfer_fee_paid_by, departure_time, return_time, apa_enabled, apa_percent, apa_amount, apa_fuel, apa_provisioning, apa_beverages, apa_marina_fees, apa_communications, apa_crew_gratuities, apa_activities, apa_activities_note, apa_other, apa_other_note, refund_amount, refund_reason, extra_service_amount, extra_service_note, damage_amount, damage_note, damage_paid_by, first_officer_name, first_officer_day_rate, chef_included, chef_day_rate, deckhand_count, deckhand_day_rate, distribution";
+  "contact_name, contract_status, contract_date, mooring_port, pickup_port, dropoff_port, transfer_fee, transfer_fee_note, transfer_fee_paid_by, departure_time, return_time, apa_enabled, apa_percent, apa_amount, apa_fuel, apa_provisioning, apa_beverages, apa_marina_fees, apa_communications, apa_crew_gratuities, apa_activities, apa_activities_note, apa_other, apa_other_note, refund_amount, refund_reason, extra_service_amount, extra_service_note, damage_amount, damage_note, damage_paid_by, first_officer_name, first_officer_day_rate, chef_included, chef_day_rate, deckhand_count, deckhand_day_rate, distribution, " +
+  // Migration 010 — Central Agent + Sub-agents commission structure
+  "central_agent_name, central_agent_type, central_agent_value, sub_agents";
 
 function isIsoDate(v: unknown): v is string {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -44,6 +46,7 @@ const NOT_NULL_NUMERIC_DEFAULTS: Record<string, number> = {
   chef_day_rate: 0,
   deckhand_count: 0,
   deckhand_day_rate: 0,
+  central_agent_value: 10,
 };
 
 // Only coerce keys that are explicitly present and `null`. Missing/undefined
@@ -53,6 +56,15 @@ function normalizeCharterPayload<T extends Record<string, unknown>>(p: T): T {
   const out: Record<string, unknown> = { ...p };
   for (const [k, def] of Object.entries(NOT_NULL_NUMERIC_DEFAULTS)) {
     if (k in out && out[k] === null) out[k] = def;
+  }
+  // Non-numeric NOT NULL columns from migration 010 — coerce explicit null
+  // to safe defaults so a client-sent `null` (allowed by OpenAPI) never trips
+  // a NOT NULL constraint.
+  if ("central_agent_type" in out && out["central_agent_type"] === null) {
+    out["central_agent_type"] = "percent_net";
+  }
+  if ("sub_agents" in out && out["sub_agents"] === null) {
+    out["sub_agents"] = [];
   }
   return out as T;
 }

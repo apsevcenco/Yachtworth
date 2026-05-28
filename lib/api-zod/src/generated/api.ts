@@ -1943,6 +1943,8 @@ export const ListChartersQueryParams = zod.object({
 
 export const listChartersResponseItemsItemDistributionItemValueMin = 0;
 
+export const listChartersResponseItemsItemSubAgentsItemValueMin = 0;
+
 export const ListChartersResponse = zod.object({
   items: zod.array(
     zod.object({
@@ -2039,6 +2041,20 @@ export const ListChartersResponse = zod.object({
           }),
         )
         .optional(),
+      central_agent_name: zod.string().nullish(),
+      central_agent_type: zod.enum(["percent_net", "fixed"]).optional(),
+      central_agent_value: zod.number().optional(),
+      sub_agents: zod
+        .array(
+          zod.object({
+            name: zod.string(),
+            type: zod.enum(["percent_net", "percent_central", "fixed"]),
+            value: zod
+              .number()
+              .min(listChartersResponseItemsItemSubAgentsItemValueMin),
+          }),
+        )
+        .optional(),
     }),
   ),
 });
@@ -2119,6 +2135,10 @@ export const createCharterBodyDeckhandCountMax = 20;
 export const createCharterBodyDeckhandDayRateMin = 0;
 
 export const createCharterBodyDistributionItemValueMin = 0;
+
+export const createCharterBodyCentralAgentValueMin = 0;
+
+export const createCharterBodySubAgentsItemValueMin = 0;
 
 export const CreateCharterBody = zod.object({
   yacht_id: zod.string(),
@@ -2279,6 +2299,23 @@ export const CreateCharterBody = zod.object({
       }),
     )
     .nullish(),
+  central_agent_name: zod.string().nullish(),
+  central_agent_type: zod
+    .union([zod.enum(["percent_net", "fixed"]), zod.null()])
+    .optional(),
+  central_agent_value: zod
+    .number()
+    .min(createCharterBodyCentralAgentValueMin)
+    .nullish(),
+  sub_agents: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent_net", "percent_central", "fixed"]),
+        value: zod.number().min(createCharterBodySubAgentsItemValueMin),
+      }),
+    )
+    .nullish(),
 });
 
 /**
@@ -2289,6 +2326,8 @@ export const GetCharterParams = zod.object({
 });
 
 export const getCharterResponseDistributionItemValueMin = 0;
+
+export const getCharterResponseSubAgentsItemValueMin = 0;
 
 export const GetCharterResponse = zod.object({
   id: zod.string(),
@@ -2382,6 +2421,18 @@ export const GetCharterResponse = zod.object({
       }),
     )
     .optional(),
+  central_agent_name: zod.string().nullish(),
+  central_agent_type: zod.enum(["percent_net", "fixed"]).optional(),
+  central_agent_value: zod.number().optional(),
+  sub_agents: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent_net", "percent_central", "fixed"]),
+        value: zod.number().min(getCharterResponseSubAgentsItemValueMin),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -2464,6 +2515,10 @@ export const updateCharterBodyDeckhandCountMax = 20;
 export const updateCharterBodyDeckhandDayRateMin = 0;
 
 export const updateCharterBodyDistributionItemValueMin = 0;
+
+export const updateCharterBodyCentralAgentValueMin = 0;
+
+export const updateCharterBodySubAgentsItemValueMin = 0;
 
 export const UpdateCharterBody = zod.object({
   yacht_id: zod.string(),
@@ -2624,9 +2679,28 @@ export const UpdateCharterBody = zod.object({
       }),
     )
     .nullish(),
+  central_agent_name: zod.string().nullish(),
+  central_agent_type: zod
+    .union([zod.enum(["percent_net", "fixed"]), zod.null()])
+    .optional(),
+  central_agent_value: zod
+    .number()
+    .min(updateCharterBodyCentralAgentValueMin)
+    .nullish(),
+  sub_agents: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent_net", "percent_central", "fixed"]),
+        value: zod.number().min(updateCharterBodySubAgentsItemValueMin),
+      }),
+    )
+    .nullish(),
 });
 
 export const updateCharterResponseDistributionItemValueMin = 0;
+
+export const updateCharterResponseSubAgentsItemValueMin = 0;
 
 export const UpdateCharterResponse = zod.object({
   id: zod.string(),
@@ -2720,6 +2794,18 @@ export const UpdateCharterResponse = zod.object({
       }),
     )
     .optional(),
+  central_agent_name: zod.string().nullish(),
+  central_agent_type: zod.enum(["percent_net", "fixed"]).optional(),
+  central_agent_value: zod.number().optional(),
+  sub_agents: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        type: zod.enum(["percent_net", "percent_central", "fixed"]),
+        value: zod.number().min(updateCharterResponseSubAgentsItemValueMin),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -2758,6 +2844,8 @@ export const GetClientParams = zod.object({
 });
 
 export const getClientResponseChartersItemDistributionItemValueMin = 0;
+
+export const getClientResponseChartersItemSubAgentsItemValueMin = 0;
 
 export const GetClientResponse = zod.object({
   client: zod.object({
@@ -2865,6 +2953,20 @@ export const GetClientResponse = zod.object({
             value: zod
               .number()
               .min(getClientResponseChartersItemDistributionItemValueMin),
+          }),
+        )
+        .optional(),
+      central_agent_name: zod.string().nullish(),
+      central_agent_type: zod.enum(["percent_net", "fixed"]).optional(),
+      central_agent_value: zod.number().optional(),
+      sub_agents: zod
+        .array(
+          zod.object({
+            name: zod.string(),
+            type: zod.enum(["percent_net", "percent_central", "fixed"]),
+            value: zod
+              .number()
+              .min(getClientResponseChartersItemSubAgentsItemValueMin),
           }),
         )
         .optional(),

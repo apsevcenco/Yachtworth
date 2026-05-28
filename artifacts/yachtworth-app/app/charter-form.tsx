@@ -43,6 +43,11 @@ import { exportCharterPdf } from "../lib/charterExports";
 import {
   calcCharter,
   DEFAULT_DISTRIBUTION,
+  DEFAULT_CENTRAL_AGENT_TYPE,
+  DEFAULT_CENTRAL_AGENT_VALUE,
+  MAX_SUB_AGENTS,
+  type CentralAgentType,
+  type SubAgentType,
   type CharterCalcInput,
   type DistributionEntry,
 } from "../lib/charterCalc";
@@ -181,7 +186,12 @@ type FormState = {
   damage_paid_by: DamagePaidBy;
   refund_amount: string;
   refund_reason: string;
-  // Distribution
+  // Commissions (Central Agent + up to MAX_SUB_AGENTS sub-agents)
+  central_agent_name: string;
+  central_agent_type: CentralAgentType;
+  central_agent_value: string;
+  sub_agents: { name: string; type: SubAgentType; value: string }[];
+  // Custom participants (e.g. partner, referrer) — owner is implicit residual
   distribution: DistributionEntry[];
   // Notes
   notes: string;
@@ -258,6 +268,10 @@ const emptyForm = (yachtId = ""): FormState => ({
   damage_paid_by: "client",
   refund_amount: "",
   refund_reason: "",
+  central_agent_name: "Central Agent",
+  central_agent_type: DEFAULT_CENTRAL_AGENT_TYPE,
+  central_agent_value: String(DEFAULT_CENTRAL_AGENT_VALUE),
+  sub_agents: [],
   distribution: DEFAULT_DISTRIBUTION.map((d) => ({ ...d })),
   notes: "",
 });
@@ -335,10 +349,24 @@ function fromCharter(c: Charter): FormState {
     damage_paid_by: c.damage_paid_by ?? "client",
     refund_amount: c.refund_amount != null ? c.refund_amount.toString() : "",
     refund_reason: c.refund_reason ?? "",
-    distribution:
-      dist.length > 0
-        ? dist.map((d) => ({ name: d.name, type: d.type, value: d.value }))
-        : DEFAULT_DISTRIBUTION.map((d) => ({ ...d })),
+    central_agent_name: c.central_agent_name ?? "Central Agent",
+    central_agent_type: (c.central_agent_type ?? DEFAULT_CENTRAL_AGENT_TYPE) as CentralAgentType,
+    central_agent_value:
+      c.central_agent_value != null
+        ? c.central_agent_value.toString()
+        : String(DEFAULT_CENTRAL_AGENT_VALUE),
+    sub_agents: Array.isArray(c.sub_agents)
+      ? c.sub_agents.slice(0, MAX_SUB_AGENTS).map((s) => ({
+          name: s.name,
+          type: s.type as SubAgentType,
+          value: s.value != null ? s.value.toString() : "0",
+        }))
+      : [],
+    distribution: dist.map((d) => ({
+      name: d.name,
+      type: d.type,
+      value: d.value,
+    })),
     notes: c.notes ?? "",
   };
 }
@@ -451,6 +479,14 @@ function toInput(f: FormState): CharterInput {
       (d) =>
         ({ name: d.name, type: d.type, value: d.value }) as CharterDistributionEntry,
     ),
+    central_agent_name: f.central_agent_name.trim() || "Central Agent",
+    central_agent_type: f.central_agent_type,
+    central_agent_value: num(f.central_agent_value),
+    sub_agents: f.sub_agents.map((s) => ({
+      name: s.name.trim() || "Sub-agent",
+      type: s.type,
+      value: num(s.value),
+    })),
     notes: f.notes.trim() || null,
   };
 }
@@ -495,6 +531,14 @@ function toCalcInput(f: FormState): CharterCalcInput {
     extra_service_amount: num(f.extra_service_amount),
     damage_amount: num(f.damage_amount),
     damage_paid_by: f.damage_paid_by,
+    central_agent_name: f.central_agent_name.trim() || "Central Agent",
+    central_agent_type: f.central_agent_type,
+    central_agent_value: num(f.central_agent_value),
+    sub_agents: f.sub_agents.map((s) => ({
+      name: s.name.trim() || "Sub-agent",
+      type: s.type,
+      value: num(s.value),
+    })),
     distribution: f.distribution,
   };
 }
@@ -615,6 +659,33 @@ export default function CharterFormScreen() {
       distribution: f.distribution.filter((_, i) => i !== idx),
     }));
 
+  // --- Sub-agent helpers ---
+  const addSubAgent = () =>
+    setForm((f) =>
+      f.sub_agents.length >= MAX_SUB_AGENTS
+        ? f
+        : {
+            ...f,
+            sub_agents: [
+              ...f.sub_agents,
+              { name: "Sub-agent", type: "percent_net" as SubAgentType, value: "0" },
+            ],
+          },
+    );
+  const updateSubAgent = (
+    idx: number,
+    patch: Partial<{ name: string; type: SubAgentType; value: string }>,
+  ) =>
+    setForm((f) => ({
+      ...f,
+      sub_agents: f.sub_agents.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
+    }));
+  const removeSubAgent = (idx: number) =>
+    setForm((f) => ({
+      ...f,
+      sub_agents: f.sub_agents.filter((_, i) => i !== idx),
+    }));
+
   // ---- Save / Delete ----
   const handleSave = () => {
     if (!form.yacht_id) {
@@ -692,20 +763,25 @@ export default function CharterFormScreen() {
         return;
       }
     }
-    // Distribution warning — non-blocking
-    if (
-      form.distribution.length > 0 &&
-      calc.base_net > 0 &&
-      !calc.distribution_balanced
-    ) {
-      const diff = calc.distribution_difference;
-      const proceed = () => {
-        const body = toInput(form);
-        doSave(body);
-      };
+    // Normalize partial times (e.g. "9" → "09:00", "12:3" → "12:30") before save
+    const normDep = normalizeTime(form.departure_time);
+    const normRet = normalizeTime(form.return_time);
+    if (normDep !== form.departure_time || normRet !== form.return_time) {
+      setForm((f) => ({ ...f, departure_time: normDep, return_time: normRet }));
+    }
+    const formForSave: FormState = {
+      ...form,
+      departure_time: normDep,
+      return_time: normRet,
+    };
+    // Over-distribution warning — non-blocking. Owner is the residual, so any
+    // negative `boat_owner_receives` means commissions + custom parties exceed
+    // base net.
+    if (calc.base_net > 0 && calc.boat_owner_receives < 0) {
+      const proceed = () => doSave(toInput(formForSave));
       Alert.alert(
-        "Distribution does not sum to 100%",
-        `Distributed ${eur(calc.distribution_total)} of ${eur(calc.base_net)} (${diff >= 0 ? "leftover" : "over"} ${eur(Math.abs(diff))}). Save anyway?`,
+        "Owner over-distributed",
+        `Commissions and participants exceed base net by ${eur(Math.abs(calc.boat_owner_receives))}. Boat owner would receive a negative amount. Save anyway?`,
         [
           { text: "Cancel", style: "cancel" },
           { text: "Save anyway", onPress: proceed },
@@ -713,7 +789,7 @@ export default function CharterFormScreen() {
       );
       return;
     }
-    doSave(toInput(form));
+    doSave(toInput(formForSave));
   };
 
   const doSave = (body: CharterInput) => {
@@ -988,21 +1064,17 @@ export default function CharterFormScreen() {
 
           <View style={styles.row2}>
             <View style={{ flex: 1 }}>
-              <Field
+              <TimeInput
                 label="Departure time"
                 value={form.departure_time}
                 onChangeText={(v) => set("departure_time", v)}
-                placeholder="e.g. 10:00"
-                autoCapitalize="none"
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Field
+              <TimeInput
                 label="Return time"
                 value={form.return_time}
                 onChangeText={(v) => set("return_time", v)}
-                placeholder="e.g. 18:00"
-                autoCapitalize="none"
               />
             </View>
           </View>
@@ -1547,54 +1619,40 @@ export default function CharterFormScreen() {
               <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
                 APA spending (itemized)
               </Text>
-              <Field
-                label="Fuel (APA)"
+              <EuroField
+                label="Fuel"
                 value={form.apa_fuel}
                 onChangeText={(v) => set("apa_fuel", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
-              <Field
-                label="Provisioning (APA)"
+              <EuroField
+                label="Provisioning"
                 value={form.apa_provisioning}
                 onChangeText={(v) => set("apa_provisioning", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
-              <Field
+              <EuroField
                 label="Beverages"
                 value={form.apa_beverages}
                 onChangeText={(v) => set("apa_beverages", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
-              <Field
+              <EuroField
                 label="Marina fees"
                 value={form.apa_marina_fees}
                 onChangeText={(v) => set("apa_marina_fees", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
-              <Field
+              <EuroField
                 label="Communications"
                 value={form.apa_communications}
                 onChangeText={(v) => set("apa_communications", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
-              <Field
+              <EuroField
                 label="Crew gratuities"
                 value={form.apa_crew_gratuities}
                 onChangeText={(v) => set("apa_crew_gratuities", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
-              <Field
+              <EuroField
                 label="Water activities"
                 value={form.apa_activities}
                 onChangeText={(v) => set("apa_activities", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
               <Field
                 label="Activities note"
@@ -1602,12 +1660,10 @@ export default function CharterFormScreen() {
                 onChangeText={(v) => set("apa_activities_note", v)}
                 placeholder="e.g. jet-ski rental, tours"
               />
-              <Field
-                label="Other (APA)"
+              <EuroField
+                label="Other"
                 value={form.apa_other}
                 onChangeText={(v) => set("apa_other", v)}
-                keyboardType="decimal-pad"
-                placeholder="0"
               />
               <Field
                 label="Other note"
@@ -1618,8 +1674,50 @@ export default function CharterFormScreen() {
 
               <View style={styles.revenueBox}>
                 <RevLine label="APA collected" value={eur(calc.apa_amount)} />
-                <RevLine label="APA spent" value={eur(calc.apa_spent)} />
+                {num(form.apa_fuel) > 0 && (
+                  <RevLine label="— Fuel" value={eur(num(form.apa_fuel))} />
+                )}
+                {num(form.apa_provisioning) > 0 && (
+                  <RevLine
+                    label="— Provisioning"
+                    value={eur(num(form.apa_provisioning))}
+                  />
+                )}
+                {num(form.apa_beverages) > 0 && (
+                  <RevLine
+                    label="— Beverages"
+                    value={eur(num(form.apa_beverages))}
+                  />
+                )}
+                {num(form.apa_marina_fees) > 0 && (
+                  <RevLine
+                    label="— Marina fees"
+                    value={eur(num(form.apa_marina_fees))}
+                  />
+                )}
+                {num(form.apa_communications) > 0 && (
+                  <RevLine
+                    label="— Communications"
+                    value={eur(num(form.apa_communications))}
+                  />
+                )}
+                {num(form.apa_crew_gratuities) > 0 && (
+                  <RevLine
+                    label="— Crew gratuities"
+                    value={eur(num(form.apa_crew_gratuities))}
+                  />
+                )}
+                {num(form.apa_activities) > 0 && (
+                  <RevLine
+                    label="— Water activities"
+                    value={eur(num(form.apa_activities))}
+                  />
+                )}
+                {num(form.apa_other) > 0 && (
+                  <RevLine label="— Other" value={eur(num(form.apa_other))} />
+                )}
                 <View style={styles.revDivider} />
+                <RevLine label="APA spent" value={eur(calc.apa_spent)} />
                 <RevLine
                   label={
                     calc.apa_balance >= 0
@@ -1758,17 +1856,182 @@ export default function CharterFormScreen() {
           />
         </Section>
 
-        {/* SECTION 9: INCOME DISTRIBUTION */}
+        {/* SECTION 9: COMMISSIONS & DISTRIBUTION */}
         <Section
           id="distribution"
-          title="Income distribution"
+          title="Commissions & distribution"
           icon="pie-chart"
           collapsed={collapsed.has("distribution")}
           onToggle={() => toggle("distribution")}
         >
           <Text style={[styles.computed, { color: MUTED, marginTop: 0 }]}>
-            Distributes the base net rate (€{calc.base_net.toFixed(2)}).
-            Default: 80% owner, 10% AA, 10% agent.
+            Commissions and distribution are computed on the base net rate (€
+            {calc.base_net.toFixed(2)}). Boat owner receives the remainder.
+          </Text>
+
+          {/* Central Agent */}
+          <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
+            Central Agent
+          </Text>
+          <Field
+            label="Name"
+            value={form.central_agent_name}
+            onChangeText={(v) => set("central_agent_name", v)}
+            placeholder="Central Agent"
+          />
+          <Text style={styles.fieldLabel}>Type</Text>
+          <View style={styles.pillRow}>
+            {(
+              [
+                { v: "percent_net" as CentralAgentType, l: "% of net" },
+                { v: "fixed" as CentralAgentType, l: "Fixed €" },
+              ]
+            ).map((opt) => {
+              const active = form.central_agent_type === opt.v;
+              return (
+                <Pressable
+                  key={opt.v}
+                  onPress={() => set("central_agent_type", opt.v)}
+                  style={[styles.modePill, active && styles.modePillActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Central agent ${opt.l}`}
+                >
+                  <Text
+                    style={[
+                      styles.modePillText,
+                      active && { color: GOLD },
+                    ]}
+                  >
+                    {opt.l}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Field
+            label={
+              form.central_agent_type === "fixed"
+                ? "Amount (€)"
+                : "Percent of net (%)"
+            }
+            value={form.central_agent_value}
+            onChangeText={(v) => set("central_agent_value", v)}
+            keyboardType="decimal-pad"
+            placeholder={form.central_agent_type === "fixed" ? "0" : "10"}
+          />
+          <Text style={[styles.computed, { color: MUTED }]}>
+            Central Agent receives:{" "}
+            <Text style={{ color: GOLD }}>
+              {eur(calc.central_agent_amount)}
+            </Text>
+          </Text>
+
+          {/* Sub-agents */}
+          <Text style={[styles.fieldLabel, { marginTop: 18 }]}>
+            Sub-agents ({form.sub_agents.length}/{MAX_SUB_AGENTS})
+          </Text>
+          {form.sub_agents.map((s, idx) => {
+            const res = calc.sub_agent_results[idx];
+            return (
+              <View
+                key={idx}
+                style={[
+                  styles.revenueBox,
+                  { marginTop: 8, marginBottom: 0 },
+                ]}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 6,
+                  }}
+                >
+                  <TextInput
+                    value={s.name}
+                    onChangeText={(v) => updateSubAgent(idx, { name: v })}
+                    placeholder="Sub-agent name"
+                    placeholderTextColor={MUTED}
+                    style={[styles.input, { flex: 1, marginRight: 8 }]}
+                  />
+                  <Pressable
+                    onPress={() => removeSubAgent(idx)}
+                    style={styles.distRemoveBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${s.name}`}
+                  >
+                    <Feather name="x" size={16} color={RED} />
+                  </Pressable>
+                </View>
+                <View style={styles.pillRow}>
+                  {(
+                    [
+                      { v: "percent_net" as SubAgentType, l: "% net" },
+                      { v: "percent_central" as SubAgentType, l: "% central" },
+                      { v: "fixed" as SubAgentType, l: "Fixed €" },
+                    ]
+                  ).map((opt) => {
+                    const active = s.type === opt.v;
+                    return (
+                      <Pressable
+                        key={opt.v}
+                        onPress={() => updateSubAgent(idx, { type: opt.v })}
+                        style={[
+                          styles.modePill,
+                          active && styles.modePillActive,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Sub-agent type ${opt.l}`}
+                      >
+                        <Text
+                          style={[
+                            styles.modePillText,
+                            active && { color: GOLD },
+                          ]}
+                        >
+                          {opt.l}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={{ marginTop: 6 }}>
+                  <Field
+                    label={s.type === "fixed" ? "Amount (€)" : "Value (%)"}
+                    value={s.value}
+                    onChangeText={(v) => updateSubAgent(idx, { value: v })}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                  />
+                </View>
+                {res && (
+                  <Text style={[styles.computed, { color: MUTED }]}>
+                    Receives:{" "}
+                    <Text style={{ color: GOLD }}>{eur(res.amount)}</Text>
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+          {form.sub_agents.length < MAX_SUB_AGENTS && (
+            <Pressable
+              onPress={addSubAgent}
+              style={[styles.addDistBtn, { marginTop: 10 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Add sub-agent"
+            >
+              <Feather name="plus" size={14} color={GOLD} />
+              <Text style={styles.addDistBtnText}>Add sub-agent</Text>
+            </Pressable>
+          )}
+
+          {/* Custom participants (optional) */}
+          <Text style={[styles.fieldLabel, { marginTop: 18 }]}>
+            Custom participants (optional)
+          </Text>
+          <Text style={[styles.computed, { color: MUTED, marginTop: 0 }]}>
+            Add partners, referrers, or any other party that receives a share
+            of base net. Boat owner gets whatever is left.
           </Text>
           {form.distribution.map((d, idx) => {
             const res = calc.distribution_results[idx];
@@ -1825,28 +2088,40 @@ export default function CharterFormScreen() {
             onPress={addDist}
             style={styles.addDistBtn}
             accessibilityRole="button"
-            accessibilityLabel="Add distribution party"
+            accessibilityLabel="Add custom participant"
           >
             <Feather name="plus" size={14} color={GOLD} />
-            <Text style={styles.addDistBtnText}>Add party</Text>
+            <Text style={styles.addDistBtnText}>Add participant</Text>
           </Pressable>
 
           <View style={styles.revenueBox}>
+            <RevLine label="Base net" value={eur(calc.base_net)} />
             <RevLine
-              label="Distributed total"
-              value={eur(calc.distribution_total)}
+              label={`− ${form.central_agent_name || "Central Agent"}`}
+              value={eur(calc.central_agent_amount)}
             />
-            <RevLine label="Of base net" value={eur(calc.base_net)} />
+            {calc.sub_agent_results.map((r, i) => (
+              <RevLine
+                key={i}
+                label={`− ${r.name}`}
+                value={eur(r.amount)}
+              />
+            ))}
+            {calc.distribution_results.map((r, i) => (
+              <RevLine
+                key={`d${i}`}
+                label={`− ${r.name}`}
+                value={eur(r.amount)}
+              />
+            ))}
             <View style={styles.revDivider} />
             <RevLine
               label={
                 calc.distribution_balanced
-                  ? "Balanced ✓"
-                  : calc.distribution_difference >= 0
-                    ? "Undistributed"
-                    : "Over-distributed"
+                  ? "Boat Owner receives"
+                  : "Over-distributed (owner short)"
               }
-              value={eur(Math.abs(calc.distribution_difference))}
+              value={eur(Math.abs(calc.boat_owner_receives))}
               bold
               gold
             />
@@ -1871,15 +2146,18 @@ export default function CharterFormScreen() {
               />
             )}
             <PLRow
-              label="− AA commission"
-              value={eur(calc.aa_commission)}
+              label={`− ${form.central_agent_name || "Central Agent"} commission`}
+              value={eur(calc.central_agent_amount)}
               negative
             />
-            <PLRow
-              label="− Agent commission"
-              value={eur(calc.agent_commission)}
-              negative
-            />
+            {calc.sub_agent_results.map((r, i) => (
+              <PLRow
+                key={i}
+                label={`− ${r.name} commission`}
+                value={eur(r.amount)}
+                negative
+              />
+            ))}
             <PLRow
               label="− Crew costs"
               value={eur(calc.total_crew)}
@@ -1931,24 +2209,39 @@ export default function CharterFormScreen() {
               negative
             />
             <View style={styles.plDivider} />
-            {calc.distribution_results.map((p, i) => (
+            <PLRow
+              label={`− ${form.central_agent_name || "Central Agent"}`}
+              value={eur(calc.central_agent_amount)}
+              negative
+            />
+            {calc.sub_agent_results.map((r, i) => (
               <PLRow
-                key={i}
-                label={`${p.name} (${p.pct.toFixed(0)}%)`}
-                value={eur(p.amount)}
+                key={`sa${i}`}
+                label={`− ${r.name}`}
+                value={eur(r.amount)}
+                negative
               />
             ))}
-            {calc.boat_owner_receives > 0 && (
-              <>
-                <View style={styles.plDivider} />
-                <View style={styles.plProfitRow}>
-                  <Text style={styles.plProfitLabel}>BOAT OWNER RECEIVES</Text>
-                  <Text style={[styles.plProfitValue, { color: GOLD }]}>
-                    {eur(calc.boat_owner_receives)}
-                  </Text>
-                </View>
-              </>
-            )}
+            {calc.distribution_results.map((p, i) => (
+              <PLRow
+                key={`cd${i}`}
+                label={`− ${p.name}`}
+                value={eur(p.amount)}
+                negative
+              />
+            ))}
+            <View style={styles.plDivider} />
+            <View style={styles.plProfitRow}>
+              <Text style={styles.plProfitLabel}>BOAT OWNER RECEIVES</Text>
+              <Text
+                style={[
+                  styles.plProfitValue,
+                  { color: calc.boat_owner_receives >= 0 ? GOLD : RED },
+                ]}
+              >
+                {eur(calc.boat_owner_receives)}
+              </Text>
+            </View>
           </View>
         </Section>
 
@@ -2156,6 +2449,121 @@ export default function CharterFormScreen() {
 }
 
 // ---- Sub components ----
+
+/** Auto-formatting HH:MM 24-hour time input. */
+function formatTime(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  if (digits.length === 0) return "";
+  let hh = digits.slice(0, 2);
+  let mm = digits.slice(2, 4);
+  // Clamp on the fly
+  if (hh.length === 2) {
+    const n = parseInt(hh, 10);
+    if (n > 23) hh = "23";
+  }
+  if (mm.length === 2) {
+    const n = parseInt(mm, 10);
+    if (n > 59) mm = "59";
+  }
+  if (digits.length <= 2) return hh;
+  return `${hh}:${mm}`;
+}
+
+/** Normalize a partial HH:MM to a valid one (zero-pad / fill MM with "00"). */
+function normalizeTime(s: string): string {
+  if (!s) return "";
+  const digits = s.replace(/\D/g, "").slice(0, 4);
+  if (digits.length === 0) return "";
+  // 1–2 digits → hour-only ("9" → "09", "12" → "12"); 3–4 digits → HH+MM.
+  let hhStr: string;
+  let mmStr: string;
+  if (digits.length <= 2) {
+    hhStr = digits.padStart(2, "0");
+    mmStr = "00";
+  } else {
+    hhStr = digits.slice(0, 2);
+    mmStr = digits.slice(2).padEnd(2, "0");
+  }
+  let hh = parseInt(hhStr, 10);
+  let mm = parseInt(mmStr, 10);
+  if (!Number.isFinite(hh)) hh = 0;
+  if (!Number.isFinite(mm)) mm = 0;
+  if (hh > 23) hh = 23;
+  if (mm > 59) mm = 59;
+  return `${hh.toString().padStart(2, "0")}:${mm.toString().padStart(2, "0")}`;
+}
+
+function TimeInput({
+  label,
+  value,
+  onChangeText,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+}): React.JSX.Element {
+  return (
+    <View style={{ marginBottom: 10 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={(v) => onChangeText(formatTime(v))}
+        placeholder="HH:MM"
+        placeholderTextColor={MUTED}
+        keyboardType="number-pad"
+        maxLength={5}
+        style={styles.input}
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+}
+
+/** Numeric field with € suffix rendered inside the input on the right. */
+function EuroField({
+  label,
+  value,
+  onChangeText,
+  placeholder = "0",
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+}): React.JSX.Element {
+  return (
+    <View style={{ marginBottom: 10 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View
+        style={[
+          styles.input,
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 0,
+            paddingRight: 12,
+          },
+        ]}
+      >
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={MUTED}
+          keyboardType="decimal-pad"
+          style={{
+            flex: 1,
+            color: IVORY,
+            fontSize: 15,
+            paddingVertical: 12,
+          }}
+          accessibilityLabel={label}
+        />
+        <Text style={{ color: GOLD, fontWeight: "600", marginLeft: 6 }}>€</Text>
+      </View>
+    </View>
+  );
+}
 
 function Section({
   id,

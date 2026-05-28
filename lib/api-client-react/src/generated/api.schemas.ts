@@ -1061,6 +1061,29 @@ export const DistributionSplitType = {
   fixed: "fixed",
 } as const;
 
+export type CentralAgentType =
+  (typeof CentralAgentType)[keyof typeof CentralAgentType];
+
+export const CentralAgentType = {
+  percent_net: "percent_net",
+  fixed: "fixed",
+} as const;
+
+export type SubAgentType = (typeof SubAgentType)[keyof typeof SubAgentType];
+
+export const SubAgentType = {
+  percent_net: "percent_net",
+  percent_central: "percent_central",
+  fixed: "fixed",
+} as const;
+
+export interface SubAgent {
+  name: string;
+  type: SubAgentType;
+  /** @minimum 0 */
+  value: number;
+}
+
 export interface CharterDistributionEntry {
   name: string;
   type: DistributionSplitType;
@@ -1315,6 +1338,16 @@ export interface CharterInput {
   deckhand_day_rate?: number | null;
   /** @nullable */
   distribution?: CharterDistributionEntry[] | null;
+  /** @nullable */
+  central_agent_name?: string | null;
+  central_agent_type?: CentralAgentType | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  central_agent_value?: number | null;
+  /** @nullable */
+  sub_agents?: SubAgent[] | null;
 }
 
 export interface Charter {
@@ -1430,6 +1463,11 @@ export interface Charter {
   deckhand_count?: number;
   deckhand_day_rate?: number;
   distribution?: CharterDistributionEntry[];
+  /** @nullable */
+  central_agent_name?: string | null;
+  central_agent_type?: CentralAgentType;
+  central_agent_value?: number;
+  sub_agents?: SubAgent[];
 }
 
 export interface CharterListResponse {

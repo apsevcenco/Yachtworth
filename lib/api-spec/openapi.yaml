@@ -1884,6 +1884,23 @@ components:
     DistributionSplitType:
       type: string
       enum: [percent, fixed]
+    CentralAgentType:
+      type: string
+      enum: [percent_net, fixed]
+    SubAgentType:
+      type: string
+      enum: [percent_net, percent_central, fixed]
+    SubAgent:
+      type: object
+      required: [name, type, value]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/SubAgentType"
+        value:
+          type: number
+          minimum: 0
     CharterDistributionEntry:
       type: object
       required: [name, type, value]
@@ -2098,6 +2115,20 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/CharterDistributionEntry"
+        # — Migration 010 (Central Agent + Sub-agents) —
+        central_agent_name:
+          type: ["string", "null"]
+        central_agent_type:
+          oneOf:
+            - $ref: "#/components/schemas/CentralAgentType"
+            - type: "null"
+        central_agent_value:
+          type: ["number", "null"]
+          minimum: 0
+        sub_agents:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/SubAgent"
     Charter:
       type: object
       required:
@@ -2277,6 +2308,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CharterDistributionEntry"
+        # — Migration 010 (Central Agent + Sub-agents) —
+        central_agent_name:
+          type: ["string", "null"]
+        central_agent_type:
+          $ref: "#/components/schemas/CentralAgentType"
+        central_agent_value:
+          type: number
+        sub_agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubAgent"
     CharterListResponse:
       type: object
       required: [items]
