@@ -53,10 +53,16 @@ function blankItem(def: EquipmentDef, category: EquipmentItem["category"]): Equi
 }
 
 export default function EquipmentSection({ items, onChange, yachtType }: Props) {
-  const [openGroup, setOpenGroup] = useState<Record<string, boolean>>({});
-
   const visibleGroups = EQUIPMENT_CATALOG.filter((g) =>
     g.yachtTypes ? (yachtType ? g.yachtTypes.includes(yachtType) : false) : true,
+  );
+
+  // First visible group opens by default; rest collapsed. EquipmentSection
+  // unmounts whenever its parent collapsible closes, so opening the parent
+  // again gives a fresh state — matching the page-level "reset on entry" rule.
+  const firstKey = visibleGroups[0]?.category;
+  const [openGroup, setOpenGroup] = useState<Record<string, boolean>>(
+    firstKey ? { [firstKey]: true } : {},
   );
 
   const itemsOf = (type: string): EquipmentItem[] =>

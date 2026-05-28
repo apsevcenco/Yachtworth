@@ -19,7 +19,7 @@ import {
   type Yacht,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -605,8 +605,28 @@ export default function CharterFormScreen() {
     }
   }, [editId, form.yacht_id, yachts]);
 
+  // Per UX rule: every time the user enters this screen (initial mount,
+  // back-navigation, or post-save return), all sections collapse except
+  // the first one ("basics").
+  const ALL_COLLAPSED_EXCEPT_BASICS: SectionId[] = [
+    "logistics",
+    "vessel",
+    "crew",
+    "revenue",
+    "apa",
+    "expenses",
+    "extras",
+    "distribution",
+    "pl",
+    "notes",
+  ];
   const [collapsed, setCollapsed] = useState<Set<SectionId>>(
-    new Set(["apa", "extras", "distribution", "notes"]),
+    new Set(ALL_COLLAPSED_EXCEPT_BASICS),
+  );
+  useFocusEffect(
+    React.useCallback(() => {
+      setCollapsed(new Set(ALL_COLLAPSED_EXCEPT_BASICS));
+    }, []),
   );
   const toggle = (s: SectionId) =>
     setCollapsed((prev) => {

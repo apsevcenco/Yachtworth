@@ -14,7 +14,7 @@ import {
 import EquipmentSection from "../../components/EquipmentSection";
 import { PhotoSection } from "../../components/PhotoSection";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -222,16 +222,26 @@ export default function MyYachtEditScreen() {
   // Tracks an id returned by a successful create when the subsequent
   // equipment PUT failed; ensures the retry updates rather than dupes.
   const [createdId, setCreatedId] = useState<string | null>(null);
-  const [open, setOpen] = useState<Record<string, boolean>>({
+  const INITIAL_OPEN: Record<string, boolean> = {
     basics: true,
-    dimensions: true,
+    dimensions: false,
     registration: false,
     engine: false,
     accommodation: false,
     photo: false,
     notes: false,
     equipment: false,
-  });
+  };
+  const [open, setOpen] = useState<Record<string, boolean>>(INITIAL_OPEN);
+
+  // Per UX rule: every time the user enters this screen (initial mount,
+  // back-navigation from a child route, or right after save+return),
+  // collapsible sections reset so only the first is open.
+  useFocusEffect(
+    React.useCallback(() => {
+      setOpen(INITIAL_OPEN);
+    }, []),
+  );
 
   const getQ = useGetYacht(id ?? "", {
     query: {
