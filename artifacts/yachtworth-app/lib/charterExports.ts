@@ -18,11 +18,24 @@ const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
 const NAVY_ELEV = "#142A52";
 const GOLD = "#C9A961";
+const GOLD_DEEP = "#A8893E";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.6)";
 const DIVIDER = "rgba(247,243,236,0.1)";
 const GREEN = "#3FB68B";
 const RED = "#E74C3C";
+
+// v4 PDF palette (light-themed report)
+const PAPER = "#FFFFFF";
+const INK = "#0B1E3F";
+const INK_MUTED = "#6B7280";
+const INK_FAINT = "#9CA3AF";
+const LIGHT_DIVIDER = "#E5E7EB";
+const APA_BG = "#F0F7F1";
+const APA_BORDER = "#CDE3D2";
+const APA_INK = "#1F4D2C";
+const APA_BALANCE_GREEN = "#1F8A4F";
+const APA_BALANCE_RED = "#B43232";
 
 function escapeHtml(s: string): string {
   return s
@@ -171,6 +184,7 @@ function yachtTitle(y: Yacht | null | undefined): string {
 // PER-CHARTER PDF
 // ───────────────────────────────────────────────────────────────────────────
 
+// Legacy dark-themed style — kept for the fleet monthly PDF (unchanged).
 const PDF_BASE_STYLE = `
   @page { size: A4; margin: 22mm 16mm; }
   * { box-sizing: border-box; }
@@ -206,6 +220,149 @@ const PDF_BASE_STYLE = `
   }
 `;
 
+// v4 light-themed template. Used by buildCharterPdfHtml().
+const PDF_V4_STYLE = `
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: ${INK}; background: ${PAPER}; margin: 0; padding: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    font-size: 11px; line-height: 1.45;
+  }
+  .wrap { padding: 4px 6px 20px; }
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    color: ${INK_MUTED}; font-size: 9.5px; letter-spacing: 2px;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .top .brand { color: ${GOLD_DEEP}; letter-spacing: 3px; }
+  .top .conf { color: ${INK_FAINT}; }
+  .title-row {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-top: 4px; padding-bottom: 10px;
+  }
+  .title {
+    color: ${INK}; font-size: 22px; font-weight: 800; letter-spacing: -0.4px;
+  }
+  .title-date { color: ${INK_MUTED}; font-size: 10.5px; font-weight: 500; }
+  .gold-line {
+    height: 3px; border: 0;
+    background: linear-gradient(90deg, ${GOLD_DEEP}, ${GOLD}, ${GOLD_DEEP});
+    margin: 0 0 18px;
+  }
+  /* Hero */
+  .hero {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 24px; padding-bottom: 18px; border-bottom: 1px solid ${LIGHT_DIVIDER};
+    margin-bottom: 16px;
+  }
+  .hero-left { flex: 1; }
+  .hero-name { color: ${INK}; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+  .hero-meta { color: ${INK_MUTED}; font-size: 11px; margin-top: 6px; line-height: 1.5; }
+  .pill {
+    display: inline-block; margin-top: 10px; padding: 3px 12px;
+    border-radius: 999px; font-size: 9px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .pill-confirmed { background: ${GOLD}; color: ${INK}; }
+  .pill-tentative { background: #DBEAFE; color: #1E40AF; }
+  .pill-cancelled { background: #FEE2E2; color: #991B1B; }
+  .pill-option, .pill-other { background: #F3F4F6; color: ${INK_MUTED}; }
+  .hero-right { text-align: right; min-width: 200px; }
+  .hero-kicker { color: ${INK_MUTED}; font-size: 9px; letter-spacing: 2px;
+                 text-transform: uppercase; font-weight: 600; }
+  .hero-amt { color: ${INK}; font-size: 26px; font-weight: 800;
+              letter-spacing: -0.5px; line-height: 1.1; margin-top: 2px; }
+  .hero-amt.gold { color: ${GOLD_DEEP}; }
+  .hero-amt.neg { color: ${APA_BALANCE_RED}; }
+  .hero-sub { color: ${INK_MUTED}; font-size: 10.5px; margin-top: 4px; }
+  .hero-divider { height: 1px; background: ${LIGHT_DIVIDER}; margin: 14px 0; }
+  /* Section heading */
+  h2 {
+    color: ${INK}; font-size: 10px; letter-spacing: 2.5px;
+    text-transform: uppercase; font-weight: 700;
+    margin: 18px 0 8px; padding-bottom: 6px;
+    border-bottom: 1px solid ${LIGHT_DIVIDER};
+  }
+  .cols { display: flex; gap: 32px; }
+  .cols > div { flex: 1; }
+  /* Generic row */
+  .row {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 4px 0; font-size: 11px; line-height: 1.5;
+  }
+  .row .k { color: ${INK_MUTED}; }
+  .row .v { color: ${INK}; font-weight: 600; text-align: right; }
+  .row .v.gold { color: ${GOLD_DEEP}; }
+  .row.divider { border-top: 1px solid ${LIGHT_DIVIDER}; margin-top: 6px; padding-top: 8px; }
+  .row.total { font-weight: 700; }
+  .row.total .v { color: ${INK}; font-weight: 800; }
+  .row.big { font-size: 13px; }
+  .row .add { color: ${APA_BALANCE_GREEN}; font-weight: 700; }
+  .row .sub { color: ${APA_BALANCE_RED}; font-weight: 700; }
+  /* APA block (soft green) */
+  .apa {
+    background: ${APA_BG}; border: 1px solid ${APA_BORDER};
+    border-radius: 8px; padding: 14px 16px; margin-top: 6px;
+  }
+  .apa-title {
+    color: ${APA_INK}; font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; font-weight: 700; margin-bottom: 8px;
+  }
+  .apa .row .k { color: ${APA_INK}; opacity: 0.78; }
+  .apa .row .v { color: ${APA_INK}; }
+  .apa-balance.pos { color: ${APA_BALANCE_GREEN}; font-weight: 800; }
+  .apa-balance.neg { color: ${APA_BALANCE_RED}; font-weight: 800; }
+  /* Dark blocks (Income Distribution + P&L) */
+  .dark {
+    background: ${NAVY}; color: ${IVORY};
+    border-radius: 8px; padding: 16px 18px; margin-top: 6px;
+  }
+  .dark-title {
+    color: ${GOLD}; font-size: 10px; letter-spacing: 2.5px;
+    text-transform: uppercase; font-weight: 700;
+    padding-bottom: 8px; margin-bottom: 8px;
+    border-bottom: 1px solid rgba(247,243,236,0.12);
+  }
+  .dark .row .k { color: rgba(247,243,236,0.65); }
+  .dark .row .v { color: ${IVORY}; }
+  .dark .row .v.gold { color: ${GOLD}; font-weight: 700; }
+  .dark .row.divider { border-top-color: rgba(247,243,236,0.12); }
+  .dark .row.total .v { color: ${IVORY}; font-weight: 800; }
+  .balanced {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(247,243,236,0.12);
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .balanced.ok { color: ${GREEN}; }
+  .balanced.bad { color: ${RED}; }
+  .pnl-net {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid rgba(247,243,236,0.12);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .pnl-net .k { color: ${GOLD}; font-size: 11px; letter-spacing: 2px;
+                text-transform: uppercase; font-weight: 700; }
+  .pnl-net .v { color: ${IVORY}; font-size: 22px; font-weight: 800; letter-spacing: -0.4px; }
+  .pnl-net .v.neg { color: #FF6B6B; }
+  .note {
+    margin-top: 10px; color: ${INK_MUTED}; font-size: 9.5px;
+    line-height: 1.5; font-style: italic;
+  }
+  .footer {
+    margin-top: 22px; padding-top: 12px; border-top: 1px solid ${LIGHT_DIVIDER};
+    display: flex; justify-content: space-between; align-items: center;
+    color: ${INK_MUTED}; font-size: 9px; line-height: 1.5;
+  }
+  .footer .right { color: ${GOLD_DEEP}; font-weight: 700;
+                   letter-spacing: 2px; text-transform: uppercase; text-align: right; }
+  .footer .right small { display: block; color: ${INK_FAINT};
+                         font-weight: 400; letter-spacing: 1px; font-size: 8px; margin-top: 2px; }
+`;
+
 const STATUS_LABEL: Record<string, string> = {
   confirmed: "Confirmed",
   tentative: "Tentative",
@@ -220,6 +377,38 @@ const CONTRACT_LABEL: Record<string, string> = {
   signed: "Signed",
 };
 
+// Currency with thin space after €, integer rounded. Unsigned (caller adds + / −).
+function eurThin(n: number): string {
+  const abs = Math.abs(Math.round(n));
+  return "€\u2009" + abs.toLocaleString("en-GB");
+}
+
+// Signed currency for headline figures (net profit, owner residual) — uses
+// real minus sign so losses are visually unambiguous.
+function eurSigned(n: number): string {
+  const rounded = Math.round(n);
+  const sign = rounded < 0 ? "−\u2009" : "";
+  return sign + "€\u2009" + Math.abs(rounded).toLocaleString("en-GB");
+}
+
+// Pretty DD MMM YYYY (uses fmtDate which is already timezone-safe).
+function pillClass(status: string): string {
+  switch (status) {
+    case "confirmed":
+      return "pill pill-confirmed";
+    case "tentative":
+      return "pill pill-tentative";
+    case "cancelled":
+      return "pill pill-cancelled";
+    default:
+      return "pill pill-other";
+  }
+}
+
+function row(label: string, value: string, extraClass = ""): string {
+  return `<div class="row${extraClass ? " " + extraClass : ""}"><span class="k">${label}</span><span class="v">${value}</span></div>`;
+}
+
 export function buildCharterPdfHtml(
   charter: Charter,
   yacht: Yacht | null,
@@ -227,167 +416,300 @@ export function buildCharterPdfHtml(
   const p = computeCharterPnl(charter);
   const today = new Date().toLocaleDateString("en-GB", {
     day: "2-digit",
-    month: "long",
+    month: "short",
     year: "numeric",
   });
   const yTitle = yachtTitle(yacht);
+
   const range = `${fmtDate(charter.start_date)} — ${fmtDate(charter.end_date)} · ${p.days} day${p.days === 1 ? "" : "s"}`;
+  const ports =
+    charter.departure_port || charter.return_port
+      ? `${escapeHtml(charter.departure_port ?? "")}${charter.return_port ? " → " + escapeHtml(charter.return_port) : ""}`
+      : charter.mooring_port
+        ? escapeHtml(charter.mooring_port)
+        : "";
+  const times =
+    charter.departure_time || charter.return_time
+      ? `${escapeHtml(charter.departure_time ?? "")}${charter.return_time ? " — " + escapeHtml(charter.return_time) : ""}`
+      : "";
+
   const statusLbl = STATUS_LABEL[charter.status] ?? charter.status;
   const rateLine =
     charter.charter_rate_type === "per_day"
-      ? `${eur(charter.charter_rate ?? 0)} / day × ${p.days} days`
+      ? `${eurThin(charter.charter_rate ?? 0)} / day × ${p.days} days`
       : charter.charter_rate_type === "per_week"
-        ? `${eur(charter.charter_rate ?? 0)} / week × ${(p.days / 7).toFixed(1)} weeks`
-        : `Fixed price ${eur(charter.charter_rate ?? 0)}`;
+        ? `${eurThin(charter.charter_rate ?? 0)} / week × ${(p.days / 7).toFixed(1)} weeks`
+        : `Fixed price ${eurThin(charter.charter_rate ?? 0)}`;
 
-  const profitColor = p.net_profit >= 0 ? GREEN : RED;
   const vatPct = charter.vat_applicable ? (charter.vat_percent ?? 0) : 0;
+
+  // ── APA rows (non-zero only) ───────────────────────────────────────
+  const apaItems: { label: string; value: number }[] = [
+    { label: "Fuel", value: charter.apa_fuel ?? 0 },
+    { label: "Provisioning / Food", value: charter.apa_provisioning ?? 0 },
+    { label: "Beverages / Alcohol", value: charter.apa_beverages ?? 0 },
+    { label: "Marina / Port fees", value: charter.apa_marina_fees ?? 0 },
+    { label: "Communications", value: charter.apa_communications ?? 0 },
+    { label: "Crew gratuities", value: charter.apa_crew_gratuities ?? 0 },
+    {
+      label: `Activities${charter.apa_activities_note ? ": " + charter.apa_activities_note : ""}`,
+      value: charter.apa_activities ?? 0,
+    },
+    {
+      label: `Other${charter.apa_other_note ? ": " + charter.apa_other_note : ""}`,
+      value: charter.apa_other ?? 0,
+    },
+  ].filter((r) => r.value > 0);
+
+  // ── Crew rows (included only) ──────────────────────────────────────
+  type CrewRow = { label: string; total: number };
+  const crewRows: CrewRow[] = [];
+  if (p.captain_total > 0)
+    crewRows.push({
+      label: `Captain<br/><span class="muted">${eurThin(charter.captain_day_rate ?? 0)} / day · ${p.days} days</span>`,
+      total: p.captain_total,
+    });
+  if (p.first_officer_total > 0)
+    crewRows.push({
+      label: `First Officer<br/><span class="muted">${eurThin(charter.first_officer_day_rate ?? 0)} / day · ${p.days} days</span>`,
+      total: p.first_officer_total,
+    });
+  if (p.stewardess_total > 0)
+    crewRows.push({
+      label: `Stewardess ×${charter.stewardess_count ?? 0}<br/><span class="muted">${eurThin(charter.stewardess_day_rate ?? 0)} / day · ${p.days} days</span>`,
+      total: p.stewardess_total,
+    });
+  if (p.chef_total > 0)
+    crewRows.push({
+      label: `Chef<br/><span class="muted">${eurThin(charter.chef_day_rate ?? 0)} / day · ${p.days} days</span>`,
+      total: p.chef_total,
+    });
+  if (p.deckhand_total > 0)
+    crewRows.push({
+      label: `Deckhand ×${charter.deckhand_count ?? 0}<br/><span class="muted">${eurThin(charter.deckhand_day_rate ?? 0)} / day · ${p.days} days</span>`,
+      total: p.deckhand_total,
+    });
+  if ((charter.extra_crew_cost ?? 0) > 0)
+    crewRows.push({
+      label: `Extra crew${charter.extra_crew_note ? `<br/><span class="muted">${escapeHtml(charter.extra_crew_note)}</span>` : ""}`,
+      total: charter.extra_crew_cost ?? 0,
+    });
+
+  // ── Vessel info ────────────────────────────────────────────────────
+  const showEngine =
+    charter.engine_hours_before != null && charter.engine_hours_after != null;
+  const fuelLiters = charter.fuel_liters ?? 0;
+  const fuelPrice = charter.fuel_price_per_liter ?? 0;
+
+  // ── Distribution rows (for dark block) ─────────────────────────────
+  type DistRow = { name: string; amount: number; pct: number; gold?: boolean };
+  const distRows: DistRow[] = [];
+  if (p.central_agent_amount > 0) {
+    const pct = p.base_net > 0 ? (p.central_agent_amount / p.base_net) * 100 : 0;
+    distRows.push({
+      name: charter.central_agent_name || "Central Agent",
+      amount: p.central_agent_amount,
+      pct,
+    });
+  }
+  for (const s of p.sub_agent_results) {
+    if (s.amount > 0)
+      distRows.push({ name: s.name, amount: s.amount, pct: s.pct });
+  }
+  for (const d of p.distribution_results) {
+    if (d.amount > 0) distRows.push({ name: d.name, amount: d.amount, pct: d.pct });
+  }
+  const ownerPct =
+    p.base_net > 0 ? (p.boat_owner_receives / p.base_net) * 100 : 0;
+  distRows.unshift({
+    name: "Boat Owner",
+    amount: p.boat_owner_receives,
+    pct: ownerPct,
+    gold: true,
+  });
+  const totalDistributed = distRows.reduce((s, r) => s + r.amount, 0);
+  // Balance semantics come from calcCharter: owner residual >= 0 means the
+  // base_net fully covers all commissions/custom shares. If negative, the
+  // owner is shorted (over-distributed). totalDistributed always equals
+  // base_net by construction, so display diff against the over-distribution.
+  const distDiff = p.base_net - totalDistributed; // structurally 0
+  const balanced = p.distribution_balanced;
+  const overDistAmount = balanced ? 0 : Math.abs(p.boat_owner_receives);
+
+  // ── Payment statuses ───────────────────────────────────────────────
+  const depAmount = charter.deposit_amount ?? 0;
+  const finAmount = charter.final_payment_amount ?? 0;
+  const depLine =
+    depAmount > 0
+      ? `${eurThin(depAmount)} ${charter.deposit_received ? "✓ Received" : "Pending"}`
+      : "—";
+  const finLine =
+    finAmount > 0
+      ? `${eurThin(finAmount)} ${charter.final_payment_received ? "✓ Received" : "Pending"}`
+      : "—";
+
+  const profitNeg = p.net_profit < 0;
+  const ownerNeg = p.boat_owner_receives < 0;
 
   return `<!doctype html>
 <html><head><meta charset="utf-8" />
 <title>Charter — ${escapeHtml(yTitle)}</title>
-<style>${PDF_BASE_STYLE}
-  .hero { background: ${NAVY_DEEP}; border: 1px solid rgba(201,169,97,0.22);
-          border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  .hero-label { color: ${GOLD}; font-size: 10px; letter-spacing: 2px;
-                text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
-  .hero-profit { color: ${profitColor}; font-size: 30px; font-weight: 800;
-                 letter-spacing: -0.5px; line-height: 1; margin-bottom: 8px; }
-  .hero-margin { color: ${MUTED}; font-size: 12px; }
-  .status-pill { display: inline-block; margin-top: 12px; padding: 4px 12px;
-                 border-radius: 999px; border: 1px solid ${GOLD};
-                 color: ${GOLD}; font-size: 10px; font-weight: 600;
-                 letter-spacing: 1px; text-transform: uppercase; }
+<style>${PDF_V4_STYLE}
+  .muted { color: ${INK_FAINT}; font-weight: 500; font-size: 9.5px; }
+  .dark .muted { color: rgba(247,243,236,0.45); }
 </style>
 </head><body>
   <div class="wrap">
-    <div class="brand-row">
-      <div class="brand">YACHTWORTH · CHARTER</div>
-      <div class="date">${escapeHtml(today)}</div>
+    <!-- 1. HEADER -->
+    <div class="top">
+      <span class="brand">YachtWorth · Charter</span>
+      <span class="conf">Confidential</span>
     </div>
+    <div class="title-row">
+      <div class="title">Trip Report</div>
+      <div class="title-date">${escapeHtml(today)}</div>
+    </div>
+    <hr class="gold-line" />
 
-    <h1>${escapeHtml(yTitle)}</h1>
-    <div class="subtitle">${escapeHtml(range)}</div>
-
+    <!-- 3. HERO -->
     <div class="hero">
-      <div class="hero-label">Net profit</div>
-      <div class="hero-profit">${escapeHtml(eur2(p.net_profit))}</div>
-      <div class="hero-margin">Margin ${p.margin.toFixed(1)}% on revenue ${escapeHtml(eur(p.gross_revenue))}</div>
-      <div class="status-pill">${escapeHtml(statusLbl)}</div>
+      <div class="hero-left">
+        <div class="hero-name">${escapeHtml(yTitle)}</div>
+        <div class="hero-meta">
+          ${escapeHtml(range)}
+          ${ports ? `<br/>${ports}` : ""}
+          ${times ? ` · ${times}` : ""}
+        </div>
+        <span class="${pillClass(charter.status)}">${escapeHtml(statusLbl)}</span>
+      </div>
+      <div class="hero-right">
+        <div class="hero-kicker">Net Profit</div>
+        <div class="hero-amt${profitNeg ? " neg" : ""}">${eurSigned(p.net_profit)}</div>
+        <div class="hero-sub">${p.margin.toFixed(1)}% margin · ${eurThin(p.base_net)} net revenue</div>
+        <div class="hero-divider"></div>
+        <div class="hero-kicker">Boat Owner Receives</div>
+        <div class="hero-amt gold${ownerNeg ? " neg" : ""}">${eurSigned(p.boat_owner_receives)}</div>
+      </div>
     </div>
 
-    <h2>Client & contract</h2>
-    <div class="card">
-      <div class="row"><span class="k">Name</span><span class="v">${escapeHtml(charter.client_name ?? "—")}</span></div>
-      ${charter.contact_name ? `<div class="row"><span class="k">Contact</span><span class="v">${escapeHtml(charter.contact_name)}</span></div>` : ""}
-      ${charter.client_email ? `<div class="row"><span class="k">Email</span><span class="v">${escapeHtml(charter.client_email)}</span></div>` : ""}
-      ${charter.client_phone ? `<div class="row"><span class="k">Phone</span><span class="v">${escapeHtml(charter.client_phone)}</span></div>` : ""}
-      <div class="row"><span class="k">Contract</span><span class="v">${escapeHtml(CONTRACT_LABEL[charter.contract_status ?? ""] ?? (charter.contract_status ?? "—"))}${charter.contract_date ? " · " + escapeHtml(fmtDate(charter.contract_date)) : ""}</span></div>
+    <!-- 4. CLIENT + LOGISTICS -->
+    <div class="cols">
+      <div>
+        <h2>Client</h2>
+        ${row("Name", escapeHtml(charter.client_name ?? "—"))}
+        ${charter.client_email ? row("Email", escapeHtml(charter.client_email)) : ""}
+        ${charter.client_phone ? row("Phone", escapeHtml(charter.client_phone)) : ""}
+      </div>
+      <div>
+        <h2>Logistics</h2>
+        ${charter.contact_name ? row("Contact / Agent", escapeHtml(charter.contact_name)) : ""}
+        ${charter.mooring_port ? row("Mooring port", escapeHtml(charter.mooring_port)) : ""}
+        ${charter.pickup_port ? row("Pick up", escapeHtml(charter.pickup_port)) : ""}
+        ${charter.dropoff_port ? row("Drop off", escapeHtml(charter.dropoff_port)) : ""}
+        ${row("Transfer fee", eurThin(charter.transfer_fee ?? 0))}
+        ${row("Contract", escapeHtml(CONTRACT_LABEL[charter.contract_status ?? ""] ?? (charter.contract_status ?? "—")))}
+      </div>
     </div>
 
-    <h2>Logistics</h2>
-    <div class="card">
-      ${charter.mooring_port ? `<div class="row"><span class="k">Mooring (home base)</span><span class="v">${escapeHtml(charter.mooring_port)}</span></div>` : ""}
-      ${charter.departure_port ? `<div class="row"><span class="k">Departure port${charter.departure_time ? " · " + escapeHtml(charter.departure_time) : ""}</span><span class="v">${escapeHtml(charter.departure_port)}</span></div>` : ""}
-      ${charter.return_port ? `<div class="row"><span class="k">Return port${charter.return_time ? " · " + escapeHtml(charter.return_time) : ""}</span><span class="v">${escapeHtml(charter.return_port)}</span></div>` : ""}
-      ${charter.pickup_port ? `<div class="row"><span class="k">Client pickup</span><span class="v">${escapeHtml(charter.pickup_port)}</span></div>` : ""}
-      ${charter.dropoff_port ? `<div class="row"><span class="k">Client drop-off</span><span class="v">${escapeHtml(charter.dropoff_port)}</span></div>` : ""}
-      ${(charter.transfer_fee ?? 0) > 0 ? `<div class="row"><span class="k">Transfer fee · paid by ${escapeHtml(charter.transfer_fee_paid_by ?? "client")}${charter.transfer_fee_note ? " · " + escapeHtml(charter.transfer_fee_note) : ""}</span><span class="v">${escapeHtml(eur(charter.transfer_fee ?? 0))}</span></div>` : ""}
+    <!-- 5. REVENUE & PAYMENTS -->
+    <h2>Revenue &amp; Payments</h2>
+    ${row("Charter rate", escapeHtml(rateLine))}
+    ${row("Base price (net, excl. VAT)", eurThin(p.base_net))}
+    ${charter.vat_applicable && vatPct > 0 ? row(`VAT (${vatPct}%)`, `+ ${eurThin(p.vat_amount)}`) : ""}
+    ${row("Total to client (incl. VAT)", eurThin(p.total_to_client), "total divider")}
+    ${charter.apa_enabled ? row(`APA (${charter.apa_percent ?? 0}% of net)`, `+ ${eurThin(p.apa_amount)}`) : ""}
+    ${charter.apa_enabled ? row("Total invoice to client", eurThin(p.total_invoice_to_client), "total") : ""}
+    ${row("Deposit received", depLine, "divider")}
+    ${row("Final payment (due)", finLine)}
+
+    <!-- 6. CREW + VESSEL -->
+    <div class="cols">
+      <div>
+        <h2>Crew</h2>
+        ${
+          crewRows.length === 0
+            ? `<div class="row"><span class="k">No crew costs entered</span><span class="v">—</span></div>`
+            : crewRows
+                .map(
+                  (r) =>
+                    `<div class="row"><span class="k">${r.label}</span><span class="v">${eurThin(r.total)}</span></div>`,
+                )
+                .join("") +
+              row("Total crew", eurThin(p.total_crew), "total divider")
+        }
+      </div>
+      <div>
+        <h2>Vessel</h2>
+        ${showEngine ? row("Engine hours", `${charter.engine_hours_before} → ${charter.engine_hours_after}`) : ""}
+        ${showEngine ? row("Hours used", `${p.engine_hours_used.toFixed(0)} hrs`) : ""}
+        ${fuelLiters > 0 ? row("Fuel (non-APA)", `${fuelLiters} L × ${eurThin(fuelPrice)}`) : ""}
+        ${fuelLiters > 0 ? row("Fuel cost", eurThin(p.fuel_cost), "total") : ""}
+        ${(charter.extra_service_amount ?? 0) > 0 ? row(`Extra service${charter.extra_service_note ? " · " + escapeHtml(charter.extra_service_note) : ""}`, eurThin(charter.extra_service_amount ?? 0)) : ""}
+        ${(charter.damage_amount ?? 0) > 0 ? row(`Damage · paid by ${escapeHtml(charter.damage_paid_by ?? "client")}`, eurThin(charter.damage_amount ?? 0)) : ""}
+      </div>
     </div>
 
-    <h2>Revenue (VAT added on top)</h2>
-    <div class="card">
-      <div class="row"><span class="k">${escapeHtml(rateLine)}</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
-      ${charter.vat_applicable && vatPct > 0 ? `<div class="row"><span class="k">+ VAT (${vatPct}%)</span><span class="v">${escapeHtml(eur(p.vat_amount))}</span></div>` : ""}
-      <div class="row divider"><span class="k">Total to client (excl. APA)</span><span class="v gold">${escapeHtml(eur(p.total_to_client))}</span></div>
-      ${charter.apa_enabled ? `<div class="row"><span class="k">+ APA fund (${charter.apa_percent ?? 0}%)</span><span class="v">${escapeHtml(eur(p.apa_amount))}</span></div><div class="row divider"><span class="k">Total invoice (incl. APA)</span><span class="v gold">${escapeHtml(eur(p.total_invoice_to_client))}</span></div>` : ""}
-      ${charter.deposit_amount != null ? `<div class="row"><span class="k">Deposit ${charter.deposit_received ? "(received)" : "(due)"}${charter.deposit_date ? " · " + escapeHtml(fmtDate(charter.deposit_date)) : ""}</span><span class="v">${escapeHtml(eur(charter.deposit_amount))}</span></div>` : ""}
-      ${charter.final_payment_amount != null ? `<div class="row"><span class="k">Final payment ${charter.final_payment_received ? "(received)" : "(due)"}${charter.final_payment_date ? " · " + escapeHtml(fmtDate(charter.final_payment_date)) : ""}</span><span class="v">${escapeHtml(eur(charter.final_payment_amount))}</span></div>` : ""}
-    </div>
-
+    <!-- 7. APA ACCOUNT (only if enabled) -->
     ${
       charter.apa_enabled
-        ? `<h2>APA fund (pass-through)</h2>
-    <div class="card">
-      <div class="row"><span class="k">Collected</span><span class="v">${escapeHtml(eur(p.apa_amount))}</span></div>
-      ${(charter.apa_fuel ?? 0) > 0 ? `<div class="row"><span class="k">— Fuel</span><span class="v">${escapeHtml(eur(charter.apa_fuel ?? 0))}</span></div>` : ""}
-      ${(charter.apa_provisioning ?? 0) > 0 ? `<div class="row"><span class="k">— Provisioning</span><span class="v">${escapeHtml(eur(charter.apa_provisioning ?? 0))}</span></div>` : ""}
-      ${(charter.apa_beverages ?? 0) > 0 ? `<div class="row"><span class="k">— Beverages</span><span class="v">${escapeHtml(eur(charter.apa_beverages ?? 0))}</span></div>` : ""}
-      ${(charter.apa_marina_fees ?? 0) > 0 ? `<div class="row"><span class="k">— Marina fees</span><span class="v">${escapeHtml(eur(charter.apa_marina_fees ?? 0))}</span></div>` : ""}
-      ${(charter.apa_communications ?? 0) > 0 ? `<div class="row"><span class="k">— Communications</span><span class="v">${escapeHtml(eur(charter.apa_communications ?? 0))}</span></div>` : ""}
-      ${(charter.apa_crew_gratuities ?? 0) > 0 ? `<div class="row"><span class="k">— Crew gratuities</span><span class="v">${escapeHtml(eur(charter.apa_crew_gratuities ?? 0))}</span></div>` : ""}
-      ${(charter.apa_activities ?? 0) > 0 ? `<div class="row"><span class="k">— Activities${charter.apa_activities_note ? " · " + escapeHtml(charter.apa_activities_note) : ""}</span><span class="v">${escapeHtml(eur(charter.apa_activities ?? 0))}</span></div>` : ""}
-      ${(charter.apa_other ?? 0) > 0 ? `<div class="row"><span class="k">— Other${charter.apa_other_note ? " · " + escapeHtml(charter.apa_other_note) : ""}</span><span class="v">${escapeHtml(eur(charter.apa_other ?? 0))}</span></div>` : ""}
-      <div class="row divider"><span class="k">Total APA spent</span><span class="v">${escapeHtml(eur(p.apa_spent))}</span></div>
-      <div class="row"><span class="k">${p.apa_balance >= 0 ? "Refund to client" : "Client owes"}</span><span class="v gold">${escapeHtml(eur(Math.abs(p.apa_balance)))}</span></div>
+        ? `<div class="apa">
+      <div class="apa-title">APA Account — Advance Provisioning Allowance</div>
+      <div class="row total"><span class="k">APA budget received (${charter.apa_percent ?? 0}% of ${eurThin(p.base_net)})</span><span class="v">${eurThin(p.apa_amount)}</span></div>
+      ${apaItems.length > 0 ? `<div style="height:6px"></div>` : ""}
+      ${apaItems.map((r) => `<div class="row"><span class="k">${escapeHtml(r.label)}</span><span class="v">− ${eurThin(r.value)}</span></div>`).join("")}
+      ${apaItems.length > 0 ? `<div class="row divider total"><span class="k">Total APA spent</span><span class="v">${eurThin(p.apa_spent)}</span></div>` : ""}
+      <div class="row total"><span class="k">Balance — ${p.apa_balance >= 0 ? "Refund to client" : "Additional payment required"}</span><span class="v apa-balance ${p.apa_balance >= 0 ? "pos" : "neg"}">${p.apa_balance >= 0 ? "+ " : "− "}${eurThin(p.apa_balance)}</span></div>
     </div>`
         : ""
     }
 
-    <h2>Crew</h2>
-    <div class="card">
-      ${p.captain_total > 0 ? `<div class="row"><span class="k">Captain · ${eur(charter.captain_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.captain_total))}</span></div>` : ""}
-      ${p.first_officer_total > 0 ? `<div class="row"><span class="k">First officer · ${eur(charter.first_officer_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.first_officer_total))}</span></div>` : ""}
-      ${p.stewardess_total > 0 ? `<div class="row"><span class="k">Stewardess × ${charter.stewardess_count} · ${eur(charter.stewardess_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.stewardess_total))}</span></div>` : ""}
-      ${p.chef_total > 0 ? `<div class="row"><span class="k">Chef · ${eur(charter.chef_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.chef_total))}</span></div>` : ""}
-      ${p.deckhand_total > 0 ? `<div class="row"><span class="k">Deckhand × ${charter.deckhand_count} · ${eur(charter.deckhand_day_rate ?? 0)} × ${p.days}d</span><span class="v">${escapeHtml(eur(p.deckhand_total))}</span></div>` : ""}
-      ${(charter.extra_crew_cost ?? 0) > 0 ? `<div class="row"><span class="k">Extra crew${charter.extra_crew_note ? " · " + escapeHtml(charter.extra_crew_note) : ""}</span><span class="v">${escapeHtml(eur(charter.extra_crew_cost ?? 0))}</span></div>` : ""}
-      ${p.total_crew === 0 ? `<div class="row"><span class="k">No crew costs entered</span><span class="v">—</span></div>` : `<div class="row divider"><span class="k">Total crew</span><span class="v">${escapeHtml(eur(p.total_crew))}</span></div>`}
+    <!-- 8. INCOME DISTRIBUTION -->
+    <h2>Income Distribution</h2>
+    <div class="dark">
+      <div class="dark-title">Payout Summary — Net Revenue ${eurThin(p.base_net)}</div>
+      ${distRows
+        .map(
+          (r) =>
+            `<div class="row"><span class="k">${escapeHtml(r.name)}${r.pct > 0 ? ` <span class="muted">(${r.pct.toFixed(1)}%)</span>` : ""}</span><span class="v${r.gold ? " gold" : ""}">${eurThin(r.amount)}</span></div>`,
+        )
+        .join("")}
+      <div class="row divider total"><span class="k">Base net revenue</span><span class="v">${eurThin(p.base_net)}</span></div>
+      <div class="row total"><span class="k">Total distributed</span><span class="v">${eurThin(totalDistributed)}</span></div>
+      <div class="balanced ${balanced ? "ok" : "bad"}">
+        <span>${balanced ? "✓ Balanced" : "⚠ Over-distributed"}</span>
+        <span>${balanced ? "€\u20090 difference" : "owner short " + eurThin(overDistAmount)}</span>
+      </div>
     </div>
 
-    <h2>Fuel & engine</h2>
-    <div class="card">
-      ${charter.engine_hours_before != null || charter.engine_hours_after != null ? `<div class="row"><span class="k">Engine hours</span><span class="v">${charter.engine_hours_before ?? "—"} → ${charter.engine_hours_after ?? "—"} (${p.engine_hours_used.toFixed(1)} used)</span></div>` : ""}
-      ${(charter.fuel_liters ?? 0) > 0 ? `<div class="row"><span class="k">${charter.fuel_liters} L × ${eur2(charter.fuel_price_per_liter ?? 0)}/L</span><span class="v">${escapeHtml(eur(p.fuel_cost))}</span></div>` : `<div class="row"><span class="k">No fuel data entered</span><span class="v">—</span></div>`}
+    <!-- 9. P&L SUMMARY -->
+    <div class="dark" style="margin-top:14px">
+      <div class="dark-title">Profit &amp; Loss Summary</div>
+      <div class="row"><span class="k">Base net revenue</span><span class="v">${eurThin(p.base_net)}</span></div>
+      ${(charter.transfer_fee ?? 0) > 0 && charter.transfer_fee_paid_by !== "owner" ? `<div class="row"><span class="k">Transfer fee</span><span class="v">${eurThin(charter.transfer_fee ?? 0)}</span></div>` : ""}
+      ${(charter.extra_service_amount ?? 0) > 0 ? `<div class="row"><span class="k">Extra services</span><span class="v">${eurThin(charter.extra_service_amount ?? 0)}</span></div>` : ""}
+      <div style="height:6px"></div>
+      ${p.central_agent_amount > 0 ? `<div class="row"><span class="k">${escapeHtml(charter.central_agent_name || "Central Agent")} commission</span><span class="v">− ${eurThin(p.central_agent_amount)}</span></div>` : ""}
+      ${p.sub_agent_total > 0 ? `<div class="row"><span class="k">Sub-agent commissions</span><span class="v">− ${eurThin(p.sub_agent_total)}</span></div>` : ""}
+      ${p.total_crew > 0 ? `<div class="row"><span class="k">Total crew</span><span class="v">− ${eurThin(p.total_crew)}</span></div>` : ""}
+      ${p.fuel_cost > 0 ? `<div class="row"><span class="k">Fuel (non-APA)</span><span class="v">− ${eurThin(p.fuel_cost)}</span></div>` : ""}
+      ${p.damage_absorbed > 0 ? `<div class="row"><span class="k">Damage absorbed</span><span class="v">− ${eurThin(p.damage_absorbed)}</span></div>` : ""}
+      <div class="pnl-net">
+        <span class="k">Net profit</span>
+        <span class="v${profitNeg ? " neg" : ""}">${eurSigned(p.net_profit)}</span>
+      </div>
     </div>
 
-    <h2>Owner expenses</h2>
-    <div class="card">
-      ${(charter.port_fees ?? 0) > 0 ? `<div class="row"><span class="k">Port fees</span><span class="v">${escapeHtml(eur(charter.port_fees ?? 0))}</span></div>` : ""}
-      ${(charter.provisioning ?? 0) > 0 ? `<div class="row"><span class="k">Provisioning</span><span class="v">${escapeHtml(eur(charter.provisioning ?? 0))}</span></div>` : ""}
-      ${(charter.cleaning ?? 0) > 0 ? `<div class="row"><span class="k">Cleaning</span><span class="v">${escapeHtml(eur(charter.cleaning ?? 0))}</span></div>` : ""}
-      ${(charter.other_expenses ?? 0) > 0 ? `<div class="row"><span class="k">Other${charter.other_expenses_note ? " · " + escapeHtml(charter.other_expenses_note) : ""}</span><span class="v">${escapeHtml(eur(charter.other_expenses ?? 0))}</span></div>` : ""}
-      ${(charter.port_fees ?? 0) + (charter.provisioning ?? 0) + (charter.cleaning ?? 0) + (charter.other_expenses ?? 0) === 0 ? `<div class="row"><span class="k">No owner expenses entered</span><span class="v">—</span></div>` : ""}
+    <!-- 10. APA/VAT note -->
+    <div class="note">
+      APA is excluded from P&amp;L (pass-through fund managed by captain).${vatPct > 0 ? ` VAT (${eurThin(p.vat_amount)}) is collected on behalf of tax authority and excluded from profit calculation.` : ""} Boat owner receives ${eurThin(p.boat_owner_receives)} per income distribution agreement.
     </div>
 
-    ${
-      (charter.extra_service_amount ?? 0) > 0 ||
-      (charter.damage_amount ?? 0) > 0 ||
-      (charter.refund_amount ?? 0) > 0
-        ? `<h2>Extras, damage & refund</h2>
-    <div class="card">
-      ${(charter.extra_service_amount ?? 0) > 0 ? `<div class="row"><span class="k">Extra services${charter.extra_service_note ? " · " + escapeHtml(charter.extra_service_note) : ""}</span><span class="v">+ ${escapeHtml(eur(charter.extra_service_amount ?? 0))}</span></div>` : ""}
-      ${(charter.damage_amount ?? 0) > 0 ? `<div class="row"><span class="k">Damage · paid by ${escapeHtml(charter.damage_paid_by ?? "client")}${charter.damage_note ? " · " + escapeHtml(charter.damage_note) : ""}</span><span class="v">${escapeHtml(eur(charter.damage_amount ?? 0))}</span></div>` : ""}
-      ${(charter.refund_amount ?? 0) > 0 ? `<div class="row"><span class="k">Refund${charter.refund_reason ? " · " + escapeHtml(charter.refund_reason) : ""}</span><span class="v">− ${escapeHtml(eur(charter.refund_amount ?? 0))}</span></div>` : ""}
-    </div>`
-        : ""
-    }
+    ${charter.notes ? `<h2>Notes</h2><div class="row"><span class="k" style="color:${INK}">${escapeHtml(charter.notes)}</span></div>` : ""}
 
-    <h2>Profit & loss</h2>
-    <div class="card">
-      <div class="row"><span class="k">Base net revenue</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
-      ${p.gross_revenue !== p.base_net ? `<div class="row"><span class="k">+ Transfer / extras</span><span class="v">${escapeHtml(eur(p.gross_revenue - p.base_net))}</span></div>` : ""}
-      ${p.central_agent_amount > 0 ? `<div class="row"><span class="k">${escapeHtml(charter.central_agent_name ?? "Central Agent")} commission</span><span class="v">− ${escapeHtml(eur(p.central_agent_amount))}</span></div>` : ""}
-      ${p.sub_agent_results.map((r) => `<div class="row"><span class="k">${escapeHtml(r.name)} commission</span><span class="v">− ${escapeHtml(eur(r.amount))}</span></div>`).join("")}
-      <div class="row"><span class="k">Crew</span><span class="v">− ${escapeHtml(eur(p.total_crew))}</span></div>
-      <div class="row"><span class="k">Fuel</span><span class="v">− ${escapeHtml(eur(p.fuel_cost))}</span></div>
-      ${p.damage_absorbed > 0 ? `<div class="row"><span class="k">Damage absorbed</span><span class="v">− ${escapeHtml(eur(p.damage_absorbed))}</span></div>` : ""}
-      <div class="row divider"><span class="k">Net profit · margin ${p.margin.toFixed(1)}%</span><span class="v" style="color:${profitColor}">${escapeHtml(eur2(p.net_profit))}</span></div>
-    </div>
-
-    <h2>Income distribution (on base net)</h2>
-    <div class="card">
-      <div class="row"><span class="k">Base net</span><span class="v">${escapeHtml(eur(p.base_net))}</span></div>
-      ${p.central_agent_amount > 0 ? `<div class="row"><span class="k">− ${escapeHtml(charter.central_agent_name ?? "Central Agent")}</span><span class="v">${escapeHtml(eur(p.central_agent_amount))}</span></div>` : ""}
-      ${p.sub_agent_results.map((r) => `<div class="row"><span class="k">− ${escapeHtml(r.name)}</span><span class="v">${escapeHtml(eur(r.amount))}</span></div>`).join("")}
-      ${p.distribution_results.map((r) => `<div class="row"><span class="k">− ${escapeHtml(r.name)}</span><span class="v">${escapeHtml(eur(r.amount))}</span></div>`).join("")}
-      <div class="row divider"><span class="k">${p.distribution_balanced ? "Boat Owner receives" : "Over-distributed (owner short)"}</span><span class="v gold">${escapeHtml(eur(Math.abs(p.boat_owner_receives)))}</span></div>
-    </div>
-
-    ${charter.notes ? `<h2>Notes</h2><div class="card"><div class="row"><span class="k" style="color:${IVORY}">${escapeHtml(charter.notes)}</span></div></div>` : ""}
-
+    <!-- 11. FOOTER -->
     <div class="footer">
-      Indicative P&amp;L based on entered data · APA is pass-through, not P&amp;L · Not a certified accounting statement · Yachtworth
+      <div>Indicative P&amp;L based on entered data. Not a certified accounting statement. For professional advice consult a licensed accountant.</div>
+      <div class="right">Yachtworth<small>Powered by PDYE Group</small></div>
     </div>
   </div>
 </body></html>`;
