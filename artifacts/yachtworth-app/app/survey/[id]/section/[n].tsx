@@ -10,7 +10,7 @@ import type { SurveyItem } from "@workspace/api-client-react";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -121,6 +121,10 @@ export default function SurveySectionScreen() {
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   // Full-screen photo preview overlay; null = closed.
   const [preview, setPreview] = useState<{ url: string } | null>(null);
+  // Auto-save bookkeeping. dirtyRef flips on any edit; auto-save interval
+  // saves silently every 30 s while the screen is mounted.
+  const dirtyRef = useRef(false);
+  const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
 
   const pickAndUploadPhoto = async (idx: number, itemId: string) => {
     const editableItem = editable[idx];
@@ -231,10 +235,25 @@ export default function SurveySectionScreen() {
   const showMoisture = sectionNumber === 6; // Hull section has moisture readings
 
   const updateItem = (idx: number, patch: Partial<Editable>) => {
+    dirtyRef.current = true;
     setEditable((cur) => cur.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   };
 
+  const moveItem = (idx: number, dir: -1 | 1) => {
+    setEditable((cur) => {
+      const next = idx + dir;
+      if (next < 0 || next >= cur.length) return cur;
+      const copy = cur.slice();
+      const tmp = copy[idx]!;
+      copy[idx] = copy[next]!;
+      copy[next] = tmp;
+      dirtyRef.current = true;
+      return copy;
+    });
+  };
+
   const addItem = () => {
+    dirtyRef.current = true;
     const nextNum = `${sectionNumber}.${editable.length}`;
     setEditable((cur) => [
       ...cur,
@@ -256,10 +275,12 @@ export default function SurveySectionScreen() {
   };
 
   const removeItem = (idx: number) => {
+    dirtyRef.current = true;
     setEditable((cur) => cur.filter((_, i) => i !== idx));
   };
 
-  const onSave = async () => {
+  const onSave = async (opts: { silent?: boolean } = {}) => {
+    const { silent = false } = opts;
     setSaving(true);
     try {
       // Pull the freshest server state for this report and overlay any
@@ -304,16 +325,42 @@ export default function SurveySectionScreen() {
         id: reportId,
         data: { section_number: sectionNumber, items: payloadItems },
       });
-      await qc.invalidateQueries({ queryKey: getGetSurveyReportQueryKey(reportId) });
-      await qc.invalidateQueries({ queryKey: getListSurveyReportsQueryKey() });
-      router.back();
+      dirtyRef.current = false;
+      if (silent) {
+        // Don't invalidate — that would refetch and the re-seed effect would
+        // wipe any keystrokes the user has typed since this auto-save started.
+        setAutoSavedAt(Date.now());
+      } else {
+        await qc.invalidateQueries({ queryKey: getGetSurveyReportQueryKey(reportId) });
+        await qc.invalidateQueries({ queryKey: getListSurveyReportsQueryKey() });
+        router.back();
+      }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Please try again.";
-      Alert.alert("Save failed", msg);
+      if (!silent) {
+        const msg = e instanceof Error ? e.message : "Please try again.";
+        Alert.alert("Save failed", msg);
+      }
+      // Silent saves swallow errors — the user can still hit Save manually
+      // and will see a real alert if it still fails.
     } finally {
       setSaving(false);
     }
   };
+
+  // Auto-save every 30 s, but only when there are unsaved edits, the editor
+  // isn't already mid-save, and no picker/preview/upload is open (those would
+  // be disorienting if data shifted under the user). Silent saves do NOT
+  // invalidate React Query, so the re-seed effect won't wipe in-flight edits.
+  useEffect(() => {
+    if (!reportId || !template) return;
+    const t = setInterval(() => {
+      if (!dirtyRef.current) return;
+      if (saving || uploadingItemId || picker || preview) return;
+      void onSave({ silent: true });
+    }, 30_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportId, template, saving, uploadingItemId, picker, preview]);
 
   if (detailQ.isLoading || !template) {
     return (
@@ -355,6 +402,28 @@ export default function SurveySectionScreen() {
                   style={styles.itemDesc}
                   multiline
                 />
+                <View style={styles.reorderCol}>
+                  <Pressable
+                    onPress={() => moveItem(idx, -1)}
+                    disabled={idx === 0}
+                    hitSlop={6}
+                    style={styles.reorderBtn}
+                  >
+                    <Feather name="chevron-up" size={14} color={idx === 0 ? FAINT : MUTED} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => moveItem(idx, 1)}
+                    disabled={idx === editable.length - 1}
+                    hitSlop={6}
+                    style={styles.reorderBtn}
+                  >
+                    <Feather
+                      name="chevron-down"
+                      size={14}
+                      color={idx === editable.length - 1 ? FAINT : MUTED}
+                    />
+                  </Pressable>
+                </View>
                 <Pressable onPress={() => removeItem(idx)} hitSlop={8}>
                   <Feather name="trash-2" size={14} color={FAINT} />
                 </Pressable>
@@ -504,8 +573,13 @@ export default function SurveySectionScreen() {
         </ScrollView>
 
         <View style={[styles.saveBar, { paddingBottom: insets.bottom + 12 }]}>
+          {autoSavedAt && (
+            <Text style={styles.autoSavedHint}>
+              Auto-saved · {new Date(autoSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          )}
           <Pressable
-            onPress={onSave}
+            onPress={() => onSave()}
             disabled={saving}
             style={({ pressed }) => [
               styles.saveBtn,
@@ -527,12 +601,28 @@ export default function SurveySectionScreen() {
           animationType="fade"
           onRequestClose={() => setPreview(null)}
         >
-          <Pressable style={styles.previewBg} onPress={() => setPreview(null)}>
-            <Image
-              source={{ uri: preview.url }}
-              style={styles.previewImg}
-              contentFit="contain"
-            />
+          <View style={styles.previewBg}>
+            {/* ScrollView gives free pinch-to-zoom on iOS via maximumZoomScale.
+                Android falls back to tap-to-dismiss (native ScrollView ignores
+                maximumZoomScale on Android — true cross-platform pinch would
+                need a gesture-handler wrapper, deferred). */}
+            <ScrollView
+              style={{ flex: 1, width: "100%" }}
+              contentContainerStyle={styles.previewScrollContent}
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+              centerContent
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+            >
+              <Pressable onPress={() => setPreview(null)} style={{ flex: 1, width: "100%" }}>
+                <Image
+                  source={{ uri: preview.url }}
+                  style={styles.previewImg}
+                  contentFit="contain"
+                />
+              </Pressable>
+            </ScrollView>
             <Pressable
               onPress={() => setPreview(null)}
               hitSlop={12}
@@ -540,7 +630,7 @@ export default function SurveySectionScreen() {
             >
               <Feather name="x" size={22} color={IVORY} />
             </Pressable>
-          </Pressable>
+          </View>
         </Modal>
       )}
 
@@ -795,7 +885,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  previewImg: { width: "100%", height: "100%" },
+  previewScrollContent: { flexGrow: 1, justifyContent: "center" },
+  previewImg: { width: "100%", height: "100%", minHeight: 400 },
+  reorderCol: { flexDirection: "column", alignItems: "center", gap: 2, marginRight: 4 },
+  reorderBtn: { padding: 2 },
+  autoSavedHint: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    textAlign: "center",
+    marginBottom: 6,
+  },
   previewClose: {
     position: "absolute",
     right: 16,
