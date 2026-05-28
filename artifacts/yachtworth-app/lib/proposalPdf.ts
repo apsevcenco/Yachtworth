@@ -654,22 +654,33 @@ body {
 }
 .eq-items {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
+  flex-direction: column;
+  gap: 0;
 }
 .eq-item {
-  font-size: 9px;
-  color: #2a2a2a;
+  display: block;
+  font-size: 8.5pt;
+  color: #444444;
   line-height: 1.35;
-  padding: 2px 7px;
-  background: #faf8f1;
-  border-radius: 2px;
-  white-space: nowrap;
+  padding: 3px 0 3px 14px;
+  position: relative;
+  border: none;
+  background: none;
+  border-radius: 0;
+  white-space: normal;
+}
+.eq-item::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: #cccccc;
 }
 .eq-item.hi {
-  color: #0B1E3F;
+  color: #1a1a1a;
   font-weight: 600;
-  background: #f5efdc;
+}
+.eq-item.hi::before {
+  color: #C5973A;
 }
 
 /* Photos page */
