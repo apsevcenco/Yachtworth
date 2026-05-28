@@ -62,12 +62,12 @@ begin
   if not exists (select 1 from information_schema.check_constraints where constraint_name = 'charters_vat_pct_range') then
     alter table public.charters
       add constraint charters_vat_pct_range
-      check (vat_pct is null or (vat_pct >= 0 and vat_pct <= 100));
+      check (vat_percent is null or (vat_percent >= 0 and vat_percent <= 100));
   end if;
 
   if not exists (select 1 from information_schema.check_constraints where constraint_name = 'charters_apa_pct_range') then
     alter table public.charters
       add constraint charters_apa_pct_range
-      check (apa_pct is null or (apa_pct >= 0 and apa_pct <= 100));
+      check (apa_percent is null or (apa_percent >= 0 and apa_percent <= 100));
   end if;
 end $$;
