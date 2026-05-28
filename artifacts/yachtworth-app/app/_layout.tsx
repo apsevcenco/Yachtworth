@@ -51,7 +51,9 @@ function ClerkTokenBridge() {
 
 function RootLayoutNav() {
   const pathname = usePathname();
-  const showBrandHeader = !pathname.startsWith("/sign-");
+  const showBrandHeader =
+    !pathname.startsWith("/sign-") &&
+    !pathname.startsWith("/my-yacht/");
   return (
     <View style={{ flex: 1 }}>
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
