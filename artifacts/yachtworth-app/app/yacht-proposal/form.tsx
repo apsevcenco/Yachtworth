@@ -68,6 +68,8 @@ export default function ProposalFormScreen() {
     query: {
       queryKey: yachtId ? getGetYachtQueryKey(yachtId) : ["yacht-disabled"],
       enabled: !!yachtId,
+      refetchOnMount: "always",
+      staleTime: 0,
     },
   });
   const equipQ = useListYachtEquipment(yachtId ?? "", {
@@ -76,6 +78,8 @@ export default function ProposalFormScreen() {
         ? getListYachtEquipmentQueryKey(yachtId)
         : ["equipment-disabled"],
       enabled: !!yachtId,
+      refetchOnMount: "always",
+      staleTime: 0,
     },
   });
 
