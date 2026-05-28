@@ -201,7 +201,9 @@ function toInput(s: FormState): YachtInput {
     crew_cabins: s.crew_cabins,
     berths: s.berths,
     heads: s.heads,
-    photo_url: strOrNull(s.photo_url),
+    // photo_url / photo_urls / cover_photo_url are deliberately omitted —
+    // they are owned by /yachts/:id/photos endpoints and must never be
+    // overwritten by a stale form snapshot.
     notes: strOrNull(s.notes),
   };
 }

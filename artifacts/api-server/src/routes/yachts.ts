@@ -199,9 +199,15 @@ router.patch(
       res.status(503).json({ error: "Yacht storage not configured" });
       return;
     }
+    // Photo fields are owned by /yachts/:id/photos endpoints. Strip them from
+    // any general yacht update so a stale form snapshot cannot wipe uploads.
+    const safeUpdate: Record<string, unknown> = { ...parsed.data };
+    delete safeUpdate["photo_url"];
+    delete safeUpdate["photo_urls"];
+    delete safeUpdate["cover_photo_url"];
     const { data, error } = await sb
       .from(YACHTS_TABLE)
-      .update({ ...parsed.data, updated_at: new Date().toISOString() })
+      .update({ ...safeUpdate, updated_at: new Date().toISOString() })
       .eq("clerk_user_id", req.userId!)
       .eq("id", req.params["id"])
       .select(YACHT_COLUMNS)
