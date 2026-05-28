@@ -310,17 +310,32 @@ function buildProposalHTML(
   // ── PHOTOS PAGE — adaptive layout fills the page based on count ──
   let photosInnerHTML = "";
   if (flags.hasPhotos) {
-    const photos = photoUrls.slice(0, 4);
-    while (photos.length < 4 && photos.length > 0) {
-      photos.push(photos[photos.length - 1]!);
+    const n = photoUrls.length;
+    const img = (u: string, h: string) =>
+      `<img src="${esc(u)}" alt="" style="width:100%;height:${h};object-fit:cover;display:block;"/>`;
+    if (n === 1) {
+      photosInnerHTML = img(photoUrls[0]!, "210mm");
+    } else if (n === 2) {
+      photosInnerHTML =
+        img(photoUrls[0]!, "125mm") +
+        `<div style="height:3mm;"></div>` +
+        img(photoUrls[1]!, "82mm");
+    } else if (n <= 4) {
+      const rest = photoUrls.slice(1, 4);
+      const cols = rest.length;
+      const restHTML = rest.map((u) => img(u, "60mm")).join("");
+      photosInnerHTML =
+        img(photoUrls[0]!, "105mm") +
+        `<div style="height:3mm;"></div>` +
+        `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:3mm;">${restHTML}</div>`;
+    } else {
+      const top = photoUrls.slice(0, 2).map((u) => img(u, "75mm")).join("");
+      const bottom = photoUrls.slice(2, 5).map((u) => img(u, "60mm")).join("");
+      photosInnerHTML =
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;">${top}</div>` +
+        `<div style="height:3mm;"></div>` +
+        `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3mm;">${bottom}</div>`;
     }
-    const imgsAll = photos
-      .map(
-        (u) =>
-          `<img src="${esc(u)}" alt="" style="width:100%;height:115mm;object-fit:cover;display:block;"/>`,
-      )
-      .join("");
-    photosInnerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;">${imgsAll}</div>`;
   }
   const photosPageHTML = flags.hasPhotos
     ? `<div class="ipage" style="page-break-before:always;">
@@ -639,33 +654,22 @@ body {
 }
 .eq-items {
   display: flex;
-  flex-direction: column;
-  gap: 0;
+  flex-wrap: wrap;
+  gap: 4px 6px;
 }
 .eq-item {
-  display: block;
-  font-size: 8.5pt;
-  color: #444444;
+  font-size: 9px;
+  color: #2a2a2a;
   line-height: 1.35;
-  padding: 3px 0 3px 14px;
-  position: relative;
-  border: none;
-  background: none;
-  border-radius: 0;
-  white-space: normal;
-}
-.eq-item::before {
-  content: "—";
-  position: absolute;
-  left: 0;
-  color: #cccccc;
+  padding: 2px 7px;
+  background: #faf8f1;
+  border-radius: 2px;
+  white-space: nowrap;
 }
 .eq-item.hi {
-  color: #1a1a1a;
+  color: #0B1E3F;
   font-weight: 600;
-}
-.eq-item.hi::before {
-  color: #C5973A;
+  background: #f5efdc;
 }
 
 /* Photos page */

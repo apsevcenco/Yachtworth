@@ -28,7 +28,7 @@ const MUTED = "#8F9BB3";
 const DANGER = "#D26565";
 const BORDER = "#1F3760";
 
-const MAX_PHOTOS = 6;
+const MAX_PHOTOS = 10;
 const THUMB = 96;
 
 type Props = {
