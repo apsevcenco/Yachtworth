@@ -1,6 +1,6 @@
 # Yachtworth
 
-Standalone luxury mobile app (iOS + Android) — AI-powered yacht **estimates** + Charter ROI + Annual Cost calculator. Spinoff from PDYE; separate brand, shared backend.
+Standalone luxury mobile app (iOS + Android) — AI-powered yacht **estimates** + Charter ROI + Annual Cost calculator + Charter Planner + Yacht Profile hub. Spinoff from PDYE; separate brand, shared backend.
 
 ## Product
 
@@ -24,15 +24,17 @@ Standalone luxury mobile app (iOS + Android) — AI-powered yacht **estimates** 
 - `artifacts/yachtworth-app/app/` — Expo Router screens
   - `(tabs)/` — Home, Tools, My Yacht, PDYE, Profile (5-tab bottom nav)
   - `(auth)/sign-in.tsx` + `sign-up.tsx`
-  - `charter.tsx` + `history.tsx` — stack routes (out of tabs since restructure)
+  - `charter.tsx` + `history.tsx` + `charter-planner.tsx` + `charter-form.tsx` + `client-detail.tsx` — stack routes
   - `valuation/new.tsx` + `result.tsx` — yacht **estimate** wizard
   - `roi/yacht-form.tsx` + `calculate.tsx` + `result.tsx` — Charter ROI
   - `cost/new.tsx` + `result.tsx` — Annual cost
+  - `my-yacht/edit.tsx` + `[id].tsx` — yacht profile (T009)
   - `settings.tsx`
-  - `hooks/useUnits.ts` (AsyncStorage key `yachtworth.units`)
-  - `components/ComingSoonModal.tsx` — reusable modal for SOON tools (AsyncStorage `yachtworth.coming_soon_notify`)
+- `artifacts/yachtworth-app/components/` — `YachtCard`, `CompletenessBar`, `ComingSoonModal`, …
+- `artifacts/yachtworth-app/hooks/useUnits.ts` (AsyncStorage `yachtworth.units`)
+- `artifacts/yachtworth-app/lib/` — `charterCalc.ts`, `charterExports.ts`, `yachtCompleteness.ts`, `pdf.ts`
 - `artifacts/api-server/src/`
-  - `routes/{valuations,estimates,yachts,roi,costEstimates}.ts`
+  - `routes/{valuations,estimates,yachts,roi,costEstimates,charters,clients}.ts`
   - `lib/{valuation,roi,cost-estimate}/` — engines
   - `lib/supabase.ts` (lazy singleton + table constants)
   - `middlewares/clerkAuth.ts` (`softClerkAuth` + `requireAuth`)
@@ -48,97 +50,49 @@ Run sequentially in Supabase SQL editor of `yachtworth-prod`:
 2. `002_charter_roi.sql` — yachts + roi_calculations + market_rates + expense_rates
 3. `003_yacht_expenses.sql` — 14 expense fields on yachts (8 monthly + 5 annual + commission %)
 4. `004_crew_breakdown.sql` — `yachts.crew_breakdown jsonb`
-5. `005_seed_rates.sql` — seeds market_rates (54 rows) + expense_rates (32 rows) + RPC `get_roi_rates`. Idempotent.
+5. `005_seed_rates.sql` — market_rates (54) + expense_rates (32) + RPC `get_roi_rates`. Idempotent.
 6. `007_cost_estimates.sql` — cost_estimates table
+7. `008_charter_planner.sql` — charters + clients tables; adds `photo_url`+`notes` to yachts
+8. `009_charter_planner_full.sql` — 35+ charter fields (APA, distribution jsonb, expanded crew, NOT NULL numerics)
+9. `010_central_agent_subagents.sql` — central_agent + sub_agents jsonb on charters
+10. `011_yacht_profile.sql` — yacht profile fields + `is_archived` (T009)
 
-Until each is run, the corresponding feature degrades: POSTs silently no-op (warn-logged), GETs return empty/401, ROI engine falls back to heuristics.
+Until each is run, the corresponding feature degrades (POSTs no-op warn-logged, GETs empty/401, engines fall back to heuristics).
 
 ## Build status
 
-### Core estimates flow (Days 1–5) — DONE
-- Day 1: app skeleton + design system + tabs
-- Day 2: Clerk auth (Apple+Google+email) — `ClerkProvider` + `ClerkTokenBridge` → `setAuthTokenGetter` for api-client-react
-- Day 3+3.5: yacht **estimate** wizard (5-step: General / Market / Hull / Engines / Capacity), mode toggle (builder/specs), units toggle (metric/imperial — persisted globally, **API contract metric-only**)
-- Day 3.6: user-facing rename valuation → "estimate" (code names preserved for contract stability); legal disclaimer wired
-- Day 4: PDF export (`expo-print` + `expo-sharing`, helpers in `lib/pdf.ts`); Supabase persistence; History tab
-- Day 5: Profile + Settings (units toggle, About, Powered by PDYE card)
-- Day 6/7 (RevenueCat + paywall + App Store submit): **DEFERRED** by owner — Phase 2 prioritized first
-
-### Phase 2 — Charter ROI Intelligence (in progress, Pro-gate deferred to Day 6)
-- **Stage 1:** schema + OpenAPI + CRUD `/yachts` + stub `/roi/calculate`
-- **Stage 2:** Charter tab + yacht-form wizard (3 steps initially), one active yacht per user on v1 (newest by `updated_at`)
-- **Stage 2.5:** full expense questionnaire added to yacht form (Step 3: 8 monthly + 5 annual + commission %); form grew to 4 steps. Empty fields → `null` = "fall back to regional avg", not 0
-- **Stage 2.6:** crew_breakdown — 6 positions (Captain / 1st Officer / Engineer / Chef / Stewardess / Deckhand), salary + months_per_year (1-12) per position. Submits both `crew_breakdown` jsonb AND legacy `monthly_crew_eur` aggregate for engine compat. Ghost-button restyle across all CTAs (transparent + gold border + gold text).
-- **Stage 3:** real `/roi/calculate` — 3 pricing modes (manual_daily / manual_weekly / ai). AI mode → web_search comparables → midpoint rate. Engine in `lib/roi/`: loan annuity, depreciation (-5%/-3.5% step, 5y projection w/ 3% inflation, monthly seasonal Med weights), expenses (owner overrides → fallback heuristics), revenue (AI Responses → AI chat → deterministic heuristic — never 500s). Result: ROI%, payback, risk_score, recommendations, charts.
-- **Stage 4:** data-driven baseline via `migrations/005_seed_rates.sql` + `lib/roi/rates.ts`. Single round-trip via RPC `get_roi_rates(yachtType, region)`. Heuristic fallback when seed missing — zero regression.
-
-### Navigation restructure (current — DONE)
-Restructured per PDF spec while keeping all existing screens & flows. Brand unchanged (#0B1E3F + #C9A961).
-- **5-tab bottom nav** (was 4): Home / Tools / My Yacht / PDYE / Profile. NativeTabs (SF symbols: house / wrench.and.screwdriver / sailboat / lock.shield / person) + Classic fallback (Feather: home / tool / anchor / shield / user). PDYE gets gold tint when focused.
-- **Charter & History moved out of (tabs)** → root Stack screens (`app/charter.tsx`, `app/history.tsx`), `presentation: "card"`, with floating back-FAB (40×40 navy-tinted circle, top-left) to return to /tools (charter) or /profile (history).
-- **Home rewritten** — hero "Your yacht. Fully understood." + 2×2 role grid (Owner/Broker/Charter/Surveyor → sets `yachtworth.tools.role` in AsyncStorage AND pushes `/(tabs)/tools?role=X`) + 2 quick actions (New Valuation / My Yacht) + featured banner → /valuation/new.
-- **Tools tab (new)** — 12 cards (3 LIVE: AI Valuation, Annual Cost, Charter ROI; 9 SOON: Listing Generator, Yacht Verification, Digital Passport, Survey Builder, Maintenance Log, Broker CRM, Charter Planner, Flag Calculator, Marina Database). Role chip filter (All/Owner/Broker/Charter/Surveyor) persisted to `yachtworth.tools.role`; param `?role=X` from Home takes priority on mount. SOON tap → `ComingSoonModal`.
-- **My Yacht tab (new)** — empty state ("+ Add my yacht" → /roi/yacht-form) OR active yacht card (newest by `updated_at` from `useListYachts`) + 3 action rows: View Valuation (/valuation/new), View Cost Estimate (/cost/new), Digital Passport (SOON — opens modal). If >1 yacht: "Manage all N yachts" → /charter.
-- **PDYE tab (new)** — hero ("Off-market yacht transactions") with full-width gold CTA → opens pdyegroup.com via `expo-web-browser` + 3 info cards (NDA Protected / Deal Room / Success Fee Only) + bottom Register CTA.
-- **Profile** — added "My valuations history" row → /history (signed-in only) above Settings. Rest unchanged.
-- **ComingSoonModal** — BlurView backdrop + gold-bordered card with tool icon/title/desc + "Notify me when ready" (persists tool key to `yachtworth.coming_soon_notify` list, shows "We'll let you know" then auto-closes after 1.1s) + Close.
-
-### Charter Planner Corrections (May 28, 2026 — DONE)
-Per `attached_assets/2026-05-28_Replit_Prompt_CharterFixes_*.pdf`. 4 corrections on top of May 2026 full update.
-- **migration 010 (`migrations/010_central_agent_subagents.sql`):** owner-run. Adds `central_agent_name`, `central_agent_type` (`percent_net|fixed`), `central_agent_value numeric(12,2)` (default 10), `sub_agents jsonb` (default `[]`). Backfill strips owner/agent/aa rows from existing `distribution` to free residual for boat owner (idempotent). CHECK on `central_agent_type`.
-- **`lib/charterCalc.ts` (fully rewritten):** new `CentralAgentType`, `SubAgentType`, `SubAgent`, `MAX_SUB_AGENTS=3`, `DEFAULT_CENTRAL_AGENT_VALUE=10`. `calcCharter` adds `central_agent_amount`, `sub_agent_results[]`, `sub_agent_total`. Sub-agent types: `percent_net` (of base_net), `percent_central` (of central_agent_amount), `fixed €`. P&L expenses include central + sub-agent commissions. **Boat owner = base_net − central − subs − custom distribution** (implicit residual). `agent_commission` kept as alias = central_agent_amount for back-compat. `aa_commission` removed. `DEFAULT_DISTRIBUTION = []` (no preset 80/10/10 — owner is residual).
-- **OpenAPI + backend (`routes/charters.ts`):** Charter/CharterInput add `central_agent_{name,type,value}` + `sub_agents[]`. `CHARTER_COLUMNS` updated, `NOT_NULL_NUMERIC_DEFAULTS.central_agent_value=10`. Codegen ran.
-- **`charter-form.tsx`:** Section 9 rebuilt — Central Agent block (name + type pill + value) → Sub-agents list (max 3, each with name/type-pill/value/remove + live amount preview) → optional custom participants (partner/referrer). P&L removes `− AA commission`, adds dynamic central + sub rows. Payout Summary shows central + subs + customs, then "BOAT OWNER RECEIVES" (residual, red if negative). New helpers: `TimeInput` (HH:MM auto-formatted, clamps HH≤23/MM≤59) replaces free-text time Fields; `EuroField` (€ suffix inside input on right) used for all 8 APA spend buckets. APA summary card now lists only **non-zero** spend rows above the spent/balance lines.
-- **`lib/charterExports.ts`:** `charterToCalcInput` maps central_agent + sub_agents from Charter. PDF P&L + Income Distribution rebuilt: removed AA + Agent rows, added Central Agent + each sub + each custom participant + "Boat Owner receives" residual. CSV header swapped `AA commission|Agent commission|Owner share` → `Central Agent|Central Agent name|Sub-agents total|Boat Owner receives`.
-- **Type-safety:** yachtworth-app + api-server typecheck green.
-
-### Charter Planner Full Update (May 2026 PDF spec — DONE)
-Per `attached_assets/2026-05-28_Replit_Prompt_CharterUpdate_Full.pdf`. Refactor of charter math + form + exports to match real broker workflows.
-- **migration 009 (`migrations/009_charter_planner_full.sql`):** owner-run. Adds `contact_name`, `contract_status`+`contract_date`, `mooring/pickup/dropoff_port`, `transfer_fee`+`paid_by`+`note`, `departure_time`+`return_time`, `charter_rate_period` (mirrors type), APA block (`apa_enabled`, `apa_percent`, `apa_amount`, 8 spend buckets + 2 notes), `refund_amount`+`reason`, `extra_service_amount`+`note`, `damage_amount`+`paid_by`+`note`, expanded crew (`first_officer_*`, `chef_*`, `deckhand_*`), `distribution jsonb` (array `{name,type,value}`). All numerics `NOT NULL DEFAULT 0`. CHECK constraints on rate type, contract status, transfer/damage paid_by, apa_percent [0,100], deckhand_count >= 0. Backfill: `charter_rate_period := charter_rate_type`.
-- **`lib/charterCalc.ts` (pure, shared form ↔ exports):** `calcCharter(input)` → `CharterCalcResult`. **VAT is added ON TOP** of base net (`total_to_client = base_net + vat_amount`). APA is a **pass-through fund** — collected, spent, balanced; NEVER enters P&L `net_profit` (only `damage_absorbed` enters when `damage_paid_by==='owner'`). Distribution amounts computed from `base_net` (not gross). Rate types: `fixed | per_day | per_week`. Date math uses UTC-parsed YYYY-MM-DD (no `new Date(s)` DST drift). `DEFAULT_DISTRIBUTION = 80/10/10` (owner/AA/agent).
-- **OpenAPI + backend (`routes/charters.ts`):** Charter/CharterInput extended (35+ new fields). `CHARTER_COLUMNS` updated. New `normalizeCharterPayload()` helper coerces incoming `null` → `0` for 19 NOT NULL numeric columns before insert/update — clients can safely send empty fields without DB errors. Codegen ran.
-- **`app/charter-form.tsx` (rewritten, ~2800 lines):** 11 sections (Basics, Logistics, Vessel, Crew, Revenue, APA, Expenses, Extras, Distribution, P&L+Payout, Notes). Reusable `DateField` + `Stepper` subcomponents. Date pickers: iOS Modal + inline spinner / Android native dialog (`@react-native-community/datetimepicker` 8.4.4, pinned). Distribution editor: %/€ toggle per row, add/remove rows, non-blocking warn when sum ≠ base_net. Live P&L card uses `calcCharter`. `fromCharter` uses nullish-safe `!= null` checks (not truthy) so persisted `0` round-trips correctly. `toInput` sends with `numOrNull`; server-side normalize handles NOT NULL coercion.
-- **`lib/charterExports.ts` (rewritten):** `charterToCalcInput` mirrors form's `toCalcInput` exactly (incl. distribution fallback to `DEFAULT_DISTRIBUTION` when empty) so PDF/CSV match live form. `computeCharterPnl` returns full `CharterCalcResult` (`CharterPnl` aliased for back-compat). **Per-charter PDF** now includes Client+Contract, Logistics+Transfer, Revenue (base→+VAT→Total to client→+APA→Invoice), APA breakdown card (when enabled, with balance line), expanded Crew (5 positions), Fuel+engine hours, Owner expenses, Extras/Damage/Refund (conditional), P&L (with AA + agent commissions), and Income Distribution (with balanced/over/under indicator). **Fleet PDF** KPIs switched from VAT-inclusive gross to `base_net`/`vat`/`invoice`/`profit`. **CSV** expanded to 35 columns (base_net, vat, total_to_client, APA, transfer, extras, damage, refund, commissions, owner share). Cancelled+blocked still excluded from totals.
-- **Type-safety:** all `T | undefined` from codegen on optional Charter fields coerced with sensible defaults at the integration boundary. yachtworth-app + api-server typecheck green.
-
-### Charter Planner (Phase 3 — DONE, pre-May-2026)
-Full Fleet/Calendar/Clients module per PDF spec. Tools card "Charter Planner" → `/charter-planner` (3-tab top bar: Fleet / Calendar / Clients). Backend: `migrations/008_charter_planner.sql` adds `photo_url`+`notes` to yachts, creates `charters` + `clients` (RLS deny_all, scoped by `clerk_user_id`). Routes: `/charters` CRUD + `/clients` CRUD with `softClerkAuth+requireAuth`, `isUuid` guards, `{count:'exact'}` 404 on delete.
-- **Stage 1–2 (Fleet+skeleton):** yacht cards with today-status dot (active/upcoming/free) + next-charter line; AddYachtSheet reuses existing yachts POST.
-- **Stage 3 (Charter Form, `app/charter-form.tsx`):** 7 sections (yacht/dates/client/pricing/extras/expenses/status+notes), sticky bottom bar, **live P&L card** (`calcPL` pure fn — VAT-inclusive extraction, day count, crew/fuel/expenses), DateTimePicker. Save → invalidates `/api/charters` + `/api/clients`.
-- **Stage 4 (Calendars):** `GanttGrid` (sticky left yacht column + horizontal scrollable day cells, today highlight, per-yacht status dot); month nav with "Today" jump-pill.
-- **Stage 5 (Clients):** ClientsTab (search/list) + `app/client-detail.tsx` (hero + contact + notes + chronological charter history). Charter-form invalidates `["/api/clients"]` on save+delete (architect-flagged cache bug fixed pre-merge). **Deferred:** FK-vs-by-name client linkage (currently strings on charters; FK migration is follow-up).
-- **Stage 6 (Exports, `lib/charterExports.ts`):** `expo-print` + `expo-sharing` + `expo-file-system@~19.0.22` (pinned to SDK 54 — v56 incompatible). **Per-charter PDF** from charter-form bottom bar (gold download icon next to delete, edit-mode only) → `exportCharterPdf`. **Monthly fleet PDF** + **CSV (Excel-compatible)** from CalendarTab nav-row gold share button → 3-option Alert (Fleet PDF / CSV / Cancel). `computeCharterPnl` mirrors form `calcPL` for parity; cancelled+blocked excluded from totals (still shown in rows). Architect-fixed: (a) date timezone drift — `YYYY-MM-DD` parsed as plain string (no `new Date(s)`), (b) CSV formula injection — prefix-escape leading `=+-@\t\r`, (c) web fallback — throw clear error when `Sharing.isAvailableAsync()` false instead of silent no-op. **Deferred:** PDF rounds 0 decimals vs form 2 decimals (cosmetic), true XLSX (CSV opens in Excel fine).
-
-### My Yacht Foundation Layer — T009 (May 28, 2026 — DONE)
+### Current — T009 My Yacht Foundation Layer (May 28, 2026 — DONE)
 Per `attached_assets/2026-05-28_Replit_Prompt_MyYacht_Foundation_*.pdf`. Central yacht profile hub that all tools link to. Existing tools (Valuation/Cost/ROI/Charter Planner) **untouched**.
-- **migration 011 (`migrations/011_yacht_profile.sql`):** owner-run. Adds `draft_meters`, `registration_number`, `imo_number`, `hull_id`, `vat_status` (`tax_paid_eu|tax_not_paid|unknown`), `engine_maker`, `engine_model`, `engine_count`, `total_hp`, `crew_cabins`, `berths`, `heads`, `owner_role` (`owner|broker|manager`), `is_archived bool default false`. CHECK constraints on enums. Partial index on `(clerk_user_id) where is_archived=false`. Reuses existing: `brand`(=builder), `length_meters`, `beam_meters`, `cabins`(=guest_cabins), `engine_hours`(=current), `home_port`, `photo_url`, `notes`.
-- **OpenAPI:** new enums `YachtVatStatus` (renamed from `VatStatus` to avoid collision with existing valuations VatStatus `[paid,not_paid]`) + `YachtOwnerRole`. `Yacht` + `YachtInput` extended w/ all new fields. `YACHT_COLUMNS` updated. List endpoint filters `is_archived=false` by default (`?include_archived=1` override). Codegen ran.
-- **`lib/yachtCompleteness.ts`:** `calcCompleteness(y) → 0..100`, `nextSuggestedField(y)`, `missingFields(y)`. Weights match PDF (name/type/year/length heavy; engine/registration medium; accommodation light).
-- **`app/my-yacht/edit.tsx` (new, ~700 lines):** 7 collapsible sections (Basics/Dimensions/Registration/Engine/Accommodation/Photo/Notes). Sticky save bar (Cancel/Save). Units snapshotted at mount (`formUnits`) for ft↔m conversion w/o mid-form corruption. IMO filtered to 7-digit numeric. Validation: name/type/year(1900–2100)/length required. Both create + edit modes (`?id=` for edit). Pill-row selectors for type/role/VAT. Steppers for engine_count/cabins/crew_cabins/berths/heads.
-- **`components/CompletenessBar.tsx`:** gold progress bar w/ pct label + optional hint.
-- **`components/YachtCard.tsx`:** photo (or anchor fallback) + title/builder/length/year subtitle + Edit pill + flag/port row + completeness bar w/ hint + 2×2 action grid (Valuations/Costs/Charters/Passport[SOON]) + archived badge. Stops event propagation on inner buttons so card press goes to detail.
-- **`app/(tabs)/my-yacht.tsx` (rewritten):** signed-in gate → fleet list filtered to non-archived. Empty state: gold anchor + "+ Add my first yacht" CTA. With yachts: vertical YachtCard list + dashed "+ Add another yacht" CTA. Card actions route to `/valuation/new`, `/cost/new`, `/charter-planner`; Passport opens ComingSoonModal (`digital_passport` key).
-- **`app/my-yacht/[id].tsx` (new, ~550 lines):** header w/ back + overflow menu (Edit/Archive/Delete). Top tabs: Overview / History / Documents. Overview: hero photo + completeness card w/ missing-fields list + 6 read-only sections (each w/ "Edit" link). History: charters filtered by `yacht_id` (via existing `useListCharters({yacht_id})` from migration 008); informational note re: estimates/cost-estimates linkage deferred. Documents: COMING SOON placeholder. Archive/Delete confirm via `Alert.alert`; both invalidate list+detail queries; archive uses existing PATCH `is_archived`; delete uses existing DELETE.
-- **API backend:** PATCH + DELETE `/yachts/:id` already existed pre-T009 (used by ROI form). `is_archived` filter added in T009.1.
-- **Type-safety:** yachtworth-app + api-server typecheck GREEN.
+- **migration 011:** adds `draft_meters`, `registration_number`, `imo_number`, `hull_id`, `vat_status` (`tax_paid_eu|tax_not_paid|unknown`), `engine_maker`, `engine_model`, `engine_count`, `total_hp`, `crew_cabins`, `berths`, `heads`, `owner_role` (`owner|broker|manager`), `is_archived`. CHECK constraints. Partial index on `(clerk_user_id) where is_archived=false`. Reuses `brand`(=builder), `length_meters`, `beam_meters`, `cabins`(=guest_cabins), `engine_hours`, `home_port`, `photo_url`, `notes`.
+- **OpenAPI:** new enums `YachtVatStatus` (renamed to avoid collision with valuations `VatStatus`) + `YachtOwnerRole`. `Yacht`+`YachtInput` extended. List endpoint accepts `?include_archived=true|1` (default hides archived).
+- **`lib/yachtCompleteness.ts`:** `calcCompleteness`/`nextSuggestedField`/`missingFields`. Stepper-numeric `0` counts as missing.
+- **`app/my-yacht/edit.tsx`:** 7 collapsible sections, sticky save bar, units snapshotted at mount for ft↔m, IMO 7-digit numeric filter, validation name/type/year/length. Stepper integers round-trip as-is (incl. 0).
+- **`components/YachtCard.tsx` + `CompletenessBar.tsx`:** photo or anchor fallback, edit pill, flag/port, completeness bar w/ hint, 2×2 actions (Valuations/Costs/Charters/Passport[SOON]), archived badge.
+- **`app/(tabs)/my-yacht.tsx`:** always fetches `include_archived=true`; bottom-up segments active vs archived. "Show archived (N)" toggle reachable even when active list empty. Empty state: gold anchor + "+ Add my first yacht".
+- **`app/my-yacht/[id].tsx`:** Overview/History/Documents tabs + overflow menu (Edit/Archive/Delete). History = charters filtered by `yacht_id`. Cache invalidation by `["/api/yachts"]` prefix covers both list variants.
+- **API:** PATCH+DELETE `/yachts/:id` already existed; `is_archived` filter added in T009.1.
 
-### Annual Cost Estimator (separate module, in progress)
-- **Stage A1:** backend foundation — pure deterministic calculator (no AI). `/cost-estimates` POST (soft auth — guests get calc, signed-in users get calc + save) + GET list + GET detail + DELETE. Crew rule: `salary × 12 × qty`, `qty>1` only for stewardess/deckhand (server-enforced clamp). Auto-estimate helpers prepared for future "Auto-fill" button.
-- **Stage A2:** 4-step wizard (`cost/new.tsx`) + minimal results screen (hero total/yr + per-day/per-week + category cards + 4 breakdown sections). Home tab second CTA wired.
-- **Stage A2.5:** 8 new annual maintenance fields (engine / generator / electronics / safety / tender / hull paint / rigging / watermaker), crew `months_per_year` stepper (1-12) for stew/deck, builder+model echo through to result header.
-- **Stage A3:** History tab extended with 3-segment switch (Estimates / Cost / ROI). Each segment uses its own list hook with `enabled: signedIn && tab===X`, per-tab empty/error/loading states, per-tab card rendering. Deep-link `?id=` added to `cost/result.tsx` (via `useGetCostEstimate`) and `roi/result.tsx` (via `useGetRoiCalculation`). Region label map covers both `CharterRegion` and `OperationRegion` enums. A11y: `tablist`/`tab` roles on segment, `accessibilityRole`+`accessibilityLabel` on all CTAs and cards.
-- **Stage A4 — DONE:** Delete-from-history. New `DELETE /estimates/:id` + `DELETE /roi/calculations/:id` (mirror `DELETE /cost-estimates/:id`): `isUuid` guard → 404, `softClerkAuth+requireAuth`, scoped delete by `clerk_user_id` + `id` with `{count:'exact'}` → 404 if zero, 204 on success (no IDOR leak). UI: each list row wrapped in `Swipeable` (react-native-gesture-handler) with red trash action → `Alert.alert` destructive confirm → mutate → invalidate matching list query key. Concurrent-safe via `pendingIds: Set<string>` (per-row spinner survives rapid multi-delete; architect-flagged single-flight bug fixed pre-merge).
+### Historical milestones (DONE — collapsed)
+
+- **Days 1–5 (Core estimates):** Expo skeleton + design system + tabs; Clerk auth (Apple+Google+email) via `ClerkProvider` + `ClerkTokenBridge` → `setAuthTokenGetter`; 5-step estimate wizard w/ mode toggle (builder/specs) + units toggle (metric/imperial, API contract metric-only); user-facing rename valuation → "estimate" (code names preserved); PDF export (`expo-print`+`expo-sharing`); Supabase persistence; History tab; Profile + Settings (units, About, Powered by PDYE). RevenueCat/paywall/App Store submit deferred.
+- **Phase 2 — Charter ROI Intelligence:** schema + OpenAPI + CRUD `/yachts` + `/roi/calculate` w/ 3 pricing modes (manual_daily/manual_weekly/ai). AI mode → web_search comparables. Engine: loan annuity, depreciation (5y, monthly seasonal Med weights), expenses (owner overrides → fallback), revenue (AI → AI chat → heuristic, never 500s). Data-driven baseline via `migrations/005_seed_rates.sql` + `lib/roi/rates.ts` (RPC `get_roi_rates`). Full expense questionnaire (8 monthly + 5 annual + commission %) + crew_breakdown jsonb (6 positions × salary × months_per_year). Empty fields → `null` = fall back to regional avg.
+- **Annual Cost Estimator (Stages A1–A4):** pure deterministic calculator (no AI). `/cost-estimates` POST (soft auth — guest calc, signed-in save) + GET list/detail + DELETE. 4-step wizard + minimal results. 8 annual maintenance fields + crew months_per_year stepper. History tab extended w/ 3-segment switch (Estimates/Cost/ROI). Delete-from-history w/ Swipeable + concurrent-safe `pendingIds` set.
+- **Navigation restructure:** 5-tab bottom nav (Home/Tools/My Yacht/PDYE/Profile), NativeTabs (SF symbols) + Classic fallback (Feather). Charter & History out of (tabs) → root Stack screens w/ back-FAB. Home: hero + 2×2 role grid (persists `yachtworth.tools.role`) + quick actions. Tools tab: 12 cards (3 LIVE + 9 SOON), role chip filter, SOON tap → ComingSoonModal. PDYE tab: gold CTA → opens pdyegroup.com via `expo-web-browser`. ComingSoonModal: BlurView + gold-bordered card + notify-me list (AsyncStorage `yachtworth.coming_soon_notify`).
+- **Charter Planner (Phase 3):** Tools card → `/charter-planner` (3-tab top bar: Fleet/Calendar/Clients). `migrations/008` adds charters + clients tables. Fleet: yacht cards w/ today-status dot. Charter Form (`app/charter-form.tsx`): 7 sections, sticky bottom bar, live P&L card, DateTimePicker. Calendar: `GanttGrid` (sticky yacht column + scrollable day cells, today highlight). Clients: list + `app/client-detail.tsx`. Exports (`lib/charterExports.ts`, `expo-file-system@~19.0.22` pinned to SDK 54): per-charter PDF + monthly fleet PDF + CSV (Excel-compatible). Architect-fixed: date timezone drift (YYYY-MM-DD as plain string), CSV formula injection (prefix-escape `=+-@\t\r`), web fallback explicit error.
+- **Charter Planner Full Update (May 2026):** `migrations/009` adds 35+ fields (APA pass-through fund, contract status, transfer/refund/damage/extras, expanded crew, `distribution jsonb`). `lib/charterCalc.ts` (pure, shared form↔exports): VAT added ON TOP, APA never enters P&L net_profit (only damage if owner-paid), UTC-parsed date math, `DEFAULT_DISTRIBUTION = 80/10/10`. Charter-form rewritten to 11 sections w/ reusable DateField+Stepper. Server-side `normalizeCharterPayload()` coerces `null`→`0` for 19 NOT NULL numeric columns.
+- **Charter Planner Corrections (May 28, 2026):** `migrations/010` adds `central_agent_{name,type,value}` + `sub_agents jsonb` (max 3). `charterCalc` rewritten: boat owner = base_net − central − subs − custom distribution (implicit residual). Form Section 9 rebuilt (central agent + sub-agents w/ live preview + custom participants). New helpers: `TimeInput` (HH:MM clamped), `EuroField` (€ suffix). APA summary lists non-zero rows only. PDF P&L + CSV header rebuilt accordingly.
 
 ## Not in v1.0
 
-Push notifications, multi-language, corporate accounts, yacht photo upload, marketing site, multi-yacht management. All v1.1+.
+Push notifications, multi-language, corporate accounts, yacht photo upload, marketing site. All v1.1+.
 
 ## Deferred (not approved by owner)
 
-- V2 spec point 2: per-comparable freshness badges (`fresh/verify/stale`) — cosmetic, revisit after real-world stale-listing complaints
+- V2 spec point 2: per-comparable freshness badges (`fresh/verify/stale`) — revisit after real-world stale-listing complaints
 - V2: broker tier, GDPR copy, free-tier hard limit on backend
-- Architect hardening notes: DB-level CHECK constraints (`>=0`, commission `[0,100]`), upper bounds on expense fields to prevent `numeric(12,2)` overflow, unit test for ROI no-hit rounding invariant
-- A11y backfill on `cost/new` Step 2 crew toggles/steppers + Step 1–4 pills/Continue
+- Architect hardening: DB-level CHECK constraints (`>=0`, commission `[0,100]`), upper bounds on `numeric(12,2)` to prevent overflow, unit test for ROI no-hit rounding invariant
+- A11y backfill on `cost/new` Step 2 crew toggles/steppers + Step 1–4 pills
+- Estimates/cost-estimates link to `yacht_id` (T009 History tab currently shows charters only)
 
 ## Run
 
@@ -175,4 +129,4 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
 
 - `expo` skill — mobile dev guidelines
 - `pnpm-workspace` skill — workspace structure
-- `attached_assets/` — original PDYE spec docs (questionnaire, prompt spec, units toggle spec)
+- `attached_assets/` — original PDYE spec docs (questionnaire, prompt spec, units toggle spec, T009 PDF, charter PDFs)
