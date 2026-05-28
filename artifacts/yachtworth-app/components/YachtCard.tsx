@@ -45,7 +45,7 @@ function yachtSubtitle(
 }
 
 export type YachtCardAction = {
-  key: "valuations" | "costs" | "charters" | "passport";
+  key: "valuations" | "costs" | "roi" | "charters" | "passport";
   label: string;
   icon: React.ComponentProps<typeof Feather>["name"];
   soon?: boolean;
@@ -74,8 +74,8 @@ export function YachtCard({
   const actions: YachtCardAction[] = [
     { key: "valuations", label: "Valuations", icon: "trending-up" },
     { key: "costs", label: "Costs", icon: "bar-chart-2" },
+    { key: "roi", label: "Charter ROI", icon: "dollar-sign" },
     { key: "charters", label: "Charters", icon: "calendar" },
-    { key: "passport", label: "Passport", icon: "credit-card", soon: true },
   ];
 
   return (

@@ -1,5 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import { useCalculateCostEstimate } from "@workspace/api-client-react";
+import {
+  getGetYachtQueryKey,
+  useCalculateCostEstimate,
+  useGetYacht,
+  type Yacht,
+} from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
@@ -186,6 +191,135 @@ function parseNum(v: string): number | null {
   return isFinite(n) ? n : null;
 }
 
+const YACHT_CLASSES: ReadonlySet<string> = new Set([
+  "motor_yacht",
+  "sailing_yacht",
+  "catamaran",
+  "superyacht",
+]);
+
+function moneyToStr(n: number | null | undefined): string {
+  if (n == null || !isFinite(n) || n <= 0) return "";
+  return String(Math.round(n));
+}
+
+// Pre-fill basics, length, monthly + annual expenses, and crew breakdown
+// from the saved yacht profile (which holds the canonical metric values).
+// Only fills empty form fields — anything the user already typed wins.
+function mergeYachtIntoCostForm(
+  f: FormState,
+  yacht: Yacht,
+  formUnits: "metric" | "imperial",
+): FormState {
+  const y = yacht as unknown as Record<string, unknown>;
+  const yClass =
+    typeof y["yacht_type"] === "string" ? (y["yacht_type"] as string) : "";
+
+  let length = f.length;
+  if (!length && typeof y["length_meters"] === "number" && y["length_meters"] > 0) {
+    const lm = y["length_meters"] as number;
+    const display = formUnits === "imperial" ? lm * M_TO_FT : lm;
+    length = parseFloat(display.toFixed(2)).toString();
+  }
+
+  const yearBuilt = y["year_built"];
+  const monthlyFromYacht = (key: string): string => {
+    const v = y[key];
+    return typeof v === "number" && v > 0 ? String(Math.round(v)) : "";
+  };
+
+  // Hydrate per-crew rows from yacht.crew_breakdown when available.
+  const cb = y["crew_breakdown"];
+  let nextCrew = f.crew;
+  if (Array.isArray(cb)) {
+    const byRole: Record<string, { salary: number; months: number; qty?: number }> = {};
+    for (const r of cb as unknown[]) {
+      if (!r || typeof r !== "object") continue;
+      const row = r as Record<string, unknown>;
+      const role = typeof row["role"] === "string" ? row["role"] : null;
+      if (!role) continue;
+      const salary = Number(row["monthly_salary_eur"] ?? row["salary"] ?? 0);
+      const months = Number(row["months_per_year"] ?? row["months"] ?? 12);
+      const qty = Number(row["quantity"] ?? row["qty"] ?? 1);
+      byRole[role] = { salary, months, qty };
+    }
+    nextCrew = Object.fromEntries(
+      Object.entries(f.crew).map(([k, cur]) => {
+        const found = byRole[k];
+        if (!found || !(found.salary > 0)) return [k, cur];
+        if (cur.enabled && cur.salary) return [k, cur];
+        return [
+          k,
+          {
+            enabled: true,
+            salary: String(Math.round(found.salary)),
+            qty: found.qty && found.qty > 0 ? found.qty : cur.qty,
+            months:
+              found.months > 0 && found.months <= 12
+                ? found.months
+                : cur.months,
+          },
+        ];
+      }),
+    );
+  }
+
+  return {
+    ...f,
+    yacht_name: f.yacht_name || (typeof y["name"] === "string" ? (y["name"] as string) : ""),
+    builder:
+      f.builder || (typeof y["brand"] === "string" ? (y["brand"] as string) : ""),
+    model:
+      f.model || (typeof y["model"] === "string" ? (y["model"] as string) : ""),
+    yacht_class:
+      f.yacht_class ?? (YACHT_CLASSES.has(yClass) ? (yClass as YachtClass) : null),
+    length,
+    year_built:
+      f.year_built ||
+      (typeof yearBuilt === "number" && yearBuilt > 0 ? String(yearBuilt) : ""),
+    crew: nextCrew,
+    monthly: {
+      mooring_eur: f.monthly.mooring_eur || monthlyFromYacht("monthly_mooring_eur"),
+      fuel_eur: f.monthly.fuel_eur || monthlyFromYacht("monthly_fuel_eur"),
+      provisioning_eur:
+        f.monthly.provisioning_eur || monthlyFromYacht("monthly_provisioning_eur"),
+      communications_eur:
+        f.monthly.communications_eur ||
+        monthlyFromYacht("monthly_communications_eur"),
+      maintenance_eur:
+        f.monthly.maintenance_eur || monthlyFromYacht("monthly_maintenance_eur"),
+    },
+    annual: {
+      ...f.annual,
+      insurance_eur:
+        f.annual.insurance_eur || monthlyFromYacht("annual_insurance_eur"),
+      registration_eur:
+        f.annual.registration_eur || monthlyFromYacht("annual_registration_eur"),
+      classification_eur:
+        f.annual.classification_eur || monthlyFromYacht("annual_classification_eur"),
+      antifouling_eur:
+        f.annual.antifouling_eur || monthlyFromYacht("annual_antifouling_eur"),
+      refit_reserve_eur:
+        f.annual.refit_reserve_eur || monthlyFromYacht("annual_refit_reserve_eur"),
+    },
+    broker_commission_pct:
+      f.broker_commission_pct ||
+      moneyToStr(y["charter_commission_pct"] as number | null | undefined),
+    financing_type:
+      f.financing_type ??
+      (y["financing_type"] === "cash" || y["financing_type"] === "loan"
+        ? (y["financing_type"] as FinType)
+        : null),
+    loan_amount_eur:
+      f.loan_amount_eur || moneyToStr(y["loan_amount_eur"] as number | null | undefined),
+    loan_rate_pct:
+      f.loan_rate_pct || moneyToStr(y["loan_rate_pct"] as number | null | undefined),
+    loan_term_years:
+      f.loan_term_years ||
+      moneyToStr(y["loan_term_years"] as number | null | undefined),
+  };
+}
+
 export default function CostNewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ yacht_id?: string }>();
@@ -208,6 +342,28 @@ export default function CostNewScreen() {
   const [showErrors, setShowErrors] = useState(false);
 
   const calcMut = useCalculateCostEstimate();
+
+  // Pre-fill from linked yacht (when opened from a yacht card).
+  // Length must be converted from yacht's metric value into the form's
+  // snapshotted units — otherwise an imperial user sees the raw metric
+  // number, which the validator then treats as 3.28× the wrong size.
+  const yachtQuery = useGetYacht(linkedYachtId ?? "", {
+    query: {
+      queryKey: linkedYachtId
+        ? getGetYachtQueryKey(linkedYachtId)
+        : ["cost-yacht-disabled"],
+      enabled: !!linkedYachtId,
+    },
+  });
+  const prefillRef = useRef(false);
+  React.useEffect(() => {
+    if (prefillRef.current) return;
+    if (!linkedYachtId) return;
+    const y = yachtQuery.data;
+    if (!y) return;
+    prefillRef.current = true;
+    setForm((f) => mergeYachtIntoCostForm(f, y, formUnits));
+  }, [linkedYachtId, yachtQuery.data, formUnits]);
 
   // Auto-pre-fill crew defaults when length & class first picked.
   const preFilledRef = useRef(false);

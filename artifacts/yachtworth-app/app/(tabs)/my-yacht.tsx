@@ -63,6 +63,9 @@ export default function MyYachtScreen() {
       case "costs":
         router.push({ pathname: "/cost/new", params: { yacht_id: yachtId } });
         return;
+      case "roi":
+        router.push({ pathname: "/roi/calculate", params: { yacht_id: yachtId } });
+        return;
       case "charters":
         router.push("/charter-planner");
         return;
