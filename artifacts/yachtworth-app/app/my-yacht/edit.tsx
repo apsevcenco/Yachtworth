@@ -294,7 +294,7 @@ export default function MyYachtEditScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 56 }]}>
         <Pressable
           onPress={() => router.back()}
           hitSlop={10}
