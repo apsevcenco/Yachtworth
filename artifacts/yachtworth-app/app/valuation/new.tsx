@@ -1,5 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import { useCreateValuation } from "@workspace/api-client-react";
+import {
+  getGetYachtQueryKey,
+  useCreateValuation,
+  useGetYacht,
+  type Yacht,
+} from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -185,6 +190,67 @@ function convertUnitField(value: string, factor: number): string {
 const INT_RE = /^\d+$/;
 const DEC_RE = /^\d+([.,]\d+)?$/;
 
+const YACHT_TYPES: ReadonlySet<string> = new Set([
+  "motor_yacht",
+  "sailing_yacht",
+  "catamaran",
+  "superyacht",
+]);
+
+function numToField(n: number | null | undefined): string {
+  if (n == null || !isFinite(n) || n <= 0) return "";
+  return parseFloat(n.toFixed(4)).toString();
+}
+
+function strField(s: string | null | undefined): string {
+  return typeof s === "string" ? s : "";
+}
+
+// Pre-fills a fresh metric form from a saved yacht profile. All numerics
+// stay in metric here — `convertFormUnits` runs immediately after to bring
+// the form to the user's persisted units in a single atomic step.
+function prefillFromYacht(f: FormState, yacht: Yacht): FormState {
+  const y = yacht as unknown as Record<string, unknown>;
+  const yType = typeof y["yacht_type"] === "string" ? (y["yacht_type"] as string) : "";
+  return {
+    ...f,
+    units: "metric",
+    type: YACHT_TYPES.has(yType) ? (yType as YachtType) : f.type,
+    builder: strField(y["builder"] as string | null | undefined),
+    model: strField(y["model"] as string | null | undefined),
+    year: y["year_built"] != null ? String(y["year_built"]) : "",
+    length: numToField(y["length_meters"] as number | null | undefined),
+    beam: numToField(y["beam_meters"] as number | null | undefined),
+    draft: numToField(y["draft_meters"] as number | null | undefined),
+    engine_maker: strField(y["engine_maker"] as string | null | undefined),
+    engine_model: strField(y["engine_model"] as string | null | undefined),
+    engine_count:
+      y["engine_count"] != null && Number(y["engine_count"]) > 0
+        ? String(y["engine_count"])
+        : "",
+    horse_power:
+      y["total_hp"] != null && Number(y["total_hp"]) > 0
+        ? String(y["total_hp"])
+        : "",
+    range_nm:
+      y["range_nm"] != null && Number(y["range_nm"]) > 0
+        ? String(y["range_nm"])
+        : "",
+    cabins:
+      y["cabins"] != null && Number(y["cabins"]) > 0
+        ? String(y["cabins"])
+        : "",
+    heads:
+      y["heads"] != null && Number(y["heads"]) > 0 ? String(y["heads"]) : "",
+    berths:
+      y["berths"] != null && Number(y["berths"]) > 0
+        ? String(y["berths"])
+        : "",
+    crew:
+      y["crew"] != null && Number(y["crew"]) > 0 ? String(y["crew"]) : "",
+  };
+}
+
 interface FormState {
   mode: Mode;
   units: Units;
@@ -261,21 +327,35 @@ export default function NewValuationScreen() {
   const mutation = useCreateValuation();
   const { units: persistedUnits, setUnits: persistUnits, loaded: unitsLoaded } =
     useUnits();
+  const yachtQuery = useGetYacht(linkedYachtId ?? "", {
+    query: {
+      queryKey: linkedYachtId
+        ? getGetYachtQueryKey(linkedYachtId)
+        : ["valuation-yacht-disabled"],
+      enabled: !!linkedYachtId,
+    },
+  });
+  const linkedYacht = linkedYachtId ? yachtQuery.data ?? null : null;
+  const yachtReady =
+    !linkedYachtId || yachtQuery.isSuccess || yachtQuery.isError;
   const [form, setForm] = useState<FormState>(INITIAL);
   const [step, setStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
   const initRef = useRef(false);
 
-  // Bring form.units in line with the user's persisted choice on mount.
-  // If the user already typed something before AsyncStorage resolved, the
-  // numeric fields must be converted — otherwise a value typed in metric
-  // would silently be reinterpreted as imperial (the exact 3.28× error the
-  // units spec is designed to prevent).
+  // First mount: prefill from the linked yacht (when present) in metric,
+  // then convert to the user's persisted units in one atomic step. Waiting
+  // for both `unitsLoaded` AND the yacht fetch prevents a double-conversion
+  // and the 3.28× corruption the units spec is designed to prevent.
   useEffect(() => {
-    if (!unitsLoaded || initRef.current) return;
+    if (initRef.current) return;
+    if (!unitsLoaded || !yachtReady) return;
     initRef.current = true;
-    setForm((f) => convertFormUnits(f, persistedUnits));
-  }, [unitsLoaded, persistedUnits]);
+    setForm((f) => {
+      const prefilled = linkedYacht ? prefillFromYacht(f, linkedYacht) : f;
+      return convertFormUnits(prefilled, persistedUnits);
+    });
+  }, [unitsLoaded, persistedUnits, yachtReady, linkedYacht]);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
