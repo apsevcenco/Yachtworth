@@ -119,6 +119,8 @@ export default function SurveySectionScreen() {
   const [saving, setSaving] = useState(false);
   // itemId of the item currently uploading; null = idle.
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+  // Full-screen photo preview overlay; null = closed.
+  const [preview, setPreview] = useState<{ url: string } | null>(null);
 
   const pickAndUploadPhoto = async (idx: number, itemId: string) => {
     const editableItem = editable[idx];
@@ -161,12 +163,19 @@ export default function SurveySectionScreen() {
         Alert.alert("Photo access needed", "Enable photo library in Settings.");
         return;
       }
+      const remaining = MAX_ITEM_PHOTOS - editableItem.photo_urls.length;
       const r = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: remaining > 1,
+        selectionLimit: Math.min(remaining, 5),
         quality: 1,
       });
-      if (r.canceled || !r.assets?.[0]) return;
-      await doUpload(r.assets[0].uri);
+      if (r.canceled || !r.assets?.length) return;
+      // Sequential upload keeps order deterministic and respects the
+      // server-side row lock added in migration 021.
+      for (const a of r.assets.slice(0, remaining)) {
+        await doUpload(a.uri);
+      }
     };
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -253,6 +262,22 @@ export default function SurveySectionScreen() {
   const onSave = async () => {
     setSaving(true);
     try {
+      // Pull the freshest server state for this report and overlay any
+      // photo_urls that changed since the editor was opened. Without this,
+      // the section replace would send a stale `photo_urls` snapshot and
+      // could roll back uploads/deletes performed elsewhere.
+      let freshById = new Map<string, string[]>();
+      try {
+        const fresh = await detailQ.refetch();
+        const items = fresh.data?.items ?? [];
+        freshById = new Map(
+          items
+            .filter((i) => i.id)
+            .map((i) => [i.id as string, Array.isArray(i.photo_urls) ? i.photo_urls : []]),
+        );
+      } catch {
+        // Best-effort — if refetch fails, fall back to local snapshot.
+      }
       // Server scopes replace to this section only (atomic via RPC), so other
       // sections are untouched and concurrent edits in other sections survive.
       const payloadItems = editable.map((it, i) => {
@@ -266,7 +291,9 @@ export default function SurveySectionScreen() {
           notes: it.notes || null,
           recommendation_level: it.recommendation_level || null,
           recommendation_text: it.recommendation_text || null,
-          photo_urls: it.photo_urls,
+          // Prefer the freshly-fetched photo_urls for existing items so a
+          // concurrent upload between editor-open and save survives.
+          photo_urls: (it.id && freshById.get(it.id)) || it.photo_urls,
           moisture_reading:
             Number.isFinite(moistureNum) && it.moisture_reading !== "" ? moistureNum : null,
           moisture_level: it.moisture_level || null,
@@ -397,11 +424,13 @@ export default function SurveySectionScreen() {
                   <View style={styles.photoGrid}>
                     {it.photo_urls.map((url) => (
                       <View key={url} style={styles.photoThumbWrap}>
-                        <Image
-                          source={{ uri: url }}
-                          style={styles.photoThumb}
-                          contentFit="cover"
-                        />
+                        <Pressable onPress={() => setPreview({ url })}>
+                          <Image
+                            source={{ uri: url }}
+                            style={styles.photoThumb}
+                            contentFit="cover"
+                          />
+                        </Pressable>
                         <Pressable
                           onPress={() => removePhoto(idx, it.id!, url)}
                           hitSlop={8}
@@ -491,6 +520,29 @@ export default function SurveySectionScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {preview && (
+        <Modal
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreview(null)}
+        >
+          <Pressable style={styles.previewBg} onPress={() => setPreview(null)}>
+            <Image
+              source={{ uri: preview.url }}
+              style={styles.previewImg}
+              contentFit="contain"
+            />
+            <Pressable
+              onPress={() => setPreview(null)}
+              hitSlop={12}
+              style={[styles.previewClose, { top: insets.top + 12 }]}
+            >
+              <Feather name="x" size={22} color={IVORY} />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
 
       {picker && (
         <PickerSheet
@@ -737,4 +789,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   photoHintText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 11 },
+  previewBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewImg: { width: "100%", height: "100%" },
+  previewClose: {
+    position: "absolute",
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

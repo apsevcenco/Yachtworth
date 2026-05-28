@@ -536,6 +536,8 @@ router.post(
       res.status(loaded.status).json({ error: loaded.error });
       return;
     }
+    // Pre-flight check is best-effort; the RPC re-checks under row lock
+    // so two concurrent uploads cannot both squeak past the limit.
     if (loaded.item.photo_urls.length >= MAX_PHOTOS_PER_ITEM) {
       res.status(400).json({
         error: `Photo limit reached (${MAX_PHOTOS_PER_ITEM} per item).`,
@@ -569,21 +571,35 @@ router.post(
       .from(SURVEY_ITEM_PHOTOS_BUCKET)
       .getPublicUrl(objectPath);
     const publicUrl = pub.publicUrl;
-    const nextPhotos = [...loaded.item.photo_urls, publicUrl];
 
-    const { error: upErr } = await sb
-      .from(SURVEY_ITEMS_TABLE)
-      .update({ photo_urls: nextPhotos })
-      .eq("id", itemId);
-    if (upErr) {
+    // Atomic append via RPC (migration 021). Avoids the lost-update race
+    // that read-modify-write `.update({ photo_urls })` had under concurrency.
+    const { data: appended, error: rpcErr } = await sb.rpc(
+      "survey_item_append_photo",
+      { p_item_id: itemId, p_url: publicUrl, p_max: MAX_PHOTOS_PER_ITEM },
+    );
+    if (rpcErr || !appended) {
+      // Roll back the storage object so we don't accumulate orphans.
       await sb.storage.from(SURVEY_ITEM_PHOTOS_BUCKET).remove([objectPath]);
+      const msg = rpcErr?.message ?? "Could not append photo";
+      if (rpcErr?.code === "P0001") {
+        res.status(400).json({ error: `Photo limit reached (${MAX_PHOTOS_PER_ITEM} per item).` });
+        return;
+      }
+      if (rpcErr?.code === "P0002") {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
       req.log.error(
-        { err: upErr.message },
-        "survey item DB update failed (rolled back storage)",
+        { err: msg },
+        "survey_item_append_photo RPC failed (rolled back storage)",
       );
-      res.status(500).json({ error: upErr.message });
+      res.status(500).json({ error: msg });
       return;
     }
+    const nextPhotos = Array.isArray(appended)
+      ? (appended as unknown[]).filter((x): x is string => typeof x === "string")
+      : loaded.item.photo_urls.concat(publicUrl);
     res.json({ url: publicUrl, photo_urls: nextPhotos });
   },
 );
@@ -620,16 +636,24 @@ router.delete(
       return;
     }
     const sb = getSupabase()!;
-    const nextPhotos = loaded.item.photo_urls.filter((p) => p !== url);
-    const { error: upErr } = await sb
-      .from(SURVEY_ITEMS_TABLE)
-      .update({ photo_urls: nextPhotos })
-      .eq("id", itemId);
-    if (upErr) {
-      req.log.error({ err: upErr.message }, "survey item photo DB delete failed");
-      res.status(500).json({ error: upErr.message });
+    // Atomic remove via RPC (migration 021) — avoids lost-update races
+    // where a concurrent append could resurrect the URL we just removed.
+    const { data: removed, error: rpcErr } = await sb.rpc(
+      "survey_item_remove_photo",
+      { p_item_id: itemId, p_url: url },
+    );
+    if (rpcErr) {
+      if (rpcErr.code === "P0002") {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      req.log.error({ err: rpcErr.message }, "survey_item_remove_photo RPC failed");
+      res.status(500).json({ error: rpcErr.message });
       return;
     }
+    const nextPhotos = Array.isArray(removed)
+      ? (removed as unknown[]).filter((x): x is string => typeof x === "string")
+      : loaded.item.photo_urls.filter((p) => p !== url);
     const rm = await sb.storage.from(SURVEY_ITEM_PHOTOS_BUCKET).remove([path]);
     if (rm.error) {
       req.log.warn(
