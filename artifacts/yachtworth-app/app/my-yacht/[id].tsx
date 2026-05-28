@@ -360,9 +360,9 @@ function OverviewTab({
   return (
     <View style={{ gap: 14 }}>
       {/* Photo */}
-      {yacht.photo_url ? (
+      {yacht.cover_photo_url || yacht.photo_url ? (
         <Image
-          source={{ uri: yacht.photo_url }}
+          source={{ uri: (yacht.cover_photo_url ?? yacht.photo_url)! }}
           style={styles.heroPhoto}
           contentFit="cover"
           transition={200}

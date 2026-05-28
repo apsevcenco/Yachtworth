@@ -86,9 +86,9 @@ export function YachtCard({
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.92 : 1 }]}
     >
       {/* Photo / icon */}
-      {yacht.photo_url ? (
+      {yacht.cover_photo_url || yacht.photo_url ? (
         <Image
-          source={{ uri: yacht.photo_url }}
+          source={{ uri: (yacht.cover_photo_url ?? yacht.photo_url)! }}
           style={styles.photo}
           contentFit="cover"
           transition={150}

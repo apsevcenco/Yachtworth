@@ -57,12 +57,28 @@ Run sequentially in Supabase SQL editor of `yachtworth-prod`:
 9. `010_central_agent_subagents.sql` — central_agent + sub_agents jsonb on charters
 10. `011_yacht_profile.sql` — yacht profile fields + `is_archived` (T009)
 11. `012_yacht_equipment.sql` — `yacht_equipment` table (~60 items across 8 categories, one row per logical unit; cascade-delete from yachts)
+12. `013_yacht_photos.sql` — `photo_urls jsonb` + `cover_photo_url text` on yachts; provisions Supabase Storage bucket `yacht-photos` (public, 5 MB cap, image/* allow-list) + `public_read_yacht_photos` SELECT policy. All writes go through backend service-role key.
 
 Until each is run, the corresponding feature degrades (POSTs no-op warn-logged, GETs empty/401, engines fall back to heuristics).
 
 ## Build status
 
-### Current — T-Equipment My Yacht Section 8 (May 28, 2026 — IN REVIEW)
+### Current — T-PhotoUpload My Yacht Section 6 (May 28, 2026 — IN REVIEW)
+Per `attached_assets/2026-05-28_Replit_Prompt_YachtPhotoUpload_*.pdf`. Replaces the "paste a URL" placeholder in Section 6 of Add/Edit Yacht with a real multi-photo uploader. Up to 10 photos per yacht, auto-compressed to ≤800 KB JPEG (1920px max, 75% quality, second pass at 55% if still over budget). First photo = cover; long-press any photo to make it the cover.
+- **migration 013:** `photo_urls jsonb` + `cover_photo_url text` on yachts (legacy `photo_url` kept in sync with cover for back-compat). Provisions Supabase Storage bucket `yacht-photos` via `INSERT INTO storage.buckets` (public, 5 MB cap, image/jpeg|png|heic|webp allow-list) + idempotent `public_read_yacht_photos` SELECT policy. Backfills `cover_photo_url` from existing `photo_url`.
+- **Backend (`routes/yachts.ts`):** all writes via service-role (mobile never touches storage credentials). `multer` memoryStorage, 5 MB raw cap, single file. New routes: `POST /yachts/:id/photos` (multipart `file`) → upload to `yachts-photos/${yachtId}/${ts}_${rand}.jpg` → append to `photo_urls`, set cover if first → returns `{url, photo_urls, cover_photo_url}`. Storage upload rolled back if subsequent DB update fails. `DELETE /yachts/:id/photos` body `{url}` → DB-first update then best-effort storage cleanup; reassigns cover to next photo. `PATCH /yachts/:id/photos/cover` body `{url}` → validates membership. `DELETE /yachts/:id` now does best-effort `storage.list+remove` of the yacht's photo folder. `YACHT_COLUMNS` extended; `YACHT_PHOTOS_BUCKET` const in `supabase.ts`.
+- **OpenAPI:** `Yacht` + `YachtInput` gain `photo_urls: string[] (maxItems 10)` + `cover_photo_url: string|null`. Multipart upload endpoints intentionally NOT in spec — frontend calls them directly via fetch (orval+zod struggle with multipart). Codegen passed.
+- **Frontend:**
+  - `lib/api-client-react`: exports `getBaseUrl()` + `getAuthToken()` so ad-hoc fetch calls share the same backend + Clerk token as generated hooks.
+  - `lib/photoCompression.ts` — two-pass resize + JPEG via `expo-image-manipulator` (installed). Always emits JPEG.
+  - `lib/photoUpload.ts` — `uploadYachtPhoto` / `deleteYachtPhoto` / `setCoverPhoto`. RN-FormData with `{uri,name,type}` blob shim. Bearer token attached from getAuthToken.
+  - `components/PhotoSection.tsx` — horizontal thumb strip (96×96, cover badge, "×" remove, busy overlay) + dashed gold Add button. Source picker = iOS ActionSheet / Android Alert (Camera 16:9 / Library multi-select up to remaining slots). Long-press = set as cover. Sequential uploads to keep order deterministic. Auto-compression is silent — only thumbnail spinner.
+  - `app/my-yacht/edit.tsx` — Section 6 replaced. Form state gains `photo_urls` + `cover_photo_url` + legacy `photo_url` mirror. PhotoSection requires the yacht to exist first (uses `id ?? createdId`); shows "Save the yacht once to start adding photos" otherwise. After every photo op the yacht list + detail queries are invalidated.
+  - `components/YachtCard.tsx` + `app/my-yacht/[id].tsx` — hero/photo source now `cover_photo_url ?? photo_url` fallback chain.
+- Owner runs migration 013 manually before feature works (uploads return 503 / GET returns yacht without photo_urls field). Existing `photo_url` keeps rendering until migration is applied.
+- Skipped per scope: full-screen preview with zoom, offline upload queue, "Browse files" picker option, share button, photo reordering.
+
+### T-Equipment My Yacht Section 8 (May 28, 2026 — DONE)
 Per `attached_assets/2026-05-28_Replit_Prompt_MyYacht_Equipment_*.pdf`. Adds ~60-item Equipment & Systems section to Add/Edit Yacht form, persisted to a separate `yacht_equipment` table (one row per logical unit).
 - **migration 012:** `yacht_equipment` table with category CHECK (`power|water|navigation|safety|comfort|toys|deck|sailing`), 19 spec columns (brand, model, serial, year_installed, power_kw/hp, hours, capacity_liters, capacity_persons, panels_count, total_watts, zones_count, type_detail, notes, quantity), RLS deny_all, FK cascade-delete from yachts, indexes on yacht_id + clerk_user_id.
 - **OpenAPI:** new schemas `EquipmentCategory`/`EquipmentItem`/`EquipmentList`; routes `GET`+`PUT /yachts/{id}/equipment` (PUT = replace-all atomically). Codegen passed.

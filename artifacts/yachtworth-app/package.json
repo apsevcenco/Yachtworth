@@ -63,6 +63,7 @@
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@react-native-community/datetimepicker": "8.4.4",
     "expo-file-system": "~19.0.22",
+    "expo-image-manipulator": "^56.0.15",
     "expo-print": "~15.0.8",
     "expo-sharing": "~14.0.8"
   }

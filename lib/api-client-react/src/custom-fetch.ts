@@ -30,6 +30,24 @@ export function setBaseUrl(url: string | null): void {
 }
 
 /**
+ * Read the currently-configured base URL. Useful for ad-hoc fetch calls
+ * (e.g. multipart uploads) that bypass the generated hooks but still need
+ * to target the same backend as the rest of the app.
+ */
+export function getBaseUrl(): string | null {
+  return _baseUrl;
+}
+
+/**
+ * Resolve the currently-registered auth token getter and invoke it.
+ * Returns null when no getter is registered or the getter returns null.
+ */
+export async function getAuthToken(): Promise<string | null> {
+  if (!_authTokenGetter) return null;
+  return await _authTokenGetter();
+}
+
+/**
  * Register a getter that supplies a bearer auth token.  Before every fetch
  * the getter is invoked; when it returns a non-null string, an
  * `Authorization: Bearer <token>` header is attached to the request.

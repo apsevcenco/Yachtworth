@@ -12,6 +12,7 @@ import {
   type YachtInput,
 } from "@workspace/api-client-react";
 import EquipmentSection from "../../components/EquipmentSection";
+import { PhotoSection } from "../../components/PhotoSection";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -93,6 +94,8 @@ type FormState = {
   heads: number;
   // Photo / Notes
   photo_url: string;
+  photo_urls: string[];
+  cover_photo_url: string | null;
   notes: string;
 };
 
@@ -122,6 +125,8 @@ const EMPTY: FormState = {
   berths: 0,
   heads: 0,
   photo_url: "",
+  photo_urls: [],
+  cover_photo_url: null,
   notes: "",
 };
 
@@ -163,6 +168,8 @@ function fromYacht(y: Yacht): FormState {
     berths: y.berths ?? 0,
     heads: y.heads ?? 0,
     photo_url: y.photo_url ?? "",
+    photo_urls: Array.isArray(y.photo_urls) ? y.photo_urls : [],
+    cover_photo_url: y.cover_photo_url ?? null,
     notes: y.notes ?? "",
   };
 }
@@ -623,22 +630,29 @@ export default function MyYachtEditScreen() {
             </Field>
           </Section>
 
-          {/* Section 6: PHOTO */}
-          <Section title="Photo" open={open.photo} onToggle={() => toggle("photo")}>
-            <Field
-              label="Photo URL"
-              hint="Direct image upload coming soon — paste a public URL for now."
-            >
-              <TextInput
-                value={state.photo_url}
-                onChangeText={(t) => set("photo_url", t)}
-                placeholder="https://…"
-                placeholderTextColor={MUTED}
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={styles.input}
-              />
-            </Field>
+          {/* Section 6: PHOTOS */}
+          <Section title="Photos" open={open.photo} onToggle={() => toggle("photo")}>
+            <PhotoSection
+              yachtId={id ?? createdId}
+              photos={state.photo_urls}
+              coverUrl={state.cover_photo_url}
+              onChange={(photos, cover) => {
+                setState((s) => ({
+                  ...s,
+                  photo_urls: photos,
+                  cover_photo_url: cover,
+                  photo_url: cover ?? "",
+                }));
+                // Refresh server cache so My Yacht list + detail reflect changes.
+                void qc.invalidateQueries({ queryKey: ["/api/yachts"] });
+                const yid = id ?? createdId;
+                if (yid) {
+                  void qc.invalidateQueries({
+                    queryKey: getGetYachtQueryKey(yid),
+                  });
+                }
+              }}
+            />
           </Section>
 
           {/* Section 8: EQUIPMENT & SYSTEMS */}

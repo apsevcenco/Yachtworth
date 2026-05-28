@@ -1284,6 +1284,14 @@ components:
           type: ["string", "null"]
         photo_url:
           type: ["string", "null"]
+        photo_urls:
+          type: array
+          items:
+            type: string
+          default: []
+          maxItems: 10
+        cover_photo_url:
+          type: ["string", "null"]
         notes:
           type: ["string", "null"]
         commercial_registration:
@@ -1457,6 +1465,13 @@ components:
         home_port:
           type: ["string", "null"]
         photo_url:
+          type: ["string", "null"]
+        photo_urls:
+          type: array
+          items:
+            type: string
+          maxItems: 10
+        cover_photo_url:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]

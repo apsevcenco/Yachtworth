@@ -382,6 +382,8 @@ export const ListYachtsQueryParams = zod.object({
     .describe("Include archived yachts in the result"),
 });
 
+export const listYachtsResponseItemsItemPhotoUrlsMax = 10;
+
 export const listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const listYachtsResponseItemsItemCrewBreakdownItemMonthsPerYearMax = 12;
@@ -409,6 +411,11 @@ export const ListYachtsResponse = zod.object({
       flag: zod.string().nullish(),
       home_port: zod.string().nullish(),
       photo_url: zod.string().nullish(),
+      photo_urls: zod
+        .array(zod.string())
+        .max(listYachtsResponseItemsItemPhotoUrlsMax)
+        .optional(),
+      cover_photo_url: zod.string().nullish(),
       notes: zod.string().nullish(),
       commercial_registration: zod.boolean().nullish(),
       purchase_price_eur: zod.number().nullish(),
@@ -491,6 +498,9 @@ export const createYachtBodyGuestsMin = 0;
 export const createYachtBodyCrewMin = 0;
 
 export const createYachtBodyEngineHoursMin = 0;
+
+export const createYachtBodyPhotoUrlsDefault = [];
+export const createYachtBodyPhotoUrlsMax = 10;
 
 export const createYachtBodyPurchasePriceEurMin = 0;
 
@@ -578,6 +588,11 @@ export const CreateYachtBody = zod.object({
   flag: zod.string().nullish(),
   home_port: zod.string().nullish(),
   photo_url: zod.string().nullish(),
+  photo_urls: zod
+    .array(zod.string())
+    .max(createYachtBodyPhotoUrlsMax)
+    .default(createYachtBodyPhotoUrlsDefault),
+  cover_photo_url: zod.string().nullish(),
   notes: zod.string().nullish(),
   commercial_registration: zod.boolean().nullish(),
   purchase_price_eur: zod
@@ -695,6 +710,8 @@ export const GetYachtParams = zod.object({
   id: zod.coerce.string(),
 });
 
+export const getYachtResponsePhotoUrlsMax = 10;
+
 export const getYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const getYachtResponseCrewBreakdownItemMonthsPerYearMax = 12;
@@ -720,6 +737,11 @@ export const GetYachtResponse = zod.object({
   flag: zod.string().nullish(),
   home_port: zod.string().nullish(),
   photo_url: zod.string().nullish(),
+  photo_urls: zod
+    .array(zod.string())
+    .max(getYachtResponsePhotoUrlsMax)
+    .optional(),
+  cover_photo_url: zod.string().nullish(),
   notes: zod.string().nullish(),
   commercial_registration: zod.boolean().nullish(),
   purchase_price_eur: zod.number().nullish(),
@@ -797,6 +819,9 @@ export const updateYachtBodyGuestsMin = 0;
 export const updateYachtBodyCrewMin = 0;
 
 export const updateYachtBodyEngineHoursMin = 0;
+
+export const updateYachtBodyPhotoUrlsDefault = [];
+export const updateYachtBodyPhotoUrlsMax = 10;
 
 export const updateYachtBodyPurchasePriceEurMin = 0;
 
@@ -884,6 +909,11 @@ export const UpdateYachtBody = zod.object({
   flag: zod.string().nullish(),
   home_port: zod.string().nullish(),
   photo_url: zod.string().nullish(),
+  photo_urls: zod
+    .array(zod.string())
+    .max(updateYachtBodyPhotoUrlsMax)
+    .default(updateYachtBodyPhotoUrlsDefault),
+  cover_photo_url: zod.string().nullish(),
   notes: zod.string().nullish(),
   commercial_registration: zod.boolean().nullish(),
   purchase_price_eur: zod
@@ -994,6 +1024,8 @@ export const UpdateYachtBody = zod.object({
   is_archived: zod.boolean().nullish(),
 });
 
+export const updateYachtResponsePhotoUrlsMax = 10;
+
 export const updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const updateYachtResponseCrewBreakdownItemMonthsPerYearMax = 12;
@@ -1019,6 +1051,11 @@ export const UpdateYachtResponse = zod.object({
   flag: zod.string().nullish(),
   home_port: zod.string().nullish(),
   photo_url: zod.string().nullish(),
+  photo_urls: zod
+    .array(zod.string())
+    .max(updateYachtResponsePhotoUrlsMax)
+    .optional(),
+  cover_photo_url: zod.string().nullish(),
   notes: zod.string().nullish(),
   commercial_registration: zod.boolean().nullish(),
   purchase_price_eur: zod.number().nullish(),

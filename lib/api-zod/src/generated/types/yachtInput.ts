@@ -63,6 +63,10 @@ export interface YachtInput {
   home_port?: string | null;
   /** @nullable */
   photo_url?: string | null;
+  /** @maxItems 10 */
+  photo_urls?: string[];
+  /** @nullable */
+  cover_photo_url?: string | null;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
