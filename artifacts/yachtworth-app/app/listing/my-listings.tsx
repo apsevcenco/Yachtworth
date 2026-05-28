@@ -132,7 +132,7 @@ export default function MyListingsScreen() {
   }, [openId, detailQ.data, detailQ.isLoading, router]);
 
   return (
-    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
+    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 56 }]}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 22,

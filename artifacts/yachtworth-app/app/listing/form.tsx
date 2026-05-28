@@ -316,7 +316,7 @@ export default function ListingFormScreen() {
       <ScrollView
         style={styles.root}
         contentContainerStyle={{
-          paddingTop: (isWeb ? 67 : insets.top) + 12,
+          paddingTop: (isWeb ? 67 : insets.top) + 56,
           paddingHorizontal: 22,
           paddingBottom: insets.bottom + 100,
         }}
