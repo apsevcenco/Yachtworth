@@ -72,6 +72,11 @@ export const EngineConfig = {
 } as const;
 
 export interface ValuationInput {
+  /**
+   * Optional link to a yacht profile (uuid). When set, the estimate appears in that yacht's History tab.
+   * @nullable
+   */
+  yacht_id?: string | null;
   mode: ValuationMode;
   /** When true, only hard requirements are enforced */
   bypass_required: boolean;
@@ -222,6 +227,8 @@ export interface Valuation {
 export interface EstimateListItem {
   id: string;
   created_at: string;
+  /** @nullable */
+  yacht_id?: string | null;
   /** @nullable */
   yacht_label?: string | null;
   /** @nullable */
@@ -1147,6 +1154,11 @@ export interface CostFinancingInput {
 }
 
 export interface CostEstimateInput {
+  /**
+   * Optional link to a yacht profile (uuid). When set, the cost estimate appears in that yacht's History tab.
+   * @nullable
+   */
+  yacht_id?: string | null;
   /** @nullable */
   yacht_name?: string | null;
   /**
@@ -1236,6 +1248,8 @@ export interface CostEstimate {
 export interface CostEstimateListItem {
   id: string;
   created_at: string;
+  /** @nullable */
+  yacht_id?: string | null;
   /** @nullable */
   name?: string | null;
   /** @nullable */
@@ -1755,6 +1769,13 @@ export interface ClientDetail {
   charters: Charter[];
 }
 
+export type ListEstimatesParams = {
+  /**
+   * When provided, only estimates linked to this yacht profile are returned.
+   */
+  yacht_id?: string;
+};
+
 export type ListYachtsParams = {
   /**
    * Include archived yachts in the result
@@ -1763,6 +1784,13 @@ export type ListYachtsParams = {
 };
 
 export type ListRoiCalculationsParams = {
+  yacht_id?: string;
+};
+
+export type ListCostEstimatesParams = {
+  /**
+   * When provided, only cost estimates linked to this yacht profile are returned.
+   */
   yacht_id?: string;
 };
 

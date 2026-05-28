@@ -10,6 +10,8 @@ export interface CostEstimateListItem {
   id: string;
   created_at: string;
   /** @nullable */
+  yacht_id?: string | null;
+  /** @nullable */
   name?: string | null;
   /** @nullable */
   yacht_name?: string | null;

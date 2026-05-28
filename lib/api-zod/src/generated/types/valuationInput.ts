@@ -13,6 +13,11 @@ import type { YachtCondition } from "./yachtCondition";
 import type { YachtType } from "./yachtType";
 
 export interface ValuationInput {
+  /**
+   * Optional link to a yacht profile (uuid). When set, the estimate appears in that yacht's History tab.
+   * @nullable
+   */
+  yacht_id?: string | null;
   mode: ValuationMode;
   /** When true, only hard requirements are enforced */
   bypass_required: boolean;

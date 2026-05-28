@@ -6,6 +6,7 @@ import {
 import { runValuation, type ValuationRequest } from "../lib/valuation";
 import { ESTIMATES_TABLE, getSupabase } from "../lib/supabase";
 import { softClerkAuth } from "../middlewares/clerkAuth";
+import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
 
@@ -85,6 +86,10 @@ router.post("/valuations", softClerkAuth(), async (req, res): Promise<void> => {
           .from(ESTIMATES_TABLE)
           .insert({
             clerk_user_id: req.userId,
+            yacht_id:
+              typeof parsed.data.yacht_id === "string" && isUuid(parsed.data.yacht_id)
+                ? parsed.data.yacht_id
+                : null,
             yacht_label: buildYachtLabel(parsed.data),
             yacht_type: parsed.data.type,
             length_meters: parsed.data.length_meters,

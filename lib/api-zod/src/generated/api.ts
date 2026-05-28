@@ -40,6 +40,12 @@ export const createValuationBodyBerthsMin = 0;
 export const createValuationBodyCrewMin = 0;
 
 export const CreateValuationBody = zod.object({
+  yacht_id: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional link to a yacht profile (uuid). When set, the estimate appears in that yacht's History tab.",
+    ),
   mode: zod.enum(["builder", "specs"]),
   bypass_required: zod
     .boolean()
@@ -178,11 +184,21 @@ export const CreateValuationResponse = zod.object({
  * Returns last 50 estimates for the authenticated user, newest first.
  * @summary List user's saved estimates
  */
+export const ListEstimatesQueryParams = zod.object({
+  yacht_id: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "When provided, only estimates linked to this yacht profile are returned.",
+    ),
+});
+
 export const ListEstimatesResponse = zod.object({
   items: zod.array(
     zod.object({
       id: zod.string(),
       created_at: zod.string(),
+      yacht_id: zod.string().nullish(),
       yacht_label: zod.string().nullish(),
       yacht_type: zod.string().nullish(),
       length_meters: zod.number().nullish(),
@@ -221,6 +237,12 @@ export const GetEstimateResponse = zod.object({
   id: zod.string(),
   created_at: zod.string(),
   request: zod.object({
+    yacht_id: zod
+      .string()
+      .nullish()
+      .describe(
+        "Optional link to a yacht profile (uuid). When set, the estimate appears in that yacht's History tab.",
+      ),
     mode: zod.enum(["builder", "specs"]),
     bypass_required: zod
       .boolean()
@@ -1725,6 +1747,12 @@ export const calculateCostEstimateBodyFinancingInterestRatePctMax = 30;
 export const calculateCostEstimateBodyFinancingTermYearsMax = 40;
 
 export const CalculateCostEstimateBody = zod.object({
+  yacht_id: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional link to a yacht profile (uuid). When set, the cost estimate appears in that yacht's History tab.",
+    ),
   yacht_name: zod.string().nullish(),
   builder: zod
     .string()
@@ -1963,11 +1991,21 @@ export const CalculateCostEstimateResponse = zod.object({
 /**
  * @summary List user's saved annual cost estimates
  */
+export const ListCostEstimatesQueryParams = zod.object({
+  yacht_id: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "When provided, only cost estimates linked to this yacht profile are returned.",
+    ),
+});
+
 export const ListCostEstimatesResponse = zod.object({
   items: zod.array(
     zod.object({
       id: zod.string(),
       created_at: zod.string(),
+      yacht_id: zod.string().nullish(),
       name: zod.string().nullish(),
       yacht_name: zod.string().nullish(),
       yacht_class: zod.string(),
@@ -2051,6 +2089,12 @@ export const GetCostEstimateResponse = zod.object({
   created_at: zod.string(),
   name: zod.string().nullish(),
   input: zod.object({
+    yacht_id: zod
+      .string()
+      .nullish()
+      .describe(
+        "Optional link to a yacht profile (uuid). When set, the cost estimate appears in that yacht's History tab.",
+      ),
     yacht_name: zod.string().nullish(),
     builder: zod
       .string()

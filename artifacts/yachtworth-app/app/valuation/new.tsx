@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useCreateValuation } from "@workspace/api-client-react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -255,6 +255,9 @@ const INITIAL: FormState = {
 export default function NewValuationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ yacht_id?: string }>();
+  const linkedYachtId =
+    typeof params.yacht_id === "string" && params.yacht_id ? params.yacht_id : null;
   const mutation = useCreateValuation();
   const { units: persistedUnits, setUnits: persistUnits, loaded: unitsLoaded } =
     useUnits();
@@ -445,6 +448,7 @@ export default function NewValuationScreen() {
     mutation.mutate(
       {
         data: {
+          yacht_id: linkedYachtId,
           mode: form.mode,
           bypass_required: form.bypass_required,
           type: form.type!,

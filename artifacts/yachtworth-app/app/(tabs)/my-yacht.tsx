@@ -58,10 +58,10 @@ export default function MyYachtScreen() {
   const onAction = (yachtId: string, key: YachtCardAction["key"]) => {
     switch (key) {
       case "valuations":
-        router.push("/valuation/new");
+        router.push({ pathname: "/valuation/new", params: { yacht_id: yachtId } });
         return;
       case "costs":
-        router.push("/cost/new");
+        router.push({ pathname: "/cost/new", params: { yacht_id: yachtId } });
         return;
       case "charters":
         router.push("/charter-planner");

@@ -10,6 +10,8 @@ export interface EstimateListItem {
   id: string;
   created_at: string;
   /** @nullable */
+  yacht_id?: string | null;
+  /** @nullable */
   yacht_label?: string | null;
   /** @nullable */
   yacht_type?: string | null;

@@ -178,14 +178,14 @@ export default function HistoryScreen() {
       return next;
     });
 
-  const estimatesQ = useListEstimates({
+  const estimatesQ = useListEstimates(undefined, {
     query: {
       queryKey: getListEstimatesQueryKey(),
       enabled: Boolean(isSignedIn) && tab === "estimates",
       staleTime: 30_000,
     },
   });
-  const costQ = useListCostEstimates({
+  const costQ = useListCostEstimates(undefined, {
     query: {
       queryKey: getListCostEstimatesQueryKey(),
       enabled: Boolean(isSignedIn) && tab === "cost",

@@ -75,6 +75,13 @@ paths:
       description: Returns last 50 estimates for the authenticated user, newest first.
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: yacht_id
+          required: false
+          schema:
+            type: string
+          description: When provided, only estimates linked to this yacht profile are returned.
       responses:
         "200":
           description: Estimate list
@@ -550,6 +557,13 @@ paths:
       summary: List user's saved annual cost estimates
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: yacht_id
+          required: false
+          schema:
+            type: string
+          description: When provided, only cost estimates linked to this yacht profile are returned.
       responses:
         "200":
           description: Saved estimate list
@@ -975,6 +989,9 @@ components:
         - length_meters
         - sale_region
       properties:
+        yacht_id:
+          type: ["string", "null"]
+          description: Optional link to a yacht profile (uuid). When set, the estimate appears in that yacht's History tab.
         mode:
           $ref: "#/components/schemas/ValuationMode"
         bypass_required:
@@ -1158,6 +1175,8 @@ components:
           type: string
         created_at:
           type: string
+        yacht_id:
+          type: ["string", "null"]
         yacht_label:
           type: ["string", "null"]
         yacht_type:
@@ -2051,6 +2070,9 @@ components:
         - annual_expenses
         - financing
       properties:
+        yacht_id:
+          type: ["string", "null"]
+          description: Optional link to a yacht profile (uuid). When set, the cost estimate appears in that yacht's History tab.
         yacht_name:
           type: ["string", "null"]
         builder:
@@ -2204,6 +2226,8 @@ components:
           type: string
         created_at:
           type: string
+        yacht_id:
+          type: ["string", "null"]
         name:
           type: ["string", "null"]
         yacht_name:

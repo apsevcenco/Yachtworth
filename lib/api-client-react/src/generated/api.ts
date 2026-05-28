@@ -34,6 +34,8 @@ import type {
   EstimateListResponse,
   HealthStatus,
   ListChartersParams,
+  ListCostEstimatesParams,
+  ListEstimatesParams,
   ListRoiCalculationsParams,
   ListYachtsParams,
   RoiCalculation,
@@ -225,41 +227,57 @@ export const useCreateValuation = <
  * Returns last 50 estimates for the authenticated user, newest first.
  * @summary List user's saved estimates
  */
-export const getListEstimatesUrl = () => {
-  return `/api/estimates`;
+export const getListEstimatesUrl = (params?: ListEstimatesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/estimates?${stringifiedParams}`
+    : `/api/estimates`;
 };
 
 export const listEstimates = async (
+  params?: ListEstimatesParams,
   options?: RequestInit,
 ): Promise<EstimateListResponse> => {
-  return customFetch<EstimateListResponse>(getListEstimatesUrl(), {
+  return customFetch<EstimateListResponse>(getListEstimatesUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListEstimatesQueryKey = () => {
-  return [`/api/estimates`] as const;
+export const getListEstimatesQueryKey = (params?: ListEstimatesParams) => {
+  return [`/api/estimates`, ...(params ? [params] : [])] as const;
 };
 
 export const getListEstimatesQueryOptions = <
   TData = Awaited<ReturnType<typeof listEstimates>>,
   TError = ErrorType<ErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listEstimates>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListEstimatesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEstimates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListEstimatesQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListEstimatesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listEstimates>>> = ({
     signal,
-  }) => listEstimates({ signal, ...requestOptions });
+  }) => listEstimates(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listEstimates>>,
@@ -280,15 +298,18 @@ export type ListEstimatesQueryError = ErrorType<ErrorResponse>;
 export function useListEstimates<
   TData = Awaited<ReturnType<typeof listEstimates>>,
   TError = ErrorType<ErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listEstimates>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListEstimatesQueryOptions(options);
+>(
+  params?: ListEstimatesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEstimates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEstimatesQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1457,41 +1478,63 @@ export const useCalculateCostEstimate = <
 /**
  * @summary List user's saved annual cost estimates
  */
-export const getListCostEstimatesUrl = () => {
-  return `/api/cost-estimates`;
+export const getListCostEstimatesUrl = (params?: ListCostEstimatesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/cost-estimates?${stringifiedParams}`
+    : `/api/cost-estimates`;
 };
 
 export const listCostEstimates = async (
+  params?: ListCostEstimatesParams,
   options?: RequestInit,
 ): Promise<CostEstimateListResponse> => {
-  return customFetch<CostEstimateListResponse>(getListCostEstimatesUrl(), {
-    ...options,
-    method: "GET",
-  });
+  return customFetch<CostEstimateListResponse>(
+    getListCostEstimatesUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
 };
 
-export const getListCostEstimatesQueryKey = () => {
-  return [`/api/cost-estimates`] as const;
+export const getListCostEstimatesQueryKey = (
+  params?: ListCostEstimatesParams,
+) => {
+  return [`/api/cost-estimates`, ...(params ? [params] : [])] as const;
 };
 
 export const getListCostEstimatesQueryOptions = <
   TData = Awaited<ReturnType<typeof listCostEstimates>>,
   TError = ErrorType<ErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listCostEstimates>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListCostEstimatesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCostEstimates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListCostEstimatesQueryKey();
+  const queryKey =
+    queryOptions?.queryKey ?? getListCostEstimatesQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof listCostEstimates>>
-  > = ({ signal }) => listCostEstimates({ signal, ...requestOptions });
+  > = ({ signal }) => listCostEstimates(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listCostEstimates>>,
@@ -1512,15 +1555,18 @@ export type ListCostEstimatesQueryError = ErrorType<ErrorResponse>;
 export function useListCostEstimates<
   TData = Awaited<ReturnType<typeof listCostEstimates>>,
   TError = ErrorType<ErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listCostEstimates>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListCostEstimatesQueryOptions(options);
+>(
+  params?: ListCostEstimatesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCostEstimates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCostEstimatesQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

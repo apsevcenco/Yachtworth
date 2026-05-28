@@ -2,15 +2,21 @@ import { Feather } from "@expo/vector-icons";
 import {
   getGetYachtQueryKey,
   getListChartersQueryKey,
+  getListCostEstimatesQueryKey,
+  getListEstimatesQueryKey,
   getListYachtEquipmentQueryKey,
   getListYachtsQueryKey,
   useDeleteYacht,
   useGetYacht,
   useListCharters,
+  useListCostEstimates,
+  useListEstimates,
   useListYachtEquipment,
   useUpdateYacht,
   type Charter,
+  type CostEstimateListItem,
   type EquipmentItem,
+  type EstimateListItem,
   type Yacht,
 } from "@workspace/api-client-react";
 import {
@@ -544,48 +550,92 @@ function Row({ label, value }: { label: string; value: string }) {
 
 /* ─── History ────────────────────────────────────────────────────── */
 
+type HistoryEntry =
+  | { kind: "charter"; ts: number; data: Charter }
+  | { kind: "estimate"; ts: number; data: EstimateListItem }
+  | { kind: "cost"; ts: number; data: CostEstimateListItem };
+
 function HistoryTab({ yachtId }: { yachtId: string }) {
+  const enabled = Boolean(yachtId);
+
   const charterQ = useListCharters(
     { yacht_id: yachtId },
     {
       query: {
         queryKey: getListChartersQueryKey({ yacht_id: yachtId }),
-        enabled: Boolean(yachtId),
+        enabled,
+        staleTime: 30_000,
+      },
+    },
+  );
+  const estimateQ = useListEstimates(
+    { yacht_id: yachtId },
+    {
+      query: {
+        queryKey: getListEstimatesQueryKey({ yacht_id: yachtId }),
+        enabled,
+        staleTime: 30_000,
+      },
+    },
+  );
+  const costQ = useListCostEstimates(
+    { yacht_id: yachtId },
+    {
+      query: {
+        queryKey: getListCostEstimatesQueryKey({ yacht_id: yachtId }),
+        enabled,
         staleTime: 30_000,
       },
     },
   );
 
-  const charters: Charter[] = useMemo(
-    () => charterQ.data?.items ?? [],
-    [charterQ.data],
-  );
+  const entries: HistoryEntry[] = useMemo(() => {
+    const out: HistoryEntry[] = [];
+    for (const c of charterQ.data?.items ?? []) {
+      const ts = Date.parse(c.start_date ?? c.created_at ?? "") || 0;
+      out.push({ kind: "charter", ts, data: c });
+    }
+    for (const e of estimateQ.data?.items ?? []) {
+      const ts = Date.parse(e.created_at) || 0;
+      out.push({ kind: "estimate", ts, data: e });
+    }
+    for (const c of costQ.data?.items ?? []) {
+      const ts = Date.parse(c.created_at) || 0;
+      out.push({ kind: "cost", ts, data: c });
+    }
+    out.sort((a, b) => b.ts - a.ts);
+    return out;
+  }, [charterQ.data, estimateQ.data, costQ.data]);
 
-  if (charterQ.isLoading) {
+  const loading = charterQ.isLoading || estimateQ.isLoading || costQ.isLoading;
+  if (loading) {
     return <View style={styles.center}><ActivityIndicator color={GOLD} /></View>;
   }
 
-  return (
-    <View style={{ gap: 14 }}>
-      <View style={styles.infoCard}>
-        <Feather name="info" size={14} color={GOLD} />
-        <Text style={styles.infoText}>
-          Valuations and Cost estimates can be linked to this yacht in a future
-          update. For now this tab shows charter history only.
+  if (entries.length === 0) {
+    return (
+      <View style={styles.emptyMini}>
+        <Feather name="clock" size={28} color={MUTED} />
+        <Text style={styles.emptyMiniTitle}>No history yet</Text>
+        <Text style={styles.emptyMiniText}>
+          Estimates, cost calculations and charters linked to this yacht will
+          appear here.
         </Text>
       </View>
+    );
+  }
 
-      {charters.length === 0 ? (
-        <View style={styles.emptyMini}>
-          <Feather name="calendar" size={28} color={MUTED} />
-          <Text style={styles.emptyMiniTitle}>No charters yet</Text>
-          <Text style={styles.emptyMiniText}>
-            Charters booked for this yacht will appear here.
-          </Text>
-        </View>
-      ) : (
-        charters.map((c) => <CharterRow key={c.id} charter={c} />)
-      )}
+  return (
+    <View style={{ gap: 10 }}>
+      {entries.map((entry) => {
+        if (entry.kind === "charter") {
+          return <CharterRow key={`c-${entry.data.id}`} charter={entry.data} />;
+        }
+        if (entry.kind === "estimate") {
+          return <EstimateRow key={`e-${entry.data.id}`} item={entry.data} />;
+        }
+        return <CostRow key={`x-${entry.data.id}`} item={entry.data} />;
+      })}
     </View>
   );
 }
@@ -601,11 +651,46 @@ function CharterRow({ charter }: { charter: Charter }) {
         <Feather name="calendar" size={14} color={GOLD} />
       </View>
       <View style={{ flex: 1 }}>
+        <Text style={styles.histKind}>Charter</Text>
         <Text style={styles.histTitle} numberOfLines={1}>{client}</Text>
         <Text style={styles.histSub} numberOfLines={1}>{range}</Text>
         <Text style={styles.histStatus} numberOfLines={1}>{status}</Text>
       </View>
       <Text style={styles.histAmount}>{formatEur(total)}</Text>
+    </View>
+  );
+}
+
+function EstimateRow({ item }: { item: EstimateListItem }) {
+  const label = item.yacht_label || "Estimate";
+  return (
+    <View style={styles.histRow}>
+      <View style={styles.histIcon}>
+        <Feather name="trending-up" size={14} color={GOLD} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.histKind}>Valuation</Text>
+        <Text style={styles.histTitle} numberOfLines={1}>{label}</Text>
+        <Text style={styles.histSub} numberOfLines={1}>{formatDate(item.created_at)}</Text>
+      </View>
+      <Text style={styles.histAmount}>{formatEur(item.estimated_price_eur)}</Text>
+    </View>
+  );
+}
+
+function CostRow({ item }: { item: CostEstimateListItem }) {
+  const label = item.name || item.yacht_name || "Annual cost";
+  return (
+    <View style={styles.histRow}>
+      <View style={styles.histIcon}>
+        <Feather name="bar-chart-2" size={14} color={GOLD} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.histKind}>Annual cost</Text>
+        <Text style={styles.histTitle} numberOfLines={1}>{label}</Text>
+        <Text style={styles.histSub} numberOfLines={1}>{formatDate(item.created_at)}</Text>
+      </View>
+      <Text style={styles.histAmount}>{formatEur(item.total_annual_eur)}/yr</Text>
     </View>
   );
 }
@@ -714,6 +799,10 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: "rgba(201,169,97,0.12)",
     alignItems: "center", justifyContent: "center",
+  },
+  histKind: {
+    color: GOLD, fontFamily: "Inter_500Medium",
+    fontSize: 9, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2,
   },
   histTitle: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   histSub: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11, marginTop: 2 },

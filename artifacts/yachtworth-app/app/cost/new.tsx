@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useCalculateCostEstimate } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -188,6 +188,9 @@ function parseNum(v: string): number | null {
 
 export default function CostNewScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ yacht_id?: string }>();
+  const linkedYachtId =
+    typeof params.yacht_id === "string" && params.yacht_id ? params.yacht_id : null;
   const insets = useSafeAreaInsets();
   const { units, loaded: unitsLoaded } = useUnits();
   // Snapshot units once AsyncStorage has resolved so a persisted "imperial"
@@ -358,6 +361,7 @@ export default function CostNewScreen() {
     const num = (s: string): number | null => (s ? parseNum(s) : null);
 
     const payload = {
+      yacht_id: linkedYachtId,
       yacht_name: form.yacht_name || null,
       builder: form.builder || null,
       model: form.model || null,

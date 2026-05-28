@@ -15,12 +15,21 @@ router.get(
       res.status(503).json({ error: "History storage not configured" });
       return;
     }
-    const { data, error } = await sb
+    let query = sb
       .from(ESTIMATES_TABLE)
       .select(
-        "id, created_at, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
+        "id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
       )
-      .eq("clerk_user_id", req.userId!)
+      .eq("clerk_user_id", req.userId!);
+    const yachtIdQ = req.query["yacht_id"];
+    if (typeof yachtIdQ === "string" && yachtIdQ) {
+      if (!isUuid(yachtIdQ)) {
+        res.status(400).json({ error: "Invalid yacht_id" });
+        return;
+      }
+      query = query.eq("yacht_id", yachtIdQ);
+    }
+    const { data, error } = await query
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {

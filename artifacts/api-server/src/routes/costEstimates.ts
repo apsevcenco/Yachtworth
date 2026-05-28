@@ -8,7 +8,7 @@ import { isUuid } from "../lib/validators";
 const router: IRouter = Router();
 
 const LIST_COLUMNS =
-  "id, created_at, name, yacht_name, yacht_class, length_meters, year_built, region, usage_type, total_annual_eur, currency";
+  "id, created_at, yacht_id, name, yacht_name, yacht_class, length_meters, year_built, region, usage_type, total_annual_eur, currency";
 
 const DETAIL_COLUMNS = `${LIST_COLUMNS}, input, result`;
 
@@ -48,6 +48,10 @@ router.post(
 
     const insertRow = {
       clerk_user_id: req.userId,
+      yacht_id:
+        typeof parsed.data.yacht_id === "string" && isUuid(parsed.data.yacht_id)
+          ? parsed.data.yacht_id
+          : null,
       name: null as string | null,
       yacht_name: parsed.data.yacht_name ?? null,
       yacht_class: parsed.data.yacht_class,
@@ -85,10 +89,19 @@ router.get(
       res.status(503).json({ error: "Storage not configured" });
       return;
     }
-    const { data, error } = await sb
+    let query = sb
       .from(COST_ESTIMATES_TABLE)
       .select(LIST_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+      .eq("clerk_user_id", req.userId!);
+    const yachtIdQ = req.query["yacht_id"];
+    if (typeof yachtIdQ === "string" && yachtIdQ) {
+      if (!isUuid(yachtIdQ)) {
+        res.status(400).json({ error: "Invalid yacht_id" });
+        return;
+      }
+      query = query.eq("yacht_id", yachtIdQ);
+    }
+    const { data, error } = await query
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {

@@ -14,6 +14,11 @@ import type { UsageType } from "./usageType";
 import type { YachtType } from "./yachtType";
 
 export interface CostEstimateInput {
+  /**
+   * Optional link to a yacht profile (uuid). When set, the cost estimate appears in that yacht's History tab.
+   * @nullable
+   */
+  yacht_id?: string | null;
   /** @nullable */
   yacht_name?: string | null;
   /**

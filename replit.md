@@ -58,13 +58,25 @@ Run sequentially in Supabase SQL editor of `yachtworth-prod`:
 10. `011_yacht_profile.sql` — yacht profile fields + `is_archived` (T009)
 11. `012_yacht_equipment.sql` — `yacht_equipment` table (~60 items across 8 categories, one row per logical unit; cascade-delete from yachts)
 12. `013_yacht_photos.sql` — `photo_urls jsonb` + `cover_photo_url text` on yachts; provisions Supabase Storage bucket `yacht-photos` (public, 5 MB cap, image/* allow-list) + `public_read_yacht_photos` SELECT policy. All writes go through backend service-role key.
-13. `014_roi_check_constraints.sql` — DB-level CHECK constraints on yachts (commission %, loan rate %, prices ≥ 0), roi_calculations (revenue/expenses ≥ 0), cost_estimates (total ≥ 0), charters (vat_pct, apa_pct ∈ [0,100]). Idempotent (uses `do $$ begin if not exists … end $$`).
+13. `014_roi_check_constraints.sql` — DB-level CHECK constraints on yachts (commission %, loan rate %, prices ≥ 0), roi_calculations (revenue/expenses ≥ 0), cost_estimates (total ≥ 0), charters (vat_percent, apa_percent ∈ [0,100]). Idempotent (uses `do $$ begin if not exists … end $$`).
+14. `015_link_history_to_yachts.sql` — adds nullable `yacht_id uuid` FK on `estimates` + `cost_estimates` (ON DELETE SET NULL), partial indexes. Idempotent.
 
 Until each is run, the corresponding feature degrades (POSTs no-op warn-logged, GETs empty/401, engines fall back to heuristics).
 
 ## Build status
 
-### Current — T-AIRateEstimator Charter ROI (May 28, 2026 — DONE, architect-reviewed)
+### Current — T-LinkHistoryToYacht (May 28, 2026 — DONE)
+Per deferred item 7. Estimates + Cost Estimates now link to a yacht and merge into the Yacht Detail → History tab chronologically with charters.
+- **migration 015:** `015_link_history_to_yachts.sql` — adds nullable `yacht_id uuid` FK on `estimates` + `cost_estimates`, ON DELETE SET NULL, partial indexes `where yacht_id is not null`. Owner-run.
+- **OpenAPI:** `yacht_id` field on `ValuationInput` / `EstimateListItem` / `CostEstimateInput` / `CostEstimateListItem`; `yacht_id` query param on `GET /estimates` + `GET /cost-estimates`. Codegen passed.
+- **Backend:** `routes/valuations.ts` persists `yacht_id` (with `isUuid()` guard); `routes/estimates.ts` filters by `yacht_id` + selects it; `routes/costEstimates.ts` persists on insert + filters on list + adds `yacht_id` to `LIST_COLUMNS`. EstimateDetail/CostEstimateDetail schemas intentionally NOT updated — list view is sufficient for History tab.
+- **Frontend:**
+  - `app/valuation/new.tsx` + `app/cost/new.tsx` — accept `?yacht_id=` via `useLocalSearchParams`, pass to create mutation body.
+  - `app/(tabs)/my-yacht.tsx` — YachtCard "Valuations" + "Costs" actions navigate with `{ params: { yacht_id } }` so newly-created records auto-link.
+  - `app/my-yacht/[id].tsx` — HistoryTab rewritten: 3 parallel queries (`useListCharters` / `useListEstimates` / `useListCostEstimates`) all filtered by `yacht_id`, merged + sorted desc by timestamp. New `EstimateRow` (trending-up icon, "Valuation" kind label, estimated_price_eur) + `CostRow` (bar-chart-2 icon, "Annual cost" kind label, total_annual_eur/yr). Empty state generic ("Estimates, cost calculations and charters linked to this yacht will appear here").
+- Pre-existing estimates/cost_estimates rows without `yacht_id` remain unlinked (no backfill). Owner runs migration 015 manually before feature works (POSTs still succeed without yacht_id column — backend tolerates DB missing the FK).
+
+### Previous — T-AIRateEstimator Charter ROI (May 28, 2026 — DONE, architect-reviewed)
 Per `attached_assets/2026-05-28_Replit_Prompt_CharterROI_AIAgent_*.pdf`. Adds an "AI Estimate" button next to the charter rate field in manual ROI modes. User taps → backend calls OpenAI `gpt-5-mini` with `web_search_preview` + new richer `CHARTER_RATE_SYSTEM_PROMPT` (8 broker platforms, ±3m/±5y comparison tolerance, outlier filter, region-specific season definitions, strict JSON output). Returns structured estimate (recommended rate + range + seasonal breakdown + sources + confidence). User taps "Use €X" → rate field auto-fills (cross-period auto-convert if AI returned daily but user is in weekly mode, ×7 / ÷7).
 - **OpenAPI:** new endpoint `POST /roi/ai-rate-estimate` (operationId `aiRateEstimate`) + schemas `AiRateEstimateRequest` + `AiRateSeasonalRates` + `AiRateEstimateResult` (renamed from `*Response` to avoid orval collision with the generated response type). Codegen passed.
 - **Backend (`lib/roi/aiRateEstimate.ts` + `routes/roi.ts`):** `estimateCharterRate(yacht, req)` — Responses API + web_search_preview → `/chat/completions` fallback → structured `{success:false,error}` fallback. Never throws → never returns 500. Output rounded per PDF spec (€100 for weekly, €50 for daily). Auto-downgrades confidence to "low" if `comparables_found < 3`. Sanitises source URLs to bare hosts. Charter type defaults: crewed for ≥15m, bareboat for <15m or sailing.
@@ -135,7 +147,6 @@ Push notifications, multi-language, corporate accounts, yacht photo upload, mark
 - V2: broker tier, GDPR copy, free-tier hard limit on backend
 - Architect hardening: DB-level CHECK constraints (`>=0`, commission `[0,100]`), upper bounds on `numeric(12,2)` to prevent overflow, unit test for ROI no-hit rounding invariant
 - A11y backfill on `cost/new` Step 2 crew toggles/steppers + Step 1–4 pills
-- Estimates/cost-estimates link to `yacht_id` (T009 History tab currently shows charters only)
 
 ## Run
 
