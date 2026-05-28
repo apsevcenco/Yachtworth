@@ -196,13 +196,16 @@ function buildProposalHTML(
   flags: BuildFlags,
 ): string {
   // ── COVER PHOTO ──
-  const photoUrls = (yacht.photo_urls && yacht.photo_urls.length > 0
+  const rawPhotos = (yacht.photo_urls && yacht.photo_urls.length > 0
     ? yacht.photo_urls
     : yacht.cover_photo_url
       ? [yacht.cover_photo_url]
       : yacht.photo_url
         ? [yacht.photo_url]
         : []) as string[];
+  const photoUrls = rawPhotos.filter(
+    (u): u is string => typeof u === "string" && u.trim().length > 0 && /^https?:\/\//i.test(u),
+  );
 
   const coverPhotoHTML =
     photoUrls.length > 0
@@ -553,7 +556,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 14mm 18mm 6mm;
+  padding: 10mm 16mm 5mm;
   border-bottom: 1px solid #e8e4d8;
 }
 .ih-brand {
@@ -581,11 +584,11 @@ body {
   letter-spacing: 1px;
 }
 .ib {
-  padding: 10mm 18mm 4mm;
+  padding: 6mm 16mm 4mm;
 }
 
 /* Sections */
-.sec { margin-bottom: 14mm; }
+.sec { margin-bottom: 7mm; }
 .sec-title {
   font-size: 11px;
   letter-spacing: 3.5px;
@@ -772,8 +775,8 @@ body {
   justify-content: space-between;
   align-items: flex-end;
   border-top: 1px solid #f0f0f0;
-  padding-top: 10px;
-  margin: 6mm 18mm 16mm;
+  padding-top: 8px;
+  margin: 4mm 16mm 8mm;
 }
 .footer-disclaimer {
   font-size: 8px;
@@ -893,7 +896,7 @@ ${photosPageHTML}
 
 export function buildProposalPdfHtml(input: ProposalPdfInput): string {
   const { yacht, equipment, settings } = input;
-  const photoUrls =
+  const rawPhotos =
     yacht.photo_urls && yacht.photo_urls.length > 0
       ? yacht.photo_urls
       : yacht.cover_photo_url
@@ -901,6 +904,10 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
         : yacht.photo_url
           ? [yacht.photo_url]
           : [];
+  const photoUrls = rawPhotos.filter(
+    (u): u is string =>
+      typeof u === "string" && u.trim().length > 0 && /^https?:\/\//i.test(u),
+  );
   const flags: BuildFlags = {
     hasPhotos: photoUrls.length >= 1,
     hasEquipment: Array.isArray(equipment) && equipment.length > 0,
