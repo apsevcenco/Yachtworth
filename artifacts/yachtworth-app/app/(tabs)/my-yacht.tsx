@@ -74,6 +74,17 @@ export default function MyYachtScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
+      <Pressable
+        onPress={() =>
+          router.canGoBack() ? router.back() : router.replace("/(tabs)")
+        }
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 56 }]}
+      >
+        <Feather name="chevron-left" size={24} color={IVORY} />
+      </Pressable>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 24,
@@ -321,4 +332,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   _divider: { backgroundColor: DIVIDER },
+  backFab: {
+    position: "absolute",
+    left: 12,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(8,22,51,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
