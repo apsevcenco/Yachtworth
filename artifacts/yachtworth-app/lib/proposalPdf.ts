@@ -281,7 +281,7 @@ function buildProposalHTML(
       ? accomRows.map((r) => row(r.label, String(r.value))).join("")
       : "";
 
-  // ── EQUIPMENT ──
+  // ── EQUIPMENT (rendered inline within page 2, no separate page) ──
   let equipmentHTML = "";
   if (flags.hasEquipment) {
     const groups: Record<string, ProposalEquipmentItem[]> = {};
@@ -304,25 +304,39 @@ function buildProposalHTML(
         return `<div class="eq-group"><div class="eq-title">${CATEGORY_LABELS[cat] ?? esc(cat)}</div><div class="eq-items">${itemsHTML}</div></div>`;
       })
       .join("");
-    equipmentHTML = `<div class="ipage" style="page-break-before:always;">
-      <div class="ih">
-        <div class="ih-brand">YachtWorth</div>
-        <div class="ih-right">
-          <div class="ih-yacht">${esc(yacht.name)}</div>
-          <div class="ih-page">EQ</div>
-        </div>
-      </div>
-      <div class="ib">
-        <div class="sec"><div class="sec-title">Equipment &amp; Systems</div><div class="eq-grid">${groupsHTML}</div></div>
-      </div>
-      <div class="ifooter">
-        <div class="footer-disclaimer">Equipment list as declared by owner. Items subject to verification at survey.</div>
-        <div><div class="footer-brand">YachtWorth</div><div class="footer-powered">Powered by PDYE Group</div></div>
-      </div>
-    </div>`;
+    equipmentHTML = `<div class="sec"><div class="sec-title">Equipment &amp; Systems</div><div class="eq-grid">${groupsHTML}</div></div>`;
   }
 
-  // ── PHOTOS PAGE ──
+  // ── PHOTOS PAGE — adaptive layout fills the page based on count ──
+  let photosInnerHTML = "";
+  if (flags.hasPhotos) {
+    const n = photoUrls.length;
+    const img = (u: string, h: string) =>
+      `<img src="${esc(u)}" alt="" style="width:100%;height:${h};object-fit:cover;display:block;"/>`;
+    if (n === 1) {
+      photosInnerHTML = img(photoUrls[0]!, "210mm");
+    } else if (n === 2) {
+      photosInnerHTML =
+        img(photoUrls[0]!, "125mm") +
+        `<div style="height:3mm;"></div>` +
+        img(photoUrls[1]!, "82mm");
+    } else if (n <= 4) {
+      const rest = photoUrls.slice(1, 4);
+      const cols = rest.length;
+      const restHTML = rest.map((u) => img(u, "60mm")).join("");
+      photosInnerHTML =
+        img(photoUrls[0]!, "105mm") +
+        `<div style="height:3mm;"></div>` +
+        `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:3mm;">${restHTML}</div>`;
+    } else {
+      const top = photoUrls.slice(0, 2).map((u) => img(u, "75mm")).join("");
+      const bottom = photoUrls.slice(2, 5).map((u) => img(u, "60mm")).join("");
+      photosInnerHTML =
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;">${top}</div>` +
+        `<div style="height:3mm;"></div>` +
+        `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3mm;">${bottom}</div>`;
+    }
+  }
   const photosPageHTML = flags.hasPhotos
     ? `<div class="ipage" style="page-break-before:always;">
         <div class="ih">
@@ -335,15 +349,7 @@ function buildProposalHTML(
         <div class="ib">
           <div class="sec">
             <div class="sec-title">Photography</div>
-            <img class="photo-cover" src="${esc(photoUrls[0]!)}" alt=""/>
-            ${
-              photoUrls.length > 1
-                ? `<div class="photo-grid">${photoUrls
-                    .slice(1, 7)
-                    .map((u) => `<img src="${esc(u)}" alt=""/>`)
-                    .join("")}</div>`
-                : ""
-            }
+            ${photosInnerHTML}
           </div>
         </div>
         <div class="ifooter">
@@ -495,11 +501,12 @@ body {
 .cover-doc-type { color: #1a1a1a; font-weight: 600; }
 .cover-doc-date { color: #888; }
 .cover-yacht-name {
-  font-size: 42px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: #0B1E3F;
-  margin-bottom: 22px;
+  font-size: 42pt;
+  font-weight: 200;
+  letter-spacing: -2px;
+  line-height: 0.95;
+  color: #1a1a1a;
+  margin-bottom: 18px;
 }
 .cover-specs-row {
   display: flex;
@@ -547,10 +554,13 @@ body {
   text-transform: uppercase;
 }
 
-/* INNER PAGES — no min-height */
+/* INNER PAGES — full A4 height so footer pins to bottom */
 .ipage {
   width: 210mm;
+  min-height: 297mm;
   background: #ffffff;
+  display: flex;
+  flex-direction: column;
 }
 .ih {
   display: flex;
@@ -585,6 +595,7 @@ body {
 }
 .ib {
   padding: 6mm 16mm 4mm;
+  flex: 1 0 auto;
 }
 
 /* Sections */
@@ -621,43 +632,45 @@ body {
 .spec-value { color: #1a1a1a; font-weight: 500; text-align: right; }
 .spec-value.accent { color: #C9A961; font-weight: 600; }
 
-/* Equipment */
+/* Equipment — grouped, 2-col grid, inline tag-style items */
 .eq-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 3mm 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm 28px;
 }
 .eq-group {
   break-inside: avoid;
-  margin-bottom: 3mm;
+  margin-bottom: 2mm;
 }
 .eq-title {
-  font-size: 8.5px;
-  letter-spacing: 1.5px;
+  font-size: 9px;
+  letter-spacing: 2px;
   font-weight: 700;
-  color: #0B1E3F;
+  color: #C9A961;
   text-transform: uppercase;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f0ead8;
 }
 .eq-items {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 4px 6px;
 }
 .eq-item {
   font-size: 9px;
   color: #2a2a2a;
-  line-height: 1.4;
-  padding-left: 9px;
-  position: relative;
+  line-height: 1.35;
+  padding: 2px 7px;
+  background: #faf8f1;
+  border-radius: 2px;
+  white-space: nowrap;
 }
-.eq-item::before {
-  content: "—";
-  position: absolute;
-  left: 0;
-  color: #C9A961;
+.eq-item.hi {
+  color: #0B1E3F;
+  font-weight: 600;
+  background: #f5efdc;
 }
-.eq-item.hi { color: #0B1E3F; font-weight: 600; }
 
 /* Photos page */
 .photo-cover {
@@ -769,14 +782,15 @@ body {
   margin-bottom: 1px;
 }
 
-/* Footer — normal flow, NOT absolute */
+/* Footer — pinned to bottom of A4 page via flex parent */
 .ifooter {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   border-top: 1px solid #f0f0f0;
   padding-top: 8px;
-  margin: 4mm 16mm 8mm;
+  margin: 0 16mm 10mm;
 }
 .footer-disclaimer {
   font-size: 8px;
@@ -848,15 +862,13 @@ body {
         ? `<div class="sec"><div class="sec-title">Accommodation</div><div class="specs-list">${accomHTML}</div></div>`
         : ""
     }
+    ${equipmentHTML}
   </div>
   <div class="ifooter">
     <div class="footer-disclaimer">All specifications believed correct. Buyer must verify independently prior to purchase.</div>
     <div><div class="footer-brand">YachtWorth</div><div class="footer-powered">Powered by PDYE Group</div></div>
   </div>
 </div>
-
-<!-- EQUIPMENT (own page if any) -->
-${equipmentHTML}
 
 <!-- PHOTOS (only if photos exist) -->
 ${photosPageHTML}
