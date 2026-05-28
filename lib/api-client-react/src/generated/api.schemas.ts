@@ -2055,6 +2055,361 @@ export interface ProposalListResponse {
   items: ProposalListItem[];
 }
 
+export type SurveyCondition =
+  (typeof SurveyCondition)[keyof typeof SurveyCondition];
+
+export const SurveyCondition = {
+  Excellent: "Excellent",
+  Serviceable: "Serviceable",
+  Fair: "Fair",
+  Poor: "Poor",
+  "N/A": "N/A",
+  Not_inspected: "Not inspected",
+} as const;
+
+export type SurveyRecLevel =
+  (typeof SurveyRecLevel)[keyof typeof SurveyRecLevel];
+
+export const SurveyRecLevel = {
+  A: "A",
+  B: "B",
+  C: "C",
+  D: "D",
+} as const;
+
+export type SurveyMoistureLevel =
+  (typeof SurveyMoistureLevel)[keyof typeof SurveyMoistureLevel];
+
+export const SurveyMoistureLevel = {
+  Low: "Low",
+  Medium: "Medium",
+  High: "High",
+} as const;
+
+export type SurveyStatus = (typeof SurveyStatus)[keyof typeof SurveyStatus];
+
+export const SurveyStatus = {
+  draft: "draft",
+  complete: "complete",
+} as const;
+
+export interface SurveyReportInput {
+  /** @nullable */
+  yacht_id?: string | null;
+  vessel_name: string;
+  /** @nullable */
+  vessel_type?: string | null;
+  /** @nullable */
+  manufacturer?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year_built?: number | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  hin?: string | null;
+  /** @nullable */
+  lying?: string | null;
+  /**
+   * ISO date YYYY-MM-DD
+   * @nullable
+   */
+  survey_date?: string | null;
+  /** @nullable */
+  survey_purpose?: string | null;
+  /** @nullable */
+  weather_conditions?: string | null;
+  /** @nullable */
+  sea_state?: string | null;
+  /** @nullable */
+  client_name?: string | null;
+  /** @nullable */
+  client_email?: string | null;
+  /** @nullable */
+  client_phone?: string | null;
+  /** @nullable */
+  surveyor_name?: string | null;
+  /** @nullable */
+  surveyor_qualification?: string | null;
+  /** @nullable */
+  surveyor_company?: string | null;
+  /** @nullable */
+  surveyor_phone?: string | null;
+  /** @nullable */
+  surveyor_email?: string | null;
+  /** @nullable */
+  surveyor_logo_url?: string | null;
+  /** @nullable */
+  surveyor_signature_url?: string | null;
+  /** @nullable */
+  overall_condition?: string | null;
+}
+
+export interface SurveyReportPatch {
+  /** @nullable */
+  vessel_name?: string | null;
+  /** @nullable */
+  vessel_type?: string | null;
+  /** @nullable */
+  manufacturer?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year_built?: number | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  hin?: string | null;
+  /** @nullable */
+  lying?: string | null;
+  /** @nullable */
+  survey_date?: string | null;
+  /** @nullable */
+  survey_purpose?: string | null;
+  /** @nullable */
+  weather_conditions?: string | null;
+  /** @nullable */
+  sea_state?: string | null;
+  /** @nullable */
+  client_name?: string | null;
+  /** @nullable */
+  client_email?: string | null;
+  /** @nullable */
+  client_phone?: string | null;
+  /** @nullable */
+  surveyor_name?: string | null;
+  /** @nullable */
+  surveyor_qualification?: string | null;
+  /** @nullable */
+  surveyor_company?: string | null;
+  /** @nullable */
+  surveyor_phone?: string | null;
+  /** @nullable */
+  surveyor_email?: string | null;
+  /** @nullable */
+  surveyor_logo_url?: string | null;
+  /** @nullable */
+  surveyor_signature_url?: string | null;
+  /** @nullable */
+  overall_condition?: string | null;
+  status?: SurveyStatus | null;
+}
+
+export interface SurveyReport {
+  id: string;
+  clerk_user_id: string;
+  /** @nullable */
+  yacht_id?: string | null;
+  vessel_name: string;
+  /** @nullable */
+  vessel_type?: string | null;
+  /** @nullable */
+  manufacturer?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year_built?: number | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  hin?: string | null;
+  /** @nullable */
+  lying?: string | null;
+  /** @nullable */
+  survey_date?: string | null;
+  /** @nullable */
+  survey_purpose?: string | null;
+  /** @nullable */
+  weather_conditions?: string | null;
+  /** @nullable */
+  sea_state?: string | null;
+  /** @nullable */
+  client_name?: string | null;
+  /** @nullable */
+  client_email?: string | null;
+  /** @nullable */
+  client_phone?: string | null;
+  /** @nullable */
+  surveyor_name?: string | null;
+  /** @nullable */
+  surveyor_qualification?: string | null;
+  /** @nullable */
+  surveyor_company?: string | null;
+  /** @nullable */
+  surveyor_phone?: string | null;
+  /** @nullable */
+  surveyor_email?: string | null;
+  /** @nullable */
+  surveyor_logo_url?: string | null;
+  /** @nullable */
+  surveyor_signature_url?: string | null;
+  /** @nullable */
+  overall_condition?: string | null;
+  status: SurveyStatus;
+  total_recommendations_a?: number;
+  total_recommendations_b?: number;
+  total_recommendations_c?: number;
+  total_recommendations_d?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SurveyItemInput {
+  section_number: number;
+  section_name: string;
+  item_number: string;
+  /** @nullable */
+  description?: string | null;
+  condition?: SurveyCondition | null;
+  /** @nullable */
+  notes?: string | null;
+  recommendation_level?: SurveyRecLevel | null;
+  /** @nullable */
+  recommendation_text?: string | null;
+  photo_urls?: string[];
+  /** @nullable */
+  moisture_reading?: number | null;
+  moisture_level?: SurveyMoistureLevel | null;
+  sort_order?: number;
+}
+
+export interface SurveyItem {
+  id: string;
+  report_id: string;
+  section_number: number;
+  section_name: string;
+  item_number: string;
+  /** @nullable */
+  description?: string | null;
+  condition?: SurveyCondition | null;
+  /** @nullable */
+  notes?: string | null;
+  recommendation_level?: SurveyRecLevel | null;
+  /** @nullable */
+  recommendation_text?: string | null;
+  photo_urls?: string[];
+  /** @nullable */
+  moisture_reading?: number | null;
+  moisture_level?: SurveyMoistureLevel | null;
+  sort_order?: number;
+  created_at?: string;
+}
+
+export interface SurveyItemsReplaceInput {
+  /**
+   * When provided, only items for this section are replaced (safe for concurrent edits in other sections). When omitted, all items in the report are replaced.
+   * @minimum 1
+   * @maximum 26
+   * @nullable
+   */
+  section_number?: number | null;
+  items: SurveyItemInput[];
+}
+
+export interface SurveyItemsResponse {
+  items: SurveyItem[];
+}
+
+export interface SurveyRpmRow {
+  /** @nullable */
+  rpm?: number | null;
+  /** @nullable */
+  coolant_p?: number | null;
+  /** @nullable */
+  coolant_s?: number | null;
+  /** @nullable */
+  oil_p?: number | null;
+  /** @nullable */
+  oil_s?: number | null;
+  /** @nullable */
+  speed?: number | null;
+}
+
+export interface SurveySeaTrialInput {
+  /** @nullable */
+  trial_date?: string | null;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  weather?: string | null;
+  /** @nullable */
+  sea_state?: string | null;
+  /** @nullable */
+  narrative?: string | null;
+  rpm_table?: SurveyRpmRow[];
+  /** @nullable */
+  tickover_rpm?: number | null;
+  /** @nullable */
+  tickover_speed?: number | null;
+  /** @nullable */
+  max_rpm?: number | null;
+  /** @nullable */
+  max_speed?: number | null;
+  /** @nullable */
+  additional_observations?: string | null;
+}
+
+export interface SurveySeaTrial {
+  report_id: string;
+  /** @nullable */
+  trial_date?: string | null;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  weather?: string | null;
+  /** @nullable */
+  sea_state?: string | null;
+  /** @nullable */
+  narrative?: string | null;
+  rpm_table?: SurveyRpmRow[];
+  /** @nullable */
+  tickover_rpm?: number | null;
+  /** @nullable */
+  tickover_speed?: number | null;
+  /** @nullable */
+  max_rpm?: number | null;
+  /** @nullable */
+  max_speed?: number | null;
+  /** @nullable */
+  additional_observations?: string | null;
+  updated_at?: string;
+}
+
+export interface SurveyReportDetail {
+  report: SurveyReport;
+  items: SurveyItem[];
+  sea_trial?: SurveySeaTrial | null;
+}
+
+export interface SurveyReportListItem {
+  id: string;
+  /** @nullable */
+  yacht_id?: string | null;
+  vessel_name: string;
+  /** @nullable */
+  manufacturer?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  lying?: string | null;
+  /** @nullable */
+  survey_date?: string | null;
+  /** @nullable */
+  survey_purpose?: string | null;
+  status: SurveyStatus;
+  total_recommendations_a?: number;
+  total_recommendations_b?: number;
+  total_recommendations_c?: number;
+  total_recommendations_d?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SurveyReportListResponse {
+  items: SurveyReportListItem[];
+}
+
 export type ListEstimatesParams = {
   /**
    * When provided, only estimates linked to this yacht profile are returned.

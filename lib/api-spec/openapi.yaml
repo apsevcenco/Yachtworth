@@ -24,6 +24,8 @@ tags:
     description: AI-powered yacht listing copy generation (Claude)
   - name: proposals
     description: Yacht proposal document builder (PDF spec sheets)
+  - name: surveys
+    description: Professional marine survey report builder (26 sections, PDF)
 paths:
   /healthz:
     get:
@@ -1184,6 +1186,205 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /survey-reports:
+    get:
+      operationId: listSurveyReports
+      tags: [surveys]
+      summary: List user's survey reports
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Survey reports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyReportListResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createSurveyReport
+      tags: [surveys]
+      summary: Create a new survey report (cover info)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyReportInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyReport"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Storage not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /survey-reports/{id}:
+    get:
+      operationId: getSurveyReport
+      tags: [surveys]
+      summary: Get a survey report with items + sea trial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Survey report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyReportDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSurveyReport
+      tags: [surveys]
+      summary: Patch survey report cover info / status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyReportPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyReport"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSurveyReport
+      tags: [surveys]
+      summary: Delete a survey report (cascades items + sea trial)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /survey-reports/{id}/items:
+    put:
+      operationId: replaceSurveyItems
+      tags: [surveys]
+      summary: Replace all items for a survey report (atomic)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyItemsReplaceInput"
+      responses:
+        "200":
+          description: Replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyItemsResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /survey-reports/{id}/sea-trial:
+    put:
+      operationId: upsertSurveySeaTrial
+      tags: [surveys]
+      summary: Upsert sea trial data for a survey report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveySeaTrialInput"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveySeaTrial"
         "404":
           description: Not found
           content:
@@ -3379,3 +3580,277 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProposalListItem"
+    SurveyCondition:
+      type: string
+      enum: [Excellent, Serviceable, Fair, Poor, "N/A", Not inspected]
+    SurveyRecLevel:
+      type: string
+      enum: [A, B, C, D]
+    SurveyMoistureLevel:
+      type: string
+      enum: [Low, Medium, High]
+    SurveyStatus:
+      type: string
+      enum: [draft, complete]
+    SurveyReportInput:
+      type: object
+      required: [vessel_name]
+      properties:
+        yacht_id: { type: ["string", "null"] }
+        vessel_name: { type: string }
+        vessel_type: { type: ["string", "null"] }
+        manufacturer: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        year_built: { type: ["integer", "null"] }
+        flag: { type: ["string", "null"] }
+        hin: { type: ["string", "null"] }
+        lying: { type: ["string", "null"] }
+        survey_date: { type: ["string", "null"], description: "ISO date YYYY-MM-DD" }
+        survey_purpose: { type: ["string", "null"] }
+        weather_conditions: { type: ["string", "null"] }
+        sea_state: { type: ["string", "null"] }
+        client_name: { type: ["string", "null"] }
+        client_email: { type: ["string", "null"] }
+        client_phone: { type: ["string", "null"] }
+        surveyor_name: { type: ["string", "null"] }
+        surveyor_qualification: { type: ["string", "null"] }
+        surveyor_company: { type: ["string", "null"] }
+        surveyor_phone: { type: ["string", "null"] }
+        surveyor_email: { type: ["string", "null"] }
+        surveyor_logo_url: { type: ["string", "null"] }
+        surveyor_signature_url: { type: ["string", "null"] }
+        overall_condition: { type: ["string", "null"] }
+    SurveyReportPatch:
+      type: object
+      properties:
+        vessel_name: { type: ["string", "null"] }
+        vessel_type: { type: ["string", "null"] }
+        manufacturer: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        year_built: { type: ["integer", "null"] }
+        flag: { type: ["string", "null"] }
+        hin: { type: ["string", "null"] }
+        lying: { type: ["string", "null"] }
+        survey_date: { type: ["string", "null"] }
+        survey_purpose: { type: ["string", "null"] }
+        weather_conditions: { type: ["string", "null"] }
+        sea_state: { type: ["string", "null"] }
+        client_name: { type: ["string", "null"] }
+        client_email: { type: ["string", "null"] }
+        client_phone: { type: ["string", "null"] }
+        surveyor_name: { type: ["string", "null"] }
+        surveyor_qualification: { type: ["string", "null"] }
+        surveyor_company: { type: ["string", "null"] }
+        surveyor_phone: { type: ["string", "null"] }
+        surveyor_email: { type: ["string", "null"] }
+        surveyor_logo_url: { type: ["string", "null"] }
+        surveyor_signature_url: { type: ["string", "null"] }
+        overall_condition: { type: ["string", "null"] }
+        status:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyStatus"
+            - type: "null"
+    SurveyReport:
+      type: object
+      required: [id, clerk_user_id, vessel_name, status, created_at, updated_at]
+      properties:
+        id: { type: string }
+        clerk_user_id: { type: string }
+        yacht_id: { type: ["string", "null"] }
+        vessel_name: { type: string }
+        vessel_type: { type: ["string", "null"] }
+        manufacturer: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        year_built: { type: ["integer", "null"] }
+        flag: { type: ["string", "null"] }
+        hin: { type: ["string", "null"] }
+        lying: { type: ["string", "null"] }
+        survey_date: { type: ["string", "null"] }
+        survey_purpose: { type: ["string", "null"] }
+        weather_conditions: { type: ["string", "null"] }
+        sea_state: { type: ["string", "null"] }
+        client_name: { type: ["string", "null"] }
+        client_email: { type: ["string", "null"] }
+        client_phone: { type: ["string", "null"] }
+        surveyor_name: { type: ["string", "null"] }
+        surveyor_qualification: { type: ["string", "null"] }
+        surveyor_company: { type: ["string", "null"] }
+        surveyor_phone: { type: ["string", "null"] }
+        surveyor_email: { type: ["string", "null"] }
+        surveyor_logo_url: { type: ["string", "null"] }
+        surveyor_signature_url: { type: ["string", "null"] }
+        overall_condition: { type: ["string", "null"] }
+        status:
+          $ref: "#/components/schemas/SurveyStatus"
+        total_recommendations_a: { type: integer }
+        total_recommendations_b: { type: integer }
+        total_recommendations_c: { type: integer }
+        total_recommendations_d: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+    SurveyItemInput:
+      type: object
+      required: [section_number, section_name, item_number]
+      properties:
+        section_number: { type: integer }
+        section_name: { type: string }
+        item_number: { type: string }
+        description: { type: ["string", "null"] }
+        condition:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyCondition"
+            - type: "null"
+        notes: { type: ["string", "null"] }
+        recommendation_level:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyRecLevel"
+            - type: "null"
+        recommendation_text: { type: ["string", "null"] }
+        photo_urls:
+          type: array
+          items: { type: string }
+        moisture_reading: { type: ["number", "null"] }
+        moisture_level:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyMoistureLevel"
+            - type: "null"
+        sort_order: { type: integer }
+    SurveyItem:
+      type: object
+      required: [id, report_id, section_number, section_name, item_number]
+      properties:
+        id: { type: string }
+        report_id: { type: string }
+        section_number: { type: integer }
+        section_name: { type: string }
+        item_number: { type: string }
+        description: { type: ["string", "null"] }
+        condition:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyCondition"
+            - type: "null"
+        notes: { type: ["string", "null"] }
+        recommendation_level:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyRecLevel"
+            - type: "null"
+        recommendation_text: { type: ["string", "null"] }
+        photo_urls:
+          type: array
+          items: { type: string }
+        moisture_reading: { type: ["number", "null"] }
+        moisture_level:
+          oneOf:
+            - $ref: "#/components/schemas/SurveyMoistureLevel"
+            - type: "null"
+        sort_order: { type: integer }
+        created_at: { type: string }
+    SurveyItemsReplaceInput:
+      type: object
+      required: [items]
+      properties:
+        section_number:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 26
+          description: When provided, only items for this section are replaced (safe for concurrent edits in other sections). When omitted, all items in the report are replaced.
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SurveyItemInput"
+    SurveyItemsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SurveyItem"
+    SurveyRpmRow:
+      type: object
+      properties:
+        rpm: { type: ["integer", "null"] }
+        coolant_p: { type: ["number", "null"] }
+        coolant_s: { type: ["number", "null"] }
+        oil_p: { type: ["number", "null"] }
+        oil_s: { type: ["number", "null"] }
+        speed: { type: ["number", "null"] }
+    SurveySeaTrialInput:
+      type: object
+      properties:
+        trial_date: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+        weather: { type: ["string", "null"] }
+        sea_state: { type: ["string", "null"] }
+        narrative: { type: ["string", "null"] }
+        rpm_table:
+          type: array
+          items:
+            $ref: "#/components/schemas/SurveyRpmRow"
+        tickover_rpm: { type: ["integer", "null"] }
+        tickover_speed: { type: ["number", "null"] }
+        max_rpm: { type: ["integer", "null"] }
+        max_speed: { type: ["number", "null"] }
+        additional_observations: { type: ["string", "null"] }
+    SurveySeaTrial:
+      type: object
+      required: [report_id]
+      properties:
+        report_id: { type: string }
+        trial_date: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+        weather: { type: ["string", "null"] }
+        sea_state: { type: ["string", "null"] }
+        narrative: { type: ["string", "null"] }
+        rpm_table:
+          type: array
+          items:
+            $ref: "#/components/schemas/SurveyRpmRow"
+        tickover_rpm: { type: ["integer", "null"] }
+        tickover_speed: { type: ["number", "null"] }
+        max_rpm: { type: ["integer", "null"] }
+        max_speed: { type: ["number", "null"] }
+        additional_observations: { type: ["string", "null"] }
+        updated_at: { type: string }
+    SurveyReportDetail:
+      type: object
+      required: [report, items]
+      properties:
+        report:
+          $ref: "#/components/schemas/SurveyReport"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SurveyItem"
+        sea_trial:
+          oneOf:
+            - $ref: "#/components/schemas/SurveySeaTrial"
+            - type: "null"
+    SurveyReportListItem:
+      type: object
+      required: [id, vessel_name, status, created_at, updated_at]
+      properties:
+        id: { type: string }
+        yacht_id: { type: ["string", "null"] }
+        vessel_name: { type: string }
+        manufacturer: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        lying: { type: ["string", "null"] }
+        survey_date: { type: ["string", "null"] }
+        survey_purpose: { type: ["string", "null"] }
+        status:
+          $ref: "#/components/schemas/SurveyStatus"
+        total_recommendations_a: { type: integer }
+        total_recommendations_b: { type: integer }
+        total_recommendations_c: { type: integer }
+        total_recommendations_d: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+    SurveyReportListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SurveyReportListItem"

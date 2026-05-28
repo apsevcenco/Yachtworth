@@ -9,6 +9,7 @@ import chartersRouter from "./charters";
 import clientsRouter from "./clients";
 import listingsRouter from "./listings";
 import proposalsRouter from "./proposals";
+import surveyReportsRouter from "./surveyReports";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(chartersRouter);
 router.use(clientsRouter);
 router.use(listingsRouter);
 router.use(proposalsRouter);
+router.use(surveyReportsRouter);
 
 export default router;

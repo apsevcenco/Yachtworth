@@ -152,6 +152,22 @@ function RootLayoutNav() {
         name="yacht-proposal/my-proposals"
         options={{ headerShown: false, presentation: "card" }}
       />
+      <Stack.Screen
+        name="survey/index"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="survey/new"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="survey/[id]/index"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="survey/[id]/section/[n]"
+        options={{ headerShown: false, presentation: "card" }}
+      />
     </Stack>
     {showBrandHeader ? <BrandHeader /> : null}
     </View>

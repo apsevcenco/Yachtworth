@@ -109,7 +109,8 @@ const TOOLS: Tool[] = [
     title: "Survey Report Builder",
     subtitle: "Mobile inspection + auto PDF",
     roles: ["surveyor"],
-    status: "soon",
+    status: "live",
+    route: "/survey",
   },
   {
     key: "maintenance_log",

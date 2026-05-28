@@ -3955,3 +3955,395 @@ export const GetProposalResponse = zod.object({
 export const DeleteProposalParams = zod.object({
   id: zod.coerce.string(),
 });
+
+/**
+ * @summary List user's survey reports
+ */
+export const ListSurveyReportsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      yacht_id: zod.string().nullish(),
+      vessel_name: zod.string(),
+      manufacturer: zod.string().nullish(),
+      model: zod.string().nullish(),
+      lying: zod.string().nullish(),
+      survey_date: zod.string().nullish(),
+      survey_purpose: zod.string().nullish(),
+      status: zod.enum(["draft", "complete"]),
+      total_recommendations_a: zod.number().optional(),
+      total_recommendations_b: zod.number().optional(),
+      total_recommendations_c: zod.number().optional(),
+      total_recommendations_d: zod.number().optional(),
+      created_at: zod.string(),
+      updated_at: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a new survey report (cover info)
+ */
+export const CreateSurveyReportBody = zod.object({
+  yacht_id: zod.string().nullish(),
+  vessel_name: zod.string(),
+  vessel_type: zod.string().nullish(),
+  manufacturer: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod.number().nullish(),
+  flag: zod.string().nullish(),
+  hin: zod.string().nullish(),
+  lying: zod.string().nullish(),
+  survey_date: zod.string().nullish().describe("ISO date YYYY-MM-DD"),
+  survey_purpose: zod.string().nullish(),
+  weather_conditions: zod.string().nullish(),
+  sea_state: zod.string().nullish(),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  surveyor_name: zod.string().nullish(),
+  surveyor_qualification: zod.string().nullish(),
+  surveyor_company: zod.string().nullish(),
+  surveyor_phone: zod.string().nullish(),
+  surveyor_email: zod.string().nullish(),
+  surveyor_logo_url: zod.string().nullish(),
+  surveyor_signature_url: zod.string().nullish(),
+  overall_condition: zod.string().nullish(),
+});
+
+/**
+ * @summary Get a survey report with items + sea trial
+ */
+export const GetSurveyReportParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetSurveyReportResponse = zod.object({
+  report: zod.object({
+    id: zod.string(),
+    clerk_user_id: zod.string(),
+    yacht_id: zod.string().nullish(),
+    vessel_name: zod.string(),
+    vessel_type: zod.string().nullish(),
+    manufacturer: zod.string().nullish(),
+    model: zod.string().nullish(),
+    year_built: zod.number().nullish(),
+    flag: zod.string().nullish(),
+    hin: zod.string().nullish(),
+    lying: zod.string().nullish(),
+    survey_date: zod.string().nullish(),
+    survey_purpose: zod.string().nullish(),
+    weather_conditions: zod.string().nullish(),
+    sea_state: zod.string().nullish(),
+    client_name: zod.string().nullish(),
+    client_email: zod.string().nullish(),
+    client_phone: zod.string().nullish(),
+    surveyor_name: zod.string().nullish(),
+    surveyor_qualification: zod.string().nullish(),
+    surveyor_company: zod.string().nullish(),
+    surveyor_phone: zod.string().nullish(),
+    surveyor_email: zod.string().nullish(),
+    surveyor_logo_url: zod.string().nullish(),
+    surveyor_signature_url: zod.string().nullish(),
+    overall_condition: zod.string().nullish(),
+    status: zod.enum(["draft", "complete"]),
+    total_recommendations_a: zod.number().optional(),
+    total_recommendations_b: zod.number().optional(),
+    total_recommendations_c: zod.number().optional(),
+    total_recommendations_d: zod.number().optional(),
+    created_at: zod.string(),
+    updated_at: zod.string(),
+  }),
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      report_id: zod.string(),
+      section_number: zod.number(),
+      section_name: zod.string(),
+      item_number: zod.string(),
+      description: zod.string().nullish(),
+      condition: zod
+        .union([
+          zod.enum([
+            "Excellent",
+            "Serviceable",
+            "Fair",
+            "Poor",
+            "N/A",
+            "Not inspected",
+          ]),
+          zod.null(),
+        ])
+        .optional(),
+      notes: zod.string().nullish(),
+      recommendation_level: zod
+        .union([zod.enum(["A", "B", "C", "D"]), zod.null()])
+        .optional(),
+      recommendation_text: zod.string().nullish(),
+      photo_urls: zod.array(zod.string()).optional(),
+      moisture_reading: zod.number().nullish(),
+      moisture_level: zod
+        .union([zod.enum(["Low", "Medium", "High"]), zod.null()])
+        .optional(),
+      sort_order: zod.number().optional(),
+      created_at: zod.string().optional(),
+    }),
+  ),
+  sea_trial: zod
+    .union([
+      zod.object({
+        report_id: zod.string(),
+        trial_date: zod.string().nullish(),
+        location: zod.string().nullish(),
+        weather: zod.string().nullish(),
+        sea_state: zod.string().nullish(),
+        narrative: zod.string().nullish(),
+        rpm_table: zod
+          .array(
+            zod.object({
+              rpm: zod.number().nullish(),
+              coolant_p: zod.number().nullish(),
+              coolant_s: zod.number().nullish(),
+              oil_p: zod.number().nullish(),
+              oil_s: zod.number().nullish(),
+              speed: zod.number().nullish(),
+            }),
+          )
+          .optional(),
+        tickover_rpm: zod.number().nullish(),
+        tickover_speed: zod.number().nullish(),
+        max_rpm: zod.number().nullish(),
+        max_speed: zod.number().nullish(),
+        additional_observations: zod.string().nullish(),
+        updated_at: zod.string().optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+});
+
+/**
+ * @summary Patch survey report cover info / status
+ */
+export const UpdateSurveyReportParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateSurveyReportBody = zod.object({
+  vessel_name: zod.string().nullish(),
+  vessel_type: zod.string().nullish(),
+  manufacturer: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod.number().nullish(),
+  flag: zod.string().nullish(),
+  hin: zod.string().nullish(),
+  lying: zod.string().nullish(),
+  survey_date: zod.string().nullish(),
+  survey_purpose: zod.string().nullish(),
+  weather_conditions: zod.string().nullish(),
+  sea_state: zod.string().nullish(),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  surveyor_name: zod.string().nullish(),
+  surveyor_qualification: zod.string().nullish(),
+  surveyor_company: zod.string().nullish(),
+  surveyor_phone: zod.string().nullish(),
+  surveyor_email: zod.string().nullish(),
+  surveyor_logo_url: zod.string().nullish(),
+  surveyor_signature_url: zod.string().nullish(),
+  overall_condition: zod.string().nullish(),
+  status: zod.union([zod.enum(["draft", "complete"]), zod.null()]).optional(),
+});
+
+export const UpdateSurveyReportResponse = zod.object({
+  id: zod.string(),
+  clerk_user_id: zod.string(),
+  yacht_id: zod.string().nullish(),
+  vessel_name: zod.string(),
+  vessel_type: zod.string().nullish(),
+  manufacturer: zod.string().nullish(),
+  model: zod.string().nullish(),
+  year_built: zod.number().nullish(),
+  flag: zod.string().nullish(),
+  hin: zod.string().nullish(),
+  lying: zod.string().nullish(),
+  survey_date: zod.string().nullish(),
+  survey_purpose: zod.string().nullish(),
+  weather_conditions: zod.string().nullish(),
+  sea_state: zod.string().nullish(),
+  client_name: zod.string().nullish(),
+  client_email: zod.string().nullish(),
+  client_phone: zod.string().nullish(),
+  surveyor_name: zod.string().nullish(),
+  surveyor_qualification: zod.string().nullish(),
+  surveyor_company: zod.string().nullish(),
+  surveyor_phone: zod.string().nullish(),
+  surveyor_email: zod.string().nullish(),
+  surveyor_logo_url: zod.string().nullish(),
+  surveyor_signature_url: zod.string().nullish(),
+  overall_condition: zod.string().nullish(),
+  status: zod.enum(["draft", "complete"]),
+  total_recommendations_a: zod.number().optional(),
+  total_recommendations_b: zod.number().optional(),
+  total_recommendations_c: zod.number().optional(),
+  total_recommendations_d: zod.number().optional(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
+});
+
+/**
+ * @summary Delete a survey report (cascades items + sea trial)
+ */
+export const DeleteSurveyReportParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Replace all items for a survey report (atomic)
+ */
+export const ReplaceSurveyItemsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const replaceSurveyItemsBodySectionNumberMax = 26;
+
+export const ReplaceSurveyItemsBody = zod.object({
+  section_number: zod
+    .number()
+    .min(1)
+    .max(replaceSurveyItemsBodySectionNumberMax)
+    .nullish()
+    .describe(
+      "When provided, only items for this section are replaced (safe for concurrent edits in other sections). When omitted, all items in the report are replaced.",
+    ),
+  items: zod.array(
+    zod.object({
+      section_number: zod.number(),
+      section_name: zod.string(),
+      item_number: zod.string(),
+      description: zod.string().nullish(),
+      condition: zod
+        .union([
+          zod.enum([
+            "Excellent",
+            "Serviceable",
+            "Fair",
+            "Poor",
+            "N/A",
+            "Not inspected",
+          ]),
+          zod.null(),
+        ])
+        .optional(),
+      notes: zod.string().nullish(),
+      recommendation_level: zod
+        .union([zod.enum(["A", "B", "C", "D"]), zod.null()])
+        .optional(),
+      recommendation_text: zod.string().nullish(),
+      photo_urls: zod.array(zod.string()).optional(),
+      moisture_reading: zod.number().nullish(),
+      moisture_level: zod
+        .union([zod.enum(["Low", "Medium", "High"]), zod.null()])
+        .optional(),
+      sort_order: zod.number().optional(),
+    }),
+  ),
+});
+
+export const ReplaceSurveyItemsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      report_id: zod.string(),
+      section_number: zod.number(),
+      section_name: zod.string(),
+      item_number: zod.string(),
+      description: zod.string().nullish(),
+      condition: zod
+        .union([
+          zod.enum([
+            "Excellent",
+            "Serviceable",
+            "Fair",
+            "Poor",
+            "N/A",
+            "Not inspected",
+          ]),
+          zod.null(),
+        ])
+        .optional(),
+      notes: zod.string().nullish(),
+      recommendation_level: zod
+        .union([zod.enum(["A", "B", "C", "D"]), zod.null()])
+        .optional(),
+      recommendation_text: zod.string().nullish(),
+      photo_urls: zod.array(zod.string()).optional(),
+      moisture_reading: zod.number().nullish(),
+      moisture_level: zod
+        .union([zod.enum(["Low", "Medium", "High"]), zod.null()])
+        .optional(),
+      sort_order: zod.number().optional(),
+      created_at: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Upsert sea trial data for a survey report
+ */
+export const UpsertSurveySeaTrialParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpsertSurveySeaTrialBody = zod.object({
+  trial_date: zod.string().nullish(),
+  location: zod.string().nullish(),
+  weather: zod.string().nullish(),
+  sea_state: zod.string().nullish(),
+  narrative: zod.string().nullish(),
+  rpm_table: zod
+    .array(
+      zod.object({
+        rpm: zod.number().nullish(),
+        coolant_p: zod.number().nullish(),
+        coolant_s: zod.number().nullish(),
+        oil_p: zod.number().nullish(),
+        oil_s: zod.number().nullish(),
+        speed: zod.number().nullish(),
+      }),
+    )
+    .optional(),
+  tickover_rpm: zod.number().nullish(),
+  tickover_speed: zod.number().nullish(),
+  max_rpm: zod.number().nullish(),
+  max_speed: zod.number().nullish(),
+  additional_observations: zod.string().nullish(),
+});
+
+export const UpsertSurveySeaTrialResponse = zod.object({
+  report_id: zod.string(),
+  trial_date: zod.string().nullish(),
+  location: zod.string().nullish(),
+  weather: zod.string().nullish(),
+  sea_state: zod.string().nullish(),
+  narrative: zod.string().nullish(),
+  rpm_table: zod
+    .array(
+      zod.object({
+        rpm: zod.number().nullish(),
+        coolant_p: zod.number().nullish(),
+        coolant_s: zod.number().nullish(),
+        oil_p: zod.number().nullish(),
+        oil_s: zod.number().nullish(),
+        speed: zod.number().nullish(),
+      }),
+    )
+    .optional(),
+  tickover_rpm: zod.number().nullish(),
+  tickover_speed: zod.number().nullish(),
+  max_rpm: zod.number().nullish(),
+  max_speed: zod.number().nullish(),
+  additional_observations: zod.string().nullish(),
+  updated_at: zod.string().optional(),
+});

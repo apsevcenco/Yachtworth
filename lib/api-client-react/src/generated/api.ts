@@ -50,6 +50,15 @@ import type {
   RoiCalculationDetail,
   RoiCalculationInput,
   RoiCalculationListResponse,
+  SurveyItemsReplaceInput,
+  SurveyItemsResponse,
+  SurveyReport,
+  SurveyReportDetail,
+  SurveyReportInput,
+  SurveyReportListResponse,
+  SurveyReportPatch,
+  SurveySeaTrial,
+  SurveySeaTrialInput,
   Valuation,
   ValuationInput,
   Yacht,
@@ -3275,4 +3284,597 @@ export const useDeleteProposal = <
   TContext
 > => {
   return useMutation(getDeleteProposalMutationOptions(options));
+};
+
+/**
+ * @summary List user's survey reports
+ */
+export const getListSurveyReportsUrl = () => {
+  return `/api/survey-reports`;
+};
+
+export const listSurveyReports = async (
+  options?: RequestInit,
+): Promise<SurveyReportListResponse> => {
+  return customFetch<SurveyReportListResponse>(getListSurveyReportsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSurveyReportsQueryKey = () => {
+  return [`/api/survey-reports`] as const;
+};
+
+export const getListSurveyReportsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSurveyReports>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSurveyReports>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSurveyReportsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSurveyReports>>
+  > = ({ signal }) => listSurveyReports({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSurveyReports>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSurveyReportsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSurveyReports>>
+>;
+export type ListSurveyReportsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List user's survey reports
+ */
+
+export function useListSurveyReports<
+  TData = Awaited<ReturnType<typeof listSurveyReports>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSurveyReports>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSurveyReportsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new survey report (cover info)
+ */
+export const getCreateSurveyReportUrl = () => {
+  return `/api/survey-reports`;
+};
+
+export const createSurveyReport = async (
+  surveyReportInput: SurveyReportInput,
+  options?: RequestInit,
+): Promise<SurveyReport> => {
+  return customFetch<SurveyReport>(getCreateSurveyReportUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(surveyReportInput),
+  });
+};
+
+export const getCreateSurveyReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSurveyReport>>,
+    TError,
+    { data: BodyType<SurveyReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSurveyReport>>,
+  TError,
+  { data: BodyType<SurveyReportInput> },
+  TContext
+> => {
+  const mutationKey = ["createSurveyReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSurveyReport>>,
+    { data: BodyType<SurveyReportInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSurveyReport(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSurveyReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSurveyReport>>
+>;
+export type CreateSurveyReportMutationBody = BodyType<SurveyReportInput>;
+export type CreateSurveyReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a new survey report (cover info)
+ */
+export const useCreateSurveyReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSurveyReport>>,
+    TError,
+    { data: BodyType<SurveyReportInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSurveyReport>>,
+  TError,
+  { data: BodyType<SurveyReportInput> },
+  TContext
+> => {
+  return useMutation(getCreateSurveyReportMutationOptions(options));
+};
+
+/**
+ * @summary Get a survey report with items + sea trial
+ */
+export const getGetSurveyReportUrl = (id: string) => {
+  return `/api/survey-reports/${id}`;
+};
+
+export const getSurveyReport = async (
+  id: string,
+  options?: RequestInit,
+): Promise<SurveyReportDetail> => {
+  return customFetch<SurveyReportDetail>(getGetSurveyReportUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSurveyReportQueryKey = (id: string) => {
+  return [`/api/survey-reports/${id}`] as const;
+};
+
+export const getGetSurveyReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSurveyReport>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSurveyReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSurveyReportQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSurveyReport>>> = ({
+    signal,
+  }) => getSurveyReport(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSurveyReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSurveyReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSurveyReport>>
+>;
+export type GetSurveyReportQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a survey report with items + sea trial
+ */
+
+export function useGetSurveyReport<
+  TData = Awaited<ReturnType<typeof getSurveyReport>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSurveyReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSurveyReportQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Patch survey report cover info / status
+ */
+export const getUpdateSurveyReportUrl = (id: string) => {
+  return `/api/survey-reports/${id}`;
+};
+
+export const updateSurveyReport = async (
+  id: string,
+  surveyReportPatch: SurveyReportPatch,
+  options?: RequestInit,
+): Promise<SurveyReport> => {
+  return customFetch<SurveyReport>(getUpdateSurveyReportUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(surveyReportPatch),
+  });
+};
+
+export const getUpdateSurveyReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSurveyReport>>,
+    TError,
+    { id: string; data: BodyType<SurveyReportPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSurveyReport>>,
+  TError,
+  { id: string; data: BodyType<SurveyReportPatch> },
+  TContext
+> => {
+  const mutationKey = ["updateSurveyReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSurveyReport>>,
+    { id: string; data: BodyType<SurveyReportPatch> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSurveyReport(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSurveyReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSurveyReport>>
+>;
+export type UpdateSurveyReportMutationBody = BodyType<SurveyReportPatch>;
+export type UpdateSurveyReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Patch survey report cover info / status
+ */
+export const useUpdateSurveyReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSurveyReport>>,
+    TError,
+    { id: string; data: BodyType<SurveyReportPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSurveyReport>>,
+  TError,
+  { id: string; data: BodyType<SurveyReportPatch> },
+  TContext
+> => {
+  return useMutation(getUpdateSurveyReportMutationOptions(options));
+};
+
+/**
+ * @summary Delete a survey report (cascades items + sea trial)
+ */
+export const getDeleteSurveyReportUrl = (id: string) => {
+  return `/api/survey-reports/${id}`;
+};
+
+export const deleteSurveyReport = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteSurveyReportUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteSurveyReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSurveyReport>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSurveyReport>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteSurveyReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSurveyReport>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteSurveyReport(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSurveyReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSurveyReport>>
+>;
+
+export type DeleteSurveyReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a survey report (cascades items + sea trial)
+ */
+export const useDeleteSurveyReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSurveyReport>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSurveyReport>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteSurveyReportMutationOptions(options));
+};
+
+/**
+ * @summary Replace all items for a survey report (atomic)
+ */
+export const getReplaceSurveyItemsUrl = (id: string) => {
+  return `/api/survey-reports/${id}/items`;
+};
+
+export const replaceSurveyItems = async (
+  id: string,
+  surveyItemsReplaceInput: SurveyItemsReplaceInput,
+  options?: RequestInit,
+): Promise<SurveyItemsResponse> => {
+  return customFetch<SurveyItemsResponse>(getReplaceSurveyItemsUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(surveyItemsReplaceInput),
+  });
+};
+
+export const getReplaceSurveyItemsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof replaceSurveyItems>>,
+    TError,
+    { id: string; data: BodyType<SurveyItemsReplaceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof replaceSurveyItems>>,
+  TError,
+  { id: string; data: BodyType<SurveyItemsReplaceInput> },
+  TContext
+> => {
+  const mutationKey = ["replaceSurveyItems"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof replaceSurveyItems>>,
+    { id: string; data: BodyType<SurveyItemsReplaceInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return replaceSurveyItems(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReplaceSurveyItemsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof replaceSurveyItems>>
+>;
+export type ReplaceSurveyItemsMutationBody = BodyType<SurveyItemsReplaceInput>;
+export type ReplaceSurveyItemsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Replace all items for a survey report (atomic)
+ */
+export const useReplaceSurveyItems = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof replaceSurveyItems>>,
+    TError,
+    { id: string; data: BodyType<SurveyItemsReplaceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof replaceSurveyItems>>,
+  TError,
+  { id: string; data: BodyType<SurveyItemsReplaceInput> },
+  TContext
+> => {
+  return useMutation(getReplaceSurveyItemsMutationOptions(options));
+};
+
+/**
+ * @summary Upsert sea trial data for a survey report
+ */
+export const getUpsertSurveySeaTrialUrl = (id: string) => {
+  return `/api/survey-reports/${id}/sea-trial`;
+};
+
+export const upsertSurveySeaTrial = async (
+  id: string,
+  surveySeaTrialInput: SurveySeaTrialInput,
+  options?: RequestInit,
+): Promise<SurveySeaTrial> => {
+  return customFetch<SurveySeaTrial>(getUpsertSurveySeaTrialUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(surveySeaTrialInput),
+  });
+};
+
+export const getUpsertSurveySeaTrialMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertSurveySeaTrial>>,
+    TError,
+    { id: string; data: BodyType<SurveySeaTrialInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof upsertSurveySeaTrial>>,
+  TError,
+  { id: string; data: BodyType<SurveySeaTrialInput> },
+  TContext
+> => {
+  const mutationKey = ["upsertSurveySeaTrial"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof upsertSurveySeaTrial>>,
+    { id: string; data: BodyType<SurveySeaTrialInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return upsertSurveySeaTrial(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpsertSurveySeaTrialMutationResult = NonNullable<
+  Awaited<ReturnType<typeof upsertSurveySeaTrial>>
+>;
+export type UpsertSurveySeaTrialMutationBody = BodyType<SurveySeaTrialInput>;
+export type UpsertSurveySeaTrialMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Upsert sea trial data for a survey report
+ */
+export const useUpsertSurveySeaTrial = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertSurveySeaTrial>>,
+    TError,
+    { id: string; data: BodyType<SurveySeaTrialInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof upsertSurveySeaTrial>>,
+  TError,
+  { id: string; data: BodyType<SurveySeaTrialInput> },
+  TContext
+> => {
+  return useMutation(getUpsertSurveySeaTrialMutationOptions(options));
 };
