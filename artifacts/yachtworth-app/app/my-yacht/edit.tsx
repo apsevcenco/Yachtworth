@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import {
   getGetYachtQueryKey,
   getListYachtEquipmentQueryKey,
+  getListYachtsQueryKey,
   useCreateYacht,
   useGetYacht,
   useListYachtEquipment,
@@ -337,11 +338,16 @@ export default function MyYachtEditScreen() {
           queryKey: getListYachtEquipmentQueryKey(yachtId),
         });
       }
+      await qc.invalidateQueries({ queryKey: getListYachtsQueryKey() });
       await qc.invalidateQueries({ queryKey: ["/api/yachts"] });
       if (yachtId) {
         await qc.invalidateQueries({ queryKey: getGetYachtQueryKey(yachtId) });
       }
-      router.back();
+      Alert.alert(
+        "Saved",
+        isEdit ? "Your changes have been saved." : "Yacht added to My Yacht.",
+        [{ text: "OK", onPress: () => router.back() }],
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save yacht.";
       Alert.alert("Couldn't save", msg);
