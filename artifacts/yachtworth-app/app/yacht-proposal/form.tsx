@@ -143,6 +143,8 @@ export default function ProposalFormScreen() {
         hull_id: y.hull_id ?? null,
         vat_status: y.vat_status ?? null,
         photo_url: y.cover_photo_url ?? y.photo_url ?? null,
+        cover_photo_url: y.cover_photo_url ?? null,
+        photo_urls: Array.isArray(y.photo_urls) ? y.photo_urls : null,
       };
     }
     return {

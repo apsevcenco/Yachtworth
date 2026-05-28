@@ -301,7 +301,22 @@ function buildProposalHTML(
         return `<div class="eq-group"><div class="eq-title">${CATEGORY_LABELS[cat] ?? esc(cat)}</div><div class="eq-items">${itemsHTML}</div></div>`;
       })
       .join("");
-    equipmentHTML = `<div class="sec"><div class="sec-title">Equipment &amp; Systems</div><div class="eq-grid">${groupsHTML}</div></div>`;
+    equipmentHTML = `<div class="ipage" style="page-break-before:always;">
+      <div class="ih">
+        <div class="ih-brand">YachtWorth</div>
+        <div class="ih-right">
+          <div class="ih-yacht">${esc(yacht.name)}</div>
+          <div class="ih-page">EQ</div>
+        </div>
+      </div>
+      <div class="ib">
+        <div class="sec"><div class="sec-title">Equipment &amp; Systems</div><div class="eq-grid">${groupsHTML}</div></div>
+      </div>
+      <div class="ifooter">
+        <div class="footer-disclaimer">Equipment list as declared by owner. Items subject to verification at survey.</div>
+        <div><div class="footer-brand">YachtWorth</div><div class="footer-powered">Powered by PDYE Group</div></div>
+      </div>
+    </div>`;
   }
 
   // ── PHOTOS PAGE ──
@@ -320,8 +335,8 @@ function buildProposalHTML(
             <img class="photo-cover" src="${esc(photoUrls[0]!)}" alt=""/>
             ${
               photoUrls.length > 1
-                ? `<div class="photo-row">${photoUrls
-                    .slice(1, 4)
+                ? `<div class="photo-grid">${photoUrls
+                    .slice(1, 7)
                     .map((u) => `<img src="${esc(u)}" alt=""/>`)
                     .join("")}</div>`
                 : ""
@@ -606,31 +621,31 @@ body {
 /* Equipment */
 .eq-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4mm 28px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 3mm 20px;
 }
 .eq-group {
   break-inside: avoid;
-  margin-bottom: 4mm;
+  margin-bottom: 3mm;
 }
 .eq-title {
-  font-size: 9px;
-  letter-spacing: 1.8px;
+  font-size: 8.5px;
+  letter-spacing: 1.5px;
   font-weight: 700;
   color: #0B1E3F;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 .eq-items {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 .eq-item {
-  font-size: 10px;
+  font-size: 9px;
   color: #2a2a2a;
-  line-height: 1.45;
-  padding-left: 10px;
+  line-height: 1.4;
+  padding-left: 9px;
   position: relative;
 }
 .eq-item::before {
@@ -644,19 +659,19 @@ body {
 /* Photos page */
 .photo-cover {
   width: 100%;
-  height: 100mm;
+  height: 90mm;
   object-fit: cover;
   display: block;
-  margin-bottom: 4mm;
+  margin-bottom: 3mm;
 }
-.photo-row {
+.photo-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 4mm;
+  gap: 3mm;
 }
-.photo-row img {
+.photo-grid img {
   width: 100%;
-  height: 55mm;
+  height: 42mm;
   object-fit: cover;
   display: block;
 }
@@ -830,7 +845,6 @@ body {
         ? `<div class="sec"><div class="sec-title">Accommodation</div><div class="specs-list">${accomHTML}</div></div>`
         : ""
     }
-    ${equipmentHTML}
   </div>
   <div class="ifooter">
     <div class="footer-disclaimer">All specifications believed correct. Buyer must verify independently prior to purchase.</div>
@@ -838,7 +852,10 @@ body {
   </div>
 </div>
 
-<!-- PAGE 3: PHOTOS (only if photos exist) -->
+<!-- EQUIPMENT (own page if any) -->
+${equipmentHTML}
+
+<!-- PHOTOS (only if photos exist) -->
 ${photosPageHTML}
 
 <!-- PAGE 4 (or 3): PRICING + NOTES + CONTACT -->
