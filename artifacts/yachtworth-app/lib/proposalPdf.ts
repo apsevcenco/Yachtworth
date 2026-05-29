@@ -37,6 +37,7 @@ export interface ProposalYachtSnapshot {
   range_nm?: number | null;
   fuel_capacity_l?: number | null;
   hull_material?: string | null;
+  hull_type?: string | null;
   registration_number?: string | null;
   imo_number?: string | null;
   hull_id?: string | null;
@@ -91,7 +92,7 @@ export interface ProposalPdfInput {
   settings: ProposalSettings;
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// ─── HELPERS ────────────────────────────────────────────────────────────────
 
 function esc(s: string | number): string {
   return String(s)
@@ -125,45 +126,39 @@ function accentRow(
 }
 
 function getMonthYear(): string {
-  return new Date().toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric",
-  });
+  return new Date()
+    .toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+    .toUpperCase();
 }
 
-function getTypeLabel(proposalType: ProposalType): string {
-  if (proposalType === "sale") return "For Sale";
-  if (proposalType === "charter") return "For Charter";
-  return "For Sale &amp; Charter";
+function getTypeLabel(t: ProposalType): string {
+  if (t === "sale") return "FOR SALE";
+  if (t === "charter") return "FOR CHARTER";
+  return "FOR SALE &amp; CHARTER";
 }
 
-function getCoverPrice(settings: ProposalSettings): string {
-  if (settings.proposal_type === "charter") {
-    return settings.charter_on_application
+function getCoverPrice(s: ProposalSettings): string {
+  if (s.proposal_type === "charter")
+    return s.charter_on_application
       ? "Price on application"
-      : (fmt(settings.charter_high_eur_week) || "Price on application") +
-          " / week";
-  }
-  if (settings.price_on_application) return "Price on application";
-  return fmt(settings.sale_price_eur) || "Price on application";
+      : (fmt(s.charter_high_eur_week) || "POA") + "\u2009/ week";
+  return s.price_on_application
+    ? "Price on application"
+    : fmt(s.sale_price_eur) || "Price on application";
 }
 
-function getCoverPriceLabel(settings: ProposalSettings): string {
-  if (settings.proposal_type === "charter") return "Charter from";
-  return "Asking Price";
+function getCoverPriceLabel(s: ProposalSettings): string {
+  return s.proposal_type === "charter" ? "Charter from" : "Asking Price";
 }
 
-function getEngineStr(yacht: ProposalYachtSnapshot): string | null {
-  if (!yacht.engine_maker) return null;
-  const count =
-    yacht.engine_count && yacht.engine_count > 0
-      ? yacht.engine_count + " \u00D7 "
-      : "";
-  const model = yacht.engine_model ? " " + yacht.engine_model : "";
-  return count + yacht.engine_maker + model;
+function engineStr(y: ProposalYachtSnapshot): string | null {
+  if (!y.engine_maker) return null;
+  const c = y.engine_count && y.engine_count > 0 ? y.engine_count + " \u00D7 " : "";
+  const m = y.engine_model ? " " + y.engine_model : "";
+  return c + y.engine_maker + m;
 }
 
-const NOTABLE_TYPES = [
+const NOTABLE = [
   "generator",
   "stabilizer",
   "starlink",
@@ -174,12 +169,11 @@ const NOTABLE_TYPES = [
   "vsat",
   "air_conditioning_central",
 ];
-
-function isNotable(type: string | null | undefined): boolean {
-  return NOTABLE_TYPES.some((n) => (type || "").toLowerCase().includes(n));
+function notable(type: string | null | undefined): boolean {
+  return NOTABLE.some((n) => (type || "").toLowerCase().includes(n));
 }
 
-function formatEquipLabel(item: ProposalEquipmentItem): string {
+function equipLabel(item: ProposalEquipmentItem): string {
   let s = "";
   if (item.quantity && item.quantity > 1) s += item.quantity + " \u00D7 ";
   if (item.brand) s += item.brand + " ";
@@ -191,7 +185,7 @@ function formatEquipLabel(item: ProposalEquipmentItem): string {
   return s.trim();
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CAT_LABELS: Record<string, string> = {
   power_electrical: "Power &amp; Electrical",
   navigation: "Navigation &amp; Communication",
   water_systems: "Water Systems",
@@ -202,119 +196,212 @@ const CATEGORY_LABELS: Record<string, string> = {
   sailing: "Sailing Equipment",
 };
 
-// ─── CSS ──────────────────────────────────────────────────────────────────────
+// ─── CSS ────────────────────────────────────────────────────────────────────
 
 const CSS = `
 * { margin:0; padding:0; box-sizing:border-box; }
 @page { size: A4; margin: 0; }
 @media print {
-  body > div { background: none !important; padding: 0 !important; }
-  .cover, .ipage { margin: 0 !important; box-shadow: none !important; }
+  body > div { background:none !important; padding:0 !important; }
+  .cover, .ipage { margin:0 !important; box-shadow:none !important; }
 }
 body {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   background: #ffffff;
   color: #1a1a1a;
   font-size: 9.5pt;
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+
+/* COVER */
 .cover {
   width: 210mm;
   background: #ffffff;
   page-break-after: always;
   margin: 0 auto 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
 .cover-photo {
-  width: 100%; height: 170mm; object-fit: cover; display: block;
+  width: 100%;
+  height: 170mm;
+  object-fit: cover;
+  display: block;
 }
 .cover-photo-placeholder {
-  width: 100%; height: 170mm; background: #f0ede8;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 8pt; color: #ccc; letter-spacing: 3px; text-transform: uppercase;
+  width: 100%;
+  height: 170mm;
+  background: #f0ede8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8pt;
+  color: #ccc;
+  letter-spacing: 3px;
+  text-transform: uppercase;
 }
-.cover-content { padding: 0 48px 44px; background: #ffffff; }
+.cover-content { padding: 0 48px 40px; }
 .cover-line { height: 1px; background: #1a1a1a; }
 .cover-meta-row {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  margin-bottom: 20px; padding-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 14px;
+  margin-bottom: 16px;
 }
 .cover-doc-type { font-size: 7pt; letter-spacing: 3px; color: #999; text-transform: uppercase; }
 .cover-doc-date { font-size: 7pt; letter-spacing: 1px; color: #999; text-transform: uppercase; }
 .cover-yacht-name {
-  font-size: 42pt; font-weight: 200; color: #1a1a1a;
-  letter-spacing: -2px; line-height: 0.95; margin-bottom: 10px;
+  font-size: 40pt;
+  font-weight: 200;
+  color: #1a1a1a;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 12px;
 }
-.cover-specs-row { display: flex; gap: 32px; margin-bottom: 18px; }
+.cover-specs-row { display: flex; gap: 28px; margin-bottom: 16px; }
 .csi-label { font-size: 6pt; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 3px; }
 .csi-value { font-size: 9pt; font-weight: 500; color: #1a1a1a; }
 .cover-price-row {
-  display: flex; justify-content: space-between; align-items: flex-end;
-  padding-top: 16px; border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid #e0e0e0;
 }
 .cover-price-label { font-size: 6pt; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 4px; }
-.cover-price { font-size: 22pt; font-weight: 300; color: #1a1a1a; letter-spacing: -1px; }
-.cover-brand { font-size: 7pt; letter-spacing: 3px; color: #C5973A; text-transform: uppercase; text-align: right; }
+.cover-price { font-size: 20pt; font-weight: 300; color: #1a1a1a; letter-spacing: -0.5px; }
+.cover-brand { font-size: 7pt; letter-spacing: 3px; color: #C5973A; text-transform: uppercase; }
+
+/* INNER PAGES */
 .ipage {
   width: 210mm;
   background: #ffffff;
   page-break-before: always;
   margin: 0 auto 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  display: flex;
+  flex-direction: column;
 }
 .ih {
-  padding: 22px 48px 14px; display: flex;
-  justify-content: space-between; align-items: flex-end;
+  padding: 20px 48px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   border-bottom: 1px solid #1a1a1a;
+  flex-shrink: 0;
 }
 .ih-brand { font-size: 6.5pt; letter-spacing: 3px; color: #C5973A; text-transform: uppercase; font-weight: 600; }
-.ih-right { display: flex; gap: 24px; align-items: flex-end; }
+.ih-right { display: flex; gap: 20px; align-items: flex-end; }
 .ih-yacht { font-size: 7pt; letter-spacing: 1.5px; color: #999; text-transform: uppercase; }
-.ih-page { font-size: 7pt; color: #ccc; letter-spacing: 1px; }
-.ib { padding: 20px 48px 0; }
-.sec { margin-bottom: 16px; }
-.sec-title { font-size: 6.5pt; font-weight: 600; letter-spacing: 3px; color: #999; text-transform: uppercase; margin-bottom: 16px; }
-.specs-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
-.spec-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+.ih-page { font-size: 7pt; color: #ccc; }
+
+.ib { padding: 20px 48px 0; flex: 1; }
+
+.sec { margin-bottom: 18px; }
+.sec-title {
+  font-size: 6.5pt;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: #999;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* SPECS */
+.specs-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
 .spec-row:last-child { border-bottom: none; }
-.spec-label { font-size: 8.5pt; color: #999; font-weight: 400; }
+.spec-label { font-size: 8.5pt; color: #999; }
 .spec-value { font-size: 9pt; font-weight: 500; color: #1a1a1a; }
 .spec-value.accent { color: #C5973A; font-weight: 600; }
-.cabin-row { padding: 7px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: flex-start; }
+
+/* ACCOMMODATION */
+.cabin-row {
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+}
 .cabin-row:last-child { border-bottom: none; }
-.cabin-type { font-size: 6.5pt; letter-spacing: 2px; color: #C5973A; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
+.cabin-type { font-size: 6.5pt; letter-spacing: 2px; color: #C5973A; text-transform: uppercase; font-weight: 600; margin-bottom: 2px; }
 .cabin-desc { font-size: 9pt; color: #1a1a1a; }
-.cabin-detail { font-size: 8pt; color: #999; margin-top: 2px; }
-.cabin-right { font-size: 8pt; color: #999; text-align: right; }
-.eq-group { margin-bottom: 10px; }
-.eq-title { font-size: 6.5pt; letter-spacing: 2px; color: #999; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-.eq-items { display: flex; flex-direction: column; gap: 0; }
-.eq-item { font-size: 8.5pt; color: #555; padding: 3px 0 3px 14px; border-bottom: 1px solid #f5f5f5; position: relative; }
+.cabin-detail { font-size: 8pt; color: #999; margin-top: 1px; }
+.cabin-right { font-size: 8pt; color: #999; }
+
+/* EQUIPMENT — two column, vertical list */
+.eq-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.eq-group { margin-bottom: 12px; break-inside: avoid; }
+.eq-title {
+  font-size: 6pt;
+  letter-spacing: 2px;
+  color: #999;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.eq-items { display: flex; flex-direction: column; }
+.eq-item {
+  font-size: 8.5pt;
+  color: #555;
+  padding: 2px 0 2px 12px;
+  position: relative;
+  border-bottom: 1px solid #f8f8f8;
+}
 .eq-item:last-child { border-bottom: none; }
-.eq-item::before { content: '\u2014'; position: absolute; left: 0; color: #ddd; }
+.eq-item::before { content: '\u2014'; position: absolute; left: 0; color: #ddd; font-size: 7pt; top: 4px; }
 .eq-item.hi { color: #1a1a1a; font-weight: 600; }
 .eq-item.hi::before { color: #C5973A; }
-.photo-grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.photo-grid-2x2 img { width: 100%; height: 62mm; object-fit: cover; display: block; }
+
+/* PHOTOS — 2x2 grid, equal size */
+.photo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.photo-grid img {
+  width: 100%;
+  height: 62mm;
+  object-fit: cover;
+  display: block;
+}
+
+/* PRICING */
 .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .price-main { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0; }
-.price-main-label { font-size: 6.5pt; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 6px; }
-.price-main-value { font-size: 22pt; font-weight: 200; color: #1a1a1a; letter-spacing: -1px; line-height: 1; }
-.price-detail-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f5f5f5; font-size: 8.5pt; }
-.price-detail-row:last-child { border-bottom: none; }
+.price-main-label { font-size: 6.5pt; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 5px; }
+.price-main-value { font-size: 20pt; font-weight: 200; color: #1a1a1a; letter-spacing: -0.5px; line-height: 1; }
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 8.5pt;
+}
+.price-row:last-child { border-bottom: none; }
 .pdl { color: #999; }
 .pdv { color: #1a1a1a; font-weight: 500; }
+
+/* NOTES */
 .notes { margin-top: 16px; padding-top: 14px; border-top: 1px solid #e0e0e0; }
-.notes-label { font-size: 6.5pt; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 10px; }
-.notes-text { font-size: 8.5pt; color: #555; line-height: 1.8; }
+.notes-label { font-size: 6.5pt; letter-spacing: 2px; color: #999; text-transform: uppercase; margin-bottom: 8px; }
+.notes-text { font-size: 8.5pt; color: #555; line-height: 1.7; }
+
+/* CONTACT */
 .contact { margin-top: 16px; padding-top: 14px; border-top: 1px solid #1a1a1a; display: flex; justify-content: space-between; align-items: flex-end; }
-.broker-name { font-size: 14pt; font-weight: 300; color: #1a1a1a; letter-spacing: -0.5px; margin-bottom: 3px; }
-.broker-co { font-size: 8pt; color: #999; letter-spacing: 1px; }
+.broker-name { font-size: 13pt; font-weight: 300; color: #1a1a1a; margin-bottom: 2px; }
+.broker-co { font-size: 8pt; color: #999; }
 .contact-right { text-align: right; }
 .contact-item { font-size: 8.5pt; color: #555; margin-bottom: 3px; }
 .ci-label { font-size: 6pt; letter-spacing: 2px; color: #ccc; text-transform: uppercase; display: block; margin-bottom: 1px; }
+
+/* FOOTER — always at bottom, normal flow */
 .ifooter {
   display: flex;
   justify-content: space-between;
@@ -322,13 +409,14 @@ body {
   border-top: 1px solid #f0f0f0;
   padding: 10px 48px 24px;
   margin-top: 20px;
+  flex-shrink: 0;
 }
 .footer-disclaimer { font-size: 6pt; color: #ccc; max-width: 60%; line-height: 1.5; }
 .footer-brand { font-size: 6.5pt; letter-spacing: 2px; color: #C5973A; text-transform: uppercase; text-align: right; }
-.footer-powered { font-size: 5.5pt; color: #ccc; text-align: right; margin-top: 2px; letter-spacing: 1px; }
+.footer-powered { font-size: 5.5pt; color: #ccc; text-align: right; margin-top: 2px; }
 `;
 
-// ─── PAGE BUILDERS ────────────────────────────────────────────────────────────
+// ─── PAGE 1: COVER ───────────────────────────────────────────────────────────
 
 function buildCover(
   yacht: ProposalYachtSnapshot,
@@ -340,13 +428,10 @@ function buildCover(
       ? `<img class="cover-photo" src="${esc(photoUrls[0]!)}" alt="${esc(yacht.name)}">`
       : `<div class="cover-photo-placeholder">No photo available</div>`;
 
-  const specItems: { label: string; value: string }[] = [
+  const specs: { label: string; value: string }[] = [
     { label: "Builder", value: yacht.builder ?? "" },
     { label: "Year", value: yacht.year_built != null ? String(yacht.year_built) : "" },
-    {
-      label: "Length",
-      value: yacht.length_meters ? yacht.length_meters + " m" : "",
-    },
+    { label: "Length", value: yacht.length_meters ? yacht.length_meters + " m" : "" },
     { label: "Flag", value: yacht.flag ?? "" },
     { label: "Base", value: yacht.home_port ?? "" },
   ].filter((i) => i.value);
@@ -362,15 +447,7 @@ function buildCover(
     </div>
     <div class="cover-yacht-name">${esc(yacht.name)}</div>
     <div class="cover-specs-row">
-      ${specItems
-        .map(
-          (i) => `
-        <div>
-          <div class="csi-label">${esc(i.label)}</div>
-          <div class="csi-value">${esc(i.value)}</div>
-        </div>`,
-        )
-        .join("")}
+      ${specs.map((i) => `<div><div class="csi-label">${esc(i.label)}</div><div class="csi-value">${esc(i.value)}</div></div>`).join("")}
     </div>
     <div class="cover-price-row">
       <div>
@@ -383,80 +460,82 @@ function buildCover(
 </div>`;
 }
 
+// ─── PAGE 2: SPECS + ACCOMMODATION + EQUIPMENT ───────────────────────────────
+
 function buildSpecsPage(
   yacht: ProposalYachtSnapshot,
   equipment: ProposalEquipmentItem[],
 ): string {
-  const engineStr = getEngineStr(yacht);
-  const leftSpecs = `
-    ${row("Builder", yacht.builder)}
-    ${row("Model", yacht.model)}
-    ${row("Year built", yacht.year_built)}
-    ${row("Type", humanizeType(yacht.yacht_type))}
-    ${row("LOA", yacht.length_meters ? yacht.length_meters.toFixed(2) + " m" : null)}
-    ${row("Beam", yacht.beam_meters ? yacht.beam_meters + " m" : null)}
-    ${row("Draft", yacht.draft_meters ? yacht.draft_meters + " m" : null)}
-    ${row("Hull material", yacht.hull_material)}`;
+  const eng = engineStr(yacht);
 
-  const rightSpecs = `
-    ${row("Engines", engineStr)}
-    ${row("Total power", yacht.total_hp ? yacht.total_hp + " HP" : null)}
-    ${row("Engine hours", yacht.engine_hours ? yacht.engine_hours + " hrs" : null)}
-    ${row("Max speed", yacht.max_speed_knots ? yacht.max_speed_knots + " knots" : null)}
-    ${row("Cruise speed", yacht.cruising_speed_knots ? yacht.cruising_speed_knots + " knots" : null)}
-    ${row("Range", yacht.range_nm ? yacht.range_nm + " nm" : null)}
-    ${row("Fuel capacity", yacht.fuel_capacity_l ? yacht.fuel_capacity_l.toLocaleString("en") + " L" : null)}
-    ${row("Flag", yacht.flag)}
-    ${row("Home base", yacht.home_port)}
-    ${row("IMO number", yacht.imo_number)}
-    ${accentRow("VAT status", yacht.vat_status)}`;
+  const leftSpecs = [
+    row("Builder", yacht.builder),
+    row("Model", yacht.model),
+    row("Year built", yacht.year_built),
+    row("Type", yacht.yacht_type),
+    row("LOA", yacht.length_meters ? yacht.length_meters.toFixed(2) + " m" : null),
+    row("Beam", yacht.beam_meters ? yacht.beam_meters + " m" : null),
+    row("Draft", yacht.draft_meters ? yacht.draft_meters + " m" : null),
+    row("Hull material", yacht.hull_material),
+    row("Hull type", yacht.hull_type),
+  ].join("");
 
-  const summary = [
+  const rightSpecs = [
+    row("Engines", eng),
+    row("Total power", yacht.total_hp ? yacht.total_hp + " HP" : null),
+    row("Engine hours", yacht.engine_hours ? yacht.engine_hours + " hrs" : null),
+    row("Max speed", yacht.max_speed_knots ? yacht.max_speed_knots + " knots" : null),
+    row("Cruise speed", yacht.cruising_speed_knots ? yacht.cruising_speed_knots + " knots" : null),
+    row("Range", yacht.range_nm ? yacht.range_nm + " nm" : null),
+    row("Fuel capacity", yacht.fuel_capacity_l ? yacht.fuel_capacity_l.toLocaleString("en") + " L" : null),
+    row("Flag", yacht.flag),
+    row("Home base", yacht.home_port),
+    row("IMO number", yacht.imo_number),
+    accentRow("VAT status", yacht.vat_status),
+  ].join("");
+
+  const accomParts = [
     yacht.berths ? yacht.berths + " guests" : null,
     yacht.cabins ? yacht.cabins + " cabins" : null,
     yacht.heads ? yacht.heads + " heads" : null,
     yacht.crew_cabins ? yacht.crew_cabins + " crew" : null,
-  ]
-    .filter(Boolean)
-    .join(" &middot; ");
+  ].filter(Boolean);
+  const accomSummary = accomParts.length ? accomParts.join(" &middot; ") : null;
 
   let equipHTML = "";
   if (equipment && equipment.length > 0) {
     const groups: Record<string, ProposalEquipmentItem[]> = {};
     for (const item of equipment) {
+      if (!item.equipment_type) continue;
       const cat = item.category || "other";
       if (!groups[cat]) groups[cat] = [];
       groups[cat]!.push(item);
     }
-    const groupsHTML = Object.entries(groups)
-      .map(([cat, items]) => {
-        const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, " ");
-        const itemsHTML = items
-          .map((item) => {
-            const lbl = formatEquipLabel(item);
-            const hi = isNotable(item.equipment_type) ? " hi" : "";
-            return `<span class="eq-item${hi}">${esc(lbl)}</span>`;
-          })
-          .join("");
-        return `
-        <div class="eq-group">
-          <div class="eq-title">${label}</div>
-          <div class="eq-items">${itemsHTML}</div>
-        </div>`;
-      })
-      .join("");
+    if (Object.keys(groups).length > 0) {
+      const groupsHTML = Object.entries(groups)
+        .map(([cat, items]) => {
+          const catLabel = CAT_LABELS[cat] || cat.replace(/_/g, " ");
+          const itemsHTML = items
+            .map((item) => {
+              const lbl = equipLabel(item);
+              const hi = notable(item.equipment_type) ? " hi" : "";
+              return `<span class="eq-item${hi}">${esc(lbl)}</span>`;
+            })
+            .join("");
+          return `<div class="eq-group"><div class="eq-title">${catLabel}</div><div class="eq-items">${itemsHTML}</div></div>`;
+        })
+        .join("");
 
-    equipHTML = `
-      <div class="sec" style="padding:0 0;">
-        <div class="sec-title">Equipment &amp; Systems</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 32px;">
-          ${groupsHTML}
-        </div>
-      </div>`;
+      equipHTML = `
+        <div class="sec">
+          <div class="sec-title">Equipment &amp; Systems</div>
+          <div class="eq-wrap">${groupsHTML}</div>
+        </div>`;
+    }
   }
 
   return `
-<div class="ipage" style="page-break-before:always;">
+<div class="ipage">
   <div class="ih">
     <div class="ih-brand">YachtWorth</div>
     <div class="ih-right">
@@ -472,30 +551,32 @@ function buildSpecsPage(
         <div>${rightSpecs}</div>
       </div>
     </div>
+    ${
+      accomSummary
+        ? `
     <div class="sec">
       <div class="sec-title">Accommodation</div>
       <div class="cabin-row">
-        <div class="cabin-left">
-          <div class="cabin-type">Summary</div>
-          <div class="cabin-desc">${summary || "See vessel documentation"}</div>
-        </div>
+        <div><div class="cabin-type">Summary</div><div class="cabin-desc">${accomSummary}</div></div>
       </div>
-    </div>
+    </div>`
+        : ""
+    }
     ${equipHTML}
   </div>
   <div class="ifooter">
     <div class="footer-disclaimer">All specifications believed correct. Buyer must verify independently prior to purchase.</div>
-    <div>
-      <div class="footer-brand">YachtWorth</div>
-      <div class="footer-powered">Powered by PDYE Group</div>
-    </div>
+    <div><div class="footer-brand">YachtWorth</div><div class="footer-powered">Powered by PDYE Group</div></div>
   </div>
 </div>`;
 }
 
+// ─── PAGE 3: PHOTOS ───────────────────────────────────────────────────────────
+
 function buildPhotosPage(
   yacht: ProposalYachtSnapshot,
   photoUrls: string[],
+  pageNum: string,
 ): string {
   const photos = photoUrls.slice(0, 4);
   if (photos.length === 0) return "";
@@ -503,31 +584,30 @@ function buildPhotosPage(
   while (photos.length < 4) photos.push(photos[photos.length - 1]!);
 
   return `
-<div class="ipage" style="page-break-before:always;">
+<div class="ipage">
   <div class="ih">
     <div class="ih-brand">YachtWorth</div>
     <div class="ih-right">
       <div class="ih-yacht">${esc(yacht.name.toUpperCase())}</div>
-      <div class="ih-page">03</div>
+      <div class="ih-page">${pageNum}</div>
     </div>
   </div>
   <div class="ib">
     <div class="sec">
       <div class="sec-title">Photography</div>
-      <div class="photo-grid-2x2">
+      <div class="photo-grid">
         ${photos.map((url) => `<img src="${esc(url)}" alt="">`).join("")}
       </div>
     </div>
   </div>
   <div class="ifooter">
     <div class="footer-disclaimer">Photos representative of vessel condition at time of documentation.</div>
-    <div>
-      <div class="footer-brand">YachtWorth</div>
-      <div class="footer-powered">Powered by PDYE Group</div>
-    </div>
+    <div><div class="footer-brand">YachtWorth</div><div class="footer-powered">Powered by PDYE Group</div></div>
   </div>
 </div>`;
 }
+
+// ─── PAGE 4: PRICING + CONTACT ────────────────────────────────────────────────
 
 function buildPricingPage(
   yacht: ProposalYachtSnapshot,
@@ -539,31 +619,39 @@ function buildPricingPage(
   const showCharter =
     settings.proposal_type === "charter" || settings.proposal_type === "both";
 
+  const priceVal = settings.price_on_application
+    ? "Price on application"
+    : fmt(settings.sale_price_eur) || "Price on application";
+
+  const charterVal = settings.charter_on_application
+    ? "Price on application"
+    : `${esc(fmt(settings.charter_high_eur_week) || "")} <span style="font-size:11pt;font-weight:300;color:#999;">/ week</span>`;
+
   const saleHTML = showSale
     ? `
-    <div class="price-group">
+    <div>
       <div class="price-main">
         <div class="price-main-label">For Sale</div>
-        <div class="price-main-value">${settings.price_on_application ? "Price on application" : esc(fmt(settings.sale_price_eur) || "Price on application")}</div>
+        <div class="price-main-value">${esc(priceVal)}</div>
       </div>
-      ${settings.sale_price_eur && !settings.price_on_application ? `<div class="price-detail-row"><span class="pdl">VAT status</span><span class="pdv">${esc(yacht.vat_status || "")}</span></div>` : ""}
-      ${settings.delivery ? `<div class="price-detail-row"><span class="pdl">Delivery</span><span class="pdv">${esc(settings.delivery)}</span></div>` : ""}
-      ${settings.sea_trial ? `<div class="price-detail-row"><span class="pdl">Sea trial</span><span class="pdv">${esc(settings.sea_trial)}</span></div>` : ""}
-      <div class="price-detail-row"><span class="pdl">Survey</span><span class="pdv">Available on request</span></div>
+      ${yacht.vat_status ? `<div class="price-row"><span class="pdl">VAT status</span><span class="pdv">${esc(yacht.vat_status)}</span></div>` : ""}
+      ${settings.delivery ? `<div class="price-row"><span class="pdl">Delivery</span><span class="pdv">${esc(settings.delivery)}</span></div>` : ""}
+      ${settings.sea_trial ? `<div class="price-row"><span class="pdl">Sea trial</span><span class="pdv">${esc(settings.sea_trial)}</span></div>` : ""}
+      <div class="price-row"><span class="pdl">Survey</span><span class="pdv">Available on request</span></div>
     </div>`
     : "";
 
   const charterHTML = showCharter
     ? `
-    <div class="price-group">
+    <div>
       <div class="price-main">
         <div class="price-main-label">For Charter</div>
-        <div class="price-main-value">${settings.charter_on_application ? "Price on application" : (esc(fmt(settings.charter_high_eur_week) || "") + ' <span style="font-size:12pt;font-weight:300;color:#999;">/ week</span>')}</div>
+        <div class="price-main-value">${charterVal}</div>
       </div>
-      ${settings.charter_low_eur_week ? `<div class="price-detail-row"><span class="pdl">Low season</span><span class="pdv">${esc(fmt(settings.charter_low_eur_week) || "")} / week</span></div>` : ""}
-      ${settings.charter_apa_pct ? `<div class="price-detail-row"><span class="pdl">APA</span><span class="pdv">${esc(settings.charter_apa_pct)}% of base rate</span></div>` : ""}
-      ${settings.charter_area ? `<div class="price-detail-row"><span class="pdl">Charter area</span><span class="pdv">${esc(settings.charter_area)}</span></div>` : ""}
-      ${settings.myba_contract ? `<div class="price-detail-row"><span class="pdl">Contract</span><span class="pdv">MYBA standard</span></div>` : ""}
+      ${settings.charter_low_eur_week ? `<div class="price-row"><span class="pdl">Low season</span><span class="pdv">${esc(fmt(settings.charter_low_eur_week) || "")} / week</span></div>` : ""}
+      ${settings.charter_apa_pct ? `<div class="price-row"><span class="pdl">APA</span><span class="pdv">${esc(settings.charter_apa_pct)}% of base rate</span></div>` : ""}
+      ${settings.charter_area ? `<div class="price-row"><span class="pdl">Charter area</span><span class="pdv">${esc(settings.charter_area)}</span></div>` : ""}
+      ${settings.myba_contract ? `<div class="price-row"><span class="pdl">Contract</span><span class="pdv">MYBA standard</span></div>` : ""}
     </div>`
     : "";
 
@@ -580,7 +668,7 @@ function buildPricingPage(
   const contactHTML = hasContact
     ? `
     <div class="contact">
-      <div class="contact-left">
+      <div>
         <div class="broker-name">${esc(settings.broker_name || "")}</div>
         ${settings.broker_company ? `<div class="broker-co">${esc(settings.broker_company)}</div>` : ""}
       </div>
@@ -593,7 +681,7 @@ function buildPricingPage(
     : "";
 
   return `
-<div class="ipage" style="page-break-before:always;">
+<div class="ipage">
   <div class="ih">
     <div class="ih-brand">YachtWorth</div>
     <div class="ih-right">
@@ -614,20 +702,9 @@ function buildPricingPage(
   </div>
   <div class="ifooter">
     <div class="footer-disclaimer">All details believed correct but not guaranteed. Subject to prior sale, withdrawal or price change without notice. Not a binding offer.</div>
-    <div>
-      <div class="footer-brand">YachtWorth</div>
-      <div class="footer-powered">Powered by PDYE Group</div>
-    </div>
+    <div><div class="footer-brand">YachtWorth</div><div class="footer-powered">Powered by PDYE Group</div></div>
   </div>
 </div>`;
-}
-
-function humanizeType(t: string | null | undefined): string | null {
-  if (!t) return null;
-  return t
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
 }
 
 // ─── PUBLIC API ───────────────────────────────────────────────────────────────
@@ -649,14 +726,7 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
   );
 
   const hasPhotos = photoUrls.length >= 1;
-  const pricingNum = hasPhotos ? "04" : "03";
-
-  const pages = [
-    buildCover(yacht, settings, photoUrls),
-    buildSpecsPage(yacht, equipment),
-    hasPhotos ? buildPhotosPage(yacht, photoUrls) : "",
-    buildPricingPage(yacht, settings, pricingNum),
-  ].join("\n");
+  const pricePage = hasPhotos ? "04" : "03";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -666,7 +736,10 @@ export function buildProposalPdfHtml(input: ProposalPdfInput): string {
 </head>
 <body>
 <div style="background:#e0e0e0;padding:20px 0;">
-${pages}
+${buildCover(yacht, settings, photoUrls)}
+${buildSpecsPage(yacht, equipment)}
+${hasPhotos ? buildPhotosPage(yacht, photoUrls, "03") : ""}
+${buildPricingPage(yacht, settings, pricePage)}
 </div>
 </body>
 </html>`;
