@@ -258,8 +258,11 @@ body {
 .cover-price { font-size: 22pt; font-weight: 300; color: #1a1a1a; letter-spacing: -1px; }
 .cover-brand { font-size: 7pt; letter-spacing: 3px; color: #C5973A; text-transform: uppercase; text-align: right; }
 .ipage {
-  width: 210mm; background: #ffffff;
-  margin: 0 auto 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  width: 210mm;
+  background: #ffffff;
+  page-break-before: always;
+  margin: 0 auto 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
 .ih {
   padding: 22px 48px 14px; display: flex;
@@ -270,7 +273,7 @@ body {
 .ih-right { display: flex; gap: 24px; align-items: flex-end; }
 .ih-yacht { font-size: 7pt; letter-spacing: 1.5px; color: #999; text-transform: uppercase; }
 .ih-page { font-size: 7pt; color: #ccc; letter-spacing: 1px; }
-.ib { padding: 20px 48px 44px; }
+.ib { padding: 20px 48px 0; }
 .sec { margin-bottom: 16px; }
 .sec-title { font-size: 6.5pt; font-weight: 600; letter-spacing: 3px; color: #999; text-transform: uppercase; margin-bottom: 16px; }
 .specs-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
@@ -313,9 +316,12 @@ body {
 .contact-item { font-size: 8.5pt; color: #555; margin-bottom: 3px; }
 .ci-label { font-size: 6pt; letter-spacing: 2px; color: #ccc; text-transform: uppercase; display: block; margin-bottom: 1px; }
 .ifooter {
-  display: flex; justify-content: space-between; align-items: flex-end;
-  border-top: 1px solid #f0f0f0; padding-top: 10px;
-  margin: 24px 48px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 1px solid #f0f0f0;
+  padding: 10px 48px 24px;
+  margin-top: 20px;
 }
 .footer-disclaimer { font-size: 6pt; color: #ccc; max-width: 60%; line-height: 1.5; }
 .footer-brand { font-size: 6.5pt; letter-spacing: 2px; color: #C5973A; text-transform: uppercase; text-align: right; }
