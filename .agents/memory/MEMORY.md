@@ -1,0 +1,1 @@
+- [Proposal/Listing settings persistence](proposal-listing-settings-persistence.md) — new settings fields must be added to openapi.yaml + codegen or zod strips them on save.

@@ -83,6 +83,7 @@ export * from "./proposalSaveInput";
 export * from "./proposalSaveInputEquipmentSnapshotItem";
 export * from "./proposalSaveInputYachtSnapshot";
 export * from "./proposalSettings";
+export * from "./proposalTemplate";
 export * from "./proposalType";
 export * from "./proposalYachtSnapshot";
 export * from "./roiCalculation";

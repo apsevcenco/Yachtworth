@@ -3856,6 +3856,7 @@ export const SaveProposalBody = zod.object({
   settings_snapshot: zod
     .union([
       zod.object({
+        template: zod.enum(["minimal", "dark", "classic"]).optional(),
         proposal_type: zod.enum(["sale", "charter", "both"]),
         language: zod.enum([
           "english",
@@ -3914,6 +3915,7 @@ export const GetProposalResponse = zod.object({
   settings_snapshot: zod
     .union([
       zod.object({
+        template: zod.enum(["minimal", "dark", "classic"]).optional(),
         proposal_type: zod.enum(["sale", "charter", "both"]),
         language: zod.enum([
           "english",

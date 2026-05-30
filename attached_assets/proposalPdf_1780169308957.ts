@@ -35,9 +35,7 @@ export interface ProposalYachtSnapshot {
   fuel_capacity_l?: number | null;
   hull_material?: string | null;
   hull_type?: string | null;
-  registration_number?: string | null;
   imo_number?: string | null;
-  hull_id?: string | null;
   vat_status?: string | null;
   photo_url?: string | null;
   photo_urls?: string[] | null;
@@ -61,15 +59,13 @@ export interface ProposalEquipmentItem {
 }
 
 export interface ProposalSettings {
-  template?: ProposalTemplate;
+  template: ProposalTemplate;
   proposal_type: ProposalType;
   language: ProposalLanguage;
-  sections: string[];
   sale_price_eur?: number | null;
   charter_low_eur_week?: number | null;
   charter_high_eur_week?: number | null;
   charter_apa_pct?: number | null;
-  charter_vat_pct?: number | null;
   price_on_application?: boolean | null;
   charter_on_application?: boolean | null;
   delivery?: string | null;

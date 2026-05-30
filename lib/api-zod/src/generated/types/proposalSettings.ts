@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProposalLanguage } from "./proposalLanguage";
+import type { ProposalTemplate } from "./proposalTemplate";
 import type { ProposalType } from "./proposalType";
 
 export interface ProposalSettings {
+  template?: ProposalTemplate;
   proposal_type: ProposalType;
   language: ProposalLanguage;
   /** Document sections to include

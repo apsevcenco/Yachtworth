@@ -1963,7 +1963,17 @@ export const ProposalLanguage = {
   russian: "russian",
 } as const;
 
+export type ProposalTemplate =
+  (typeof ProposalTemplate)[keyof typeof ProposalTemplate];
+
+export const ProposalTemplate = {
+  minimal: "minimal",
+  dark: "dark",
+  classic: "classic",
+} as const;
+
 export interface ProposalSettings {
+  template?: ProposalTemplate;
   proposal_type: ProposalType;
   language: ProposalLanguage;
   /** Document sections to include

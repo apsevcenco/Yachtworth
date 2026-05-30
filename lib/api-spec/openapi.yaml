@@ -3463,10 +3463,15 @@ components:
     ProposalLanguage:
       type: string
       enum: [english, french, italian, spanish, german, russian]
+    ProposalTemplate:
+      type: string
+      enum: [minimal, dark, classic]
     ProposalSettings:
       type: object
       required: [proposal_type, language, sections]
       properties:
+        template:
+          $ref: "#/components/schemas/ProposalTemplate"
         proposal_type:
           $ref: "#/components/schemas/ProposalType"
         language:

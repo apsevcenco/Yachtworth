@@ -22,9 +22,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type {
   ProposalLanguage,
   ProposalSettings,
+  ProposalTemplate,
   ProposalType,
   ProposalYachtSnapshot,
 } from "../../lib/proposalPdf";
+import TemplatePickerSheet from "../../components/TemplatePickerSheet";
+
+const TEMPLATE_LABELS: Record<ProposalTemplate, string> = {
+  minimal: "Minimal · White & Gold",
+  dark: "Dark Luxury · Obsidian & Gold",
+  classic: "Classic Blue · Split cover",
+};
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -102,6 +110,8 @@ export default function ProposalFormScreen() {
   const [berths, setBerths] = useState("");
 
   // Settings
+  const [template, setTemplate] = useState<ProposalTemplate>("minimal");
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [proposalType, setProposalType] = useState<ProposalType>("sale");
   const [language, setLanguage] = useState<ProposalLanguage>("english");
   const [salePrice, setSalePrice] = useState("");
@@ -198,6 +208,7 @@ export default function ProposalFormScreen() {
     if (watermark) sections.push("watermark_confidential");
 
     const settings: ProposalSettings = {
+      template,
       proposal_type: proposalType,
       language,
       sections,
@@ -361,6 +372,25 @@ export default function ProposalFormScreen() {
         )}
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Template</Text>
+          <Pressable
+            onPress={() => setPickerVisible(true)}
+            style={({ pressed }) => [
+              styles.templateRow,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.templateValue}>
+                {TEMPLATE_LABELS[template]}
+              </Text>
+              <Text style={styles.templateHint}>Tap to change style</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color={GOLD} />
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Proposal type</Text>
           <View style={styles.segRow}>
             {TYPES.map((t) => {
@@ -509,6 +539,13 @@ export default function ProposalFormScreen() {
           <Text style={styles.primaryBtnText}>Preview proposal</Text>
         </Pressable>
       </ScrollView>
+
+      <TemplatePickerSheet
+        visible={pickerVisible}
+        selected={template}
+        onSelect={setTemplate}
+        onClose={() => setPickerVisible(false)}
+      />
     </View>
   );
 }
@@ -607,6 +644,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     borderWidth: 1,
     borderColor: DIVIDER,
+  },
+  templateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+  },
+  templateValue: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  templateHint: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
   },
   segRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   seg: {

@@ -77,6 +77,7 @@ export default function ProposalPreviewScreen() {
           ? params.settings_payload
           : undefined,
         {
+          template: "minimal",
           proposal_type: "sale",
           language: "english",
           sections: ["cover", "specs", "accommodation", "contact"],
@@ -178,6 +179,7 @@ export default function ProposalPreviewScreen() {
         <Text style={styles.title}>{yacht.name}</Text>
         <View style={styles.chipsRow}>
           <Chip text={proposalTypeLabel(settings.proposal_type)} />
+          <Chip text={settings.template ?? "minimal"} />
           <Chip text={settings.language} />
           {savedId ? <Chip text="Saved" gold /> : null}
         </View>
