@@ -55,6 +55,22 @@ buildXHtml(...)` — PDF branch only; DOCX + legacy untouched. Proposal (sale/ch
 6-lang incl. russian) was done this way and packs cover+specs+pricing+equipment+gallery+contact
 with no mid-doc empty pages (only the natural short contact tail page).
 
+## Keeping sections together / two-column without engine changes
+The packer (`core/paginateBlocks.ts`) is greedy per top-level block and has **no
+keepWithNext**. To guarantee a set of sections never separate across pages (e.g. proposal
+"Pricing + Notes + Broker Contact must stay together; contact never alone"), emit them as
+the children of ONE single-column `columns` node → renders as a single non-splittable
+`DocBlock`. **Tradeoff (intentional):** that block can overflow if a child is huge (e.g.
+very long notes); Chromium *flows* the overflow to the next page (break-inside:avoid is a
+hint, not a clip) so nothing is lost — grouping is prioritised over page-fit per owner ask.
+For **two-column lists** (proposal equipment): a two-column `columns` node with a
+single-cell `table` per column (cell = bold name + muted sub-line). **Gotcha:**
+`measureTable` has no idea a table nested in `columns` renders at ~half width, so it
+under-counts wrapped sub-lines; columns blocks are non-splittable, so **chunk the list**
+(≤8 rows/column → ≈206mm worst case even at 3-line wraps) and emit multiple columns blocks
+rather than relying on the engine to split. Do NOT add splittable-columns logic to the
+engine for a layout-only task — that's new architecture.
+
 ## Hardening already in place
 Untrusted/caller values are clamped at the sink: `clampMm`/`clampPct` + a `CALLOUT_TONES`
 whitelist guard confidence.pct, widthPct, heightMm, spacer.mm, callout.tone. `moneyOf` escapes the

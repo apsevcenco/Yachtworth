@@ -41,3 +41,15 @@ id = "muNJHUR-W4Q4_Pe7W3U-A"
 uri = "file://artifacts/api-server/exports/Aquila_proposal_V2_ru.pdf"
 type = "pdf"
 title = "Proposal V2 (Русский) — Sunseeker 88 Aquila"
+
+[[outputs]]
+id = "Bp9w-QVOkESyu3PcjRmE8"
+uri = "file://artifacts/api-server/exports/Aquila_Proposal_en.pdf"
+type = "pdf"
+title = "Proposal V2 (English) — Sunseeker 88 Aquila"
+
+[[outputs]]
+id = "HQ9m8FXJssnbOkdKUxwZT"
+uri = "file://artifacts/api-server/exports/Aquila_Proposal_ru.pdf"
+type = "pdf"
+title = "Proposal V2 (Русский) — Sunseeker 88 Aquila"

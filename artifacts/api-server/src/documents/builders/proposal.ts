@@ -223,7 +223,8 @@ function equipmentDetail(it: ProposalEquipmentItem): string {
   const bits: string[] = [];
   if (it.brand) bits.push(String(it.brand));
   if (it.model) bits.push(String(it.model));
-  if (it.quantity != null) bits.push(`×${it.quantity}`);
+  // ×1 carries no information — only show multiples.
+  if (it.quantity != null && num(it.quantity) !== 1) bits.push(`×${it.quantity}`);
   if (it.power_kw != null) bits.push(`${it.power_kw} kW`);
   if (it.power_hp != null) bits.push(`${it.power_hp} HP`);
   if (it.capacity_liters != null) bits.push(`${it.capacity_liters} L`);
@@ -232,12 +233,39 @@ function equipmentDetail(it: ProposalEquipmentItem): string {
   return bits.join(" · ");
 }
 
-function equipmentRows(items: ProposalEquipmentItem[]): TableCell[][] {
-  return items.map((it) => {
-    const cat: TableCell = { text: it.category ?? "", accent: true };
-    const name: TableCell = { text: it.equipment_type ?? "", bold: true };
-    const detail: TableCell = { text: equipmentDetail(it), muted: true };
-    return [cat, name, detail];
+/** One equipment item as a single bold name + muted "category · detail" sub-line. */
+function equipmentCell(it: ProposalEquipmentItem): TableCell {
+  const detail = equipmentDetail(it);
+  const sub = [it.category, detail].filter((x) => x != null && x !== "").join(" · ");
+  const cell: TableCell = { text: it.equipment_type ?? "", bold: true };
+  if (sub) cell.sub = sub;
+  return cell;
+}
+
+/**
+ * Equipment as a two-column layout. Chunked conservatively (≤8 items per
+ * column) so each `columns` block always fits one page — the columns node is a
+ * single non-splittable block, so we must never let one exceed the page budget.
+ */
+function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] {
+  if (!items.length) return [];
+  // ≤8 per column. measureTable can't know a nested table renders at ~half the
+  // page width, so it under-counts wrapped sub-lines; 8 rows stays safely under
+  // the page budget even if every sub-line wraps to 3 lines (≈206mm < 240mm).
+  const PER_CHUNK = 16;
+  const chunks: ProposalEquipmentItem[][] = [];
+  for (let i = 0; i < items.length; i += PER_CHUNK) chunks.push(items.slice(i, i + PER_CHUNK));
+  const colNodes = (rows: ProposalEquipmentItem[]): ContentNode[] =>
+    rows.length ? [{ kind: "table", columns: [{}], rows: rows.map((it) => [equipmentCell(it)]) }] : [];
+  return chunks.map((chunk, idx) => {
+    const mid = Math.ceil(chunk.length / 2);
+    const left = chunk.slice(0, mid);
+    const right = chunk.slice(mid);
+    const heading =
+      chunks.length > 1 ? `${d["equipment"]} — ${idx + 1}/${chunks.length}` : d["equipment"]!;
+    const columns: { subHeading?: string; nodes: ContentNode[] }[] = [{ nodes: colNodes(left) }];
+    if (right.length) columns.push({ nodes: colNodes(right) });
+    return { kind: "columns", heading, columns };
   });
 }
 
@@ -309,7 +337,7 @@ export function buildProposalModel(input: {
   // ── body ──
   const body: ContentNode[] = [];
 
-  // Specifications | Accommodation
+  // 2. Specifications | Accommodation
   body.push({
     kind: "columns",
     heading: d["specifications"]!,
@@ -322,7 +350,24 @@ export function buildProposalModel(input: {
     ],
   });
 
-  // Pricing cards
+  // 3. Equipment (two columns)
+  const equip = Array.isArray(r.equipment) ? r.equipment : [];
+  body.push(...equipmentNodes(equip, d));
+
+  // 4. Photography (all available photos)
+  if (photos.length) {
+    body.push({
+      kind: "gallery",
+      heading: d["photography"]!,
+      columns: 3,
+      images: photos.map((url) => ({ url })),
+    });
+  }
+
+  // 5. Pricing + Notes + Broker Contact — ONE atomic block so the packer can
+  // never strand the broker contact (or notes) on a separate page.
+  const pricingChildren: ContentNode[] = [];
+
   const cards: { label: string; value: string; emphasis?: boolean }[] = [];
   if (showSale) {
     const saleVal =
@@ -333,10 +378,9 @@ export function buildProposalModel(input: {
     cards.push({ label: d["forCharter"]!, value: charterValue(r, d) });
   }
   if (cards.length) {
-    body.push({ kind: "metrics", heading: d["pricing"]!, cards });
+    pricingChildren.push({ kind: "metrics", heading: d["pricing"]!, cards });
   }
 
-  // Pricing / commercial meta
   const metaRows: { label: string; value: string }[] = [];
   if (showCharter) {
     const terms: string[] = [];
@@ -349,36 +393,13 @@ export function buildProposalModel(input: {
   if (r.sea_trial) metaRows.push({ label: d["seaTrial"]!, value: String(r.sea_trial) });
   if (r.myba_contract) metaRows.push({ label: d["contract"]!, value: d["mybaStandard"]! });
   if (metaRows.length) {
-    body.push({ kind: "keyValue", rows: metaRows });
+    pricingChildren.push({ kind: "keyValue", rows: metaRows });
   }
 
-  // Notes
   if (r.notes) {
-    body.push({ kind: "paragraph", heading: d["notes"]!, panel: true, text: String(r.notes) });
+    pricingChildren.push({ kind: "paragraph", heading: d["notes"]!, panel: true, text: String(r.notes) });
   }
 
-  // Equipment
-  const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  if (equip.length) {
-    body.push({
-      kind: "table",
-      heading: d["equipment"]!,
-      columns: [{ widthPct: 24 }, { widthPct: 34 }, {}],
-      rows: equipmentRows(equip),
-    });
-  }
-
-  // Photography
-  if (photos.length) {
-    body.push({
-      kind: "gallery",
-      heading: d["photography"]!,
-      columns: 3,
-      images: photos.map((url) => ({ url })),
-    });
-  }
-
-  // Broker contact
   const contactRows: { label: string; value: string }[] = [];
   if (r.broker_name) contactRows.push({ label: "Broker", value: String(r.broker_name) });
   if (r.broker_company) contactRows.push({ label: "Company", value: String(r.broker_company) });
@@ -386,7 +407,11 @@ export function buildProposalModel(input: {
   if (r.broker_email) contactRows.push({ label: "Email", value: String(r.broker_email) });
   if (r.broker_website) contactRows.push({ label: "Website", value: String(r.broker_website) });
   if (contactRows.length) {
-    body.push({ kind: "keyValue", heading: d["contact"]!, rows: contactRows });
+    pricingChildren.push({ kind: "keyValue", heading: d["contact"]!, rows: contactRows });
+  }
+
+  if (pricingChildren.length) {
+    body.push({ kind: "columns", columns: [{ nodes: pricingChildren }] });
   }
 
   return {
