@@ -1,8 +1,9 @@
+import { buildValuationModel } from "./builders/valuation";
 import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
 import { renderPdf } from "./pdf/generatePdf";
+import { renderModelToPdfHtml } from "./pdf/renderModelToPdfHtml";
 import { buildProposalHtml } from "./pdf/templates/proposalTemplate";
 import { buildValuationHtml } from "./pdf/templates/valuationTemplate";
-import { buildValuationAdaptiveHtml } from "./templates/valuationAdaptive";
 import {
   DOCX_CONTENT_TYPE,
   PDF_CONTENT_TYPE,
@@ -56,10 +57,11 @@ export async function generateDocument(
       };
     }
 
-    // Opt-in adaptive block engine (PDF only). Default stays legacy.
+    // Opt-in adaptive engine (PDF only): semantic model → blocks → packed pages.
+    // Default stays legacy.
     const html =
       settings.engine === "adaptive"
-        ? buildValuationAdaptiveHtml({ yacht, reportData, settings, template })
+        ? renderModelToPdfHtml(buildValuationModel({ yacht, reportData, settings, template }))
         : buildValuationHtml({ yacht, reportData, settings, template });
     const buffer = await renderPdf(html);
     return {

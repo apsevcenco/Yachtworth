@@ -158,6 +158,41 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .notes p { margin: 0; }
   .contact { margin-top: 4px; }
   .disclaimer { color: ${t.textMuted}; font-size: 9px; font-style: italic; }
+  /* generic adaptive-engine nodes (shared by all document types) */
+  .sec-h { font-weight: 800; color: ${t.text}; margin: 0 0 10px; border-bottom: 2px solid ${t.accent}; padding-bottom: 6px; }
+  .sec-h.h1 { font-size: 16px; }
+  .sec-h.h2 { font-size: 14px; }
+  .sec-h.h3 { font-size: 12px; }
+  table.tbl { width: 100%; border-collapse: collapse; }
+  table.tbl th { text-align: left; color: ${t.accent}; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; padding: 0 4px 6px; border-bottom: 1px solid ${t.line}; }
+  table.tbl td { padding: 9px 4px; border-bottom: 1px solid ${t.line}; vertical-align: top; }
+  .tbl-sub { color: ${t.textMuted}; font-weight: 400; font-size: 10px; margin-top: 2px; }
+  .tbl-src { color: ${t.accent}; font-weight: 600; font-size: 8.5px; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 3px; }
+  .tbl-accent { color: ${t.accent}; }
+  .ta-r { text-align: right; }
+  .ta-c { text-align: center; }
+  .b { font-weight: 700; }
+  .i { font-style: italic; }
+  td.b, td.i, td.tbl-accent, td.muted { /* ensure cell-level utility classes apply */ }
+  .tag-a { background: #fbeaea; color: #b02a2a; }
+  .tag-b { background: #fdf1e3; color: #b5701a; }
+  .tag-c { background: #e8eef9; color: #26508f; }
+  .tag-d { background: ${t.panelBg}; color: ${t.textMuted}; }
+  /* gallery */
+  .gallery { display: flex; flex-wrap: wrap; gap: ${"2mm"}; }
+  .gal-cell { overflow: hidden; }
+  .gal-img { width: 100%; height: 36mm; object-fit: cover; border-radius: 2px; display: block; }
+  .gal-cap { font-size: 9px; color: ${t.textMuted}; margin-top: 3px; }
+  .single-img { width: 100%; object-fit: contain; display: block; border-radius: 2px; }
+  /* callout */
+  .callout { background: ${t.panelBg}; border-left: 3px solid ${t.accent}; padding: 10px 14px; border-radius: 2px; font-size: 10.5px; }
+  .callout.legal { font-style: italic; color: ${t.textMuted}; }
+  /* signature */
+  .sig-img { max-width: 60%; max-height: 30mm; object-fit: contain; display: block; }
+  .sig-line { border-top: 1px solid ${t.text}; width: 60%; margin-top: 22px; }
+  .sig-name { font-weight: 600; margin-top: 6px; }
+  .sig-role { font-size: 10px; margin-top: 2px; }
+  .divider { border-top: 1px solid ${t.line}; }
   ${
     confidential
       ? `.watermark { position: fixed; top: 45%; left: 0; right: 0; text-align: center;

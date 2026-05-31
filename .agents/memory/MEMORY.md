@@ -1,1 +1,2 @@
-- [Adaptive document engine](document-generation-engine.md) — opt-in block-based PDF layout (valuation pilot); legacy stays default; how pagination + escaping work.
+- [Adaptive document engine](adaptive-document-engine.md) — opt-in (`exportSettings.engine==="adaptive"`) semantic-model PDF engine in api-server; legacy stays default; height-heuristic tuning + verification recipe.
+- [Proposal/listing settings persistence](proposal-listing-settings-persistence.md) — how proposal/listing snapshot settings persist.
