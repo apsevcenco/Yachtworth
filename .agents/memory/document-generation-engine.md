@@ -23,6 +23,12 @@ Universal server-side document engine. First consumer = Yacht Proposal export (P
 - Always `try/finally { browser.close() }` (catch-suppressed) so Chromium is cleaned up on render errors.
 - `puppeteer-core@25` requires **Node ≥22.12** — pinned via `engines` in api-server package.json.
 
+## Photo handling (non-obvious — affects testing)
+
+- **Both PDF templates accept only `https://` photo URLs** (Professional: strict `^https://`; Legacy: `^https?://`). Non-https sources (`data:` URIs, `http:`) are **silently dropped** — cover hero and gallery render empty. So local/offline tests with synthetic data-URI images show *no photos*; this is correct behavior, not a bug. Test with real https URLs (e.g. a reachable image host) to exercise the photo path.
+- **DOCX embeds no images at all** (0 `<w:drawing>`), and has **no CONFIDENTIAL watermark**, even when https photos + confidential flag are supplied. PDF has both. DOCX still carries all text content incl. pricing/broker/disclaimer ("Indicative · not certified · valid 30 days"). This PDF↔DOCX divergence is current intended scope, not a regression.
+- Professional photo gallery paginates 6 per page with a "PHOTOGRAPHY — n/N" header; equipment paginates with "EQUIPMENT & INVENTORY — n/N".
+
 ## Render deployment constraints (production)
 
 - Render image must include a Chrome/Chromium binary and set `PUPPETEER_EXECUTABLE_PATH` to it, else the PDF path hard-fails at runtime (DOCX still works — pure JS).
