@@ -29,10 +29,13 @@ router.post(
     const body = isObject(req.body) ? req.body : {};
 
     const documentType = body["documentType"];
-    if (documentType !== "proposal") {
+    if (documentType !== "proposal" && documentType !== "valuation_report") {
       res
         .status(documentType ? 501 : 400)
-        .json({ error: "Unsupported or missing documentType (only 'proposal')." });
+        .json({
+          error:
+            "Unsupported or missing documentType (only 'proposal' or 'valuation_report').",
+        });
       return;
     }
 
@@ -49,7 +52,7 @@ router.post(
     }
 
     const request: GenerateDocumentRequest = {
-      documentType: "proposal",
+      documentType: documentType as GenerateDocumentRequest["documentType"],
       format: format as DocumentFormat,
       template: body["template"] as GenerateDocumentRequest["template"],
       yachtProfile: yachtProfile as unknown as GenerateDocumentRequest["yachtProfile"],

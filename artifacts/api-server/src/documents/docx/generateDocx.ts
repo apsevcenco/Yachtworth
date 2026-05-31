@@ -1,8 +1,10 @@
 import { Packer } from "docx";
 import { buildProposalDocx } from "./templates/proposalDocx";
+import { buildValuationDocx } from "./templates/valuationDocx";
 import type {
   ExportSettings,
   ProposalReportData,
+  ValuationReportData,
   YachtProfile,
 } from "../documentTypes";
 
@@ -13,5 +15,15 @@ export async function renderProposalDocx(input: {
   settings: ExportSettings;
 }): Promise<Buffer> {
   const doc = buildProposalDocx(input);
+  return Packer.toBuffer(doc);
+}
+
+/** Build the valuation report Word document and pack it to a Buffer. */
+export async function renderValuationDocx(input: {
+  yacht: YachtProfile;
+  reportData: ValuationReportData;
+  settings: ExportSettings;
+}): Promise<Buffer> {
+  const doc = buildValuationDocx(input);
   return Packer.toBuffer(doc);
 }

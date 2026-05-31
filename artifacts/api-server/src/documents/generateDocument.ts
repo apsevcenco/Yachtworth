@@ -1,44 +1,72 @@
-import { renderProposalDocx } from "./docx/generateDocx";
+import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
 import { renderPdf } from "./pdf/generatePdf";
 import { buildProposalHtml } from "./pdf/templates/proposalTemplate";
+import { buildValuationHtml } from "./pdf/templates/valuationTemplate";
 import {
   DOCX_CONTENT_TYPE,
   PDF_CONTENT_TYPE,
   normalizeTemplate,
   type GenerateDocumentRequest,
   type GeneratedDocument,
+  type ProposalReportData,
+  type ValuationReportData,
 } from "./documentTypes";
 
-function safeFileBase(name: string): string {
-  const base = (name || "proposal")
+function safeFileBase(name: string, fallback: string): string {
+  const base = (name || fallback)
     .normalize("NFKD")
     .replace(/[^\w\s-]/g, "")
     .trim()
     .replace(/\s+/g, "_")
     .slice(0, 60);
-  return base || "proposal";
+  return base || fallback;
 }
 
 /**
- * Universal document dispatcher. Currently supports `documentType: "proposal"`
- * in both `pdf` and `docx` formats. Designed so future tools (valuation,
- * ownership cost, charter ROI, charter planner, survey reports) can plug in
- * their own templates without touching the transport/route layer.
+ * Universal document dispatcher. Supports `documentType: "proposal"` and
+ * `documentType: "valuation_report"`, each in both `pdf` and `docx` formats.
+ * Designed so future tools (ownership cost, charter ROI, charter planner,
+ * survey reports) can plug in their own templates without touching the
+ * transport/route layer.
  */
 export async function generateDocument(
   req: GenerateDocumentRequest,
 ): Promise<GeneratedDocument> {
-  if (req.documentType !== "proposal") {
+  if (req.documentType !== "proposal" && req.documentType !== "valuation_report") {
     throw Object.assign(new Error(`Unsupported documentType: ${req.documentType}`), {
       statusCode: 501,
     });
   }
 
   const yacht = req.yachtProfile;
-  const reportData = req.reportData ?? {};
   const settings = req.exportSettings ?? {};
   const template = normalizeTemplate(req.template ?? settings.template);
-  const fileBase = safeFileBase(yacht?.name ?? "proposal");
+
+  if (req.documentType === "valuation_report") {
+    const reportData = (req.reportData ?? {}) as ValuationReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "valuation", "valuation");
+
+    if (req.format === "docx") {
+      const buffer = await renderValuationDocx({ yacht, reportData, settings });
+      return {
+        buffer,
+        contentType: DOCX_CONTENT_TYPE,
+        fileName: `${fileBase}_valuation.docx`,
+      };
+    }
+
+    const html = buildValuationHtml({ yacht, reportData, settings, template });
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_valuation.pdf`,
+    };
+  }
+
+  // documentType === "proposal"
+  const reportData = (req.reportData ?? {}) as ProposalReportData;
+  const fileBase = safeFileBase(yacht?.name ?? "proposal", "proposal");
 
   if (req.format === "docx") {
     const buffer = await renderProposalDocx({ yacht, reportData, settings });

@@ -1,8 +1,19 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "Z92VDftYmLTWjJ7riXpkf"
 uri = "file://artifacts/yachtworth-app/assets/images/icon.png"
 type = "image"
 title = "yachtworth icon"
+
+[[outputs]]
+id = "kA0wT3yfPDHhDAvqnYP1i"
+uri = "file://attached_assets/valuation_samples/Serenity_valuation.pdf"
+type = "pdf"
+title = "Sample Valuation Report — PDF (6 pages)"
+
+[[outputs]]
+id = "jbhWTkzm2q2USePgNMZKO"
+uri = "file://attached_assets/valuation_samples/Serenity_valuation.docx"
+type = "word_document"
+title = "Sample Valuation Report — Word (DOCX)"

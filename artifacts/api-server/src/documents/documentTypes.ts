@@ -10,7 +10,7 @@
  * Expo client-side ("Legacy") proposal PDF generator.
  */
 
-export type DocumentType = "proposal";
+export type DocumentType = "proposal" | "valuation_report";
 export type DocumentFormat = "pdf" | "docx";
 
 /** Backend template set. `dark` from the legacy client maps to `premium`. */
@@ -102,6 +102,15 @@ export interface ProposalReportData {
   broker_website?: string | null;
 }
 
+/** Broker / surveyor contact block (used by valuation reports). */
+export interface BrokerInfo {
+  name?: string | null;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+}
+
 export interface ExportSettings {
   template?: DocumentTemplate;
   language?: ProposalLanguage;
@@ -111,6 +120,48 @@ export interface ExportSettings {
   /** Branding overrides (optional; defaults to Yachtworth navy/gold). */
   brand_name?: string | null;
   accent_color?: string | null;
+  /** Alias for brand_name accepted by the valuation report input. */
+  branding?: string | null;
+  /** Contact block printed on valuation reports. */
+  brokerInfo?: BrokerInfo | null;
+}
+
+// ─── valuation report ──────────────────────────────────────────────────────────
+
+/** A single market comparable used to support the valuation. */
+export interface ComparableYacht {
+  name?: string | null;
+  builder?: string | null;
+  model?: string | null;
+  year?: number | null;
+  length_meters?: number | null;
+  price?: number | null;
+  currency?: string | null;
+  location?: string | null;
+  source?: string | null;
+  notes?: string | null;
+}
+
+/** A factor that influences the valuation (condition, refit, hours, market, …). */
+export interface ValuationFactor {
+  factor?: string | null;
+  /** Free-text or one of positive/negative/neutral — rendered as a colour-coded chip. */
+  impact?: string | null;
+  weight?: number | null;
+  notes?: string | null;
+}
+
+/** Valuation-report-specific content (NOT yacht specs). */
+export interface ValuationReportData {
+  estimatedValueLow?: number | null;
+  estimatedValueMid?: number | null;
+  estimatedValueHigh?: number | null;
+  currency?: string | null;
+  comparableYachts?: ComparableYacht[];
+  valuationFactors?: ValuationFactor[];
+  marketNotes?: string | null;
+  /** 0–100 (or 0–1, auto-scaled). */
+  confidenceScore?: number | null;
 }
 
 export interface GenerateDocumentRequest {
@@ -118,7 +169,7 @@ export interface GenerateDocumentRequest {
   format: DocumentFormat;
   template?: DocumentTemplate;
   yachtProfile: YachtProfile;
-  reportData?: ProposalReportData;
+  reportData?: ProposalReportData | ValuationReportData;
   exportSettings?: ExportSettings;
 }
 

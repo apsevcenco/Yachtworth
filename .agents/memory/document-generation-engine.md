@@ -33,3 +33,11 @@ Universal server-side document engine. First consumer = Yacht Proposal export (P
 
 - Render image must include a Chrome/Chromium binary and set `PUPPETEER_EXECUTABLE_PATH` to it, else the PDF path hard-fails at runtime (DOCX still works — pure JS).
 - Ensure Render Node runtime ≥22.12.
+
+## Second consumer — valuation_report (backend)
+
+- Engine now dispatches on `documentType`: `"proposal"` | `"valuation_report"` (route allow-list + `generateDocument.ts` branch + `documentTypes.ts` union). Adding a new doc type = new template pair + one branch + allow-list entry; transport/route layer untouched.
+- **Valuation helpers are duplicated, not shared.** `valuationTemplate.ts` / `valuationDocx.ts` re-declare `esc/num/money/specRows/accomRows/themes/labels` rather than importing from the proposal templates. Deliberate, to avoid refactoring the untouched proposal path. **Why:** owner hard rule "no refactor of unrelated code" + proposal regression risk > DRY benefit.
+- Valuation is **multi-currency** (proposal is EUR-only): `moneyOf(currency)` maps EUR/USD/GBP/CHF/AUD/CAD→symbol else `"<amount> <CODE>"`. Each comparable can carry its own `currency` (falls back to the report currency).
+- `confidenceScore` is auto-scaled: values ≤1 treated as a 0–1 fraction (×100), else 0–100; clamped before use as inline CSS bar width.
+- `ExportSettings.branding` is an alias for `brand_name`; `ExportSettings.brokerInfo` (object) renders the "Prepared By" block. Valuation PDF = 6 pages max (Cover/Summary/Result/Comparables/Factors/Notes); empty comparables/factors pages are omitted (minimal payload → 4 pages). Same https-only-photos + DOCX-no-images/no-watermark divergence as proposal.
