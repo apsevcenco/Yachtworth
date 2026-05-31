@@ -47,6 +47,14 @@ export interface DocBlock {
    * onto a single page (which would overflow into a near-empty extra page).
    */
   splittable?: boolean;
+  /**
+   * Start a fresh page before this block (if the current page already has
+   * content). Used by builders to declare semantic group boundaries — e.g.
+   * keeping "Market Notes + Contact + Disclaimer" together on a final page
+   * instead of letting greedy packing strand the disclaimer alone. Never forces
+   * an empty page: it only flushes a page that already has blocks.
+   */
+  breakBefore?: boolean;
   /** Pre-rendered, pre-escaped, themed HTML fragment for this block. */
   html: string;
 }

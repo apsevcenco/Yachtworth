@@ -1,4 +1,4 @@
-- [Adaptive document engine](adaptive-document-engine.md) — opt-in (`exportSettings.engine==="adaptive"`) semantic-model PDF engine in api-server; legacy stays default; height-heuristic tuning + verification recipe.
-- [Proposal/listing settings persistence](proposal-listing-settings-persistence.md) — how proposal/listing snapshot settings persist.
-- [Adaptive PDF cover clipping](adaptive-pdf-cover-clipping.md) — keep `.cover-page` clamped to printable `.page` height; height:auto unclamping clips the bottom-anchored price. Probe bodies nest under reportData.
-- [Proposal PDF page layout](proposal-pdf-page-layout.md) — commercial detail lives ONLY on final Pricing page (all types); page 2 = specs + full-width accommodation. Cover legibility via gradient panel, not text-shadow.
+# Memory index
+
+- [Adaptive Document Engine — page grouping](adaptive-document-engine.md) — opt-in adaptive PDF; greedy packer strands trailing blocks; use `breakBefore` on model nodes to declare page groups.
+- [api-server dev = build-and-start, no watch](api-server-dev-restart.md) — backend edits don't hot-reload; restart the api-server workflow before testing via the route.

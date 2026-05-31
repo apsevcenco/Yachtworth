@@ -426,7 +426,13 @@ export function renderModelToBlocks(model: DocumentModel): DocBlock[] {
   seq = 0;
   const blocks: DocBlock[] = [];
   if (model.cover) blocks.push(coverBlock(model.cover));
-  for (const node of model.body) blocks.push(...renderNode(node));
+  for (const node of model.body) {
+    const produced = renderNode(node);
+    // Propagate a semantic group boundary onto the first block this node emits.
+    const wantsBreak = (node as { breakBefore?: boolean }).breakBefore === true;
+    if (wantsBreak && produced[0]) produced[0].breakBefore = true;
+    blocks.push(...produced);
+  }
   if (model.meta.disclaimer) {
     blocks.push({
       id: "disclaimer",

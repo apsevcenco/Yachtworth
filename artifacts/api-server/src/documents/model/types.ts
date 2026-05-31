@@ -98,6 +98,8 @@ export interface ParagraphNode {
   panel?: boolean;
   muted?: boolean;
   emptyText?: string;
+  /** Start a fresh page before this node (semantic group boundary). */
+  breakBefore?: boolean;
 }
 
 export type CellTone = "pos" | "neg" | "neu" | "a" | "b" | "c" | "d";
@@ -131,6 +133,8 @@ export interface TableNode {
   columns: TableColumn[];
   rows: TableCell[][];
   emptyText?: string;
+  /** Start a fresh page before this node (semantic group boundary). */
+  breakBefore?: boolean;
 }
 
 /** Big-number cards (value range, ROI, cost totals) + optional confidence bar. */

@@ -36,6 +36,12 @@ export function paginateBlocks(
       pages.push({ blocks: [block], standalone: true });
       continue;
     }
+    // A semantic group boundary: start a fresh page so this block (and the ones
+    // after it) read as a distinct group. Only flushes a page that already has
+    // content, so it can never create an empty page.
+    if (block.breakBefore) {
+      flush();
+    }
     // An oversized splittable block gets its own page so it can flow across as
     // many physical pages as it needs (no forced confinement, no empty page).
     if (block.splittable && block.estimatedHeight > budgetMm) {

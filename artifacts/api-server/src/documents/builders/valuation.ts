@@ -342,35 +342,44 @@ export function buildValuationModel(input: {
   if (conf != null) metrics.confidence = { label: d["confidence"]!, pct: conf };
   body.push(metrics);
 
-  // Comparables
+  // ── Evidence group (Comparables + Factors) ──
+  // These two share a page when they fit. `breakBefore` on the first present
+  // one closes the page-2 overview group (Summary + Accommodation + Valuation),
+  // so the overview never absorbs a comparables/factors table.
   const comparables = Array.isArray(reportData.comparableYachts) ? reportData.comparableYachts : [];
+  const factors = Array.isArray(reportData.valuationFactors) ? reportData.valuationFactors : [];
+  let evidenceGroupStarted = false;
   if (comparables.length) {
     body.push({
       kind: "table",
       heading: d["comparables"]!,
       columns: [{}, { align: "right", widthPct: 28 }],
       rows: comparableRows(comparables, d, money),
+      breakBefore: true,
     });
+    evidenceGroupStarted = true;
   }
-
-  // Factors
-  const factors = Array.isArray(reportData.valuationFactors) ? reportData.valuationFactors : [];
   if (factors.length) {
     body.push({
       kind: "table",
       heading: d["factors"]!,
       columns: [{}, { align: "right", widthPct: 30 }],
       rows: factorRows(factors, d),
+      // Carry the boundary only if comparables didn't already open this group.
+      breakBefore: !evidenceGroupStarted,
     });
   }
 
-  // Market notes
+  // ── Closing group (Market Notes + Contact + Disclaimer) ──
+  // `breakBefore` keeps these together on the final page instead of letting
+  // greedy packing strand the auto-appended disclaimer alone on a near-empty page.
   const notes: ContentNode = {
     kind: "paragraph",
     heading: d["marketNotes"]!,
     panel: true,
     text: reportData.marketNotes ?? "",
     emptyText: d["none"]!,
+    breakBefore: true,
   };
   body.push(notes);
 
