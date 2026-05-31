@@ -21,7 +21,7 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-import type { ProposalTemplate } from "../lib/proposalPdf";
+import type { ProposalTemplate } from "../lib/proposalTypes";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 

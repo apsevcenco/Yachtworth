@@ -17,12 +17,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  exportProposalPdf,
-  type ProposalEquipmentItem,
-  type ProposalSettings,
-  type ProposalYachtSnapshot,
-} from "../../lib/proposalPdf";
+import { exportProposalPdf } from "../../lib/proposalPdf";
+import type {
+  ProposalEquipmentItem,
+  ProposalSettings,
+  ProposalYachtSnapshot,
+} from "../../lib/proposalTypes";
 import { exportProposalDocument } from "../../lib/documentExport";
 
 const NAVY = "#0B1E3F";

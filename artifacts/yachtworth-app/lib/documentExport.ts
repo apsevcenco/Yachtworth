@@ -11,7 +11,7 @@ import type {
   ProposalEquipmentItem,
   ProposalSettings,
   ProposalYachtSnapshot,
-} from "./proposalPdf";
+} from "./proposalTypes";
 
 /**
  * Backend Document Generation Engine client (additive — independent from the

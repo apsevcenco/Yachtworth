@@ -25,7 +25,7 @@ import type {
   ProposalTemplate,
   ProposalType,
   ProposalYachtSnapshot,
-} from "../../lib/proposalPdf";
+} from "../../lib/proposalTypes";
 import TemplatePickerSheet from "../../components/TemplatePickerSheet";
 
 const TEMPLATE_LABELS: Record<ProposalTemplate, string> = {
