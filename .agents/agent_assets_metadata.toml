@@ -77,3 +77,9 @@ id = "iLEk1NnViR4ONUReYefNF"
 uri = "file://exports/Azimut_68S_valuation.pdf"
 type = "pdf"
 title = "Azimut 68S — Valuation (adaptive)"
+
+[[outputs]]
+id = "Zz8ZL8qMjvdf9DJUa_Y4x"
+uri = "file://exports/valuation_report.pdf"
+type = "pdf"
+title = "Valuation Report — humanized labels"
