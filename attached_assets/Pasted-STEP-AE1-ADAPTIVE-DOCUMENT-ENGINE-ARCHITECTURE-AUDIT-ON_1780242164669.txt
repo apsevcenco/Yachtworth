@@ -1,0 +1,131 @@
+STEP AE1 — ADAPTIVE DOCUMENT ENGINE ARCHITECTURE AUDIT ONLY
+
+Do not modify code.
+Do not change templates.
+Do not change document outputs.
+Do not delete files.
+Do not change Supabase schema.
+
+Goal:
+We need to evolve the current backend Document Generation Engine into a universal high-quality Adaptive Document Engine for YachtWorth / PDYE.
+
+This is critical because many tools produce PDF/DOCX:
+- proposal
+- valuation_report
+- ownership_cost_report
+- charter_roi_report
+- charter_planner_report
+- survey_report
+- digital_passport
+- market_report
+
+Current issue:
+Some reports are still section-page based, creating too much empty space.
+We need a block-based engine that can compose pages intelligently.
+
+Audit and report:
+
+1. Current engine structure
+- where document dispatcher lives
+- where PDF templates live
+- where DOCX templates live
+- which document types are currently supported
+- how pages are currently created
+
+2. Identify hard-coded page layouts
+For each current document type:
+- which sections are hard-coded as full pages
+- which sections are dynamic/paginated
+- which sections waste space
+
+3. Identify reusable block candidates:
+- CoverBlock
+- HeaderBlock
+- FooterBlock
+- WatermarkBlock
+- YachtSummaryBlock
+- MetricCardsBlock
+- ValuationRangeBlock
+- ComparableYachtsBlock
+- FactorsBlock
+- NotesBlock
+- PricingBlock
+- EquipmentBlock
+- GalleryBlock
+- TableBlock
+- ChecklistBlock
+- SurveyFindingBlock
+- SignatureBlock
+- DisclaimerBlock
+
+4. Propose target architecture:
+server/src/documents/
+  core/
+    types.ts
+    layoutEngine.ts
+    blockRegistry.ts
+    measureBlock.ts
+    paginateBlocks.ts
+    renderPdf.ts
+    renderDocx.ts
+  blocks/
+    CoverBlock.ts
+    YachtSummaryBlock.ts
+    MetricCardsBlock.ts
+    TableBlock.ts
+    GalleryBlock.ts
+    EquipmentBlock.ts
+    NotesBlock.ts
+    DisclaimerBlock.ts
+    SurveyChecklistBlock.ts
+    SurveyFindingBlock.ts
+  templates/
+    proposal.ts
+    valuation.ts
+    ownershipCost.ts
+    charterRoi.ts
+    charterPlanner.ts
+    surveyReport.ts
+
+5. Define block model:
+Each block should declare:
+- id
+- type
+- priority
+- estimatedHeight
+- canSplit
+- keepTogether
+- preferredPage
+- renderHtml
+- renderDocx
+
+6. Define pagination rules:
+- cover is always standalone
+- small blocks can share a page
+- large tables can split
+- gallery can paginate
+- checklist can split by section
+- survey findings can split by finding group
+- disclaimers should prefer final page bottom
+- signatures should stay together
+- orphan headings should be avoided
+- no page should be less than 50% filled unless explicitly intentional
+
+7. Define quality rules:
+- avoid huge empty spaces
+- avoid single small metric page
+- avoid vertical text wrapping
+- consistent margins
+- consistent headers/footers
+- consistent typography
+- final page should feel complete
+- PDF and DOCX should share content model even if rendering differs
+
+8. Assess complexity:
+- low / medium / high
+- safest incremental migration plan
+- which document to migrate first
+- how to preserve current working outputs as legacy fallback
+
+Return only an architecture audit and migration plan.
+Do not write code yet.
