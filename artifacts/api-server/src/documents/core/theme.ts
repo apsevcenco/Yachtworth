@@ -88,8 +88,9 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .page {
     page-break-after: always;
     position: relative;
-    min-height: 261mm;
-    padding: 4mm 0 13mm;
+    height: 261mm;
+    overflow: hidden;
+    padding: 4mm 0 14mm;
   }
   .page:last-child { page-break-after: auto; }
   .cover-page { padding: 0; min-height: 0; }
@@ -111,7 +112,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   /* shared per-page footer */
   .page-footer {
     position: absolute;
-    left: 0; right: 0; bottom: 5mm;
+    left: 0; right: 0; bottom: 7mm;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -136,7 +137,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .cover-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .cover-overlay {
     position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(7,18,38,0.30) 0%, rgba(7,18,38,0.05) 32%, rgba(7,18,38,0.74) 78%, rgba(7,18,38,0.93) 100%);
+    background: linear-gradient(to bottom, rgba(7,18,38,0.45) 0%, rgba(7,18,38,0.12) 30%, rgba(7,18,38,0.55) 62%, rgba(7,18,38,0.86) 100%);
   }
   /* solid (photoless) cover gets a subtle gold hairline frame so it never reads as empty */
   .cover-frame {
@@ -164,8 +165,8 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .spec-l { font-family: ${HEAD}; color: ${t.accentInk}; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; width: 40%; font-weight: 700; }
   .spec-v { font-weight: 500; color: ${t.text}; }
   /* paired specification grid (label | value | label | value) — ONE spec style */
-  table.kv-grid { width: 100%; border-collapse: collapse; }
-  table.kv-grid td { padding: 7px 8px; vertical-align: top; }
+  table.kv-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.kv-grid td { padding: 7px 8px; vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
   table.kv-grid tr:nth-child(even) td { background: ${t.rowAlt}; }
   .kvg-l { font-family: ${HEAD}; color: ${t.accentInk}; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; width: 17%; }
   .kvg-v { font-weight: 500; color: ${t.text}; width: 33%; }

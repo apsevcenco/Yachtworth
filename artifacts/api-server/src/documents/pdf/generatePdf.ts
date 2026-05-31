@@ -41,6 +41,22 @@ export async function renderPdf(html: string): Promise<Buffer> {
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "load", timeout: 20000 });
+    // Wait for embedded base64 @font-face fonts to finish loading before
+    // printing. Without this, Chromium can print mid font-swap and the PDF
+    // flattens BOTH the fallback paint and the embedded paint → doubled glyphs
+    // ("YY AA CC"). Bounded so a font failure never hangs the render.
+    // Evaluated as a string so it runs in the browser realm without pulling the
+    // DOM lib into the api-server tsconfig (which is node-only).
+    await page
+      .evaluate(
+        `new Promise((resolve) => {
+          var f = (self.document && self.document.fonts) || null;
+          var done = (f && f.ready) ? f.ready : Promise.resolve();
+          var guard = setTimeout(resolve, 5000);
+          Promise.resolve(done).then(function () { clearTimeout(guard); resolve(); });
+        })`,
+      )
+      .catch(() => undefined);
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,

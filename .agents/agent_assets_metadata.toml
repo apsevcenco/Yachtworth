@@ -65,3 +65,15 @@ id = "wehHj6tueh1IvH6AOoqQs"
 uri = "file://exports/Serenity_proposal_adaptive_fr.pdf"
 type = "pdf"
 title = "Serenity — Proposal V2 (5 страниц, французский)"
+
+[[outputs]]
+id = "4GeWLn-P4OYBldQZY-KVg"
+uri = "file://exports/Aurelia_proposal.pdf"
+type = "pdf"
+title = "Aurelia — Sale-only Proposal (adaptive PDF, fixed)"
+
+[[outputs]]
+id = "iLEk1NnViR4ONUReYefNF"
+uri = "file://exports/Azimut_68S_valuation.pdf"
+type = "pdf"
+title = "Azimut 68S — Valuation Report (adaptive PDF, fixed)"
