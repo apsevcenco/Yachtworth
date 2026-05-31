@@ -562,8 +562,8 @@ export function buildProposalModel(input: {
   if (subtitle) cover.subtitle = subtitle;
   if (coverPrice) cover.price = coverPrice;
 
-  // Shared pricing cards (For Sale / For Charter) — used on P2 commercial
-  // summary AND on the P5 full pricing block so they read consistently.
+  // Pricing cards (For Sale / For Charter) — used ONLY on the final P5 pricing
+  // block. Commercial content never appears mid-document (page 2).
   const cards: { label: string; value: string; emphasis?: boolean }[] = [];
   if (showSale) {
     const saleVal =
@@ -577,26 +577,14 @@ export function buildProposalModel(input: {
   // ── body ──
   const body: ContentNode[] = [];
 
-  // P2 — Vessel Overview: compact paired specs (full width), then a balanced
-  // two-column row of Accommodation (left) + Commercial Summary (right).
+  // P2 — Vessel Overview: compact paired specs (full width), then full-width
+  // Accommodation. No commercial content on this page.
   body.push(specPairsTable(yacht, d));
 
-  // Sale-only proposals omit this mid-document commercial summary entirely: the
-  // sale price already appears on the cover + final pricing page, VAT is in the
-  // spec table, and delivery/sea-trial repeat on the final page. Keeping it here
-  // for sale-only only duplicated the price and left an unbalanced half-column.
-  const commercial: ContentNode[] = [];
-  if (showCharter) {
-    if (cards.length) {
-      commercial.push({ kind: "metrics", heading: d["commercial"]!, cards: cards.slice() });
-    }
-    const commercialRows: { label: string; value: string }[] = [];
-    if (yacht.vat_status) commercialRows.push({ label: d["vat"]!, value: vatLabel(yacht.vat_status) });
-    if (r.delivery) commercialRows.push({ label: d["delivery"]!, value: String(r.delivery) });
-    if (r.sea_trial) commercialRows.push({ label: d["seaTrial"]!, value: String(r.sea_trial) });
-    if (commercialRows.length) commercial.push({ kind: "keyValue", rows: commercialRows });
-  }
-
+  // P2 is Specifications + Accommodation ONLY — for every proposal_type
+  // (sale / charter / both). All commercial detail (price cards, VAT, delivery,
+  // sea-trial, charter terms) lives solely on the final Pricing page and is
+  // never duplicated mid-document. Accommodation spans the full width.
   const accomNode: ContentNode = {
     kind: "keyValue",
     heading: d["accommodation"]!,
@@ -604,14 +592,7 @@ export function buildProposalModel(input: {
     layout: "pairs",
     emptyText: d["none"]!,
   };
-  if (commercial.length) {
-    body.push({
-      kind: "columns",
-      columns: [{ nodes: [accomNode] }, { nodes: commercial }],
-    });
-  } else {
-    body.push(accomNode);
-  }
+  body.push(accomNode);
 
   // P3 — Equipment grouped by category, balanced across two columns.
   const equip = Array.isArray(r.equipment) ? r.equipment : [];

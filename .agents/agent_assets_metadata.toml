@@ -70,10 +70,10 @@ title = "Serenity — Proposal V2 (5 страниц, французский)"
 id = "4GeWLn-P4OYBldQZY-KVg"
 uri = "file://exports/Aurelia_proposal.pdf"
 type = "pdf"
-title = "Aurelia — Sale-only Proposal (adaptive PDF, fixed)"
+title = "Aurelia — Proposal (both, adaptive)"
 
 [[outputs]]
 id = "iLEk1NnViR4ONUReYefNF"
 uri = "file://exports/Azimut_68S_valuation.pdf"
 type = "pdf"
-title = "Azimut 68S — Valuation Report (adaptive PDF, fixed)"
+title = "Azimut 68S — Valuation (adaptive)"

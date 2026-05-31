@@ -1,0 +1,110 @@
+APPLY EXACT PDF PATCH — NO NEW ARCHITECTURE
+
+Do not create new architecture.
+Do not touch DOCX.
+Do not touch Survey, ROI, Charter, Listing, Supabase or calculations.
+Work only on adaptive PDF engine.
+
+Files:
+
+* artifacts/api-server/src/documents/core/theme.ts
+* artifacts/api-server/src/documents/builders/proposal.ts
+
+Fix 1 — remove cover text-shadow duplication
+
+In theme.ts, remove text-shadow from:
+.cover-eyebrow
+.cover-name
+.cover-sub
+.cover-cell .cl
+.cover-cell .cv
+.cover-price
+
+Reason:
+Text-shadow is causing duplicated glyphs / doubled text in generated PDFs and text extraction.
+
+Replace readability logic with a real dark bottom panel:
+
+.cover-inner {
+position: absolute;
+left: 14mm;
+right: 14mm;
+bottom: 14mm;
+padding: 12mm 10mm 10mm;
+background: linear-gradient(
+to bottom,
+rgba(7,18,38,0.20),
+rgba(7,18,38,0.78)
+);
+border-top: 1px solid rgba(201,169,97,0.45);
+}
+
+Cover text must be readable without text-shadow.
+
+Fix 2 — remove mid-document commercial summary duplication
+
+In builders/proposal.ts, remove the Commercial Summary block from page 2 entirely.
+
+Page 2 must contain:
+
+* Specifications
+* Accommodation
+
+Do not show:
+
+* For Sale
+* For Charter
+* APA
+* VAT charter terms
+* commercial price cards
+
+on Page 2.
+
+Pricing must appear only:
+
+* briefly on cover
+* fully on final Pricing page
+
+This applies to sale, charter and both.
+
+Fix 3 — final Pricing page becomes the only commercial detail section
+
+Keep final Pricing page as:
+
+* For Sale if showSale
+* For Charter if showCharter
+* APA / VAT / Charter Area / Delivery / Sea Trial / Contract
+* Notes
+* Broker Contact
+* Disclaimer
+
+Fix 4 — reduce excessive letter spacing
+
+In theme.ts reduce excessive letter spacing:
+
+* .eyebrow from 2.4px to 1.4px
+* .cover-eyebrow from 4px to 2.2px
+* section headings should be readable, not spaced like “Y A C H T W O R T H”
+
+Fix 5 — verify using real files
+
+Generate:
+
+* Aurelia proposal with proposal_type = both
+* Azimut 68S valuation
+
+Acceptance:
+
+1. No doubled letters in PDF.
+2. No Commercial Summary on page 2.
+3. Price appears on cover and final page only.
+4. Page 2 is specs + accommodation only.
+5. Final page contains all commercial details.
+6. No other modules touched.
+
+Return:
+
+* files changed
+* exact code changes
+* new proposal PDF
+* new valuation PDF

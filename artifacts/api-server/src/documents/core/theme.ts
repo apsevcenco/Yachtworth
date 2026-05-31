@@ -102,7 +102,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
     font-family: ${HEAD};
     color: ${t.accentInk};
     font-size: 10px;
-    letter-spacing: 2.4px;
+    letter-spacing: 1.4px;
     font-weight: 700;
     text-transform: uppercase;
     border-bottom: 1px solid ${t.accent};
@@ -144,20 +144,31 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
     position: absolute; inset: 12mm;
     border: 1px solid rgba(201,169,97,0.45);
   }
-  .cover-inner { position: absolute; left: 0; right: 0; bottom: 0; padding: 18mm 16mm; }
+  .cover-inner {
+    position: absolute;
+    left: 14mm;
+    right: 14mm;
+    bottom: 14mm;
+    padding: 12mm 10mm 10mm;
+    background: linear-gradient(
+      to bottom,
+      rgba(7,18,38,0.20),
+      rgba(7,18,38,0.78)
+    );
+    border-top: 1px solid rgba(201,169,97,0.45);
+  }
   .cover-eyebrow {
     font-family: ${HEAD};
-    color: ${t.coverAccent}; letter-spacing: 4px; font-size: 11px; font-weight: 700;
+    color: ${t.coverAccent}; letter-spacing: 2.2px; font-size: 11px; font-weight: 700;
     text-transform: uppercase; margin-bottom: 12px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.55);
   }
-  .cover-name { font-family: ${HEAD}; font-size: 36px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 6px; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
-  .cover-sub { font-size: 13px; opacity: 0.92; margin-bottom: 18px; text-shadow: 0 1px 5px rgba(0,0,0,0.55); }
+  .cover-name { font-family: ${HEAD}; font-size: 36px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 6px; }
+  .cover-sub { font-size: 13px; opacity: 0.92; margin-bottom: 18px; }
   .cover-grid { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid rgba(255,255,255,0.32); }
   .cover-cell { flex: 1 1 20%; padding: 11px 6px 0; min-width: 80px; }
-  .cover-cell .cl { font-family: ${HEAD}; font-size: 8.5px; letter-spacing: 1.5px; text-transform: uppercase; color: ${t.coverAccent}; text-shadow: 0 1px 4px rgba(0,0,0,0.55); }
-  .cover-cell .cv { font-size: 13px; font-weight: 500; text-shadow: 0 1px 5px rgba(0,0,0,0.55); }
-  .cover-price { font-family: ${HEAD}; margin-top: 16px; font-size: 23px; font-weight: 800; color: ${t.coverAccent}; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+  .cover-cell .cl { font-family: ${HEAD}; font-size: 8.5px; letter-spacing: 1.5px; text-transform: uppercase; color: ${t.coverAccent}; }
+  .cover-cell .cv { font-size: 13px; font-weight: 500; }
+  .cover-price { font-family: ${HEAD}; margin-top: 16px; font-size: 23px; font-weight: 800; color: ${t.coverAccent}; }
   .cover-date { font-family: ${HEAD}; position: absolute; top: 16mm; right: 16mm; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.75; }
   /* paired key/value list (single column) */
   table.spec { width: 100%; border-collapse: collapse; }
