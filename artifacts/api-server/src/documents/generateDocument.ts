@@ -1,3 +1,4 @@
+import { buildProposalModel } from "./builders/proposal";
 import { buildValuationModel } from "./builders/valuation";
 import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
 import { renderPdf } from "./pdf/generatePdf";
@@ -84,8 +85,12 @@ export async function generateDocument(
     };
   }
 
-  // default: pdf
-  const html = buildProposalHtml({ yacht, reportData, settings, template });
+  // Opt-in adaptive engine (PDF only): semantic model → blocks → packed pages.
+  // Default stays legacy.
+  const html =
+    settings.engine === "adaptive"
+      ? renderModelToPdfHtml(buildProposalModel({ yacht, reportData, settings, template }))
+      : buildProposalHtml({ yacht, reportData, settings, template });
   const buffer = await renderPdf(html);
   return {
     buffer,

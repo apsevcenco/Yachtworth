@@ -29,3 +29,15 @@ id = "IpIyVrZhArKWVPV4c_EYA"
 uri = "file://exports/Aquila_proposal_current.pdf"
 type = "pdf"
 title = "Vessel Proposal — Current Engine (5 pages)"
+
+[[outputs]]
+id = "0QNxsRTl8hYEidNR-jFT9"
+uri = "file://artifacts/api-server/exports/Aquila_proposal_V2_en.pdf"
+type = "pdf"
+title = "Proposal V2 (English) — Sunseeker 88 Aquila"
+
+[[outputs]]
+id = "muNJHUR-W4Q4_Pe7W3U-A"
+uri = "file://artifacts/api-server/exports/Aquila_proposal_V2_ru.pdf"
+type = "pdf"
+title = "Proposal V2 (Русский) — Sunseeker 88 Aquila"

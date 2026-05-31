@@ -43,6 +43,18 @@ Write a throwaway `artifacts/api-server/_harness.ts`, bundle with
 trailing page = under-fill bug), and `pdftoppm -png -r 80` + read the PNGs. **Delete the harness
 after.** Chromium path comes from `REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
+## Adding a new document type to V2 (pattern)
+Write `builders/<type>.ts` exporting `build<Type>Model(input) → DocumentModel`, mirroring
+`builders/valuation.ts`: import `getTheme`, `num`/`photoList`; **duplicate the 6-lang label dict
+locally — do NOT import the legacy template** (legacy stays byte-identical). Reuse generic nodes:
+`columns` (specs|accommodation), `metrics` (pricing/value cards), `keyValue` (meta + contact),
+`paragraph` panel (notes), `table` (equipment — multi-col TableCell[] rows), `gallery` (photos).
+Disclaimer/watermark/confidential go in `meta` (renderer appends them). Wire one ternary in
+`generateDocument.ts`: `settings.engine === "adaptive" ? renderModelToPdfHtml(buildXModel(...)) :
+buildXHtml(...)` — PDF branch only; DOCX + legacy untouched. Proposal (sale/charter/both, POA,
+6-lang incl. russian) was done this way and packs cover+specs+pricing+equipment+gallery+contact
+with no mid-doc empty pages (only the natural short contact tail page).
+
 ## Hardening already in place
 Untrusted/caller values are clamped at the sink: `clampMm`/`clampPct` + a `CALLOUT_TONES`
 whitelist guard confidence.pct, widthPct, heightMm, spacer.mm, callout.tone. `moneyOf` escapes the
