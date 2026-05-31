@@ -1,0 +1,139 @@
+IMPLEMENT YACHTWORTH DOCUMENT DESIGN SYSTEM V1
+
+Use the existing V2 Document Engine.
+Do not create a new architecture.
+Do not create a new rendering engine.
+Do not modify Supabase.
+Do not modify business logic.
+Do not touch survey, ROI, charter, listing or DOCX.
+
+Goal:
+Apply YachtWorth Document Design System V1 to Proposal V2 and Valuation V2 only.
+
+Typography
+
+Headings:
+
+* Gilroy SemiBold
+* Gilroy Bold
+
+Body:
+
+* Wix Regular
+* Wix Medium
+
+Fonts must be defined in one shared document theme layer, not duplicated in templates.
+
+Colors
+
+Primary:
+
+* Navy
+
+Accent:
+
+* YachtWorth Gold
+
+Neutral:
+
+* White
+* Light Grey
+* Dark Grey
+
+Remove unnecessary colored blocks/cards.
+
+Cover
+
+If yacht photos exist:
+
+* full cover image
+* dark gradient overlay
+* yacht name
+* key specs
+* price/value
+
+If no photos exist:
+
+* premium text cover
+* no placeholder image
+
+Specifications Layout
+
+Use paired specification grid.
+
+Example:
+
+Builder       Length
+Year          Beam
+Engines       Draft
+Cabins        Guests
+
+Avoid long single-column lists.
+
+Equipment
+
+* always two columns
+* keep categories together
+* do not split categories awkwardly
+
+Tables
+
+Create one YachtWorth table style:
+
+* Navy header
+* Wix body text
+* alternating light row backgrounds
+
+Metrics
+
+Create one YachtWorth metric card style:
+
+Title
+Large value
+
+Use for:
+
+* Valuation
+* ROI (future)
+* Ownership Cost (future)
+
+Gallery
+
+Support only:
+
+1. Premium Gallery
+    Hero image + grid
+2. Compact Gallery
+    Uniform grid
+
+Footer
+
+Same footer for all V2 documents:
+
+YachtWorth
+Confidential
+Page X of Y
+Generated Date
+
+Layout Rules
+
+1. Space between blocks must be larger than space between lines.
+2. Pages should appear intentionally designed.
+3. Avoid pages that are mostly empty.
+4. Repack small blocks onto the same page where possible.
+5. Maintain professional brokerage presentation quality.
+
+Scope
+
+Apply only to:
+
+* Proposal V2
+* Valuation V2
+
+Do not migrate other document types.
+
+Return:
+
+* files changed
+* screenshots/PDF samples
+* description of implemented design system elements

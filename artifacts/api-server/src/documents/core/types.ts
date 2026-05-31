@@ -17,11 +17,18 @@ export interface RenderTheme {
   text: string;
   textMuted: string;
   accent: string;
+  /** Deeper accent used for small uppercase labels where `accent` is too faint on white. */
+  accentInk: string;
   line: string;
   coverBg: string;
   coverText: string;
   coverAccent: string;
+  /** Solid table-header background (the one shared table style). */
   tableHeadBg: string;
+  /** Table-header text colour (reads on `tableHeadBg`). */
+  tableHeadText: string;
+  /** Alternating ("zebra") table-row background. */
+  rowAlt: string;
   panelBg: string;
 }
 

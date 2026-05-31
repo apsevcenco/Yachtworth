@@ -55,3 +55,29 @@ both `valid` and `rejected` stay in input order — order matters because the
 proposal uses `valid[0]` as the cover/hero. Only the adaptive proposal export
 wires this in (`generateDocument.ts`), logging rejected URLs via the singleton
 `logger` (no `req` available there).
+
+## Design System V1 — shared theme & footer (valuation + proposal only)
+The adaptive engine now carries a unified document design system, scoped to
+`valuation_report` + `proposal` PDFs only (survey/ROI/charter/listing/DOCX/legacy
+untouched). Durable decisions:
+- **ONE of each primitive in `core/theme.ts`** (treated read-only by builders but
+  this was a deliberate rewrite): one `.tbl` table style (navy header + white
+  text + zebra `rowAlt`), one `.val-box` metric card (mid variant = navy
+  emphasis), one `.kv-grid` paired key/value grid.
+- **Status chips are palette-only** — gold-ink for positive, grey for negative.
+  NO green/red anywhere (brand rule). Valuation factor impact + comparable pills
+  follow this.
+- **Embedded fonts** via `core/fonts.generated.ts` (base64 Gilroy 400/600/700/800,
+  Wix 400/500) imported as `FONT_FACE_CSS`. That file is ~564KB — NEVER read it
+  into context; only import it. Gilroy/Wix lack Cyrillic, so Russian text falls
+  back to system font (accepted/deferred).
+- **Paired spec grid:** `KeyValueGridNode.layout: "pairs"` renders 2 columns;
+  `measure.ts` counts `ceil(rows/2)*KV_ROW_MM`. Used for specs + accommodation.
+- **Footer localization:** the per-page footer's confidential label reuses
+  `model.meta.watermarkText` (already the localized confidential word per builder
+  dict, e.g. RISERVATO/КОНФИДЕНЦИАЛЬНО) — do NOT hardcode "Confidential".
+  Footer only shows the label when `meta.confidential` is true; pass the RAW
+  watermark word (footer's `escFooter` escapes once — don't pre-`esc` it).
+- **Metric value sizing:** `.val-amount` 19px / mid 21px with `line-height:1.2`.
+  Kept small enough that a price fits one line inside a half-width (2-col)
+  commercial-summary card; larger broke as "€" alone then number on next line.

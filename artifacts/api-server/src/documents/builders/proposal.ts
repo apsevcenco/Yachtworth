@@ -484,25 +484,14 @@ function photographyNodes(valid: string[], d: Dict): ContentNode[] {
   );
 }
 
-/** Compact full-width paired spec table: label / value / label / value. */
+/** Full-width paired specification grid (the ONE shared spec style). */
 function specPairsTable(y: YachtProfile, d: Dict): ContentNode {
-  const rows = specRows(y);
-  const cells: TableCell[][] = [];
-  for (let i = 0; i < rows.length; i += 2) {
-    const a = rows[i]!;
-    const b = rows[i + 1];
-    cells.push([
-      { text: a.label, accent: true },
-      { text: a.value, bold: true },
-      { text: b ? b.label : "", accent: true },
-      { text: b ? b.value : "", bold: true },
-    ]);
-  }
   return {
-    kind: "table",
+    kind: "keyValue",
     heading: d["specifications"]!,
-    columns: [{ widthPct: 16 }, { widthPct: 24 }, { widthPct: 16 }, { widthPct: 24 }],
-    rows: cells,
+    rows: specRows(y),
+    layout: "pairs",
+    emptyText: d["none"]!,
   };
 }
 
@@ -612,6 +601,7 @@ export function buildProposalModel(input: {
     kind: "keyValue",
     heading: d["accommodation"]!,
     rows: accomRows(yacht),
+    layout: "pairs",
     emptyText: d["none"]!,
   };
   if (commercial.length) {

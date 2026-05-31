@@ -90,7 +90,7 @@ function coverBlock(c: CoverSpec): DocBlock {
     .join("");
   const html = `<div class="cover">
     ${photo ? `<img class="cover-photo" src="${esc(photo)}" />` : ""}
-    ${photo ? `<div class="cover-overlay"></div>` : ""}
+    ${photo ? `<div class="cover-overlay"></div>` : `<div class="cover-frame"></div>`}
     <div class="cover-date">${esc(c.date)}</div>
     <div class="cover-inner">
       <div class="cover-eyebrow">${esc(c.eyebrow)}</div>
@@ -127,9 +127,28 @@ function kvTableHtml(rows: { label: string; value: string }[]): string {
     .join("")}</table>`;
 }
 
+/** Paired spec grid: two label/value pairs per row (label | value | label | value). */
+function kvPairsHtml(rows: { label: string; value: string }[]): string {
+  const cells: string[] = [];
+  for (let i = 0; i < rows.length; i += 2) {
+    const a = rows[i]!;
+    const b = rows[i + 1];
+    cells.push(
+      `<tr><td class="kvg-l">${esc(a.label)}</td><td class="kvg-v">${esc(
+        a.value,
+      )}</td><td class="kvg-l">${b ? esc(b.label) : ""}</td><td class="kvg-v">${
+        b ? esc(b.value) : ""
+      }</td></tr>`,
+    );
+  }
+  return `<table class="kv-grid">${cells.join("")}</table>`;
+}
+
 function keyValueHtml(node: KeyValueGridNode): string {
   const body = node.rows.length
-    ? kvTableHtml(node.rows)
+    ? node.layout === "pairs"
+      ? kvPairsHtml(node.rows)
+      : kvTableHtml(node.rows)
     : `<p class="muted">${esc(node.emptyText ?? "—")}</p>`;
   return `${eyebrow(node.heading)}${body}`;
 }

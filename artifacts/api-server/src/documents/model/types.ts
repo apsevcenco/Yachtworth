@@ -74,6 +74,12 @@ export interface KeyValueGridNode {
   heading?: string;
   rows: { label: string; value: string }[];
   emptyText?: string;
+  /**
+   * Layout:
+   *  - "list"  (default) → single-column label/value rows.
+   *  - "pairs" → paired specification grid (label | value | label | value).
+   */
+  layout?: "list" | "pairs";
 }
 
 /** Side-by-side columns of nested nodes (e.g. specs | accommodation). */

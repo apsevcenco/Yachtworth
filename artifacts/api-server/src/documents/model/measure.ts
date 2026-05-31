@@ -90,11 +90,14 @@ export function measureNode(node: ContentNode): number {
   switch (node.kind) {
     case "heading":
       return 14;
-    case "keyValue":
-      return (
-        (node.heading ? HEADING_MM : 0) +
-        (node.rows.length ? node.rows.length * KV_ROW_MM : LINE_MM)
-      );
+    case "keyValue": {
+      const head = node.heading ? HEADING_MM : 0;
+      if (!node.rows.length) return head + LINE_MM;
+      // Paired grid packs two label/value pairs per row → half the row count.
+      const gridRows =
+        node.layout === "pairs" ? Math.ceil(node.rows.length / 2) : node.rows.length;
+      return head + gridRows * KV_ROW_MM;
+    }
     case "columns": {
       const head = node.heading ? HEADING_MM : 0;
       const tallest = node.columns.reduce((max, col) => {

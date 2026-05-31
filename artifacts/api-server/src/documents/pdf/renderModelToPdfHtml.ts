@@ -18,5 +18,10 @@ export function renderModelToPdfHtml(model: DocumentModel): string {
     theme: model.theme,
     confidential: model.meta.confidential,
     watermarkText: esc(model.meta.watermarkText),
+    footer: {
+      brand: model.meta.brand,
+      date: model.meta.generatedAt,
+      confidentialLabel: model.meta.watermarkText,
+    },
   });
 }

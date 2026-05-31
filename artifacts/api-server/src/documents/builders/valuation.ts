@@ -307,17 +307,21 @@ export function buildValuationModel(input: {
   // ── body ──
   const body: ContentNode[] = [];
 
-  // Yacht summary: specs | accommodation
+  // Yacht summary: full-width paired specification grid, then accommodation
+  // (the ONE shared paired-spec style; no near-empty side column).
   body.push({
-    kind: "columns",
+    kind: "keyValue",
     heading: d["yachtSummary"]!,
-    columns: [
-      { nodes: [{ kind: "keyValue", rows: specRows(yacht), emptyText: d["none"]! }] },
-      {
-        subHeading: d["accommodation"]!,
-        nodes: [{ kind: "keyValue", rows: accomRows(yacht), emptyText: d["none"]! }],
-      },
-    ],
+    rows: specRows(yacht),
+    layout: "pairs",
+    emptyText: d["none"]!,
+  });
+  body.push({
+    kind: "keyValue",
+    heading: d["accommodation"]!,
+    rows: accomRows(yacht),
+    layout: "pairs",
+    emptyText: d["none"]!,
   });
 
   // Valuation result
