@@ -168,12 +168,22 @@ export interface ValuationReportData {
   estimatedValueLow?: number | null;
   estimatedValueMid?: number | null;
   estimatedValueHigh?: number | null;
+  /** Pricing scenarios (mirror the Market Estimate screen). */
+  openMarketValue?: number | null;
+  discreetSaleValue?: number | null;
+  quickSaleValue?: number | null;
   currency?: string | null;
   comparableYachts?: ComparableYacht[];
   valuationFactors?: ValuationFactor[];
   marketNotes?: string | null;
   /** 0–100 (or 0–1, auto-scaled). */
   confidenceScore?: number | null;
+  /** Data-quality completeness (0–100) + filled/total field counts. */
+  completenessScore?: number | null;
+  completenessFilled?: number | null;
+  completenessTotal?: number | null;
+  /** Server-injected legal disclaimer (rendered verbatim when present). */
+  legalDisclaimer?: string | null;
 }
 
 export interface GenerateDocumentRequest {

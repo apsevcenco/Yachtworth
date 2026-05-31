@@ -297,6 +297,10 @@ function buildValuationBody(
       factor: "Condition adjustment",
       impact: result.condition_adjustment_pct > 0 ? "positive" : "negative",
       weight: result.condition_adjustment_pct,
+      notes:
+        typeof result.condition_baseline_eur === "number"
+          ? `Baseline € ${Math.round(result.condition_baseline_eur).toLocaleString("en-US")}`
+          : null,
     });
   if (result.sanity_adjusted)
     factors.push({
@@ -322,11 +326,19 @@ function buildValuationBody(
       estimatedValueLow: result.range_low_eur,
       estimatedValueMid: result.estimated_price_eur,
       estimatedValueHigh: result.range_high_eur,
+      // Pricing scenarios — mirror the Market Estimate screen exactly.
+      openMarketValue: result.estimated_price_eur,
+      discreetSaleValue: result.distressed_price_eur ?? null,
+      quickSaleValue: result.quick_sale_price_eur ?? null,
       currency: result.currency ?? "EUR",
       confidenceScore: CONFIDENCE_PCT[result.confidence] ?? null,
+      completenessScore: result.completeness_score ?? null,
+      completenessFilled: result.completeness_filled ?? null,
+      completenessTotal: result.completeness_total ?? null,
       comparableYachts: mapComparables(result.comparables ?? []),
       valuationFactors: factors,
       marketNotes: result.reasoning ?? null,
+      legalDisclaimer: result.legal_disclaimer ?? null,
     },
     exportSettings: {
       template: "premium" as const,

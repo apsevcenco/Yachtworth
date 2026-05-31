@@ -89,3 +89,9 @@ id = "0zmZUyZxnH_o3AHm6CzhO"
 uri = "file://artifacts/api-server/exports/Yachtworth_Proposal_Aurelia.pdf"
 type = "pdf"
 title = "Yacht Proposal — adaptive layout (Aurelia)"
+
+[[outputs]]
+id = "_pFppMvDSB50_cuzs_0bO"
+uri = "file://Yachtworth_Valuation_Sample.pdf"
+type = "pdf"
+title = "Yachtworth Valuation Report (new)"

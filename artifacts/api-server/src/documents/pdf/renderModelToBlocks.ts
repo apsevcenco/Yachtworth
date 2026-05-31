@@ -231,9 +231,12 @@ function metricsHtml(node: MetricsNode): string {
         node.confidence.pct,
       )}%"></div></div><div class="conf-val">${clampPct(node.confidence.pct)}%</div></div>`
     : "";
+  const cap = node.caption
+    ? `<div class="val-cap">${esc(node.caption)}</div>`
+    : "";
   return `${eyebrow(node.heading)}${
     node.valueHeading ? `<div class="val-head">${esc(node.valueHeading)}</div>` : ""
-  }${cards}${conf}`;
+  }${cards}${conf}${cap}`;
 }
 
 function cellHtml(cell: TableCell, col: TableColumn | undefined): string {

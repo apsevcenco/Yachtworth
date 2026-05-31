@@ -162,6 +162,8 @@ export interface MetricsNode {
   valueHeading?: string;
   cards: { label: string; value: string; emphasis?: boolean }[];
   confidence?: { label: string; pct: number };
+  /** Muted caption under the cards (range / data-completeness summary). */
+  caption?: string;
 }
 
 /** Photo gallery. Chunked into row-groups so no image is split across a page. */

@@ -199,6 +199,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .conf-bar { background: ${t.panelBg}; border-radius: 10px; height: 12px; overflow: hidden; }
   .conf-fill { background: ${t.accent}; height: 100%; }
   .conf-val { font-family: ${HEAD}; margin-top: 6px; font-weight: 700; font-size: 13px; color: ${t.text}; }
+  .val-cap { font-family: ${BODY}; margin-top: 12px; font-size: 10px; color: ${t.textMuted}; line-height: 1.5; }
   /* ONE professional table style: navy header + white text + zebra body rows */
   table.tbl { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 3px; }
   table.tbl th {

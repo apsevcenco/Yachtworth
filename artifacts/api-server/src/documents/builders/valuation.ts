@@ -70,9 +70,12 @@ const LABELS: Record<string, Dict> = {
     accommodation: "Accommodation",
     valuation: "Valuation Result",
     estimatedValue: "Estimated Market Value",
-    low: "Low",
-    mid: "Mid",
-    high: "High",
+    openMarket: "Open Market",
+    discreetSale: "Discreet Sale",
+    quickSale: "Quick Sale",
+    range: "Range",
+    dataCompleteness: "Data completeness",
+    fieldsFilled: "fields filled",
     confidence: "Confidence",
     comparables: "Comparable Yachts",
     factors: "Valuation Factors",
@@ -87,9 +90,12 @@ const LABELS: Record<string, Dict> = {
     accommodation: "Hébergement",
     valuation: "Résultat de l'Évaluation",
     estimatedValue: "Valeur Marchande Estimée",
-    low: "Bas",
-    mid: "Moyen",
-    high: "Haut",
+    openMarket: "Marché Libre",
+    discreetSale: "Vente Discrète",
+    quickSale: "Vente Rapide",
+    range: "Fourchette",
+    dataCompleteness: "Exhaustivité des données",
+    fieldsFilled: "champs remplis",
     confidence: "Confiance",
     comparables: "Navires Comparables",
     factors: "Facteurs d'Évaluation",
@@ -104,9 +110,12 @@ const LABELS: Record<string, Dict> = {
     accommodation: "Sistemazione",
     valuation: "Risultato della Valutazione",
     estimatedValue: "Valore di Mercato Stimato",
-    low: "Basso",
-    mid: "Medio",
-    high: "Alto",
+    openMarket: "Mercato Aperto",
+    discreetSale: "Vendita Discreta",
+    quickSale: "Vendita Rapida",
+    range: "Intervallo",
+    dataCompleteness: "Completezza dei dati",
+    fieldsFilled: "campi compilati",
     confidence: "Affidabilità",
     comparables: "Imbarcazioni Comparabili",
     factors: "Fattori di Valutazione",
@@ -121,9 +130,12 @@ const LABELS: Record<string, Dict> = {
     accommodation: "Alojamiento",
     valuation: "Resultado de la Valoración",
     estimatedValue: "Valor de Mercado Estimado",
-    low: "Bajo",
-    mid: "Medio",
-    high: "Alto",
+    openMarket: "Mercado Abierto",
+    discreetSale: "Venta Discreta",
+    quickSale: "Venta Rápida",
+    range: "Rango",
+    dataCompleteness: "Integridad de los datos",
+    fieldsFilled: "campos completados",
     confidence: "Confianza",
     comparables: "Embarcaciones Comparables",
     factors: "Factores de Valoración",
@@ -138,9 +150,12 @@ const LABELS: Record<string, Dict> = {
     accommodation: "Unterbringung",
     valuation: "Bewertungsergebnis",
     estimatedValue: "Geschätzter Marktwert",
-    low: "Niedrig",
-    mid: "Mittel",
-    high: "Hoch",
+    openMarket: "Freier Markt",
+    discreetSale: "Diskreter Verkauf",
+    quickSale: "Schnellverkauf",
+    range: "Spanne",
+    dataCompleteness: "Datenvollständigkeit",
+    fieldsFilled: "Felder ausgefüllt",
     confidence: "Konfidenz",
     comparables: "Vergleichbare Yachten",
     factors: "Bewertungsfaktoren",
@@ -155,9 +170,12 @@ const LABELS: Record<string, Dict> = {
     accommodation: "Размещение",
     valuation: "Результат Оценки",
     estimatedValue: "Оценочная Рыночная Стоимость",
-    low: "Мин.",
-    mid: "Средн.",
-    high: "Макс.",
+    openMarket: "Открытый Рынок",
+    discreetSale: "Закрытая Продажа",
+    quickSale: "Быстрая Продажа",
+    range: "Диапазон",
+    dataCompleteness: "Полнота данных",
+    fieldsFilled: "полей заполнено",
     confidence: "Достоверность",
     comparables: "Сравнимые Яхты",
     factors: "Факторы Оценки",
@@ -335,24 +353,35 @@ export function buildValuationModel(input: {
 
   // Yacht summary: full-width paired specification grid, then accommodation
   // (the ONE shared paired-spec style; no near-empty side column).
-  body.push({
-    kind: "keyValue",
-    heading: d["yachtSummary"]!,
-    rows: specRows(yacht),
-    layout: "pairs",
-    emptyText: d["none"]!,
-  });
-  body.push({
-    kind: "keyValue",
-    heading: d["accommodation"]!,
-    rows: accomRows(yacht),
-    layout: "pairs",
-    emptyText: d["none"]!,
-  });
+  // Only render summary sections that actually carry data — never an empty
+  // section with placeholder "—" rows (e.g. accommodation in the estimate flow).
+  const specs = specRows(yacht);
+  if (specs.length) {
+    body.push({
+      kind: "keyValue",
+      heading: d["yachtSummary"]!,
+      rows: specs,
+      layout: "pairs",
+      emptyText: d["none"]!,
+    });
+  }
+  const accom = accomRows(yacht);
+  if (accom.length) {
+    body.push({
+      kind: "keyValue",
+      heading: d["accommodation"]!,
+      rows: accom,
+      layout: "pairs",
+      emptyText: d["none"]!,
+    });
+  }
 
-  // Valuation result
+  // Valuation result — three pricing scenarios (mirror the Market Estimate screen):
+  // Open Market (estimated) · Discreet Sale (distressed) · Quick Sale.
+  const openMarket = num(reportData.openMarketValue);
+  const discreet = num(reportData.discreetSaleValue);
+  const quick = num(reportData.quickSaleValue);
   const lo = num(reportData.estimatedValueLow);
-  const mid = num(reportData.estimatedValueMid);
   const hi = num(reportData.estimatedValueHigh);
   const conf = confidencePct(num(reportData.confidenceScore));
   const metrics: ContentNode = {
@@ -360,12 +389,31 @@ export function buildValuationModel(input: {
     heading: d["valuation"]!,
     valueHeading: d["estimatedValue"]!,
     cards: [
-      { label: d["low"]!, value: lo != null ? money(lo) : d["none"]! },
-      { label: d["mid"]!, value: mid != null ? money(mid) : d["none"]!, emphasis: true },
-      { label: d["high"]!, value: hi != null ? money(hi) : d["none"]! },
+      {
+        label: d["openMarket"]!,
+        value: openMarket != null ? money(openMarket) : d["none"]!,
+        emphasis: true,
+      },
+      { label: d["discreetSale"]!, value: discreet != null ? money(discreet) : d["none"]! },
+      { label: d["quickSale"]!, value: quick != null ? money(quick) : d["none"]! },
     ],
   };
   if (conf != null) metrics.confidence = { label: d["confidence"]!, pct: conf };
+
+  // Caption under the cards: estimated range + data-completeness — each part is
+  // emitted only when the underlying field is present (no empty/irrelevant text).
+  const capParts: string[] = [];
+  if (lo != null && hi != null) capParts.push(`${d["range"]!} ${money(lo)} – ${money(hi)}`);
+  const compScore = num(reportData.completenessScore);
+  const compFilled = num(reportData.completenessFilled);
+  const compTotal = num(reportData.completenessTotal);
+  const compBits: string[] = [];
+  if (compFilled != null && compTotal != null)
+    compBits.push(`${compFilled}/${compTotal} ${d["fieldsFilled"]!}`);
+  if (compScore != null)
+    compBits.push(`${Math.round(compScore)}% ${d["dataCompleteness"]!.toLowerCase()}`);
+  if (compBits.length) capParts.push(compBits.join(" · "));
+  if (capParts.length) metrics.caption = capParts.join("  ·  ");
   body.push(metrics);
 
   // ── Evidence group (Comparables + Factors) ──
@@ -430,7 +478,10 @@ export function buildValuationModel(input: {
       confidential: settings.confidential === true,
       watermarkText: d["confidential"]!,
       generatedAt: date,
-      disclaimer: "Indicative · not certified · valid 30 days from issue.",
+      disclaimer:
+        typeof reportData.legalDisclaimer === "string" && reportData.legalDisclaimer.trim()
+          ? reportData.legalDisclaimer.trim()
+          : "Indicative · not certified · valid 30 days from issue.",
     },
     theme,
     cover,

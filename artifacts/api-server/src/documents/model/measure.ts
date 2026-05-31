@@ -139,7 +139,8 @@ export function measureNode(node: ContentNode): number {
         (node.heading ? HEADING_MM : 0) +
         (node.valueHeading ? VALUE_HEAD_MM : 0) +
         METRIC_CARDS_MM +
-        (node.confidence ? CONF_MM : 0)
+        (node.confidence ? CONF_MM : 0) +
+        (node.caption ? LINE_MM : 0)
       );
     case "gallery": {
       const cols = node.columns ?? 3;
