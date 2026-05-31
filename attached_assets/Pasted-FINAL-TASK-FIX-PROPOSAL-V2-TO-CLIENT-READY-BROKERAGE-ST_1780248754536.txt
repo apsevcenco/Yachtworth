@@ -1,0 +1,200 @@
+FINAL TASK — FIX PROPOSAL V2 TO CLIENT-READY BROKERAGE STANDARD
+
+This is a paid project. Do not experiment. Do not create new architecture. Do not ask follow-up questions. Do not work on DOCX, valuation, survey, ROI, charter planner, or any other document type.
+
+Work only on:
+
+Proposal V2 PDF layout.
+
+Current PDF problem:
+The document is technically working, but visually it is not client-ready. It still looks like a database export, not a professional yacht brokerage proposal.
+
+Main issues:
+
+* Page 2 is a long vertical list.
+* Specifications, accommodation and equipment are not visually balanced.
+* Equipment looks like raw data.
+* Spacing rhythm is wrong.
+* Photography page has too much empty space.
+* Some images are irrelevant or broken.
+* Final page needs better hierarchy and professional spacing.
+
+GOAL:
+Create a clean, premium, professional yacht brokerage proposal comparable in structure and discipline to large brokerage firms.
+
+Do not change calculations.
+Do not change data model.
+Do not change API contract.
+Do not modify other document types.
+Do not create new engine architecture.
+Do not touch legacy files unless required by Proposal V2 imports.
+
+MANDATORY PAGE STRUCTURE
+
+PAGE 1 — COVER
+Keep current cover concept.
+Only minor spacing/typography fixes allowed.
+Do not redesign the cover.
+
+PAGE 2 — VESSEL OVERVIEW
+This page must be balanced and use the full width.
+
+Layout:
+Two-column professional layout.
+
+Left column:
+
+* Specifications
+* Accommodation
+
+Right column:
+
+* Key commercial information:
+    * Asking price
+    * Charter rate if available
+    * VAT status
+    * Delivery
+    * Sea trial
+
+If equipment fits below, start equipment on Page 2.
+Do not leave large empty areas.
+
+Specifications must not be a raw vertical database dump.
+Use compact key-value rows in 2 columns when possible.
+
+Bad:
+BUILDER Sunseeker
+MODEL 88 Yacht
+TYPE motor
+LENGTH 26.8 m
+…
+
+Good:
+Builder        Sunseeker        Length        26.8 m
+Model          88 Yacht         Beam          6.4 m
+Type           Motor Yacht      Draft         2.0 m
+
+PAGE 3 — EQUIPMENT & INVENTORY
+Equipment must look like a brokerage brochure, not a spreadsheet.
+
+Rules:
+
+* Use grouped sections by category.
+* Use 2 columns.
+* Remove quantity when quantity = 1.
+* Show quantity only when quantity > 1.
+* Convert raw values to clean labels.
+* No repeated duplicate values like “27.5 kW · ×2 · 27.5 kW”.
+* Do not show raw snake_case.
+* Category labels should be small, elegant, uppercase or semi-uppercase.
+* Item name should be stronger than metadata.
+* Metadata should be smaller and lighter.
+
+Example:
+NAVIGATION
+Radar
+Raymarine Quantum 2 · 2019
+
+Chartplotter
+Raymarine Axiom Pro 16 · 2 units
+
+POWER
+Generator
+Onan · 27.5 kW · 2 units
+
+Spacing rules:
+
+* Space between sections must be larger than space between rows.
+* Rows must be aligned.
+* Columns must be symmetrical.
+* Avoid one long column.
+* No page should look half empty if more content exists.
+
+PAGE 4 — PHOTOGRAPHY
+Photography page must not look empty.
+
+Rules:
+
+* Use only valid yacht-related photos.
+* Do not include broken images.
+* Do not include random unrelated stock photos.
+* If image URL fails, exclude it and log why.
+* If 5–6 photos exist, use a clean 3-column or 2-column grid and make images large enough to fill the page visually.
+* If only 1–2 valid photos exist, use larger hero-style image layout instead of small thumbnails.
+* No large empty white area under small thumbnails.
+
+PAGE 5 — PRICING / NOTES / CONTACT
+This should be the final page.
+
+Must include:
+
+* For Sale
+* For Charter if available
+* APA / VAT
+* Cruising area
+* Delivery
+* Sea trial
+* Contract
+* Notes
+* Broker contact
+* Disclaimer
+
+Rules:
+
+* Pricing must be visually prominent.
+* Broker contact must never be alone on a separate page.
+* Disclaimer must stay at the bottom.
+* Use clear hierarchy.
+* Avoid raw table dump look.
+
+GLOBAL DESIGN RULES
+
+Use a strict grid:
+
+* consistent margins
+* consistent section spacing
+* consistent row spacing
+* consistent column widths
+
+Typography:
+
+* section title spacing must be elegant
+* avoid excessive letter spacing that makes text hard to read
+* labels smaller/lighter
+* values stronger
+* price prominent
+
+Spacing:
+
+* distance between major blocks > distance between rows
+* avoid large empty vertical gaps
+* avoid cramped rows
+* preserve luxury feel but not at the cost of empty pages
+
+Watermark:
+
+* Keep CONFIDENTIAL if enabled.
+* It must not overpower content.
+
+Photo rules:
+
+* Use all available valid yacht photo URLs.
+* If some images are rejected, return the rejected URL count and reason.
+* Do not allow broken image icon in final PDF.
+
+Acceptance criteria:
+
+1. Proposal PDF must be 4–5 pages depending on photos/equipment.
+2. No page should be obviously half-empty unless intentionally a cover.
+3. Specifications must be compact and professional.
+4. Equipment must be grouped and balanced in 2 columns.
+5. No ×1 values.
+6. Photography page must be visually filled.
+7. Pricing and broker contact must be together on final page.
+8. Output must look client-ready, not like a database export.
+9. Return only:
+    * changed files
+    * generated PDF
+    * page-by-page description
+    * rejected images report
+    * confirmation no other document types were changed

@@ -1,77 +1,57 @@
 ---
-name: Adaptive Document Engine (api-server)
-description: Architecture + tuning rules for the server-side semantic-model document engine that renders adaptive PDFs (valuation pilot; survey is the stress target).
+name: Adaptive document engine (PDF) — packing & measurement
+description: Non-obvious height/packing constraints for the api-server adaptive PDF engine (documents/), learned tuning the proposal layout.
 ---
 
-# Adaptive Document Engine — V2 (semantic model)
+# Adaptive PDF engine — packing & measurement gotchas
 
-Server-side document generation in `artifacts/api-server/src/documents/`. Opt-in via
-`exportSettings.engine === "adaptive"`; missing/unknown → `"legacy"` default. Legacy PDF
-and ALL DOCX paths are left byte-identical — never touch them when changing adaptive.
+The block-based adaptive engine lives in `artifacts/api-server/src/documents/`
+(`core/`, `blocks/`/builder helpers, `model/measure.ts`, `pdf/renderModelToBlocks.ts`).
+It is OPT-IN per document via `exportSettings.engine === "adaptive"`; anything
+else falls back to the legacy one-section-per-page templates. Per the engine's
+hard rule, builders **duplicate** label dicts/helpers instead of importing the
+legacy template, and shared `core/theme.ts` CSS is treated read-only.
 
-## Layering (renderer-independent on purpose)
-- `model/types.ts` — `DocumentModel` / `CoverSpec` / `ContentNode` union. **Model text is RAW
-  (unescaped).** Renderers escape at the boundary. This keeps the model DOCX-ready (DOCX renderer
-  is the P1 follow-up — it reflows natively and ignores the mm heuristics below).
-- `model/measure.ts` — mm height heuristics (`measureNode` / `measureTableRow` / `measureTable`).
-- `pdf/renderModelToBlocks.ts` — node → `DocBlock[]`; escapes via `esc()`; splits tables and
-  galleries across pages. Oversized single table-row chunk gets `splittable=true`.
-- `pdf/renderModelToPdfHtml.ts` — orchestrator → HTML for Chromium.
-- `builders/valuation.ts` — maps valuation payload → semantic model (6-lang labels incl. russian).
-- `core/{types,paginateBlocks,theme,renderBlocksToHtml}.ts` — shared packer + CSS reused by adaptive.
+## Two different height numbers — don't conflate them
+- `PACK_BUDGET_MM` (~240) is the bin-packer's *placement* budget — deliberately
+  ~10% under the true page. It decides when a block starts a new page.
+- True physical usable A4 height is ~**267mm** (297 − 2×15mm margins).
+- A single non-splittable block (e.g. a `columns` node) larger than
+  `PACK_BUDGET_MM` is still placed alone on a fresh page and will render fine as
+  long as it stays under ~267mm. So a dense one-page section can legitimately
+  measure ~256mm and still be correct.
 
-**Why this shape:** one renderer-independent content model so PDF and (future) DOCX share the
-same builders; survey reports (multi-page findings tables, photo galleries, sea-trial, signature,
-legal callouts) are the real stress test, so blocks are theme-agnostic and generic.
+## measureNode measures at the column width you give it
+`measureTableRow` wraps text using `columns[i].widthPct`. A table built with
+`columns: [{}]` measures at ~100% width. **But** if you then render that table
+inside a 2-column (`.two-col`) layout, it actually renders at ~half width, so
+long secondary/`sub` text wraps to more lines than measured → silent page
+overflow. **Fix pattern:** render with `columns: [{}]` but MEASURE a clone with
+`columns: [{ widthPct: 48 }]` so wrapping is counted. Used by the proposal
+equipment packer.
 
-## Height heuristics — the load-bearing tuning lesson
-Two layers of conservatism stack and cause **chronic under-fill** (a lone footer on an otherwise
-empty page): (1) `PACK_BUDGET_MM=240` is already conservative vs true usable `A4_CONTENT_HEIGHT_MM=265`,
-and (2) inflated per-node mm estimates. When BOTH over-estimate, content that truly fills ~170mm
-gets packed as if it were ~240mm → the next small block spills to a near-empty page.
+## Even-balance multi-column packing (avoid near-empty trailing pages)
+Greedy "place on shorter column up to a fixed budget" leaves a near-empty last
+page when the budget is too low (a single small block spills alone). Instead:
+1. measure all blocks, sum total height,
+2. `pagesCount = ceil(total / (2 · PER_COL_MAX))`,
+3. soft `target = total / (2 · pagesCount)`; only roll to a new page once BOTH
+   columns reach `target` *and* more pages are expected; otherwise pack up to a
+   realistic `PER_COL_MAX` (~244mm = 267 − heading − safety).
+This keeps a list that fits on one page on one page, and splits larger lists
+into evenly-filled pages.
 
-**Rule:** keep per-node estimates *slightly above* measured Chromium output, NOT inflated. Calibrate
-against real `pdftoppm` renders. Table-row and gallery measures are the under-estimation guard
-(they drive page-splitting of long content) — recalibrate metrics/heading/paragraph constants
-freely, but change row/gallery measures only with a dense multi-page stress doc to confirm no overflow.
+**Why:** the proposal equipment section was producing a 6th page that was ~30%
+full; the cause was an over-cautious `COL_BUDGET=175` that forced a real
+~242mm-per-column list to spill. Raising the cap to the true physical limit +
+measuring at half width gave a balanced single equipment page (5pp total).
 
-## Verification recipe (no permanent test harness)
-Write a throwaway `artifacts/api-server/_harness.ts`, bundle with
-`npx esbuild _harness.ts --bundle --platform=node --format=esm --packages=external --outfile=_harness.mjs`
-(must output INSIDE the workspace so node_modules resolves), `node _harness.mjs`. Inspect with
-`pdfinfo` (page count), `pdftotext - | awk 'BEGIN{RS="\f"}…'` (per-page char density — a near-zero
-trailing page = under-fill bug), and `pdftoppm -png -r 80` + read the PNGs. **Delete the harness
-after.** Chromium path comes from `REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
-
-## Adding a new document type to V2 (pattern)
-Write `builders/<type>.ts` exporting `build<Type>Model(input) → DocumentModel`, mirroring
-`builders/valuation.ts`: import `getTheme`, `num`/`photoList`; **duplicate the 6-lang label dict
-locally — do NOT import the legacy template** (legacy stays byte-identical). Reuse generic nodes:
-`columns` (specs|accommodation), `metrics` (pricing/value cards), `keyValue` (meta + contact),
-`paragraph` panel (notes), `table` (equipment — multi-col TableCell[] rows), `gallery` (photos).
-Disclaimer/watermark/confidential go in `meta` (renderer appends them). Wire one ternary in
-`generateDocument.ts`: `settings.engine === "adaptive" ? renderModelToPdfHtml(buildXModel(...)) :
-buildXHtml(...)` — PDF branch only; DOCX + legacy untouched. Proposal (sale/charter/both, POA,
-6-lang incl. russian) was done this way and packs cover+specs+pricing+equipment+gallery+contact
-with no mid-doc empty pages (only the natural short contact tail page).
-
-## Keeping sections together / two-column without engine changes
-The packer (`core/paginateBlocks.ts`) is greedy per top-level block and has **no
-keepWithNext**. To guarantee a set of sections never separate across pages (e.g. proposal
-"Pricing + Notes + Broker Contact must stay together; contact never alone"), emit them as
-the children of ONE single-column `columns` node → renders as a single non-splittable
-`DocBlock`. **Tradeoff (intentional):** that block can overflow if a child is huge (e.g.
-very long notes); Chromium *flows* the overflow to the next page (break-inside:avoid is a
-hint, not a clip) so nothing is lost — grouping is prioritised over page-fit per owner ask.
-For **two-column lists** (proposal equipment): a two-column `columns` node with a
-single-cell `table` per column (cell = bold name + muted sub-line). **Gotcha:**
-`measureTable` has no idea a table nested in `columns` renders at ~half width, so it
-under-counts wrapped sub-lines; columns blocks are non-splittable, so **chunk the list**
-(≤8 rows/column → ≈206mm worst case even at 3-line wraps) and emit multiple columns blocks
-rather than relying on the engine to split. Do NOT add splittable-columns logic to the
-engine for a layout-only task — that's new architecture.
-
-## Hardening already in place
-Untrusted/caller values are clamped at the sink: `clampMm`/`clampPct` + a `CALLOUT_TONES`
-whitelist guard confidence.pct, widthPct, heightMm, spacer.mm, callout.tone. `moneyOf` escapes the
-currency code. Every block is `break-inside:avoid` except `splittable` ones (class `block-flow`).
+## Image validation before embedding
+`core/util.ts` `validateImageUrls()` probes each URL with a ranged GET
+(`Range: bytes=0-0`, AbortController timeout), accepting `ok || 206` + an
+`image/*` content-type; everything else is rejected with a short reason.
+Collect results **per index** (not via `array.push` inside `Promise.all`) so
+both `valid` and `rejected` stay in input order — order matters because the
+proposal uses `valid[0]` as the cover/hero. Only the adaptive proposal export
+wires this in (`generateDocument.ts`), logging rejected URLs via the singleton
+`logger` (no `req` available there).

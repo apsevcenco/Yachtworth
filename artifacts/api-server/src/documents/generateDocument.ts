@@ -5,6 +5,8 @@ import { renderPdf } from "./pdf/generatePdf";
 import { renderModelToPdfHtml } from "./pdf/renderModelToPdfHtml";
 import { buildProposalHtml } from "./pdf/templates/proposalTemplate";
 import { buildValuationHtml } from "./pdf/templates/valuationTemplate";
+import { photoList, validateImageUrls } from "./core/util";
+import { logger } from "../lib/logger";
 import {
   DOCX_CONTENT_TYPE,
   PDF_CONTENT_TYPE,
@@ -87,10 +89,26 @@ export async function generateDocument(
 
   // Opt-in adaptive engine (PDF only): semantic model → blocks → packed pages.
   // Default stays legacy.
-  const html =
-    settings.engine === "adaptive"
-      ? renderModelToPdfHtml(buildProposalModel({ yacht, reportData, settings, template }))
-      : buildProposalHtml({ yacht, reportData, settings, template });
+  let html: string;
+  if (settings.engine === "adaptive") {
+    // Probe photos up front so broken/unreachable URLs never reach the PDF as
+    // broken-image icons; rejected URLs are excluded and logged.
+    const candidatePhotos = yacht ? photoList(yacht) : [];
+    const { valid, rejected } = candidatePhotos.length
+      ? await validateImageUrls(candidatePhotos)
+      : { valid: [], rejected: [] };
+    if (rejected.length) {
+      logger.warn(
+        { documentType: "proposal", rejected, validCount: valid.length },
+        "proposal adaptive export: excluded unreachable/non-image photos",
+      );
+    }
+    html = renderModelToPdfHtml(
+      buildProposalModel({ yacht, reportData, settings, template, photos: valid }),
+    );
+  } else {
+    html = buildProposalHtml({ yacht, reportData, settings, template });
+  }
   const buffer = await renderPdf(html);
   return {
     buffer,

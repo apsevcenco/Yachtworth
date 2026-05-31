@@ -18,7 +18,8 @@ import type {
   YachtProfile,
 } from "../documentTypes";
 import { getTheme } from "../core/theme";
-import { num, photoList } from "../core/util";
+import { chunk, num, photoList } from "../core/util";
+import { measureNode } from "../model/measure";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
 
 // ─── money ──────────────────────────────────────────────────────────────────
@@ -51,6 +52,8 @@ const LABELS: Record<string, Dict> = {
     contract: "Contract",
     mybaStandard: "MYBA standard",
     charterArea: "Cruising area",
+    commercial: "Commercial Summary",
+    vat: "VAT status",
     confidential: "CONFIDENTIAL",
     none: "—",
   },
@@ -72,6 +75,8 @@ const LABELS: Record<string, Dict> = {
     contract: "Contrat",
     mybaStandard: "MYBA standard",
     charterArea: "Zone de navigation",
+    commercial: "Résumé Commercial",
+    vat: "Statut TVA",
     confidential: "CONFIDENTIEL",
     none: "—",
   },
@@ -93,6 +98,8 @@ const LABELS: Record<string, Dict> = {
     contract: "Contratto",
     mybaStandard: "MYBA standard",
     charterArea: "Area di navigazione",
+    commercial: "Riepilogo Commerciale",
+    vat: "Stato IVA",
     confidential: "RISERVATO",
     none: "—",
   },
@@ -114,6 +121,8 @@ const LABELS: Record<string, Dict> = {
     contract: "Contrato",
     mybaStandard: "MYBA estándar",
     charterArea: "Zona de navegación",
+    commercial: "Resumen Comercial",
+    vat: "Estado IVA",
     confidential: "CONFIDENCIAL",
     none: "—",
   },
@@ -135,6 +144,8 @@ const LABELS: Record<string, Dict> = {
     contract: "Vertrag",
     mybaStandard: "MYBA-Standard",
     charterArea: "Fahrtgebiet",
+    commercial: "Kommerzielle Übersicht",
+    vat: "MwSt.-Status",
     confidential: "VERTRAULICH",
     none: "—",
   },
@@ -156,6 +167,8 @@ const LABELS: Record<string, Dict> = {
     contract: "Контракт",
     mybaStandard: "Стандарт MYBA",
     charterArea: "Район плавания",
+    commercial: "Коммерческая сводка",
+    vat: "Статус НДС",
     confidential: "КОНФИДЕНЦИАЛЬНО",
     none: "—",
   },
@@ -194,7 +207,7 @@ function specRows(y: YachtProfile): { label: string; value: string }[] {
   push("Engine hours", y.engine_hours);
   push("Max speed", num(y.max_speed_knots), num(y.max_speed_knots) != null ? " kn" : "");
   push(
-    "Cruising speed",
+    "Cruise speed",
     num(y.cruising_speed_knots),
     num(y.cruising_speed_knots) != null ? " kn" : "",
   );
@@ -219,54 +232,245 @@ function accomRows(y: YachtProfile): { label: string; value: string }[] {
 
 // ─── equipment ──────────────────────────────────────────────────────────────
 
-function equipmentDetail(it: ProposalEquipmentItem): string {
-  const bits: string[] = [];
-  if (it.brand) bits.push(String(it.brand));
-  if (it.model) bits.push(String(it.model));
-  // ×1 carries no information — only show multiples.
-  if (it.quantity != null && num(it.quantity) !== 1) bits.push(`×${it.quantity}`);
-  if (it.power_kw != null) bits.push(`${it.power_kw} kW`);
-  if (it.power_hp != null) bits.push(`${it.power_hp} HP`);
-  if (it.capacity_liters != null) bits.push(`${it.capacity_liters} L`);
-  if (it.capacity_persons != null) bits.push(`${it.capacity_persons} pax`);
-  if (it.year_installed != null) bits.push(`${it.year_installed}`);
-  return bits.join(" · ");
-}
-
-/** One equipment item as a single bold name + muted "category · detail" sub-line. */
-function equipmentCell(it: ProposalEquipmentItem): TableCell {
-  const detail = equipmentDetail(it);
-  const sub = [it.category, detail].filter((x) => x != null && x !== "").join(" · ");
-  const cell: TableCell = { text: it.equipment_type ?? "", bold: true };
-  if (sub) cell.sub = sub;
-  return cell;
+/** "bow_thruster" → "Bow Thruster". Applied only to enum-ish fields (category,
+ *  equipment_type) — never to brand/model which carry their own casing. */
+function humanize(s: string): string {
+  return s
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
- * Equipment as a two-column layout. Chunked conservatively (≤8 items per
- * column) so each `columns` block always fits one page — the columns node is a
- * single non-splittable block, so we must never let one exceed the page budget.
+ * Item metadata as a clean, de-duplicated " · " line. Quantities read as
+ * "N units" (never "×N"; ×1 is dropped). Case-insensitive de-dup removes the
+ * "27.5 kW · 27.5 kW" artefact when a model string repeats a power value.
+ */
+function equipmentMeta(it: ProposalEquipmentItem): string {
+  const bits: string[] = [];
+  if (it.brand) bits.push(String(it.brand).trim());
+  if (it.model) bits.push(String(it.model).trim());
+  if (it.power_kw != null) bits.push(`${it.power_kw} kW`);
+  if (it.power_hp != null) bits.push(`${it.power_hp} HP`);
+  if (it.total_watts != null) bits.push(`${it.total_watts} W`);
+  if (it.capacity_liters != null) bits.push(`${it.capacity_liters} L`);
+  if (it.capacity_persons != null) bits.push(`${it.capacity_persons} pax`);
+  if (it.hours != null) bits.push(`${it.hours} h`);
+  if (it.year_installed != null) bits.push(`${it.year_installed}`);
+  const q = num(it.quantity);
+  if (q != null && q > 1) bits.push(`${q} units`);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const b of bits) {
+    if (!b) continue;
+    const k = b.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(b);
+  }
+  return out.join(" · ");
+}
+
+/** One equipment item: bold item name + lighter metadata sub-line. */
+function equipmentCell(it: ProposalEquipmentItem): TableCell {
+  const cell: TableCell = { text: humanize(String(it.equipment_type ?? "")), bold: true };
+  const meta = equipmentMeta(it);
+  if (meta) cell.sub = meta;
+  return cell;
+}
+
+/** Group items by category, preserving first-seen category order. */
+function groupByCategory(
+  items: ProposalEquipmentItem[],
+): { label: string; items: ProposalEquipmentItem[] }[] {
+  const order: string[] = [];
+  const map = new Map<string, ProposalEquipmentItem[]>();
+  for (const it of items) {
+    const cat = (it.category && String(it.category).trim()) || "Other";
+    if (!map.has(cat)) {
+      map.set(cat, []);
+      order.push(cat);
+    }
+    map.get(cat)!.push(it);
+  }
+  return order.map((c) => ({ label: humanize(c), items: map.get(c)! }));
+}
+
+/**
+ * Equipment grouped BY CATEGORY, balanced across two columns and paginated.
+ * Each category renders as a small uppercase heading (eyebrow) over its items;
+ * categories are packed shortest-column-first so the two columns stay balanced.
+ * Large categories are chunked (≤8 rows) so a single block never overflows a
+ * half-width column even when every metadata line wraps.
  */
 function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] {
   if (!items.length) return [];
-  // ≤8 per column. measureTable can't know a nested table renders at ~half the
-  // page width, so it under-counts wrapped sub-lines; 8 rows stays safely under
-  // the page budget even if every sub-line wraps to 3 lines (≈206mm < 240mm).
-  const PER_CHUNK = 16;
-  const chunks: ProposalEquipmentItem[][] = [];
-  for (let i = 0; i < items.length; i += PER_CHUNK) chunks.push(items.slice(i, i + PER_CHUNK));
-  const colNodes = (rows: ProposalEquipmentItem[]): ContentNode[] =>
-    rows.length ? [{ kind: "table", columns: [{}], rows: rows.map((it) => [equipmentCell(it)]) }] : [];
-  return chunks.map((chunk, idx) => {
-    const mid = Math.ceil(chunk.length / 2);
-    const left = chunk.slice(0, mid);
-    const right = chunk.slice(mid);
-    const heading =
-      chunks.length > 1 ? `${d["equipment"]} — ${idx + 1}/${chunks.length}` : d["equipment"]!;
-    const columns: { subHeading?: string; nodes: ContentNode[] }[] = [{ nodes: colNodes(left) }];
-    if (right.length) columns.push({ nodes: colNodes(right) });
+  const GAP_MM = 6; // breathing room BETWEEN categories (larger than row gap)
+  // Per-column hard cap (mm). Blocks are MEASURED at their real half-width
+  // (see below) so wrapped metadata is already counted; this leaves the cap as
+  // a true physical limit. A4 usable height ≈267mm minus the section heading
+  // (~14mm) and a safety margin → 244mm. Keeps a dense one-page list on one
+  // page without risking clip/overflow.
+  const PER_COL_MAX = 244;
+  const MAX_ROWS = 8;
+
+  type Blk = { node: ContentNode; h: number };
+  const blocks: Blk[] = [];
+  for (const g of groupByCategory(items)) {
+    const parts = chunk(g.items, MAX_ROWS);
+    parts.forEach((rows, i) => {
+      const heading = parts.length > 1 ? `${g.label} (${i + 1}/${parts.length})` : g.label;
+      const cells = rows.map((it) => [equipmentCell(it)]);
+      // Render full-width within its (half-page) column…
+      const node: ContentNode = { kind: "table", heading, columns: [{}], rows: cells };
+      // …but MEASURE at the real half-width (≈48% of content width) so long
+      // metadata that wraps in the two-column layout is counted. Measuring at
+      // full width would under-count tall blocks and risk page overflow.
+      const measureClone: ContentNode = {
+        kind: "table",
+        heading,
+        columns: [{ widthPct: 48 }],
+        rows: cells,
+      };
+      blocks.push({ node, h: measureNode(measureClone) });
+    });
+  }
+
+  // Pick the page count from the TOTAL height first, then fill each column to a
+  // soft per-column target (total / 2·pages). This keeps multi-page equipment
+  // lists evenly balanced — no trailing page left near-empty — while a list
+  // that fits one page stays on one page.
+  const totalH = blocks.reduce((s, b) => s + b.h + GAP_MM, 0);
+  const pagesCount = Math.max(1, Math.ceil(totalH / (2 * PER_COL_MAX)));
+  const target = totalH / (2 * pagesCount);
+
+  type Pg = { left: ContentNode[]; right: ContentNode[]; lh: number; rh: number };
+  const pages: Pg[] = [{ left: [], right: [], lh: 0, rh: 0 }];
+  for (const { node, h } of blocks) {
+    let pg = pages[pages.length - 1]!;
+    const place = (side: "L" | "R"): void => {
+      if (side === "L") {
+        pg.left.push(node);
+        pg.lh += h + GAP_MM;
+      } else {
+        pg.right.push(node);
+        pg.rh += h + GAP_MM;
+      }
+    };
+    const shorter: "L" | "R" = pg.lh <= pg.rh ? "L" : "R";
+    const other: "L" | "R" = shorter === "L" ? "R" : "L";
+    const cur = shorter === "L" ? pg.lh : pg.rh;
+    const oth = other === "L" ? pg.lh : pg.rh;
+    // Move to a fresh page once BOTH columns have reached the balance target
+    // (only while more pages are expected); otherwise pack onto this page up to
+    // the hard physical cap.
+    const bothFull = pages.length < pagesCount && Math.min(pg.lh, pg.rh) >= target;
+    if (cur === 0) place(shorter);
+    else if (!bothFull && cur + h <= PER_COL_MAX) place(shorter);
+    else if (!bothFull && oth + h <= PER_COL_MAX) place(other);
+    else {
+      pages.push({ left: [], right: [], lh: 0, rh: 0 });
+      pg = pages[pages.length - 1]!;
+      place("L");
+    }
+  }
+
+  const withGaps = (nodes: ContentNode[]): ContentNode[] => {
+    const o: ContentNode[] = [];
+    nodes.forEach((n, i) => {
+      if (i) o.push({ kind: "spacer", mm: GAP_MM });
+      o.push(n);
+    });
+    return o;
+  };
+
+  return pages.map((pg, idx) => {
+    const columns: { subHeading?: string; nodes: ContentNode[] }[] = [
+      { nodes: withGaps(pg.left) },
+    ];
+    if (pg.right.length) columns.push({ nodes: withGaps(pg.right) });
+    const heading = idx === 0 ? d["equipment"]! : `${d["equipment"]} (${idx + 1})`;
     return { kind: "columns", heading, columns };
   });
+}
+
+// ─── photography ─────────────────────────────────────────────────────────────
+
+/**
+ * Editorial photo pages that always FILL: one large hero image, with the rest
+ * in a balanced two-column grid beneath it. Heights are sized so the worst case
+ * (portrait images, which cap at the requested mm) still fits one physical page,
+ * while landscape images render to their natural aspect within those caps.
+ *  - 1 photo  → single full-width hero.
+ *  - 2 photos → two stacked full-width images.
+ *  - 3+       → hero + ≤4 grid images per page, split into balanced pages.
+ * Only pre-validated (reachable) URLs are passed in, so no broken thumbnails.
+ */
+function photographyNodes(valid: string[], d: Dict): ContentNode[] {
+  if (!valid.length) return [];
+
+  if (valid.length <= 2) {
+    const inner: ContentNode[] = [];
+    valid.forEach((u, i) => {
+      if (i) inner.push({ kind: "spacer", mm: 6 });
+      inner.push({ kind: "image", url: u, heightMm: valid.length === 1 ? 150 : 115 });
+    });
+    return [{ kind: "columns", heading: d["photography"]!, columns: [{ nodes: inner }] }];
+  }
+
+  const makePage = (imgs: string[], heading?: string): ContentNode => {
+    const [hero, ...rest] = imgs;
+    const gridRows = Math.ceil(rest.length / 2);
+    const heroMm = gridRows === 1 ? 140 : 105;
+    const gridMm = gridRows === 1 ? 75 : 56;
+    const inner: ContentNode[] = [{ kind: "image", url: hero!, heightMm: heroMm }];
+    if (rest.length) {
+      inner.push({ kind: "spacer", mm: 4 });
+      const mid = Math.ceil(rest.length / 2);
+      const colNodes = (us: string[]): ContentNode[] => {
+        const o: ContentNode[] = [];
+        us.forEach((u, i) => {
+          if (i) o.push({ kind: "spacer", mm: 4 });
+          o.push({ kind: "image", url: u, heightMm: gridMm });
+        });
+        return o;
+      };
+      const gcols = [{ nodes: colNodes(rest.slice(0, mid)) }];
+      const right = rest.slice(mid);
+      if (right.length) gcols.push({ nodes: colNodes(right) });
+      inner.push({ kind: "columns", columns: gcols });
+    }
+    return { kind: "columns", heading, columns: [{ nodes: inner }] };
+  };
+
+  const pagesCount = Math.ceil(valid.length / 5);
+  const per = Math.ceil(valid.length / pagesCount);
+  return chunk(valid, per).map((g, i) =>
+    makePage(g, i === 0 ? d["photography"]! : `${d["photography"]} (${i + 1})`),
+  );
+}
+
+/** Compact full-width paired spec table: label / value / label / value. */
+function specPairsTable(y: YachtProfile, d: Dict): ContentNode {
+  const rows = specRows(y);
+  const cells: TableCell[][] = [];
+  for (let i = 0; i < rows.length; i += 2) {
+    const a = rows[i]!;
+    const b = rows[i + 1];
+    cells.push([
+      { text: a.label, accent: true },
+      { text: a.value, bold: true },
+      { text: b ? b.label : "", accent: true },
+      { text: b ? b.value : "", bold: true },
+    ]);
+  }
+  return {
+    kind: "table",
+    heading: d["specifications"]!,
+    columns: [{ widthPct: 16 }, { widthPct: 24 }, { widthPct: 16 }, { widthPct: 24 }],
+    rows: cells,
+  };
 }
 
 // ─── pricing ────────────────────────────────────────────────────────────────
@@ -290,6 +494,8 @@ export function buildProposalModel(input: {
   reportData: ProposalReportData;
   settings: ExportSettings;
   template: DocumentTemplate;
+  /** Pre-validated (reachable) photo URLs. Falls back to raw photoList. */
+  photos?: string[];
 }): DocumentModel {
   const { yacht, reportData: r, settings, template } = input;
   const theme = getTheme(template);
@@ -305,7 +511,7 @@ export function buildProposalModel(input: {
   });
 
   // ── cover ──
-  const photos = photoList(yacht);
+  const photos = input.photos ?? photoList(yacht);
   const subtitle = [yacht.builder, yacht.model, yacht.year_built]
     .filter((x) => x != null && x !== "")
     .join(" · ");
@@ -334,40 +540,8 @@ export function buildProposalModel(input: {
   if (subtitle) cover.subtitle = subtitle;
   if (coverPrice) cover.price = coverPrice;
 
-  // ── body ──
-  const body: ContentNode[] = [];
-
-  // 2. Specifications | Accommodation
-  body.push({
-    kind: "columns",
-    heading: d["specifications"]!,
-    columns: [
-      { nodes: [{ kind: "keyValue", rows: specRows(yacht), emptyText: d["none"]! }] },
-      {
-        subHeading: d["accommodation"]!,
-        nodes: [{ kind: "keyValue", rows: accomRows(yacht), emptyText: d["none"]! }],
-      },
-    ],
-  });
-
-  // 3. Equipment (two columns)
-  const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  body.push(...equipmentNodes(equip, d));
-
-  // 4. Photography (all available photos)
-  if (photos.length) {
-    body.push({
-      kind: "gallery",
-      heading: d["photography"]!,
-      columns: 3,
-      images: photos.map((url) => ({ url })),
-    });
-  }
-
-  // 5. Pricing + Notes + Broker Contact — ONE atomic block so the packer can
-  // never strand the broker contact (or notes) on a separate page.
-  const pricingChildren: ContentNode[] = [];
-
+  // Shared pricing cards (For Sale / For Charter) — used on P2 commercial
+  // summary AND on the P5 full pricing block so they read consistently.
   const cards: { label: string; value: string; emphasis?: boolean }[] = [];
   if (showSale) {
     const saleVal =
@@ -377,8 +551,52 @@ export function buildProposalModel(input: {
   if (showCharter) {
     cards.push({ label: d["forCharter"]!, value: charterValue(r, d) });
   }
+
+  // ── body ──
+  const body: ContentNode[] = [];
+
+  // P2 — Vessel Overview: compact paired specs (full width), then a balanced
+  // two-column row of Accommodation (left) + Commercial Summary (right).
+  body.push(specPairsTable(yacht, d));
+
+  const commercial: ContentNode[] = [];
   if (cards.length) {
-    pricingChildren.push({ kind: "metrics", heading: d["pricing"]!, cards });
+    commercial.push({ kind: "metrics", heading: d["commercial"]!, cards: cards.slice() });
+  }
+  const commercialRows: { label: string; value: string }[] = [];
+  if (yacht.vat_status) commercialRows.push({ label: d["vat"]!, value: String(yacht.vat_status) });
+  if (r.delivery) commercialRows.push({ label: d["delivery"]!, value: String(r.delivery) });
+  if (r.sea_trial) commercialRows.push({ label: d["seaTrial"]!, value: String(r.sea_trial) });
+  if (commercialRows.length) commercial.push({ kind: "keyValue", rows: commercialRows });
+
+  const accomNode: ContentNode = {
+    kind: "keyValue",
+    heading: d["accommodation"]!,
+    rows: accomRows(yacht),
+    emptyText: d["none"]!,
+  };
+  if (commercial.length) {
+    body.push({
+      kind: "columns",
+      columns: [{ nodes: [accomNode] }, { nodes: commercial }],
+    });
+  } else {
+    body.push(accomNode);
+  }
+
+  // P3 — Equipment grouped by category, balanced across two columns.
+  const equip = Array.isArray(r.equipment) ? r.equipment : [];
+  body.push(...equipmentNodes(equip, d));
+
+  // P4 — Photography (validated photos only; editorial hero + grid that fills).
+  body.push(...photographyNodes(photos, d));
+
+  // P5 — Pricing + Notes + Broker Contact — ONE atomic block so the packer can
+  // never strand the broker contact (or notes) on a separate page.
+  const pricingChildren: ContentNode[] = [];
+
+  if (cards.length) {
+    pricingChildren.push({ kind: "metrics", heading: d["pricing"]!, cards: cards.slice() });
   }
 
   const metaRows: { label: string; value: string }[] = [];

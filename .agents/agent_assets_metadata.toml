@@ -53,3 +53,15 @@ id = "HQ9m8FXJssnbOkdKUxwZT"
 uri = "file://artifacts/api-server/exports/Aquila_Proposal_ru.pdf"
 type = "pdf"
 title = "Proposal V2 (Русский) — Sunseeker 88 Aquila"
+
+[[outputs]]
+id = "oentf_87UoohAkR8DdIlZ"
+uri = "file://exports/Serenity_proposal_adaptive_en.pdf"
+type = "pdf"
+title = "Serenity — Adaptive Proposal V2 (5 pages, English)"
+
+[[outputs]]
+id = "wehHj6tueh1IvH6AOoqQs"
+uri = "file://exports/Serenity_proposal_adaptive_fr.pdf"
+type = "pdf"
+title = "Serenity — Adaptive Proposal V2 (5 pages, French)"
