@@ -327,27 +327,46 @@ function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] 
   // (~14mm) and a safety margin → 244mm. Keeps a dense one-page list on one
   // page without risking clip/overflow.
   const PER_COL_MAX = 244;
-  const MAX_ROWS = 8;
+
+  // Measure equipment rows at the REAL half-width (≈48% of content width) so
+  // wrapped metadata is counted; measuring full-width would under-count tall
+  // blocks and risk page overflow.
+  const measureRows = (heading: string, rows: TableCell[][]): number =>
+    measureNode({ kind: "table", heading, columns: [{ widthPct: 48 }], rows });
 
   type Blk = { node: ContentNode; h: number };
   const blocks: Blk[] = [];
   for (const g of groupByCategory(items)) {
-    const parts = chunk(g.items, MAX_ROWS);
-    parts.forEach((rows, i) => {
-      const heading = parts.length > 1 ? `${g.label} (${i + 1}/${parts.length})` : g.label;
-      const cells = rows.map((it) => [equipmentCell(it)]);
-      // Render full-width within its (half-page) column…
-      const node: ContentNode = { kind: "table", heading, columns: [{}], rows: cells };
-      // …but MEASURE at the real half-width (≈48% of content width) so long
-      // metadata that wraps in the two-column layout is counted. Measuring at
-      // full width would under-count tall blocks and risk page overflow.
-      const measureClone: ContentNode = {
-        kind: "table",
-        heading,
-        columns: [{ widthPct: 48 }],
-        rows: cells,
-      };
-      blocks.push({ node, h: measureNode(measureClone) });
+    const allCells = g.items.map((it) => [equipmentCell(it)]);
+    const wholeH = measureRows(g.label, allCells);
+    // Keep every category as ONE atomic block so its items never split across
+    // columns or interleave with other categories (the "Power (1/2)" … "Comfort"
+    // … "Power (2/2)" bug). Each whole-category block is placed entirely in one
+    // column by the packer below. Only split when a single category is itself
+    // taller than a full column — then its consecutive chunks stay labelled.
+    if (wholeH <= PER_COL_MAX) {
+      blocks.push({
+        node: { kind: "table", heading: g.label, columns: [{}], rows: allCells },
+        h: wholeH,
+      });
+      continue;
+    }
+    const chunks: TableCell[][][] = [];
+    let cur: TableCell[][] = [];
+    for (const row of allCells) {
+      if (cur.length && measureRows(g.label, [...cur, row]) > PER_COL_MAX) {
+        chunks.push(cur);
+        cur = [];
+      }
+      cur.push(row);
+    }
+    if (cur.length) chunks.push(cur);
+    chunks.forEach((rows, i) => {
+      const heading = `${g.label} (${i + 1}/${chunks.length})`;
+      blocks.push({
+        node: { kind: "table", heading, columns: [{}], rows },
+        h: measureRows(heading, rows),
+      });
     });
   }
 
