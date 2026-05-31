@@ -286,12 +286,16 @@ function equipmentMeta(it: ProposalEquipmentItem): string {
   return out.join(" · ");
 }
 
-/** One equipment item: bold item name + lighter metadata sub-line. */
-function equipmentCell(it: ProposalEquipmentItem): TableCell {
-  const cell: TableCell = { text: humanize(String(it.equipment_type ?? "")), bold: true };
-  const meta = equipmentMeta(it);
-  if (meta) cell.sub = meta;
-  return cell;
+/** Equipment items as card rows: bold name + lighter metadata. */
+function equipmentItems(items: ProposalEquipmentItem[]): { name: string; meta?: string }[] {
+  return items.map((it) => {
+    const o: { name: string; meta?: string } = {
+      name: humanize(String(it.equipment_type ?? "")),
+    };
+    const meta = equipmentMeta(it);
+    if (meta) o.meta = meta;
+    return o;
+  });
 }
 
 /** Group items by category, preserving first-seen category order. */
@@ -328,44 +332,43 @@ function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] 
   // page without risking clip/overflow.
   const PER_COL_MAX = 244;
 
-  // Measure equipment rows at the REAL half-width (≈48% of content width) so
-  // wrapped metadata is counted; measuring full-width would under-count tall
-  // blocks and risk page overflow.
-  const measureRows = (heading: string, rows: TableCell[][]): number =>
-    measureNode({ kind: "table", heading, columns: [{ widthPct: 48 }], rows });
+  // Measure each category card at its real height (heading bar + per-item rows,
+  // wrap-aware). The card measure already assumes a half-width column.
+  const measureCard = (heading: string, its: { name: string; meta?: string }[]): number =>
+    measureNode({ kind: "card", heading, items: its });
 
   type Blk = { node: ContentNode; h: number };
   const blocks: Blk[] = [];
   for (const g of groupByCategory(items)) {
-    const allCells = g.items.map((it) => [equipmentCell(it)]);
-    const wholeH = measureRows(g.label, allCells);
-    // Keep every category as ONE atomic block so its items never split across
+    const allItems = equipmentItems(g.items);
+    const wholeH = measureCard(g.label, allItems);
+    // Keep every category as ONE atomic card so its items never split across
     // columns or interleave with other categories (the "Power (1/2)" … "Comfort"
-    // … "Power (2/2)" bug). Each whole-category block is placed entirely in one
+    // … "Power (2/2)" bug). Each whole-category card is placed entirely in one
     // column by the packer below. Only split when a single category is itself
     // taller than a full column — then its consecutive chunks stay labelled.
     if (wholeH <= PER_COL_MAX) {
       blocks.push({
-        node: { kind: "table", heading: g.label, columns: [{}], rows: allCells },
+        node: { kind: "card", heading: g.label, items: allItems },
         h: wholeH,
       });
       continue;
     }
-    const chunks: TableCell[][][] = [];
-    let cur: TableCell[][] = [];
-    for (const row of allCells) {
-      if (cur.length && measureRows(g.label, [...cur, row]) > PER_COL_MAX) {
+    const chunks: { name: string; meta?: string }[][] = [];
+    let cur: { name: string; meta?: string }[] = [];
+    for (const it of allItems) {
+      if (cur.length && measureCard(g.label, [...cur, it]) > PER_COL_MAX) {
         chunks.push(cur);
         cur = [];
       }
-      cur.push(row);
+      cur.push(it);
     }
     if (cur.length) chunks.push(cur);
-    chunks.forEach((rows, i) => {
+    chunks.forEach((its, i) => {
       const heading = `${g.label} (${i + 1}/${chunks.length})`;
       blocks.push({
-        node: { kind: "table", heading, columns: [{}], rows },
-        h: measureRows(heading, rows),
+        node: { kind: "card", heading, items: its },
+        h: measureCard(heading, its),
       });
     });
   }
@@ -581,10 +584,7 @@ export function buildProposalModel(input: {
   // Accommodation. No commercial content on this page.
   body.push(specPairsTable(yacht, d));
 
-  // P2 is Specifications + Accommodation ONLY — for every proposal_type
-  // (sale / charter / both). All commercial detail (price cards, VAT, delivery,
-  // sea-trial, charter terms) lives solely on the final Pricing page and is
-  // never duplicated mid-document. Accommodation spans the full width.
+  // Accommodation spans the full width.
   const accomNode: ContentNode = {
     kind: "keyValue",
     heading: d["accommodation"]!,
@@ -593,6 +593,21 @@ export function buildProposalModel(input: {
     emptyText: d["none"]!,
   };
   body.push(accomNode);
+
+  // P2 closes with ONE compact commercial snapshot strip (Sale · Charter · VAT)
+  // — an at-a-glance band, deliberately NOT the full price cards / charter terms
+  // that live on the final Pricing page.
+  const snapRows: { label: string; value: string }[] = [];
+  if (showSale) {
+    const saleVal =
+      r.price_on_application || num(r.sale_price_eur) == null ? d["poa"]! : money(r.sale_price_eur);
+    snapRows.push({ label: d["forSale"]!, value: saleVal });
+  }
+  if (showCharter) snapRows.push({ label: d["forCharter"]!, value: charterValue(r, d) });
+  if (yacht.vat_status) snapRows.push({ label: d["vat"]!, value: vatLabel(yacht.vat_status) });
+  if (snapRows.length) {
+    body.push({ kind: "keyValue", heading: d["commercial"]!, layout: "inline", rows: snapRows });
+  }
 
   // P3 — Equipment grouped by category, balanced across two columns.
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
@@ -635,7 +650,7 @@ export function buildProposalModel(input: {
   if (r.broker_email) contactRows.push({ label: "Email", value: String(r.broker_email) });
   if (r.broker_website) contactRows.push({ label: "Website", value: String(r.broker_website) });
   if (contactRows.length) {
-    pricingChildren.push({ kind: "keyValue", heading: d["contact"]!, rows: contactRows });
+    pricingChildren.push({ kind: "keyValue", heading: d["contact"]!, rows: contactRows, boxed: true });
   }
 
   if (pricingChildren.length) {

@@ -24,6 +24,7 @@ import {
   GAL_CAP_MM,
 } from "../model/measure";
 import type {
+  CardNode,
   CellTone,
   ColumnsNode,
   ContentNode,
@@ -144,13 +145,64 @@ function kvPairsHtml(rows: { label: string; value: string }[]): string {
   return `<table class="kv-grid">${cells.join("")}</table>`;
 }
 
+/** Compact horizontal commercial strip: `Label value · Label value · …`. */
+function kvInlineHtml(rows: { label: string; value: string }[]): string {
+  const segs = rows
+    .map(
+      (r) =>
+        `<span class="kvi-item"><span class="kvi-l">${esc(
+          r.label,
+        )}</span><span class="kvi-v">${esc(r.value)}</span></span>`,
+    )
+    .join(`<span class="kvi-sep">·</span>`);
+  return `<div class="kv-inline">${segs}</div>`;
+}
+
+/** Bordered key/value card: heading bar over label/value rows. */
+function kvCardHtml(node: KeyValueGridNode): string {
+  const body = node.rows.length
+    ? `<table class="kvc-tbl">${node.rows
+        .map(
+          (r) =>
+            `<tr><td class="kvc-l">${esc(r.label)}</td><td class="kvc-v">${esc(
+              r.value,
+            )}</td></tr>`,
+        )
+        .join("")}</table>`
+    : `<p class="muted">${esc(node.emptyText ?? "—")}</p>`;
+  return `<div class="kv-card"><div class="eq-card-h">${esc(
+    node.heading ?? "",
+  )}</div><div class="kv-card-body">${body}</div></div>`;
+}
+
 function keyValueHtml(node: KeyValueGridNode): string {
+  if (node.layout === "inline") {
+    return `${eyebrow(node.heading)}${kvInlineHtml(node.rows)}`;
+  }
+  if (node.boxed && node.layout !== "pairs") {
+    return kvCardHtml(node);
+  }
   const body = node.rows.length
     ? node.layout === "pairs"
       ? kvPairsHtml(node.rows)
       : kvTableHtml(node.rows)
     : `<p class="muted">${esc(node.emptyText ?? "—")}</p>`;
   return `${eyebrow(node.heading)}${body}`;
+}
+
+/** Bordered category card: title bar over name (+ optional meta) rows. */
+function cardHtml(node: CardNode): string {
+  const rows = node.items
+    .map(
+      (it) =>
+        `<div class="eq-row"><span class="eq-name">${esc(it.name)}</span>${
+          it.meta ? `<span class="eq-meta">${esc(it.meta)}</span>` : ""
+        }</div>`,
+    )
+    .join("");
+  return `<div class="eq-card"><div class="eq-card-h">${esc(
+    node.heading,
+  )}</div><div class="eq-card-body">${rows}</div></div>`;
 }
 
 function paragraphHtml(node: ParagraphNode): string {
@@ -264,6 +316,8 @@ function leafHtml(node: ContentNode): string {
       return `<div class="sec-h h${node.level ?? 2}">${esc(node.text)}</div>`;
     case "keyValue":
       return keyValueHtml(node);
+    case "card":
+      return cardHtml(node);
     case "columns":
       return columnsHtml(node);
     case "paragraph":

@@ -248,6 +248,27 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .sig-name { font-family: ${HEAD}; font-weight: 700; margin-top: 6px; }
   .sig-role { font-size: 10px; margin-top: 2px; }
   .divider { border-top: 1px solid ${t.line}; }
+  /* ── proposal-only primitives (never emitted by valuation) ── */
+  /* equipment category cards + boxed broker card share the navy title bar */
+  .eq-card, .kv-card { border: 1px solid ${t.line}; border-radius: 4px; overflow: hidden; background: ${t.pageBg}; break-inside: avoid; }
+  .eq-card-h { font-family: ${HEAD}; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; color: ${t.tableHeadText}; background: ${t.tableHeadBg}; padding: 6px 10px; }
+  .eq-card-body { padding: 3px 10px 5px; }
+  .eq-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid ${t.line}; }
+  .eq-row:last-child { border-bottom: 0; }
+  .eq-name { flex: 1 1 auto; font-weight: 700; color: ${t.text}; font-size: 10px; }
+  .eq-meta { flex: 0 0 auto; max-width: 58%; color: ${t.textMuted}; font-size: 8.5px; font-weight: 400; text-align: right; }
+  /* compact inline commercial snapshot (page 2) */
+  .kv-inline { background: ${t.panelBg}; border-left: 3px solid ${t.accent}; border-radius: 3px; padding: 11px 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+  .kvi-l { font-family: ${HEAD}; color: ${t.accentInk}; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; margin-right: 7px; }
+  .kvi-v { font-weight: 700; color: ${t.text}; font-size: 11px; }
+  .kvi-sep { color: ${t.accent}; font-weight: 700; margin: 0 4px; }
+  /* boxed key/value card (broker contact) */
+  .kv-card-body { padding: 2px 12px 6px; }
+  table.kvc-tbl { width: 100%; border-collapse: collapse; }
+  table.kvc-tbl td { padding: 6px 0; border-bottom: 1px solid ${t.line}; vertical-align: top; }
+  table.kvc-tbl tr:last-child td { border-bottom: 0; }
+  .kvc-l { font-family: ${HEAD}; color: ${t.accentInk}; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; width: 30%; }
+  .kvc-v { font-weight: 500; color: ${t.text}; }
   ${
     confidential
       ? `.watermark { position: fixed; top: 45%; left: 0; right: 0; text-align: center;

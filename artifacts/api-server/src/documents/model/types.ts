@@ -78,8 +78,26 @@ export interface KeyValueGridNode {
    * Layout:
    *  - "list"  (default) → single-column label/value rows.
    *  - "pairs" → paired specification grid (label | value | label | value).
+   *  - "inline" → one compact horizontal strip of `Label value · …` segments
+   *    (e.g. the proposal's commercial snapshot row).
    */
-  layout?: "list" | "pairs";
+  layout?: "list" | "pairs" | "inline";
+  /**
+   * Render the grid inside a bordered card with the heading as a title bar
+   * (e.g. the proposal's broker-contact card). Ignored for "inline"/"pairs".
+   */
+  boxed?: boolean;
+}
+
+/**
+ * A bordered category card: a title bar over a list of name (+ optional meta)
+ * rows. Used for the proposal's equipment inventory so each category reads as a
+ * premium card rather than a raw list.
+ */
+export interface CardNode {
+  kind: "card";
+  heading: string;
+  items: { name: string; meta?: string }[];
 }
 
 /** Side-by-side columns of nested nodes (e.g. specs | accommodation). */
@@ -192,6 +210,7 @@ export interface SpacerNode {
 export type ContentNode =
   | HeadingNode
   | KeyValueGridNode
+  | CardNode
   | ColumnsNode
   | ParagraphNode
   | TableNode

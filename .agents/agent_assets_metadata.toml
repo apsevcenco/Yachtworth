@@ -83,3 +83,9 @@ id = "Zz8ZL8qMjvdf9DJUa_Y4x"
 uri = "file://exports/valuation_report.pdf"
 type = "pdf"
 title = "Valuation Report — humanized labels"
+
+[[outputs]]
+id = "0zmZUyZxnH_o3AHm6CzhO"
+uri = "file://artifacts/api-server/exports/Yachtworth_Proposal_Aurelia.pdf"
+type = "pdf"
+title = "Yacht Proposal — adaptive layout (Aurelia)"

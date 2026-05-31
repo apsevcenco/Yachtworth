@@ -30,6 +30,11 @@ export const IMAGE_DEFAULT_MM = 60;
 export const GALLERY_GAP_MM = 2;
 export const GAL_IMG_MM = 36; // MUST match `.gal-img { height }` in theme.ts
 export const GAL_CAP_MM = 6;
+export const CARD_HEAD_MM = 10; // bordered-card title bar
+export const CARD_PAD_MM = 7; // card top+bottom padding + border
+export const CARD_ITEM_MM = 7; // one item name line
+export const CARD_META_MM = 4; // one item meta sub-line
+export const INLINE_STRIP_MM = 9; // compact inline strip padding (excl. wrapped lines)
 export const CONTENT_WIDTH_MM = 180; // A4 minus 15mm side margins
 export const MM_PER_CHAR = 1.9; // rough avg glyph advance at body size
 
@@ -92,11 +97,28 @@ export function measureNode(node: ContentNode): number {
       return 14;
     case "keyValue": {
       const head = node.heading ? HEADING_MM : 0;
+      if (node.layout === "inline") {
+        const txt = node.rows.map((r) => `${r.label} ${r.value}`).join("  ·  ");
+        const lines = Math.max(1, Math.ceil(txt.length / charsPerLine(94)));
+        return head + INLINE_STRIP_MM + lines * LINE_MM;
+      }
+      if (node.boxed && node.layout !== "pairs") {
+        const rows = node.rows.length || 1;
+        return CARD_HEAD_MM + CARD_PAD_MM + rows * KV_ROW_MM;
+      }
       if (!node.rows.length) return head + LINE_MM;
       // Paired grid packs two label/value pairs per row → half the row count.
       const gridRows =
         node.layout === "pairs" ? Math.ceil(node.rows.length / 2) : node.rows.length;
       return head + gridRows * KV_ROW_MM;
+    }
+    case "card": {
+      const body = node.items.reduce((s, it) => {
+        const nameLines = Math.max(1, linesFor(it.name, 44));
+        const metaLines = it.meta ? Math.max(1, linesFor(it.meta, 44)) : 0;
+        return s + nameLines * CARD_ITEM_MM + metaLines * CARD_META_MM + 2;
+      }, 0);
+      return CARD_HEAD_MM + CARD_PAD_MM + body;
     }
     case "columns": {
       const head = node.heading ? HEADING_MM : 0;
