@@ -187,7 +187,7 @@ function specRows(y: YachtProfile): { label: string; value: string }[] {
   };
   push("Builder", y.builder);
   push("Model", y.model);
-  push("Type", y.yacht_type);
+  push("Type", y.yacht_type ? humanize(String(y.yacht_type)) : null);
   push("Year built", y.year_built);
   push("Length", num(y.length_meters), num(y.length_meters) != null ? " m" : "");
   push("Beam", num(y.beam_meters), num(y.beam_meters) != null ? " m" : "");
@@ -199,7 +199,7 @@ function specRows(y: YachtProfile): { label: string; value: string }[] {
   push("Registration", y.registration_number);
   push("IMO", y.imo_number);
   push("Hull ID", y.hull_id);
-  push("VAT status", y.vat_status);
+  push("VAT status", y.vat_status ? vatLabel(y.vat_status) : null);
   push("Engine maker", y.engine_maker);
   push("Engine model", y.engine_model);
   push("Engines", y.engine_count);
@@ -240,6 +240,20 @@ function humanize(s: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Human-readable VAT status. Enum values must map explicitly — humanize alone
+ *  would yield "Tax Paid Eu" which reads poorly on a client-facing proposal. */
+const VAT_LABELS: Record<string, string> = {
+  tax_paid_eu: "VAT Paid / EU Free Circulation",
+  paid: "VAT Paid / EU Free Circulation",
+  tax_not_paid: "VAT Not Paid (offshore)",
+  not_paid: "VAT Not Paid (offshore)",
+  unknown: "VAT status not stated",
+};
+function vatLabel(s: unknown): string {
+  const key = String(s).trim().toLowerCase();
+  return VAT_LABELS[key] ?? humanize(String(s));
 }
 
 /**
@@ -559,15 +573,21 @@ export function buildProposalModel(input: {
   // two-column row of Accommodation (left) + Commercial Summary (right).
   body.push(specPairsTable(yacht, d));
 
+  // Sale-only proposals omit this mid-document commercial summary entirely: the
+  // sale price already appears on the cover + final pricing page, VAT is in the
+  // spec table, and delivery/sea-trial repeat on the final page. Keeping it here
+  // for sale-only only duplicated the price and left an unbalanced half-column.
   const commercial: ContentNode[] = [];
-  if (cards.length) {
-    commercial.push({ kind: "metrics", heading: d["commercial"]!, cards: cards.slice() });
+  if (showCharter) {
+    if (cards.length) {
+      commercial.push({ kind: "metrics", heading: d["commercial"]!, cards: cards.slice() });
+    }
+    const commercialRows: { label: string; value: string }[] = [];
+    if (yacht.vat_status) commercialRows.push({ label: d["vat"]!, value: vatLabel(yacht.vat_status) });
+    if (r.delivery) commercialRows.push({ label: d["delivery"]!, value: String(r.delivery) });
+    if (r.sea_trial) commercialRows.push({ label: d["seaTrial"]!, value: String(r.sea_trial) });
+    if (commercialRows.length) commercial.push({ kind: "keyValue", rows: commercialRows });
   }
-  const commercialRows: { label: string; value: string }[] = [];
-  if (yacht.vat_status) commercialRows.push({ label: d["vat"]!, value: String(yacht.vat_status) });
-  if (r.delivery) commercialRows.push({ label: d["delivery"]!, value: String(r.delivery) });
-  if (r.sea_trial) commercialRows.push({ label: d["seaTrial"]!, value: String(r.sea_trial) });
-  if (commercialRows.length) commercial.push({ kind: "keyValue", rows: commercialRows });
 
   const accomNode: ContentNode = {
     kind: "keyValue",

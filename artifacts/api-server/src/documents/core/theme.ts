@@ -99,20 +99,21 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .cover-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .cover-overlay {
     position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.0) 35%, rgba(0,0,0,0.65) 100%);
+    background: linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.9) 100%);
   }
   .cover-inner { position: absolute; left: 0; right: 0; bottom: 0; padding: 16mm; }
   .cover-eyebrow {
     color: ${t.coverAccent}; letter-spacing: 4px; font-size: 11px; font-weight: 700;
     text-transform: uppercase; margin-bottom: 10px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
   }
-  .cover-name { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 4px; }
-  .cover-sub { font-size: 13px; opacity: 0.85; margin-bottom: 16px; }
-  .cover-grid { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid rgba(255,255,255,0.25); }
+  .cover-name { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+  .cover-sub { font-size: 13px; opacity: 0.9; margin-bottom: 16px; text-shadow: 0 1px 5px rgba(0,0,0,0.65); }
+  .cover-grid { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid rgba(255,255,255,0.35); }
   .cover-cell { flex: 1 1 20%; padding: 10px 6px 0; min-width: 80px; }
-  .cover-cell .cl { font-size: 8.5px; letter-spacing: 1.5px; text-transform: uppercase; color: ${t.coverAccent}; }
-  .cover-cell .cv { font-size: 13px; font-weight: 600; }
-  .cover-price { margin-top: 14px; font-size: 22px; font-weight: 800; color: ${t.coverAccent}; }
+  .cover-cell .cl { font-size: 8.5px; letter-spacing: 1.5px; text-transform: uppercase; color: ${t.coverAccent}; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  .cover-cell .cv { font-size: 13px; font-weight: 600; text-shadow: 0 1px 5px rgba(0,0,0,0.65); }
+  .cover-price { margin-top: 14px; font-size: 22px; font-weight: 800; color: ${t.coverAccent}; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
   .cover-date { position: absolute; top: 16mm; right: 16mm; font-size: 10px; letter-spacing: 1px; opacity: 0.7; }
   /* tables */
   table.spec { width: 100%; border-collapse: collapse; }

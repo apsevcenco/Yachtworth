@@ -1,4 +1,9 @@
-import { getAuthToken, getBaseUrl } from "@workspace/api-client-react";
+import {
+  getAuthToken,
+  getBaseUrl,
+  type Comparable,
+  type Valuation,
+} from "@workspace/api-client-react";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
@@ -106,33 +111,34 @@ function fileNameFor(yacht: ProposalYachtSnapshot, format: DocumentFormat): stri
 }
 
 /**
- * Generate a professional proposal document on the backend and present it
- * (share sheet on native, download on web).
+ * Shared transport: POST a request body to the backend document engine and
+ * present the returned binary (share sheet on native, download on web).
+ * Identical behaviour for every document type — only the request body differs.
  */
-export async function exportProposalDocument(input: {
-  yacht: ProposalYachtSnapshot;
-  equipment: ProposalEquipmentItem[];
-  settings: ProposalSettings;
-  format: DocumentFormat;
-}): Promise<void> {
-  const { yacht, equipment, settings, format } = input;
+async function downloadDocument(
+  body: unknown,
+  format: DocumentFormat,
+  fileName: string,
+): Promise<void> {
   const base = getBaseUrl() ?? "";
   const url = `${base}/api/documents/generate`;
   const token = await getAuthToken();
 
+  const mime =
+    format === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Accept:
-      format === "pdf"
-        ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    Accept: mime,
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify(buildRequestBody(yacht, equipment, settings, format)),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -147,12 +153,6 @@ export async function exportProposalDocument(input: {
       `Export failed (HTTP ${res.status})${detail ? `: ${detail.slice(0, 200)}` : ""}`,
     );
   }
-
-  const fileName = fileNameFor(yacht, format);
-  const mime =
-    format === "pdf"
-      ? "application/pdf"
-      : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
   if (Platform.OS === "web") {
     const blob = await res.blob();
@@ -181,4 +181,179 @@ export async function exportProposalDocument(input: {
       UTI: format === "pdf" ? "com.adobe.pdf" : "org.openxmlformats.wordprocessingml.document",
     });
   }
+}
+
+/**
+ * Generate a professional proposal document on the backend and present it
+ * (share sheet on native, download on web).
+ */
+export async function exportProposalDocument(input: {
+  yacht: ProposalYachtSnapshot;
+  equipment: ProposalEquipmentItem[];
+  settings: ProposalSettings;
+  format: DocumentFormat;
+}): Promise<void> {
+  const { yacht, equipment, settings, format } = input;
+  await downloadDocument(
+    buildRequestBody(yacht, equipment, settings, format),
+    format,
+    fileNameFor(yacht, format),
+  );
+}
+
+// ─── valuation report (backend adaptive engine) ──────────────────────────────
+
+/** Cover/spec header carried from the valuation wizard (already humanized). */
+export type ValuationHeader = {
+  yachtType?: string | null;
+  builder?: string | null;
+  model?: string | null;
+  yearBuilt?: number | null;
+  lengthMeters?: number | null;
+};
+
+const M_PER_FT = 0.3048;
+const CONFIDENCE_PCT: Record<string, number> = { high: 85, medium: 60, low: 30 };
+
+/**
+ * Parse an AI comparable price string into a plain EUR number. Abbreviated
+ * ("€1.2M") or non-numeric ("POA") prices can't be digit-stripped safely, so we
+ * return null and let the caller keep the original string as a note instead.
+ */
+function parseEuro(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const str = String(s);
+  if (/[a-z]/i.test(str.replace(/eur|usd|gbp|chf/gi, ""))) return null;
+  const digits = str.replace(/[^\d]/g, "");
+  if (!digits) return null;
+  const n = parseInt(digits, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Parse a comparable length string to metres (mirrors `formatComparableLength`). */
+function parseLengthMeters(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const raw = String(s).trim();
+  const n = parseFloat(raw.replace(",", ".").replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const meters = /ft|'/i.test(raw) ? n * M_PER_FT : n;
+  return Math.round(meters * 10) / 10;
+}
+
+function mapComparables(list: Comparable[]) {
+  return (list ?? []).map((c) => {
+    const price = parseEuro(c.price);
+    const notes = [
+      c.condition ? String(c.condition) : null,
+      c.note ? String(c.note) : null,
+      price == null && c.price ? `Asking: ${c.price}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      builder: c.builder ?? null,
+      model: c.model ?? null,
+      year: c.year ?? null,
+      length_meters: parseLengthMeters(c.length),
+      price,
+      currency: "EUR",
+      notes: notes || null,
+    };
+  });
+}
+
+function buildValuationBody(
+  result: Valuation,
+  header: ValuationHeader | undefined,
+  format: DocumentFormat,
+) {
+  const name =
+    [header?.builder, header?.model].filter(Boolean).join(" ") ||
+    header?.yachtType ||
+    "Yacht Valuation";
+
+  const vat =
+    result.vat_status === "paid"
+      ? "VAT Paid / EU Free Circulation"
+      : result.vat_status === "not_paid"
+        ? "VAT Not Paid (offshore)"
+        : null;
+
+  const factors: {
+    factor: string;
+    impact?: string;
+    weight?: number | null;
+    notes?: string | null;
+  }[] = [];
+  if (result.sale_region_label)
+    factors.push({ factor: "Sale region", impact: "neutral", notes: result.sale_region_label });
+  if (result.condition_label)
+    factors.push({ factor: "Condition", impact: "neutral", notes: result.condition_label });
+  if (
+    typeof result.condition_adjustment_pct === "number" &&
+    result.condition_adjustment_pct !== 0
+  )
+    factors.push({
+      factor: "Condition adjustment",
+      impact: result.condition_adjustment_pct > 0 ? "positive" : "negative",
+      weight: result.condition_adjustment_pct,
+    });
+  if (result.sanity_adjusted)
+    factors.push({
+      factor: "Market band adjustment",
+      impact: "neutral",
+      notes: result.sanity_band_label ?? "Adjusted to regional market band",
+    });
+
+  return {
+    documentType: "valuation_report" as const,
+    format,
+    template: "premium" as const,
+    yachtProfile: {
+      name,
+      builder: header?.builder ?? null,
+      model: header?.model ?? null,
+      yacht_type: header?.yachtType ?? null,
+      year_built: header?.yearBuilt ?? null,
+      length_meters: header?.lengthMeters ?? null,
+      vat_status: vat,
+    },
+    reportData: {
+      estimatedValueLow: result.range_low_eur,
+      estimatedValueMid: result.estimated_price_eur,
+      estimatedValueHigh: result.range_high_eur,
+      currency: result.currency ?? "EUR",
+      confidenceScore: CONFIDENCE_PCT[result.confidence] ?? null,
+      comparableYachts: mapComparables(result.comparables ?? []),
+      valuationFactors: factors,
+      marketNotes: result.reasoning ?? null,
+    },
+    exportSettings: {
+      template: "premium" as const,
+      language: "english" as const,
+      branding: "Yachtworth",
+      ...(format === "pdf" ? { engine: "adaptive" as const } : {}),
+    },
+  };
+}
+
+/**
+ * Generate a professional valuation report on the backend (adaptive PDF engine)
+ * and present it. Replaces the on-device `exportEstimatePdf` as the primary
+ * "Export PDF report" action on the valuation result screen.
+ */
+export async function exportValuationDocument(input: {
+  result: Valuation;
+  header?: ValuationHeader;
+}): Promise<void> {
+  const { result, header } = input;
+  const base =
+    ([header?.builder, header?.model].filter(Boolean).join("_") ||
+      header?.yachtType ||
+      "valuation")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60) || "valuation";
+  await downloadDocument(buildValuationBody(result, header, "pdf"), "pdf", `${base}_valuation.pdf`);
 }

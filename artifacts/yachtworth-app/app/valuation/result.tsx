@@ -10,6 +10,7 @@ import React, { useMemo, useState } from "react";
 import { useUnits } from "../../hooks/useUnits";
 import { formatComparableLength } from "../../lib/units";
 import { exportEstimatePdf } from "../../lib/pdf";
+import { exportValuationDocument } from "../../lib/documentExport";
 import {
   ActivityIndicator,
   Alert,
@@ -47,6 +48,7 @@ export default function ValuationResultScreen() {
   const router = useRouter();
   const { units } = useUnits();
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [legacyBusy, setLegacyBusy] = useState(false);
   const params = useLocalSearchParams<{
     data?: string;
     header?: string;
@@ -133,7 +135,7 @@ export default function ValuationResultScreen() {
     if (!result || pdfBusy) return;
     setPdfBusy(true);
     try {
-      await exportEstimatePdf(result, units, header);
+      await exportValuationDocument({ result, header });
     } catch (e) {
       Alert.alert(
         "PDF export failed",
@@ -141,6 +143,21 @@ export default function ValuationResultScreen() {
       );
     } finally {
       setPdfBusy(false);
+    }
+  }
+
+  async function handleExportLegacyPdf() {
+    if (!result || legacyBusy) return;
+    setLegacyBusy(true);
+    try {
+      await exportEstimatePdf(result, units, header);
+    } catch (e) {
+      Alert.alert(
+        "PDF export failed",
+        e instanceof Error ? e.message : "Could not generate PDF",
+      );
+    } finally {
+      setLegacyBusy(false);
     }
   }
 
@@ -318,6 +335,22 @@ export default function ValuationResultScreen() {
               <Feather name="download" size={16} color={GOLD} />
               <Text style={styles.primaryCtaText}>Export PDF report</Text>
             </>
+          )}
+        </Pressable>
+
+        {/* Legacy on-device PDF (kept as a fallback) */}
+        <Pressable
+          onPress={handleExportLegacyPdf}
+          disabled={legacyBusy}
+          style={({ pressed }) => [
+            styles.legacyLink,
+            { opacity: pressed || legacyBusy ? 0.6 : 1 },
+          ]}
+        >
+          {legacyBusy ? (
+            <ActivityIndicator color={MUTED} size="small" />
+          ) : (
+            <Text style={styles.legacyLinkText}>Export legacy PDF</Text>
           )}
         </Pressable>
 
@@ -575,6 +608,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 15,
     letterSpacing: 0.2,
+  },
+  legacyLink: {
+    marginTop: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  legacyLinkText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    textDecorationLine: "underline",
   },
   secondaryCta: {
     marginTop: 12,

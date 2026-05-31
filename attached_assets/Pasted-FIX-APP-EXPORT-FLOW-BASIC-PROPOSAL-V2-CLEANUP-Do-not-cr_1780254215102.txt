@@ -1,0 +1,71 @@
+FIX APP EXPORT FLOW + BASIC PROPOSAL V2 CLEANUP
+
+Do not create new architecture.
+Do not modify DOCX.
+Do not modify survey, ROI, charter, ownership cost or passport.
+Do not change Supabase schema.
+Do not redesign the whole document.
+
+Part A — Connect Valuation V2 to app export
+
+Problem:
+The valuation PDF button still uses on-device legacy lib/pdf.ts exportEstimatePdf().
+The backend valuation_report adaptive generator exists but is not reachable from the app.
+
+Task:
+Update the valuation PDF export flow so that the valuation result screen exports via backend document engine:
+
+documentType: “valuation_report”
+format: “pdf”
+exportSettings.engine: “adaptive”
+
+Files expected:
+
+* artifacts/yachtworth-app/app/valuation/result.tsx
+* artifacts/yachtworth-app/lib/documentExport.ts
+
+Keep legacy valuation export available only if already easily possible, but the main Professional PDF export must use backend adaptive valuation.
+
+Part B — Proposal V2 cleanup only
+
+Fix only these issues in Proposal V2:
+
+1. Human-readable labels:
+
+* motor_yacht → Motor Yacht
+* tax_paid_eu → VAT Paid / EU Free Circulation
+* price_on_application and other enum values must not show raw.
+
+2. Cover text legibility:
+
+* add stronger bottom overlay/scrim or text shadow so yacht name, specs and price are readable over bright/dark photos.
+
+3. Sale-only logic:
+    If proposal_type = “sale”:
+
+* do not show charter price block.
+* do not show unnecessary charter/commercial summary.
+* do not duplicate price unnecessarily in middle of document.
+* keep detailed price on final pricing page.
+
+4. Empty final pricing page:
+    If sale-only and there is little data, combine pricing with notes/contact/disclaimer more compactly.
+    Do not create a near-empty final page.
+
+Do not change gallery design now.
+Do not change equipment design now unless required by these fixes.
+
+Acceptance criteria:
+
+1. Valuation PDF from app uses backend adaptive valuation, not lib/pdf.ts.
+2. Proposal V2 no longer shows raw enum values.
+3. Cover text is readable.
+4. Sale-only proposal does not show charter structures.
+5. Typecheck passes.
+
+Return only:
+
+* files changed
+* exact button/export flow after change
+* new valuation PDF from app
+* new proposal PDF from app
