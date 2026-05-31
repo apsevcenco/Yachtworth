@@ -1,0 +1,80 @@
+STEP AE2 — BUILD ADAPTIVE BLOCK ENGINE CORE + VALUATION PILOT
+
+Goal:
+Create the first version of the Adaptive Document Engine, but only use it for valuation_report behind a feature flag.
+
+Critical:
+- Do not remove existing valuation template.
+- Do not remove existing proposal template.
+- Do not change proposal export.
+- Do not change Supabase schema.
+- Do not modify calculation logic.
+- Current valuation_report export must remain available as legacy fallback.
+- New adaptive version must be opt-in only.
+
+Feature flag:
+Use exportSettings.engine:
+- "legacy" = current valuation template
+- "adaptive" = new block-based layout
+
+If exportSettings.engine is missing, default to "legacy" for now.
+
+Create:
+artifacts/api-server/src/documents/core/
+  types.ts
+  theme.ts
+  renderBlocksToHtml.ts
+  paginateBlocks.ts
+
+Create:
+artifacts/api-server/src/documents/blocks/
+  CoverBlock.ts
+  YachtSummaryBlock.ts
+  MetricCardsBlock.ts
+  ValuationRangeBlock.ts
+  ComparableYachtsBlock.ts
+  FactorsBlock.ts
+  NotesBlock.ts
+  ContactBlock.ts
+  DisclaimerBlock.ts
+
+Create:
+artifacts/api-server/src/documents/templates/
+  valuationAdaptive.ts
+
+Adaptive layout rules:
+1. Cover remains standalone.
+2. Yacht Summary + Valuation Result should share the same page when content fits.
+3. Comparable Yachts + Valuation Factors should share the same page when content fits.
+4. Market Notes + Prepared By + Disclaimer should share the final page.
+5. Avoid pages under 50% filled unless intentionally marked as cover.
+6. Avoid orphan headings.
+7. Avoid vertical text wrapping bug.
+8. Use consistent margins, typography, navy/gold/white YachtWorth premium style.
+9. Keep CONFIDENTIAL watermark.
+10. Keep generated output A4.
+
+For first version:
+Use heuristic block heights, not exact Chrome measurement.
+Use CSS:
+- break-inside: avoid
+- page-break-inside: avoid
+- forced break only when needed
+- no section should force page-break-after by default
+
+PDF only for this step.
+DOCX adaptive can remain legacy for now unless easy.
+
+Test:
+Generate the same Serenity valuation report twice:
+1. legacy PDF
+2. adaptive PDF
+
+Return:
+- files created
+- files changed
+- how to call adaptive export
+- page count legacy vs adaptive
+- screenshots or page descriptions
+- any visual bugs
+- confirmation that legacy still works

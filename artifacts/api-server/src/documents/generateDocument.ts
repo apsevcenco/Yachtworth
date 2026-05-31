@@ -2,6 +2,7 @@ import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
 import { renderPdf } from "./pdf/generatePdf";
 import { buildProposalHtml } from "./pdf/templates/proposalTemplate";
 import { buildValuationHtml } from "./pdf/templates/valuationTemplate";
+import { buildValuationAdaptiveHtml } from "./templates/valuationAdaptive";
 import {
   DOCX_CONTENT_TYPE,
   PDF_CONTENT_TYPE,
@@ -55,7 +56,11 @@ export async function generateDocument(
       };
     }
 
-    const html = buildValuationHtml({ yacht, reportData, settings, template });
+    // Opt-in adaptive block engine (PDF only). Default stays legacy.
+    const html =
+      settings.engine === "adaptive"
+        ? buildValuationAdaptiveHtml({ yacht, reportData, settings, template })
+        : buildValuationHtml({ yacht, reportData, settings, template });
     const buffer = await renderPdf(html);
     return {
       buffer,

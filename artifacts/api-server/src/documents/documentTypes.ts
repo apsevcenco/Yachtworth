@@ -13,6 +13,13 @@
 export type DocumentType = "proposal" | "valuation_report";
 export type DocumentFormat = "pdf" | "docx";
 
+/**
+ * Rendering engine for PDF output.
+ *   - "legacy"   = existing section-per-page templates (default).
+ *   - "adaptive" = new block-based layout (currently valuation_report PDF only).
+ */
+export type DocumentEngine = "legacy" | "adaptive";
+
 /** Backend template set. `dark` from the legacy client maps to `premium`. */
 export type DocumentTemplate = "minimal" | "classic" | "premium";
 
@@ -124,6 +131,11 @@ export interface ExportSettings {
   branding?: string | null;
   /** Contact block printed on valuation reports. */
   brokerInfo?: BrokerInfo | null;
+  /**
+   * Opt-in rendering engine. Missing/unknown → "legacy". Only the
+   * valuation_report PDF path honours "adaptive" today.
+   */
+  engine?: DocumentEngine;
 }
 
 // ─── valuation report ──────────────────────────────────────────────────────────

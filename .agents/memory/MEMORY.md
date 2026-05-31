@@ -1,2 +1,1 @@
-- [Document Generation Engine](document-generation-engine.md) — backend PDF (puppeteer-core) + DOCX (docx) engine; additive to Legacy; requireAuth-gated; binary endpoint not in OpenAPI; Render Chrome/Node≥22.12 constraints.
-- [Proposal/Listing settings persistence](proposal-listing-settings-persistence.md) — how saved proposals/listings persist template + settings via OpenAPI enum + codegen.
+- [Adaptive document engine](document-generation-engine.md) — opt-in block-based PDF layout (valuation pilot); legacy stays default; how pagination + escaping work.
