@@ -1,0 +1,117 @@
+STOP AND FIX DOCUMENT DESIGN SYSTEM IMPLEMENTATION
+
+Do not add new architecture.
+Do not create new modules.
+Do not work on DOCX.
+Do not work on survey, ROI, charter, listing, ownership cost or passport.
+Do not touch Supabase.
+Do not change calculations.
+
+The previous implementation report claimed that YachtWorth Document Design System V1 was applied, but the generated PDFs show that this is not true.
+
+Critical visual bugs to fix:
+
+1. Font rendering is broken
+    In valuation PDF, text appears duplicated/spaced incorrectly:
+
+* “YY AA CC HH…”
+* “AAzziimmuutt 6688SS”
+* “€€447799…”
+
+Fix font loading / letter-spacing / font fallback immediately.
+Do not use excessive letter-spacing on headings or values.
+Document title must render as normal readable text:
+“YACHTWORTH · VALUATION REPORT”
+not doubled characters.
+
+2. Cover text is still unreadable
+    On Proposal cover, yacht name and specs are still too dark / lost over the photo.
+    Fix with:
+
+* stronger bottom gradient
+* proper text shadow
+* readable white/gold contrast
+* no black boxes behind gold letters
+* no invisible yacht name
+
+3. Specifications are not in a proper grid
+    Current output is still visually like raw text:
+    “Builder Azimut Model 68S”
+    This must become a real aligned two-column key-value grid.
+
+Required layout:
+Left label / value pair + right label / value pair per row.
+
+Example:
+Builder       Azimut              Model        68S
+Type          Motor Yacht         Year         2006
+Length        19 m                Beam         5.4 m
+Draft         1.8 m               Flag         Malta Commercial
+
+Labels lighter/smaller.
+Values stronger.
+Rows aligned.
+Consistent spacing.
+
+4. Commercial Summary must obey proposal type
+    If proposal_type = sale:
+
+* do not show For Charter
+* do not show charter APA/VAT
+* do not show charter rates
+* do not show charter commercial block
+
+Sale-only PDF must contain sale information only.
+
+5. Equipment still looks unprofessional
+    Equipment must not be a raw vertical list.
+    It must be a clean 2-column grouped layout.
+
+Rules:
+
+* category heading
+* item name bold/medium
+* metadata lighter/smaller
+* category groups kept together
+* no “Power (1/2)” / “Power (2/2)” mixed awkwardly
+* no raw snake_case
+* no empty columns
+
+6. Photography layout is still not premium
+    If 5 photos:
+
+* use one hero image and 4 equal thumbnails OR a clean 2-column/3-column grid.
+* align images to the same grid.
+* avoid random asymmetric floating images.
+* avoid large useless white gaps.
+
+7. Footer was claimed but not properly visible
+    Every non-cover page must show consistent footer:
+    YachtWorth · Confidential · Page X of Y · Generated date
+
+Small, elegant, aligned at bottom.
+
+8. Do not claim completed design system unless visible in PDFs
+    Generate new PDFs and verify visually:
+
+* valuation PDF
+* proposal PDF
+
+Acceptance criteria:
+
+* No doubled text characters.
+* No unreadable cover text.
+* Proper two-column specifications grid.
+* Sale-only proposal contains no charter data.
+* Equipment is visually grouped and balanced.
+* Photography page is aligned and intentional.
+* Footer visible and consistent.
+* Output looks like a professional brokerage PDF, not raw database export.
+
+Return only:
+
+1. files changed
+2. exact fixes applied
+3. new valuation PDF
+4. new proposal PDF
+5. confirmation no other modules were touched
