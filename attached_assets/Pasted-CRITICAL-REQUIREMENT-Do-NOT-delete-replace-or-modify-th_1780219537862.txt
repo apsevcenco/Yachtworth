@@ -1,0 +1,106 @@
+CRITICAL REQUIREMENT:
+Do NOT delete, replace or modify the existing Expo proposal PDF generator.
+Keep the current export working as Legacy PDF Export.
+All new code must be additive.
+
+Goal:
+Create a backend-based universal Document Generation Engine for YachtWorth.
+
+This engine must support:
+- PDF generation via backend HTML + Puppeteer
+- DOCX generation via backend docx package
+- shared yacht profile data
+- tool-specific report data
+- future reuse by valuation, ownership cost, charter ROI, charter planner, survey reports
+
+First implementation:
+Only implement Proposal export:
+1. Professional Proposal PDF
+2. Proposal Word DOCX
+
+Architecture:
+Create folder:
+
+server/src/documents/
+  documentTypes.ts
+  generateDocument.ts
+  pdf/
+    generatePdf.ts
+    templates/
+      proposalTemplate.ts
+  docx/
+    generateDocx.ts
+    templates/
+      proposalDocx.ts
+
+Add endpoint:
+
+POST /api/documents/generate
+
+Request body:
+
+{
+  "documentType": "proposal",
+  "format": "pdf" | "docx",
+  "template": "minimal" | "classic" | "premium",
+  "yachtProfile": {},
+  "reportData": {},
+  "exportSettings": {}
+}
+
+Important data principle:
+Do not duplicate yacht data in every tool.
+The document engine receives:
+1. yachtProfile = shared yacht data
+2. reportData = proposal-specific data
+3. exportSettings = template, language, branding, output format
+
+PDF:
+Use Puppeteer.
+Render backend HTML.
+A4 format.
+printBackground: true.
+Fixed page size.
+Cover page fixed.
+Specs page separate.
+Equipment pages must be paginated.
+Photos pages must be paginated.
+Pricing page always last.
+
+DOCX:
+Use docx package.
+Generate editable Word file.
+Include:
+- title
+- specifications table
+- accommodation
+- equipment grouped by category
+- pricing
+- broker contact
+- disclaimer
+
+Endpoint response:
+Return downloadable file:
+- application/pdf for PDF
+- application/vnd.openxmlformats-officedocument.wordprocessingml.document for DOCX
+
+Do not store generated files yet unless storage already exists.
+For now return binary response directly.
+
+Add minimal frontend integration:
+On proposal screen add:
+- Export Legacy PDF
+- Export Professional PDF
+- Export Word
+
+Do not remove old button logic.
+Do not change Supabase schema.
+Do not change existing valuation, ROI, ownership cost or charter planner code yet.
+
+After coding, return:
+1. files created
+2. files changed
+3. endpoint added
+4. packages installed
+5. local test command
+6. Render deployment notes

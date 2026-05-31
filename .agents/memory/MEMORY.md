@@ -1,1 +1,2 @@
-- [Proposal/Listing settings persistence](proposal-listing-settings-persistence.md) — new settings fields must be added to openapi.yaml + codegen or zod strips them on save.
+- [Document Generation Engine](document-generation-engine.md) — backend PDF (puppeteer-core) + DOCX (docx) engine; additive to Legacy; requireAuth-gated; binary endpoint not in OpenAPI; Render Chrome/Node≥22.12 constraints.
+- [Proposal/Listing settings persistence](proposal-listing-settings-persistence.md) — how saved proposals/listings persist template + settings via OpenAPI enum + codegen.

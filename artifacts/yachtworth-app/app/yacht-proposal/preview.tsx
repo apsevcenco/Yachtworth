@@ -23,6 +23,7 @@ import {
   type ProposalSettings,
   type ProposalYachtSnapshot,
 } from "../../lib/proposalPdf";
+import { exportProposalDocument } from "../../lib/documentExport";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -105,19 +106,41 @@ export default function ProposalPreviewScreen() {
       ? params.saved_id
       : null;
 
-  const [exporting, setExporting] = useState(false);
+  const [busy, setBusy] = useState<null | "legacy" | "pro" | "docx">(null);
   const [savedId, setSavedId] = useState<string | null>(initialSavedId);
   const saveM = useSaveProposal();
   const queryClient = useQueryClient();
 
-  const onExport = async () => {
-    setExporting(true);
+  const onExportLegacy = async () => {
+    setBusy("legacy");
     try {
       await exportProposalPdf({ yacht, equipment, settings });
     } catch (e) {
       Alert.alert("Could not export PDF", String(e));
     } finally {
-      setExporting(false);
+      setBusy(null);
+    }
+  };
+
+  const onExportProfessional = async () => {
+    setBusy("pro");
+    try {
+      await exportProposalDocument({ yacht, equipment, settings, format: "pdf" });
+    } catch (e) {
+      Alert.alert("Could not export Professional PDF", String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onExportWord = async () => {
+    setBusy("docx");
+    try {
+      await exportProposalDocument({ yacht, equipment, settings, format: "docx" });
+    } catch (e) {
+      Alert.alert("Could not export Word", String(e));
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -207,22 +230,60 @@ export default function ProposalPreviewScreen() {
         </View>
 
         <Pressable
-          onPress={onExport}
-          disabled={exporting}
+          onPress={onExportProfessional}
+          disabled={busy !== null}
           style={({ pressed }) => [
             styles.primaryBtn,
-            { opacity: pressed || exporting ? 0.8 : 1 },
+            { opacity: pressed || busy === "pro" ? 0.8 : 1 },
           ]}
         >
-          {exporting ? (
+          {busy === "pro" ? (
             <ActivityIndicator color={NAVY} />
           ) : (
             <>
-              <Feather name="download" size={18} color={NAVY} />
-              <Text style={styles.primaryBtnText}>Export PDF</Text>
+              <Feather name="award" size={18} color={NAVY} />
+              <Text style={styles.primaryBtnText}>Export Professional PDF</Text>
             </>
           )}
         </Pressable>
+
+        <Pressable
+          onPress={onExportWord}
+          disabled={busy !== null}
+          style={({ pressed }) => [
+            styles.secondaryBtn,
+            { opacity: pressed || busy === "docx" ? 0.8 : 1 },
+          ]}
+        >
+          {busy === "docx" ? (
+            <ActivityIndicator color={GOLD} />
+          ) : (
+            <>
+              <Feather name="file-text" size={18} color={GOLD} />
+              <Text style={styles.secondaryBtnText}>Export Word (DOCX)</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={onExportLegacy}
+          disabled={busy !== null}
+          style={({ pressed }) => [
+            styles.tertiaryBtn,
+            { opacity: pressed || busy === "legacy" ? 0.7 : 1 },
+          ]}
+        >
+          {busy === "legacy" ? (
+            <ActivityIndicator color={MUTED} />
+          ) : (
+            <>
+              <Feather name="download" size={16} color={MUTED} />
+              <Text style={styles.tertiaryBtnText}>Export Legacy PDF</Text>
+            </>
+          )}
+        </Pressable>
+
+        <View style={styles.spacer16} />
 
         <Pressable
           onPress={onSave}
@@ -261,9 +322,10 @@ export default function ProposalPreviewScreen() {
         </Pressable>
 
         <Text style={styles.disclaimer}>
-          PDF is generated on your device and not stored on Yachtworth servers.
-          Saving keeps your settings + yacht snapshot so you can re-export
-          anytime.
+          Professional PDF and Word are generated on Yachtworth servers and
+          returned to your device — they are not stored. Legacy PDF is generated
+          fully on your device. Saving keeps your settings + yacht snapshot so
+          you can re-export anytime.
         </Text>
       </ScrollView>
     </View>
@@ -434,6 +496,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tertiaryBtnText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 13 },
+  spacer16: { height: 16 },
   disclaimer: {
     color: FAINT,
     fontFamily: "Inter_400Regular",

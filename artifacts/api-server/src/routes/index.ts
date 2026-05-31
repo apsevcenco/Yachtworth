@@ -10,6 +10,7 @@ import clientsRouter from "./clients";
 import listingsRouter from "./listings";
 import proposalsRouter from "./proposals";
 import surveyReportsRouter from "./surveyReports";
+import documentsRouter from "./documents";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(clientsRouter);
 router.use(listingsRouter);
 router.use(proposalsRouter);
 router.use(surveyReportsRouter);
+router.use(documentsRouter);
 
 export default router;
