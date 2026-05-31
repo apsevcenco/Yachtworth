@@ -88,6 +88,9 @@ function buildRequestBody(
       confidential: Array.isArray(settings.sections)
         ? settings.sections.includes("watermark_confidential")
         : false,
+      // Proposal V2 (adaptive PDF engine) is opt-in. Enable it ONLY for the
+      // Professional PDF export. DOCX must stay on the legacy backend path.
+      ...(format === "pdf" ? { engine: "adaptive" as const } : {}),
     },
   };
 }
