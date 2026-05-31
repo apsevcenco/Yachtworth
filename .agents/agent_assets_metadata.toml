@@ -17,3 +17,15 @@ id = "jbhWTkzm2q2USePgNMZKO"
 uri = "file://attached_assets/valuation_samples/Serenity_valuation.docx"
 type = "word_document"
 title = "Sample Valuation Report — Word (DOCX)"
+
+[[outputs]]
+id = "XbVTCXIcXq6Lvo1LZs0kF"
+uri = "file://exports/Aquila_valuation_V2_adaptive.pdf"
+type = "pdf"
+title = "Valuation Report — V2 Adaptive Engine (4 pages)"
+
+[[outputs]]
+id = "IpIyVrZhArKWVPV4c_EYA"
+uri = "file://exports/Aquila_proposal_current.pdf"
+type = "pdf"
+title = "Vessel Proposal — Current Engine (5 pages)"
