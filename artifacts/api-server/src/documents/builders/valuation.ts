@@ -417,21 +417,18 @@ export function buildValuationModel(input: {
   body.push(metrics);
 
   // ── Evidence group (Comparables + Factors) ──
-  // These two share a page when they fit. `breakBefore` on the first present
-  // one closes the page-2 overview group (Summary + Accommodation + Valuation),
-  // so the overview never absorbs a comparables/factors table.
+  // No forced breaks — the shared paginator packs these naturally onto the
+  // available space. Each block already has break-inside:avoid, so a table
+  // moves to the next page only when it genuinely doesn't fit.
   const comparables = Array.isArray(reportData.comparableYachts) ? reportData.comparableYachts : [];
   const factors = Array.isArray(reportData.valuationFactors) ? reportData.valuationFactors : [];
-  let evidenceGroupStarted = false;
   if (comparables.length) {
     body.push({
       kind: "table",
       heading: d["comparables"]!,
       columns: [{}, { align: "right", widthPct: 28 }],
       rows: comparableRows(comparables, d, money),
-      breakBefore: true,
     });
-    evidenceGroupStarted = true;
   }
   if (factors.length) {
     body.push({
@@ -439,21 +436,17 @@ export function buildValuationModel(input: {
       heading: d["factors"]!,
       columns: [{}, { align: "right", widthPct: 30 }],
       rows: factorRows(factors, d),
-      // Carry the boundary only if comparables didn't already open this group.
-      breakBefore: !evidenceGroupStarted,
     });
   }
 
   // ── Closing group (Market Notes + Contact + Disclaimer) ──
-  // `breakBefore` keeps these together on the final page instead of letting
-  // greedy packing strand the auto-appended disclaimer alone on a near-empty page.
+  // No forced break — let the paginator place these wherever space remains.
   const notes: ContentNode = {
     kind: "paragraph",
     heading: d["marketNotes"]!,
     panel: true,
     text: reportData.marketNotes ?? "",
     emptyText: d["none"]!,
-    breakBefore: true,
   };
   body.push(notes);
 
