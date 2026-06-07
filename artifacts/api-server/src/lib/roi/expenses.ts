@@ -16,12 +16,6 @@ const REGION_MULT: Record<string, number> = {
   middle_east: 1.15,
 };
 
-const MGMT_FEE_DEFAULT_PCT: Record<string, number> = {
-  owner_operated: 0,
-  management_company: 10,
-  brokerage: 0, // brokerage handled by charter_commission; no separate mgmt fee
-};
-
 /**
  * Compute every default expense field. Each line prefers a value from
  * `expense_rates` (seeded data) and only falls back to the hard-coded
@@ -105,8 +99,7 @@ function fb(inp: FallbackInputs) {
 interface BuildExpensesArgs {
   yacht: YachtRow;
   region: string;
-  managementStyle: string;
-  /** Override pct (0–50) or null to use style default */
+  /** Optional management-fee % override (0–50); null = owner manual fee or none */
   managementFeeOverridePct: number | null;
   /** Annual gross charter revenue, used for % fees */
   annualGrossRevenueEur: number;
@@ -120,7 +113,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
   charterCommissionPct: number;
   managementFeePct: number;
 } {
-  const { yacht, region, managementStyle, managementFeeOverridePct, annualGrossRevenueEur } = args;
+  const { yacht, region, managementFeeOverridePct, annualGrossRevenueEur } = args;
   const expenseRates = args.expenseRates ?? [];
 
   const L = Number(yacht.length_meters) || 18;
@@ -204,14 +197,13 @@ export function buildExpenses(args: BuildExpensesArgs): {
     ] as (ExpenseLine | null)[]
   ).filter((l): l is ExpenseLine => l !== null);
 
-  // Management fee — uses owner override on yacht, then RoiCalculationInput override, then style default
+  // Management fee — owner's manual monthly fee on the yacht, then an optional
+  // per-calculation % override. No fee if neither is provided.
   const ownerOverride = yacht.monthly_management_fee_eur != null
     ? Number(yacht.monthly_management_fee_eur) * 12
     : null;
   const managementFeePct =
-    managementFeeOverridePct != null
-      ? managementFeeOverridePct
-      : MGMT_FEE_DEFAULT_PCT[managementStyle] ?? 0;
+    managementFeeOverridePct != null ? managementFeeOverridePct : 0;
   let mgmtAnnual = 0;
   let mgmtFormula = "";
   if (ownerOverride != null && isFinite(ownerOverride)) {
@@ -219,9 +211,9 @@ export function buildExpenses(args: BuildExpensesArgs): {
     mgmtFormula = `Owner-provided: €${Math.round(ownerOverride / 12)}/mo × 12`;
   } else if (managementFeePct > 0) {
     mgmtAnnual = annualGrossRevenueEur * (managementFeePct / 100);
-    mgmtFormula = `${managementFeePct}% of gross charter revenue (${managementStyle})`;
+    mgmtFormula = `${managementFeePct}% of gross charter revenue`;
   } else {
-    mgmtFormula = `Not applicable (${managementStyle})`;
+    mgmtFormula = "Not applicable";
   }
   lines.push({
     category: "Management fee",

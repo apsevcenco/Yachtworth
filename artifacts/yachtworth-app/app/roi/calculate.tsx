@@ -61,19 +61,6 @@ const REGION_OPTS = [
   { v: "middle_east", l: "Middle East" },
 ] as const;
 
-const SEASON_OPTS = [
-  { v: "mixed", l: "Full year (mixed)" },
-  { v: "high", l: "High season" },
-  { v: "shoulder", l: "Shoulder" },
-  { v: "low", l: "Low season" },
-] as const;
-
-const MGMT_OPTS = [
-  { v: "owner_operated", l: "Owner-operated" },
-  { v: "management_company", l: "Management company" },
-  { v: "brokerage", l: "Brokerage" },
-] as const;
-
 const CHARTER_TYPE_OPTS = [
   { v: "weekly", l: "Weekly" },
   { v: "daily", l: "Daily" },
@@ -82,22 +69,12 @@ const CHARTER_TYPE_OPTS = [
 type CharterType = (typeof CHARTER_TYPE_OPTS)[number]["v"];
 
 // Per-region AI-mode charter config. `bases` = which charter bases the region
-// supports in "По анкете"/AI mode (a region with >1 base shows the toggle; a
-// single-base region shows a note instead). `seasons` = which season options
-// apply. Regions absent here keep the default (all seasons, weekly basis, no
-// toggle). Only affects pricing_mode="ai" — manual modes are unchanged.
-const REGION_CHARTER: Record<
-  string,
-  { bases: CharterType[]; seasons: Season[] }
-> = {
-  caribbean: {
-    bases: ["weekly", "daily"],
-    seasons: ["mixed", "high", "shoulder"],
-  },
-  middle_east: {
-    bases: ["daily"],
-    seasons: ["mixed", "high", "low"],
-  },
+// supports in AI mode (a region with >1 base shows the toggle; a single-base
+// region shows a note instead). Regions absent here keep the default (weekly
+// basis, no toggle). Only affects pricing_mode="ai" — manual modes unchanged.
+const REGION_CHARTER: Record<string, { bases: CharterType[] }> = {
+  caribbean: { bases: ["weekly", "daily"] },
+  middle_east: { bases: ["daily"] },
 };
 
 const OCC_OPTS = [
@@ -107,8 +84,6 @@ const OCC_OPTS = [
 ] as const;
 
 type Region = (typeof REGION_OPTS)[number]["v"];
-type Season = (typeof SEASON_OPTS)[number]["v"];
-type Mgmt = (typeof MGMT_OPTS)[number]["v"];
 type Occ = (typeof OCC_OPTS)[number]["v"];
 type PricingMode = "manual_daily" | "manual_weekly" | "ai";
 
@@ -129,8 +104,6 @@ export default function RoiCalculateScreen() {
   const yachtId = typeof params.yacht_id === "string" ? params.yacht_id : null;
 
   const [region, setRegion] = useState<Region>("mediterranean");
-  const [season, setSeason] = useState<Season>("mixed");
-  const [mgmt, setMgmt] = useState<Mgmt>("owner_operated");
   const [occ, setOcc] = useState<Occ>("realistic");
   const [pricingMode, setPricingMode] = useState<PricingMode>("ai");
   const [charterType, setCharterType] = useState<CharterType>("weekly");
@@ -185,25 +158,16 @@ export default function RoiCalculateScreen() {
   const rateLabel = pricingMode === "manual_daily" ? "Rate per day (€)" : "Rate per week (€)";
   const unitsLabel = pricingMode === "manual_daily" ? "Charter days per year" : "Charter weeks per year";
 
-  // AI-mode charter config for the selected region (toggle + season options).
+  // AI-mode charter config for the selected region (charter-basis toggle).
   const regionCharter = REGION_CHARTER[region];
   const availableBases: CharterType[] = regionCharter?.bases ?? ["weekly"];
-  const seasonOptions = useMemo(() => {
-    if (pricingMode === "ai" && regionCharter) {
-      return SEASON_OPTS.filter((s) => regionCharter.seasons.includes(s.v));
-    }
-    return SEASON_OPTS;
-  }, [pricingMode, regionCharter]);
 
-  // Reconcile charterType + season whenever the region OR pricing mode changes
-  // (e.g. switching manual→AI can expose a now-invalid season/basis) so we
-  // never hold a value the selected region does not offer in AI mode.
+  // Reconcile charterType whenever the region OR pricing mode changes (e.g.
+  // switching manual→AI can expose a now-invalid basis) so we never hold a
+  // value the selected region does not offer in AI mode.
   useEffect(() => {
     if (!availableBases.includes(charterType)) {
       setCharterType(availableBases[0]!);
-    }
-    if (!seasonOptions.some((s) => s.v === season)) {
-      setSeason(seasonOptions[0]!.v);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region, pricingMode]);
@@ -244,8 +208,6 @@ export default function RoiCalculateScreen() {
         data: {
           yacht_id: yachtId,
           region,
-          season,
-          management_style: mgmt,
           occupancy_target: pricingMode === "ai" ? occ : null,
           pricing_mode: pricingMode,
           charter_type:
@@ -311,14 +273,6 @@ export default function RoiCalculateScreen() {
             />
           </Section>
 
-          <Section label="SEASON">
-            <PillGroup
-              options={seasonOptions}
-              value={season}
-              onChange={(v) => setSeason(v as Season)}
-            />
-          </Section>
-
           {pricingMode === "ai" && regionCharter ? (
             <Section
               label="CHARTER BASIS"
@@ -344,14 +298,6 @@ export default function RoiCalculateScreen() {
             </Section>
           ) : null}
 
-          <Section label="MANAGEMENT">
-            <PillGroup
-              options={MGMT_OPTS}
-              value={mgmt}
-              onChange={(v) => setMgmt(v as Mgmt)}
-            />
-          </Section>
-
           <Section
             label="CHARTER PRICING"
             sublabel="Pick how you want to set the charter rate and number of charters."
@@ -372,7 +318,7 @@ export default function RoiCalculateScreen() {
               <AIRateEstimator
                 yachtId={yachtId}
                 region={region}
-                season={season === "mixed" ? "high" : season}
+                season="high"
                 ratePeriod={pricingMode === "manual_daily" ? "day" : "week"}
                 onAccept={(acceptedRate, period) => {
                   const wantsDaily = pricingMode === "manual_daily";

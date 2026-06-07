@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CharterRegion } from "./charterRegion";
-import type { CharterSeason } from "./charterSeason";
 import type { CharterType } from "./charterType";
-import type { ManagementStyle } from "./managementStyle";
 import type { OccupancyTarget } from "./occupancyTarget";
 import type { PricingMode } from "./pricingMode";
 import type { RoiExpenseOverrides } from "./roiExpenseOverrides";
@@ -16,9 +14,6 @@ import type { RoiExpenseOverrides } from "./roiExpenseOverrides";
 export interface RoiCalculationInput {
   yacht_id: string;
   region: CharterRegion;
-  /** Default 'mixed' (weighted across high/shoulder/low) */
-  season?: CharterSeason | null;
-  management_style: ManagementStyle;
   /** Hint for AI mode; ignored in manual modes */
   occupancy_target?: OccupancyTarget | null;
   pricing_mode: PricingMode;
@@ -36,7 +31,7 @@ export interface RoiCalculationInput {
    */
   manual_charter_units?: number | null;
   /**
-   * Override default management fee; null = uses style default
+   * Optional management-fee percentage override. null = use the owner's manual monthly management fee on the yacht, or none if unset.
    * @minimum 0
    * @maximum 50
    * @nullable

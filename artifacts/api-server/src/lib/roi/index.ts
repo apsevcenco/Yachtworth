@@ -23,8 +23,6 @@ export const ROI_DISCLAIMER =
 export interface RoiInput {
   yacht_id: string;
   region: string;
-  season?: string | null;
-  management_style: string;
   occupancy_target?: string | null;
   pricing_mode: "manual_daily" | "manual_weekly" | "ai";
   charter_type?: string | null;
@@ -88,7 +86,6 @@ function recommendations(args: {
   paybackYears: number;
   occupancyPct: number;
   ownerHasExpenses: boolean;
-  managementStyle: string;
 }): string[] {
   const out: string[] = [];
   if (args.netEur < 0) {
@@ -109,11 +106,6 @@ function recommendations(args: {
   if (!args.ownerHasExpenses) {
     out.push(
       "Expense estimates use regional averages. Add real numbers in the yacht profile for a sharper projection.",
-    );
-  }
-  if (args.managementStyle === "owner_operated" && args.paybackYears > 20) {
-    out.push(
-      "Switching from owner-operated to a management company often improves charter weeks despite the 10% fee.",
     );
   }
   return out;
@@ -138,7 +130,7 @@ export async function calculateRoi(
     revenue = await computeAiRevenue({
       yacht,
       region: input.region,
-      season: input.season || "mixed",
+      season: "mixed",
       occupancyTarget: input.occupancy_target ?? null,
       targetWeeksOverride: input.target_weeks ?? null,
       charterType: input.charter_type ?? null,
@@ -163,7 +155,6 @@ export async function calculateRoi(
   const exp = buildExpenses({
     yacht,
     region: input.region,
-    managementStyle: input.management_style,
     managementFeeOverridePct: input.management_fee_pct ?? null,
     annualGrossRevenueEur: revenue.annual_gross_eur,
     expenseRates: rates.expense,
@@ -243,7 +234,6 @@ export async function calculateRoi(
       paybackYears: payback,
       occupancyPct: revenue.occupancy_pct,
       ownerHasExpenses,
-      managementStyle: input.management_style,
     }),
     confidence: revenue.confidence,
     legal_disclaimer: ROI_DISCLAIMER,

@@ -169,8 +169,6 @@ router.post(
       const result = await calculateRoi(yachtForCalc, {
         yacht_id: input.yacht_id,
         region: input.region,
-        season: input.season ?? null,
-        management_style: input.management_style,
         occupancy_target: input.occupancy_target ?? null,
         pricing_mode: input.pricing_mode,
         charter_type: input.charter_type ?? null,

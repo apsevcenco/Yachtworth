@@ -2114,19 +2114,12 @@ components:
             $ref: "#/components/schemas/Yacht"
     RoiCalculationInput:
       type: object
-      required: [yacht_id, region, pricing_mode, management_style]
+      required: [yacht_id, region, pricing_mode]
       properties:
         yacht_id:
           type: string
         region:
           $ref: "#/components/schemas/CharterRegion"
-        season:
-          oneOf:
-            - $ref: "#/components/schemas/CharterSeason"
-            - type: "null"
-          description: Default 'mixed' (weighted across high/shoulder/low)
-        management_style:
-          $ref: "#/components/schemas/ManagementStyle"
         occupancy_target:
           oneOf:
             - $ref: "#/components/schemas/OccupancyTarget"
@@ -2147,7 +2140,9 @@ components:
           type: ["number", "null"]
           minimum: 0
           maximum: 50
-          description: Override default management fee; null = uses style default
+          description: >-
+            Optional management-fee percentage override. null = use the owner's
+            manual monthly management fee on the yacht, or none if unset.
         target_weeks:
           type: ["integer", "null"]
           minimum: 0

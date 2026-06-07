@@ -1504,15 +1504,6 @@ export const CalculateRoiBody = zod.object({
     "asia_pacific_me",
     "middle_east",
   ]),
-  season: zod
-    .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
-    .optional()
-    .describe("Default 'mixed' (weighted across high\/shoulder\/low)"),
-  management_style: zod.enum([
-    "owner_operated",
-    "management_company",
-    "brokerage",
-  ]),
   occupancy_target: zod
     .union([zod.enum(["conservative", "realistic", "optimistic"]), zod.null()])
     .optional()
@@ -1540,7 +1531,9 @@ export const CalculateRoiBody = zod.object({
     .min(calculateRoiBodyManagementFeePctMin)
     .max(calculateRoiBodyManagementFeePctMax)
     .nullish()
-    .describe("Override default management fee; null = uses style default"),
+    .describe(
+      "Optional management-fee percentage override. null = use the owner's manual monthly management fee on the yacht, or none if unset.",
+    ),
   target_weeks: zod
     .number()
     .min(calculateRoiBodyTargetWeeksMin)
@@ -2569,15 +2562,6 @@ export const GetRoiCalculationResponse = zod.object({
       "asia_pacific_me",
       "middle_east",
     ]),
-    season: zod
-      .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
-      .optional()
-      .describe("Default 'mixed' (weighted across high\/shoulder\/low)"),
-    management_style: zod.enum([
-      "owner_operated",
-      "management_company",
-      "brokerage",
-    ]),
     occupancy_target: zod
       .union([
         zod.enum(["conservative", "realistic", "optimistic"]),
@@ -2610,7 +2594,9 @@ export const GetRoiCalculationResponse = zod.object({
       .min(getRoiCalculationResponseInputManagementFeePctMin)
       .max(getRoiCalculationResponseInputManagementFeePctMax)
       .nullish()
-      .describe("Override default management fee; null = uses style default"),
+      .describe(
+        "Optional management-fee percentage override. null = use the owner's manual monthly management fee on the yacht, or none if unset.",
+      ),
     target_weeks: zod
       .number()
       .min(getRoiCalculationResponseInputTargetWeeksMin)

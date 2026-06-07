@@ -11,14 +11,19 @@ description: Non-obvious behaviors of the api-server ROI engine that affect any 
 **How to apply:** to express a cash purchase you must null the loan_* fields. The ROI overrides merge (`applyRoiOverrides` in `routes/roi.ts`) does this when `financing_type === "cash"`.
 
 ## Blank expense lines are mostly omitted, NOT regionally estimated
-`expenses.ts buildExpenses` only auto-estimates when blank: Routine maintenance (always), Management fee (style default), Charter broker commission (default 15%). Every other crew/monthly/annual line that is blank is dropped from the report (treated as €0), which inflates ROI if the user expected a baseline.
+`expenses.ts buildExpenses` only auto-estimates when blank: Routine maintenance (always) and Charter broker commission (default 15%). Management fee is owner-manual-only now (no auto-estimate — see "Season is NOT a user input" below). Every other crew/monthly/annual line that is blank is dropped from the report (treated as €0), which inflates ROI if the user expected a baseline.
 **How to apply:** UI copy must not promise "empty = regional average". Tell users a blank line is excluded except those three.
 
 ## Engine reads `monthly_crew_eur`, not `crew_breakdown`
 The crew total fed to ROI is the single `monthly_crew_eur` column. `crew_breakdown` jsonb is for the editor/history only. Any crew override must compute and send `monthly_crew_eur`.
 
+## Season is NOT a user input — full-year only, driven by occupancy posture
+The ROI questionnaire has NO season picker and NO management-style picker (owner removed both, June 2026). The frontend never sends `season` or `management_style`; both are absent from `RoiCalculationInput` in openapi. Backend hard-codes `season: "mixed"` into `computeAiRevenue` (full year = blend of all sub-seasons). The user-facing knob that selects region numbers is the **occupancy posture** (`occupancy_target`: conservative/realistic/optimistic), NOT season.
+**Why:** owner was emphatic — region tables are bound to occupancy posture; season must not participate in or be substituted into the calc.
+**How to apply:** keep ROI full-year. Management fee now comes ONLY from the yacht's manual `monthly_management_fee_eur` (×12), then optional `management_fee_pct` override, else 0 ("Not applicable") — no style defaults. The manual-mode "AI Estimate" rate helper (`AIRateEstimator`) still needs a season for `/roi/ai-rate-estimate` (a separate market-lookup endpoint) and is passed a constant `"high"` — it does NOT feed the main calc.
+
 ## Charter weeks come from an owner-defined region→season→occupancy table, NOT from AI
-`REGION_SEASON_WEEKS` in `revenue.ts` is authoritative for the number of charter weeks. When a (region, season, occupancy) entry exists, both the AI path and the heuristic fallback use that week count; the AI is told via the prompt to estimate ONLY the weekly rate (€/week). Priority: explicit `target_weeks` > table > legacy occupancy×season heuristic.
+`REGION_SEASON_WEEKS` in `revenue.ts` is authoritative for the number of charter weeks. When a (region, season, occupancy) entry exists, both the AI path and the heuristic fallback use that week count; the AI is told via the prompt to estimate ONLY the weekly rate (€/week). Priority: explicit `target_weeks` > table > legacy occupancy×season heuristic. Season is always `"mixed"` now (see above), so the `mixed` row is the one that matters.
 **Why:** owner wants predictable, controllable booked-weeks numbers instead of model guesses.
 **How to apply:** to onboard a new region, add it to `REGION_SEASON_WEEKS` only — regions absent from the table keep the legacy heuristic, so additions are non-breaking. Mediterranean low season = 0 weeks ("dead" winter). `mixed` = high + shoulder totals.
 
