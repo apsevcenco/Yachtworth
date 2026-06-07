@@ -48,6 +48,52 @@ const OCC_LABEL: Record<string, string> = {
   optimistic: "optimistic — top of the range, near-fully booked in peak season",
 };
 
+/**
+ * Owner-defined charter-week model, by region → season → occupancy posture.
+ *
+ * When a (region, season, occupancy) entry exists here it is AUTHORITATIVE:
+ * the number of charter weeks is taken from this table for BOTH the AI and
+ * the deterministic paths, and the AI is asked to estimate only the weekly
+ * rate (€/week). This keeps the booked-weeks dimension predictable and under
+ * the owner's control instead of letting the model guess it.
+ *
+ * Regions NOT listed here fall back to the legacy occupancy×season heuristic,
+ * so adding a region is purely additive and never changes the others.
+ */
+const REGION_SEASON_WEEKS: Record<
+  string,
+  Record<string, Record<string, number>>
+> = {
+  mediterranean: {
+    // High season (Jun–Aug): 13 weeks available
+    high: { conservative: 4, realistic: 7, optimistic: 10 },
+    // Shoulder season (May, Sep–Oct): 13 weeks available
+    shoulder: { conservative: 2, realistic: 4, optimistic: 6 },
+    // Full year (high + shoulder); low season excluded as effectively dead
+    mixed: { conservative: 6, realistic: 11, optimistic: 16 },
+    // Low season (Nov–Apr): no realistic charter demand in the Med
+    low: { conservative: 0, realistic: 0, optimistic: 0 },
+  },
+};
+
+/**
+ * Look up the owner-defined charter weeks for this region/season/occupancy.
+ * Returns null when the region (or combination) is not modelled, so callers
+ * keep their existing behaviour. A null occupancy defaults to "realistic".
+ */
+function tableWeeks(
+  region: string,
+  season: string,
+  occupancy: string | null,
+): number | null {
+  const byRegion = REGION_SEASON_WEEKS[region];
+  if (!byRegion) return null;
+  const bySeason = byRegion[season];
+  if (!bySeason) return null;
+  const w = bySeason[occupancy ?? "realistic"];
+  return typeof w === "number" ? w : null;
+}
+
 interface ManualArgs {
   mode: "manual_daily" | "manual_weekly";
   rateEur: number;
@@ -108,12 +154,22 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
   const guests = yacht.guests ? `${yacht.guests} guests` : "guest capacity unknown";
   const crew = yacht.crew ? `${yacht.crew} crew` : "crew unknown";
   const lengthStr = L > 0 ? `${L.toFixed(1)}m (${lengthFt}ft)` : "length unknown";
-  const occHint =
+  const fixedWeeks =
     targetWeeksOverride != null
-      ? `OVERRIDE: expected_charter_weeks MUST equal ${targetWeeksOverride}.`
+      ? targetWeeksOverride
+      : tableWeeks(region, season, occupancyTarget);
+  const occHint =
+    fixedWeeks != null
+      ? `OVERRIDE: expected_charter_weeks MUST equal ${fixedWeeks}. Do NOT change this number — estimate only the realistic weekly rate.`
       : occupancyTarget
       ? `Occupancy posture: ${OCC_LABEL[occupancyTarget]}.`
       : `Use a realistic occupancy posture.`;
+  const weeksInstruction =
+    fixedWeeks != null
+      ? `The number of charter weeks per year is FIXED at ${fixedWeeks}. Set expected_charter_weeks to exactly ${fixedWeeks} — do NOT estimate or change it. Your only job is the weekly rate.`
+      : `Decide a realistic number of charter weeks per year for this yacht in
+   this region with the requested occupancy posture. Typical industry
+   range: 8–18 weeks for owner-operated, 14–24 for commercially managed.`;
 
   return `You are a charter market analyst. Estimate the realistic gross
 charter revenue for the yacht below over one full year.
@@ -136,9 +192,7 @@ INSTRUCTIONS
    Boatsetter, broker sites). Aim for 3 truly comparable yachts.
 2. Determine a realistic weekly rate range (low–high) in EUR. If listings
    are in USD/GBP, convert at current FX.
-3. Decide a realistic number of charter weeks per year for this yacht in
-   this region with the requested occupancy posture. Typical industry
-   range: 8–18 weeks for owner-operated, 14–24 for commercially managed.
+3. ${weeksInstruction}
 4. Compute average daily rate (midpoint weekly / 7).
 5. Output STRICT JSON, no prose around it:
 
@@ -211,12 +265,19 @@ function heuristicAiFallback(args: AiArgs): ComputedRevenue {
     realistic: 12,
     optimistic: 18,
   };
-  let weeks = args.occupancyTarget
-    ? weeksByOcc[args.occupancyTarget] ?? 12
-    : 12;
-  if (args.season === "high") weeks = Math.min(weeks, 10);
-  else if (args.season === "low") weeks = Math.max(2, Math.round(weeks * 0.3));
+  // Owner-defined week model is authoritative where it exists; otherwise fall
+  // back to the legacy occupancy×season heuristic. Explicit target wins.
+  const tw = tableWeeks(args.region, args.season, args.occupancyTarget);
+  let weeks: number;
+  if (tw != null) {
+    weeks = tw;
+  } else {
+    weeks = args.occupancyTarget ? weeksByOcc[args.occupancyTarget] ?? 12 : 12;
+    if (args.season === "high") weeks = Math.min(weeks, 10);
+    else if (args.season === "low") weeks = Math.max(2, Math.round(weeks * 0.3));
+  }
   if (args.targetWeeksOverride != null) weeks = args.targetWeeksOverride;
+  weeks = Math.max(0, Math.min(52, weeks));
   const occupancyPct = Math.round((weeks / 52) * 100);
   return {
     annual_gross_eur: weekly * weeks,
@@ -279,9 +340,18 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   const dailyLow = num("daily_rate_low_eur") || null;
   const dailyHigh = num("daily_rate_high_eur") || null;
   let weeks = num("expected_charter_weeks");
-  if (args.targetWeeksOverride != null) weeks = args.targetWeeksOverride;
+  // Owner-defined week model (or explicit target) is authoritative — the AI
+  // only supplies the rate. Explicit target_weeks wins over the table.
+  const fixedWeeks =
+    args.targetWeeksOverride != null
+      ? args.targetWeeksOverride
+      : tableWeeks(args.region, args.season, args.occupancyTarget);
+  if (fixedWeeks != null) weeks = fixedWeeks;
   weeks = Math.max(0, Math.min(52, weeks));
-  const occupancyPct = Math.round(num("occupancy_pct") || (weeks / 52) * 100);
+  const occupancyPct =
+    fixedWeeks != null
+      ? Math.round((weeks / 52) * 100)
+      : Math.round(num("occupancy_pct") || (weeks / 52) * 100);
   const mr = parsed["market_rating"];
   const marketRating =
     mr === "A" || mr === "B" || mr === "C" || mr === "D" ? mr : null;
