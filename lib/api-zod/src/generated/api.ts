@@ -1980,6 +1980,48 @@ export const CalculateRoiResponse = zod.object({
     .describe(
       "Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null\/absent for single-region calculations. annual_revenue_eur already equals the combined total.",
     ),
+  exit_scenario: zod
+    .union([
+      zod.object({
+        purchase_price_eur: zod
+          .number()
+          .describe("Total invested (the entered purchase price)."),
+        charter_income_5y_eur: zod
+          .number()
+          .describe(
+            "Cumulative net charter income over 5 years (already calculated).",
+          ),
+        vessel_value_at_sale_eur: zod
+          .number()
+          .describe("Year-5 depreciated vessel value (already calculated)."),
+        total_return_eur: zod
+          .number()
+          .describe("charter_income_5y_eur + vessel_value_at_sale_eur."),
+        exit_result_eur: zod
+          .number()
+          .describe("total_return_eur − purchase_price_eur."),
+        exit_result_pct: zod
+          .number()
+          .describe("(exit_result_eur \/ purchase_price_eur) × 100."),
+        total_loan_paid_eur: zod
+          .number()
+          .nullish()
+          .describe(
+            "Annual loan payment × 5 (monthly × 60). Present only when the calculation is loan-financed; null otherwise.",
+          ),
+        exit_result_after_loan_eur: zod
+          .number()
+          .nullish()
+          .describe(
+            "exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.",
+          ),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "Sale-after-5-years exit projection for the single scenario that was calculated. Built from already-computed 5-year values (cumulative net charter income + year-5 depreciated vessel value). Present ONLY when a purchase price was entered; null\/absent otherwise.",
+    ),
   confidence: zod.enum(["high", "medium", "low"]),
   legal_disclaimer: zod.string(),
 });
@@ -3293,6 +3335,48 @@ export const GetRoiCalculationResponse = zod.object({
       .optional()
       .describe(
         "Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null\/absent for single-region calculations. annual_revenue_eur already equals the combined total.",
+      ),
+    exit_scenario: zod
+      .union([
+        zod.object({
+          purchase_price_eur: zod
+            .number()
+            .describe("Total invested (the entered purchase price)."),
+          charter_income_5y_eur: zod
+            .number()
+            .describe(
+              "Cumulative net charter income over 5 years (already calculated).",
+            ),
+          vessel_value_at_sale_eur: zod
+            .number()
+            .describe("Year-5 depreciated vessel value (already calculated)."),
+          total_return_eur: zod
+            .number()
+            .describe("charter_income_5y_eur + vessel_value_at_sale_eur."),
+          exit_result_eur: zod
+            .number()
+            .describe("total_return_eur − purchase_price_eur."),
+          exit_result_pct: zod
+            .number()
+            .describe("(exit_result_eur \/ purchase_price_eur) × 100."),
+          total_loan_paid_eur: zod
+            .number()
+            .nullish()
+            .describe(
+              "Annual loan payment × 5 (monthly × 60). Present only when the calculation is loan-financed; null otherwise.",
+            ),
+          exit_result_after_loan_eur: zod
+            .number()
+            .nullish()
+            .describe(
+              "exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.",
+            ),
+        }),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "Sale-after-5-years exit projection for the single scenario that was calculated. Built from already-computed 5-year values (cumulative net charter income + year-5 depreciated vessel value). Present ONLY when a purchase price was entered; null\/absent otherwise.",
       ),
     confidence: zod.enum(["high", "medium", "low"]),
     legal_disclaimer: zod.string(),

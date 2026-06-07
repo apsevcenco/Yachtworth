@@ -11,6 +11,7 @@ import type { RoiCalculationConfidence } from "./roiCalculationConfidence";
 import type { RoiCalculationMarketRating } from "./roiCalculationMarketRating";
 import type { RoiComparable } from "./roiComparable";
 import type { RoiDualRegionBreakdown } from "./roiDualRegionBreakdown";
+import type { RoiExitScenario } from "./roiExitScenario";
 import type { YearlyPoint } from "./yearlyPoint";
 
 export interface RoiCalculation {
@@ -48,6 +49,8 @@ export interface RoiCalculation {
   recommendations?: string[];
   /** Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null/absent for single-region calculations. annual_revenue_eur already equals the combined total. */
   dual_region?: RoiDualRegionBreakdown | null;
+  /** Sale-after-5-years exit projection for the single scenario that was calculated. Built from already-computed 5-year values (cumulative net charter income + year-5 depreciated vessel value). Present ONLY when a purchase price was entered; null/absent otherwise. */
+  exit_scenario?: RoiExitScenario | null;
   confidence: RoiCalculationConfidence;
   legal_disclaimer: string;
 }

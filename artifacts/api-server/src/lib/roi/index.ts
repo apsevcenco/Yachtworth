@@ -87,8 +87,24 @@ export interface RoiResult {
   // Present ONLY when a second region was supplied. Omitted entirely otherwise
   // so single-region / manual responses stay byte-identical to the legacy shape.
   dual_region?: RoiDualRegionBreakdown;
+  // Sale-after-5-years exit projection. Present ONLY when a purchase price was
+  // entered; omitted entirely otherwise (so the frontend hides the block).
+  // Built from already-computed 5-year values — no recalculation of depreciation
+  // or charter income.
+  exit_scenario?: RoiExitScenario;
   confidence: "high" | "medium" | "low";
   legal_disclaimer: string;
+}
+
+export interface RoiExitScenario {
+  purchase_price_eur: number;
+  charter_income_5y_eur: number;
+  vessel_value_at_sale_eur: number;
+  total_return_eur: number;
+  exit_result_eur: number;
+  exit_result_pct: number;
+  total_loan_paid_eur: number | null;
+  exit_result_after_loan_eur: number | null;
 }
 
 /**
@@ -500,6 +516,39 @@ export async function calculateRoi(
   const projection = roiProjection5y(net, 5);
   const revByMonth = monthlySeasonal(revenue.annual_gross_eur);
 
+  // Exit scenario — sale after 5 years. Additive output only; reuses the already
+  // computed depreciation + 5-year cumulative projection (no recalculation). Built
+  // ONLY when a real purchase price was entered, so the frontend hides the block
+  // otherwise. Single scenario — the one this calculation was run for.
+  let exitScenario: RoiExitScenario | undefined;
+  if (purchase > 0) {
+    const charterIncome5y = projection.length
+      ? projection[projection.length - 1].value_eur
+      : 0;
+    const vesselValueAtSale = depreciation.length
+      ? depreciation[depreciation.length - 1].value_eur
+      : 0;
+    const totalReturn = charterIncome5y + vesselValueAtSale;
+    const exitResult = totalReturn - purchase;
+    const exitResultPct = (exitResult / purchase) * 100;
+    const hasLoan = loanAnnual > 0;
+    // monthly_payment × 60 === annual annuity × 5; round once at the end.
+    const totalLoanPaid = hasLoan ? Math.round(loanAnnual * 5) : null;
+    const exitResultAfterLoan =
+      totalLoanPaid != null ? exitResult - totalLoanPaid : null;
+    exitScenario = {
+      purchase_price_eur: Math.round(purchase),
+      charter_income_5y_eur: Math.round(charterIncome5y),
+      vessel_value_at_sale_eur: Math.round(vesselValueAtSale),
+      total_return_eur: Math.round(totalReturn),
+      exit_result_eur: Math.round(exitResult),
+      exit_result_pct: Math.round(exitResultPct * 10) / 10,
+      total_loan_paid_eur: totalLoanPaid,
+      exit_result_after_loan_eur:
+        exitResultAfterLoan != null ? Math.round(exitResultAfterLoan) : null,
+    };
+  }
+
   const ownerHasExpenses = [
     yacht.monthly_crew_eur,
     yacht.monthly_mooring_eur,
@@ -559,6 +608,8 @@ export async function calculateRoi(
     }),
     // Spread only in the dual-region case — legacy responses omit the key.
     ...(dualBreakdown ? { dual_region: dualBreakdown } : {}),
+    // Spread only when a purchase price was entered — omitted otherwise.
+    ...(exitScenario ? { exit_scenario: exitScenario } : {}),
     confidence: revenue.confidence,
     legal_disclaimer: ROI_DISCLAIMER,
   };

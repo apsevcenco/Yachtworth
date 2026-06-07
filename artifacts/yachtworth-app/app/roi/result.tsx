@@ -43,6 +43,12 @@ function eur(n: number | null | undefined): string {
   return (n < 0 ? "−€ " : "€ ") + formatted;
 }
 
+// Always shows an explicit + / − sign (used in the exit-scenario block).
+function signedEur(n: number): string {
+  const abs = Math.abs(Math.round(n));
+  return (n < 0 ? "− € " : "+ € ") + abs.toLocaleString("en-US");
+}
+
 export default function RoiResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -274,6 +280,95 @@ export default function RoiResultScreen() {
             </View>
           ))}
         </Card>
+
+        {/* EXIT SCENARIO — sale after 5 years (only when purchase price entered) */}
+        {data.exit_scenario ? (
+          <Card title="Exit scenario · Sale after 5 years">
+            <View style={styles.expRow}>
+              <Text style={styles.expCat}>Purchase price</Text>
+              <Text style={styles.expAmount}>
+                {signedEur(-data.exit_scenario.purchase_price_eur)}
+              </Text>
+            </View>
+            <View style={styles.expRow}>
+              <Text style={styles.expCat}>Charter income (5 years)</Text>
+              <Text style={styles.expAmount}>
+                {signedEur(data.exit_scenario.charter_income_5y_eur)}
+              </Text>
+            </View>
+            <View style={styles.expRow}>
+              <Text style={styles.expCat}>Vessel value at sale</Text>
+              <Text style={styles.expAmount}>
+                {signedEur(data.exit_scenario.vessel_value_at_sale_eur)}
+              </Text>
+            </View>
+
+            <View style={styles.exitDivider} />
+
+            <View style={styles.expRow}>
+              <Text style={styles.exitTotalLabel}>Total return</Text>
+              <Text
+                style={[
+                  styles.exitTotalAmount,
+                  {
+                    color:
+                      data.exit_scenario.exit_result_eur >= 0 ? POSITIVE : NEGATIVE,
+                  },
+                ]}
+              >
+                {signedEur(data.exit_scenario.exit_result_eur)}
+              </Text>
+            </View>
+            <View style={styles.expRow}>
+              <Text style={styles.expCat}>Return on investment</Text>
+              <Text
+                style={[
+                  styles.expAmount,
+                  {
+                    color:
+                      data.exit_scenario.exit_result_eur >= 0 ? POSITIVE : NEGATIVE,
+                  },
+                ]}
+              >
+                {data.exit_scenario.exit_result_pct >= 0 ? "+" : "−"}
+                {Math.abs(data.exit_scenario.exit_result_pct).toFixed(1)}%
+              </Text>
+            </View>
+
+            {data.exit_scenario.total_loan_paid_eur != null ? (
+              <>
+                <View style={styles.exitDivider} />
+                <View style={styles.expRow}>
+                  <Text style={styles.expCat}>Total loan paid</Text>
+                  <Text style={styles.expAmount}>
+                    {signedEur(-data.exit_scenario.total_loan_paid_eur)}
+                  </Text>
+                </View>
+                <View style={styles.expRow}>
+                  <Text style={styles.exitTotalLabel}>Net result after loan</Text>
+                  <Text
+                    style={[
+                      styles.exitTotalAmount,
+                      {
+                        color:
+                          (data.exit_scenario.exit_result_after_loan_eur ?? 0) >= 0
+                            ? POSITIVE
+                            : NEGATIVE,
+                      },
+                    ]}
+                  >
+                    {signedEur(data.exit_scenario.exit_result_after_loan_eur ?? 0)}
+                  </Text>
+                </View>
+              </>
+            ) : null}
+
+            <Text style={styles.exitNote}>
+              Based on 5% year-1 then 3.5%/yr depreciation. Actual sale price may
+              vary with market conditions.
+            </Text>
+          </Card>
+        ) : null}
 
         {/* COMPARABLES (AI only) */}
         {data.comparables && data.comparables.length > 0 ? (
@@ -582,6 +677,20 @@ const styles = StyleSheet.create({
   expCat: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 13 },
   expFormula: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 10, marginTop: 2 },
   expAmount: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  exitDivider: {
+    borderBottomColor: "rgba(247,243,236,0.18)",
+    borderBottomWidth: 1,
+    marginVertical: 4,
+  },
+  exitTotalLabel: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  exitTotalAmount: { fontFamily: "Inter_700Bold", fontSize: 15 },
+  exitNote: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 12,
+  },
   reasoning: { color: IVORY, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },
   recRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
   recText: { flex: 1, color: IVORY, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },

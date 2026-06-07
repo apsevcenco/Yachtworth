@@ -1132,6 +1132,31 @@ export interface RoiDualRegionBreakdown {
   net_charter_income_eur: number;
 }
 
+export interface RoiExitScenario {
+  /** Total invested (the entered purchase price). */
+  purchase_price_eur: number;
+  /** Cumulative net charter income over 5 years (already calculated). */
+  charter_income_5y_eur: number;
+  /** Year-5 depreciated vessel value (already calculated). */
+  vessel_value_at_sale_eur: number;
+  /** charter_income_5y_eur + vessel_value_at_sale_eur. */
+  total_return_eur: number;
+  /** total_return_eur − purchase_price_eur. */
+  exit_result_eur: number;
+  /** (exit_result_eur / purchase_price_eur) × 100. */
+  exit_result_pct: number;
+  /**
+   * Annual loan payment × 5 (monthly × 60). Present only when the calculation is loan-financed; null otherwise.
+   * @nullable
+   */
+  total_loan_paid_eur?: number | null;
+  /**
+   * exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.
+   * @nullable
+   */
+  exit_result_after_loan_eur?: number | null;
+}
+
 export interface RoiCalculation {
   /** @nullable */
   id?: string | null;
@@ -1167,6 +1192,8 @@ export interface RoiCalculation {
   recommendations?: string[];
   /** Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null/absent for single-region calculations. annual_revenue_eur already equals the combined total. */
   dual_region?: RoiDualRegionBreakdown | null;
+  /** Sale-after-5-years exit projection for the single scenario that was calculated. Built from already-computed 5-year values (cumulative net charter income + year-5 depreciated vessel value). Present ONLY when a purchase price was entered; null/absent otherwise. */
+  exit_scenario?: RoiExitScenario | null;
   confidence: RoiCalculationConfidence;
   legal_disclaimer: string;
 }

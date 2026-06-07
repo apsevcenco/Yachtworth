@@ -96,6 +96,7 @@ export * from "./roiCalculationListResponse";
 export * from "./roiCalculationMarketRating";
 export * from "./roiComparable";
 export * from "./roiDualRegionBreakdown";
+export * from "./roiExitScenario";
 export * from "./roiExpenseOverrides";
 export * from "./roiRegionIncome";
 export * from "./roiRegionIncomeCharterType";

@@ -2559,11 +2559,58 @@ components:
             Present only for dual-region AI scenarios. Per-region charter income
             breakdown plus the repositioning cost. null/absent for single-region
             calculations. annual_revenue_eur already equals the combined total.
+        exit_scenario:
+          oneOf:
+            - $ref: "#/components/schemas/RoiExitScenario"
+            - type: "null"
+          description: >-
+            Sale-after-5-years exit projection for the single scenario that was
+            calculated. Built from already-computed 5-year values (cumulative net
+            charter income + year-5 depreciated vessel value). Present ONLY when a
+            purchase price was entered; null/absent otherwise.
         confidence:
           type: string
           enum: [high, medium, low]
         legal_disclaimer:
           type: string
+    RoiExitScenario:
+      type: object
+      required:
+        - purchase_price_eur
+        - charter_income_5y_eur
+        - vessel_value_at_sale_eur
+        - total_return_eur
+        - exit_result_eur
+        - exit_result_pct
+      properties:
+        purchase_price_eur:
+          type: number
+          description: Total invested (the entered purchase price).
+        charter_income_5y_eur:
+          type: number
+          description: Cumulative net charter income over 5 years (already calculated).
+        vessel_value_at_sale_eur:
+          type: number
+          description: Year-5 depreciated vessel value (already calculated).
+        total_return_eur:
+          type: number
+          description: charter_income_5y_eur + vessel_value_at_sale_eur.
+        exit_result_eur:
+          type: number
+          description: total_return_eur − purchase_price_eur.
+        exit_result_pct:
+          type: number
+          description: (exit_result_eur / purchase_price_eur) × 100.
+        total_loan_paid_eur:
+          type: ["number", "null"]
+          description: >-
+            Annual loan payment × 5 (monthly × 60). Present only when the
+            calculation is loan-financed; null otherwise.
+        exit_result_after_loan_eur:
+          type: ["number", "null"]
+          description: >-
+            exit_result_eur − total_loan_paid_eur. Present only when loan-financed;
+            null otherwise.
     RoiRegionIncome:
       type: object
       required:
