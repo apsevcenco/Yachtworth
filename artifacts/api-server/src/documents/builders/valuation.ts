@@ -296,7 +296,11 @@ function comparableRows(
     if (c.year != null) meta.push(String(c.year));
     if (num(c.length_meters) != null) meta.push(`${num(c.length_meters)} m`);
     if (c.location) meta.push(c.location);
-    const sub = [meta.join(" · "), c.notes ?? ""].filter((x) => x).join(" — ");
+    // Comparable notes capped at 90 chars for PDF density (full value stays in
+    // the data — only what the table prints is limited). Year/length/condition
+    // meta is never truncated.
+    const notes = c.notes ? truncateText(c.notes, 90) : "";
+    const sub = [meta.join(" · "), notes].filter((x) => x).join(" — ");
     const priceMoney = c.currency ? moneyOf(c.currency) : fallbackMoney;
     const price = num(c.price) != null ? priceMoney(c.price) : d["none"]!;
     const nameCell: TableCell = { text: title };
@@ -443,7 +447,10 @@ export function buildValuationModel(input: {
       kind: "table",
       heading: d["comparables"]!,
       breakBefore: true,
-      columns: [{}, { align: "right", widthPct: 28 }],
+      // Name column declared at its real rendered width (72%, since price = 28%)
+      // so the paginator measures compact comparable rows accurately instead of
+      // over-counting wrapped sub-lines at the 50% default.
+      columns: [{ widthPct: 72 }, { align: "right", widthPct: 28 }],
       rows: comparableRows(comparables, d, money),
     });
     evidenceStarted = true;
