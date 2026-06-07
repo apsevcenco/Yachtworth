@@ -1,0 +1,160 @@
+CHARTER ROI — REBUILD AI RATE RESEARCH PROMPT
+
+Goal:
+Increase accuracy and consistency of charter market research used by Charter ROI.
+
+Do not modify:
+
+* PDF layout
+* ROI formulas
+* expense calculations
+* depreciation logic
+* frontend UI
+
+Work only on:
+
+* OpenAI system prompt
+* OpenAI research prompt
+* charter comparable selection logic
+
+Requirements
+
+1. Never invent charter rates.
+
+If no validated charter data exists:
+
+Return:
+
+INSUFFICIENT MARKET DATA
+
+Do not use:
+€0
+0 weeks
+0 revenue
+
+2. Charter comparables must be real yachts.
+
+For every comparable collect:
+
+* yacht name
+* builder
+* model
+* year (if available)
+* length
+* region
+* weekly rate
+* source URL
+
+3. Comparables ranking
+
+Priority:
+
+1. Same model
+2. Same builder
+3. Same length class (+/- 10%)
+4. Same region
+5. Same age band
+
+Never compare a 24m yacht with a 40m yacht.
+
+4. Region logic
+
+Research each region independently.
+
+Examples:
+
+Mediterranean
+Caribbean
+Middle East
+Red Sea
+Thailand
+Indian Ocean
+
+Each region must have its own:
+
+* weekly rate
+* occupancy assumption
+* comparable list
+
+5. Output structure
+
+Return structured JSON:
+
+{
+“region”: “”,
+“market_confidence”: “”,
+“recommended_weekly_rate”: 0,
+“recommended_daily_rate”: 0,
+“occupancy_percent”: 0,
+“expected_charter_weeks”: 0,
+“comparables”: []
+}
+
+6. Confidence score
+
+Excellent
+Strong
+Moderate
+Limited
+
+Rules:
+
+Excellent:
+8+ strong comparables
+
+Strong:
+5-7 comparables
+
+Moderate:
+3-4 comparables
+
+Limited:
+1-2 comparables
+
+7. AI analysis
+
+Generate:
+
+* Market Position
+* Strengths
+* Weaknesses
+* Pricing Recommendation
+* Occupancy Recommendation
+
+Maximum 150 words.
+
+8. Critical rule
+
+If region research fails:
+
+Return:
+
+{
+“status”:“insufficient_market_data”
+}
+
+Never return:
+0 rate
+0 revenue
+0 charter value
+
+9. Sources
+
+Use only:
+
+* broker charter listings
+* charter fleet operators
+* professional yacht charter websites
+
+Avoid generic blogs.
+
+10. Audit mode
+
+Log internally:
+
+* number of comparables found
+* region researched
+* confidence level
+* reason for final rate selection
+
+Return exact file names modified and the final OpenAI prompt text.
