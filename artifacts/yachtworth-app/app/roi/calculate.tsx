@@ -376,9 +376,30 @@ export default function RoiCalculateScreen() {
           queryKey: getListRoiCalculationsQueryKey(),
         });
       }
+      // Carry yacht + region context so the exported report cover isn't generic.
+      // Pull identity from the saved-yacht profile (yacht_id) or the manual
+      // snapshot; the region label comes from the form's selected region.
+      const headerSnap = (yachtId ? yachtQ.data : snapshot) as
+        | Record<string, unknown>
+        | null
+        | undefined;
+      const headerStr = (k: string): string | null => {
+        const v = headerSnap?.[k];
+        return typeof v === "string" && v.trim() ? v : null;
+      };
+      const header = {
+        yachtName: headerStr("name"),
+        builder: headerStr("brand") ?? headerStr("builder"),
+        model: headerStr("model"),
+        regionLabel:
+          REGION_OPTS.find((r) => r.v === region)?.l ?? null,
+      };
       router.replace({
         pathname: "/roi/result",
-        params: { data: JSON.stringify(result) },
+        params: {
+          data: JSON.stringify(result),
+          header: JSON.stringify(header),
+        },
       });
     } catch {
       /* error banner below */

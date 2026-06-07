@@ -46,3 +46,12 @@ run with node, log each page's blocks + used/budget mm. For a real PDF, call
 `PUPPETEER_EXECUTABLE_PATH=$REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE`, then
 `pdfinfo`/`pdftoppm`. Keep changes additive: proposal never sets `breakBefore`, so
 its output stays byte-identical.
+
+**Cover context gotcha:** the ROI result payload (`RoiCalculation`) carries no
+yacht identity or region — those live in the *input* (`yacht_snapshot`/`yacht_id` +
+`region`), not the result. So a doc export that wants a real cover title must thread
+yacht name/builder/model + region label through navigation params separately from the
+result. Fresh path: calculate screen passes a `header` param built from the yacht
+profile (yacht_id) or manual snapshot + selected region. History path: result screen
+derives it from `RoiCalculationDetail.yacht_snapshot` + `input.region`. Without this
+the cover falls back to a generic "Charter ROI Scenario".

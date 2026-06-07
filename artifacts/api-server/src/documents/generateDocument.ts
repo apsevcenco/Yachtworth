@@ -1,4 +1,5 @@
 import { buildProposalModel } from "./builders/proposal";
+import { buildRoiModel } from "./builders/roi";
 import { buildValuationModel } from "./builders/valuation";
 import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
 import { renderPdf } from "./pdf/generatePdf";
@@ -14,6 +15,7 @@ import {
   type GenerateDocumentRequest,
   type GeneratedDocument,
   type ProposalReportData,
+  type RoiReportData,
   type ValuationReportData,
 } from "./documentTypes";
 
@@ -37,7 +39,11 @@ function safeFileBase(name: string, fallback: string): string {
 export async function generateDocument(
   req: GenerateDocumentRequest,
 ): Promise<GeneratedDocument> {
-  if (req.documentType !== "proposal" && req.documentType !== "valuation_report") {
+  if (
+    req.documentType !== "proposal" &&
+    req.documentType !== "valuation_report" &&
+    req.documentType !== "roi_report"
+  ) {
     throw Object.assign(new Error(`Unsupported documentType: ${req.documentType}`), {
       statusCode: 501,
     });
@@ -46,6 +52,26 @@ export async function generateDocument(
   const yacht = req.yachtProfile;
   const settings = req.exportSettings ?? {};
   const template = normalizeTemplate(req.template ?? settings.template);
+
+  if (req.documentType === "roi_report") {
+    // Charter ROI is adaptive-engine (block-based) PDF only.
+    if (req.format === "docx") {
+      throw Object.assign(new Error("DOCX is not supported for roi_report."), {
+        statusCode: 501,
+      });
+    }
+    const reportData = (req.reportData ?? {}) as RoiReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "charter_roi", "charter_roi");
+    const html = renderModelToPdfHtml(
+      buildRoiModel({ yacht, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_charter_roi.pdf`,
+    };
+  }
 
   if (req.documentType === "valuation_report") {
     const reportData = (req.reportData ?? {}) as ValuationReportData;

@@ -10,7 +10,7 @@
  * Expo client-side ("Legacy") proposal PDF generator.
  */
 
-export type DocumentType = "proposal" | "valuation_report";
+export type DocumentType = "proposal" | "valuation_report" | "roi_report";
 export type DocumentFormat = "pdf" | "docx";
 
 /**
@@ -189,12 +189,64 @@ export interface ValuationReportData {
   legalDisclaimer?: string | null;
 }
 
+// ─── charter ROI report ─────────────────────────────────────────────────────
+
+/** A single expense line in the ROI breakdown. */
+export interface RoiExpenseLine {
+  category?: string | null;
+  amount_eur?: number | null;
+  /** Optional formula/derivation shown as a muted sub-line. */
+  formula?: string | null;
+}
+
+/** A point on a yearly curve (projection or depreciation). */
+export interface RoiYearlyPoint {
+  year_offset?: number | null;
+  value_eur?: number | null;
+}
+
+/** A comparable charter listing used to support the rate. */
+export interface RoiComparableLine {
+  name?: string | null;
+  location?: string | null;
+  weekly_rate_eur?: number | null;
+}
+
+/** Charter-ROI-specific content (NOT yacht specs). */
+export interface RoiReportData {
+  annualRevenueEur?: number | null;
+  annualExpensesEur?: number | null;
+  netProfitEur?: number | null;
+  roiPct?: number | null;
+  paybackYears?: number | null;
+  occupancyPct?: number | null;
+  expectedCharterWeeks?: number | null;
+  avgDailyRateEur?: number | null;
+  dailyRateLowSeasonEur?: number | null;
+  dailyRateHighSeasonEur?: number | null;
+  marketRating?: string | null;
+  riskScore?: number | null;
+  currency?: string | null;
+  /** high | medium | low */
+  confidence?: string | null;
+  regionLabel?: string | null;
+  methodology?: string | null;
+  reasoning?: string | null;
+  recommendations?: string[] | null;
+  expenses?: RoiExpenseLine[] | null;
+  projection5y?: RoiYearlyPoint[] | null;
+  depreciationCurve?: RoiYearlyPoint[] | null;
+  comparables?: RoiComparableLine[] | null;
+  /** Server-injected legal disclaimer (rendered verbatim when present). */
+  legalDisclaimer?: string | null;
+}
+
 export interface GenerateDocumentRequest {
   documentType: DocumentType;
   format: DocumentFormat;
   template?: DocumentTemplate;
   yachtProfile: YachtProfile;
-  reportData?: ProposalReportData | ValuationReportData;
+  reportData?: ProposalReportData | ValuationReportData | RoiReportData;
   exportSettings?: ExportSettings;
 }
 

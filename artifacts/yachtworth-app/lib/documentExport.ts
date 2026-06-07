@@ -2,6 +2,7 @@ import {
   getAuthToken,
   getBaseUrl,
   type Comparable,
+  type RoiCalculation,
   type Valuation,
 } from "@workspace/api-client-react";
 import * as FileSystem from "expo-file-system/legacy";
@@ -368,4 +369,98 @@ export async function exportValuationDocument(input: {
       .replace(/\s+/g, "_")
       .slice(0, 60) || "valuation";
   await downloadDocument(buildValuationBody(result, header, "pdf"), "pdf", `${base}_valuation.pdf`);
+}
+
+// ─── charter ROI report (backend adaptive engine) ────────────────────────────
+
+/** Cover/spec header carried from the ROI flow (already humanized). */
+export type RoiHeader = {
+  yachtName?: string | null;
+  builder?: string | null;
+  model?: string | null;
+  regionLabel?: string | null;
+};
+
+function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
+  const name =
+    header?.yachtName?.trim() ||
+    [header?.builder, header?.model].filter(Boolean).join(" ") ||
+    "Charter ROI Scenario";
+
+  return {
+    documentType: "roi_report" as const,
+    format: "pdf" as const,
+    template: "premium" as const,
+    yachtProfile: {
+      name,
+      builder: header?.builder ?? null,
+      model: header?.model ?? null,
+    },
+    reportData: {
+      annualRevenueEur: result.annual_revenue_eur,
+      annualExpensesEur: result.annual_expenses_eur,
+      netProfitEur: result.net_profit_eur,
+      roiPct: result.roi_pct,
+      paybackYears: result.payback_years,
+      occupancyPct: result.occupancy_pct,
+      expectedCharterWeeks: result.expected_charter_weeks,
+      avgDailyRateEur: result.avg_daily_rate_eur,
+      dailyRateLowSeasonEur: result.daily_rate_low_season_eur ?? null,
+      dailyRateHighSeasonEur: result.daily_rate_high_season_eur ?? null,
+      marketRating: result.market_rating ?? null,
+      riskScore: result.risk_score ?? null,
+      currency: result.currency ?? "EUR",
+      confidence: result.confidence,
+      regionLabel: header?.regionLabel ?? null,
+      methodology: result.methodology ?? null,
+      reasoning: result.reasoning ?? null,
+      recommendations: result.recommendations ?? null,
+      expenses: (result.expenses ?? []).map((e) => ({
+        category: e.category,
+        amount_eur: e.amount_eur,
+        formula: e.formula ?? null,
+      })),
+      projection5y: (result.roi_projection_5y ?? []).map((p) => ({
+        year_offset: p.year_offset,
+        value_eur: p.value_eur,
+      })),
+      depreciationCurve: (result.depreciation_curve ?? []).map((p) => ({
+        year_offset: p.year_offset,
+        value_eur: p.value_eur,
+      })),
+      comparables: (result.comparables ?? []).map((c) => ({
+        name: c.name,
+        location: c.location ?? null,
+        weekly_rate_eur: c.weekly_rate_eur ?? null,
+      })),
+      legalDisclaimer: result.legal_disclaimer ?? null,
+    },
+    exportSettings: {
+      template: "premium" as const,
+      language: "english" as const,
+      branding: "Yachtworth",
+      engine: "adaptive" as const,
+    },
+  };
+}
+
+/**
+ * Generate a professional Charter ROI report on the backend (adaptive PDF
+ * engine) and present it. Primary "Export PDF report" action on the ROI result
+ * screen.
+ */
+export async function exportRoiDocument(input: {
+  result: RoiCalculation;
+  header?: RoiHeader;
+}): Promise<void> {
+  const { result, header } = input;
+  const base =
+    (header?.yachtName?.trim() ||
+      [header?.builder, header?.model].filter(Boolean).join("_") ||
+      "charter_roi")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60) || "charter_roi";
+  await downloadDocument(buildRoiBody(result, header), "pdf", `${base}_charter_roi.pdf`);
 }

@@ -16,7 +16,16 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { exportRoiDocument, type RoiHeader } from "../../lib/documentExport";
 import { exportRoiPdf } from "../../lib/roiPdf";
+
+const REGION_LABELS: Record<string, string> = {
+  mediterranean: "Mediterranean",
+  caribbean: "Caribbean",
+  northern_europe: "Northern Europe",
+  asia_pacific_me: "Asia-Pacific",
+  middle_east: "Middle East",
+};
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -37,7 +46,11 @@ function eur(n: number | null | undefined): string {
 export default function RoiResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ data?: string; id?: string }>();
+  const params = useLocalSearchParams<{
+    data?: string;
+    id?: string;
+    header?: string;
+  }>();
 
   const inlineData: RoiCalculation | null = useMemo(() => {
     if (typeof params.data !== "string") return null;
@@ -62,10 +75,56 @@ export default function RoiResultScreen() {
     return (detailQuery.data?.result as unknown as RoiCalculation) ?? null;
   }, [inlineData, detailQuery.data]);
 
+  // Yacht / region context for the exported report cover. Fresh path: passed
+  // inline by the calculate screen. History path: derived from the saved
+  // calculation's yacht_snapshot + input.region.
+  const header: RoiHeader | undefined = useMemo(() => {
+    if (typeof params.header === "string" && params.header) {
+      try {
+        const h = JSON.parse(params.header) as RoiHeader;
+        if (h && typeof h === "object") return h;
+      } catch {
+        /* fall through to detail-derived header */
+      }
+    }
+    const detail = detailQuery.data;
+    if (detail) {
+      const snap = detail.yacht_snapshot ?? null;
+      const regionKey = detail.input?.region;
+      return {
+        yachtName: snap?.name ?? null,
+        builder: snap?.brand ?? null,
+        model: snap?.model ?? null,
+        regionLabel: regionKey ? REGION_LABELS[regionKey] ?? null : null,
+      };
+    }
+    return undefined;
+  }, [params.header, detailQuery.data]);
+
   const [exporting, setExporting] = useState(false);
+  const [exportingLegacy, setExportingLegacy] = useState(false);
+
+  // Primary export: backend adaptive document engine (V2). Produces the
+  // professionally laid-out, page-packed PDF.
   const onExport = async () => {
     if (!data || exporting) return;
     setExporting(true);
+    try {
+      await exportRoiDocument({ result: data, header });
+    } catch (err) {
+      Alert.alert(
+        "Couldn't export PDF",
+        err instanceof Error ? err.message : "Please try again.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Secondary export: on-device generator (works offline / no backend).
+  const onExportLegacy = async () => {
+    if (!data || exportingLegacy) return;
+    setExportingLegacy(true);
     try {
       await exportRoiPdf(data);
     } catch (err) {
@@ -74,7 +133,7 @@ export default function RoiResultScreen() {
         err instanceof Error ? err.message : "Please try again.",
       );
     } finally {
-      setExporting(false);
+      setExportingLegacy(false);
     }
   };
 
@@ -245,6 +304,23 @@ export default function RoiResultScreen() {
         </Pressable>
 
         <Pressable
+          onPress={onExportLegacy}
+          disabled={exportingLegacy}
+          accessibilityRole="button"
+          accessibilityLabel="Export legacy PDF"
+          style={({ pressed }) => [
+            styles.legacyBtn,
+            { opacity: pressed || exportingLegacy ? 0.6 : 1 },
+          ]}
+        >
+          {exportingLegacy ? (
+            <ActivityIndicator color={MUTED} />
+          ) : (
+            <Text style={styles.legacyBtnText}>Export legacy PDF</Text>
+          )}
+        </Pressable>
+
+        <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.secondaryBtn,
@@ -395,6 +471,20 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   primaryBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
+  legacyBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    minHeight: 44,
+  },
+  legacyBtnText: {
+    color: MUTED,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
   secondaryBtn: {
     borderColor: GOLD,
     borderWidth: 1,

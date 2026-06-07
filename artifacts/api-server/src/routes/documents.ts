@@ -29,12 +29,16 @@ router.post(
     const body = isObject(req.body) ? req.body : {};
 
     const documentType = body["documentType"];
-    if (documentType !== "proposal" && documentType !== "valuation_report") {
+    if (
+      documentType !== "proposal" &&
+      documentType !== "valuation_report" &&
+      documentType !== "roi_report"
+    ) {
       res
         .status(documentType ? 501 : 400)
         .json({
           error:
-            "Unsupported or missing documentType (only 'proposal' or 'valuation_report').",
+            "Unsupported or missing documentType (only 'proposal', 'valuation_report' or 'roi_report').",
         });
       return;
     }
