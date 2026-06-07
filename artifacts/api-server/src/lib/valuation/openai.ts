@@ -23,7 +23,10 @@ function getApiKey(): string {
 // at ~120s, so any single OpenAI call MUST resolve (or abort) well before that
 // to leave room for the next fallback level (Responses → chat → heuristic).
 const AI_CHAT_TIMEOUT_MS = 25_000;
-const AI_RESPONSES_TIMEOUT_MS = 45_000; // higher — web_search legitimately takes 10–30s
+// Real Charter ROI web_search runs ~9 search rounds and takes ~55s; 45s aborted
+// them mid-search and forced a tool-less fallback. 95s lets the search complete
+// while still finishing (or aborting → instant heuristic) under the ~120s proxy cap.
+const AI_RESPONSES_TIMEOUT_MS = 95_000;
 
 // fetch() never times out on its own; a hung OpenAI socket would block until the
 // proxy kills the whole request at 120s → HTTP 502. AbortController converts a
@@ -80,10 +83,12 @@ export async function aiResponses(
   model = "gpt-5-mini",
   tools?: unknown[],
   timeoutMs = AI_RESPONSES_TIMEOUT_MS,
+  maxToolCalls?: number,
 ): Promise<string> {
   const apiKey = getApiKey();
   const body: Record<string, unknown> = { model, input };
   if (tools) body.tools = tools;
+  if (maxToolCalls != null) body.max_tool_calls = maxToolCalls;
   const resp = await fetchWithTimeout(
     `${getBaseUrl()}/responses`,
     {

@@ -1,5 +1,4 @@
 import {
-  aiChat,
   aiResponses,
   extractJson,
   cleanReasoning,
@@ -547,7 +546,7 @@ const REGION_RATE_MULT: Record<string, number> = {
  * unparseable output. Conservative numbers so user is never misled into
  * thinking the AI worked.
  */
-function heuristicAiFallback(args: AiArgs): ComputedRevenue {
+function heuristicAiFallback(args: AiArgs, reasonOverride?: string): ComputedRevenue {
   const L = Number(args.yacht.length_meters) || 18;
   const R = REGION_RATE_MULT[args.region] ?? 1.0;
 
@@ -614,9 +613,11 @@ function heuristicAiFallback(args: AiArgs): ComputedRevenue {
         occupancy_pct: rm.occupancyPct,
         market_rating: null,
         comparables: [],
-        reasoning: hit
-          ? `AI market lookup was unavailable. Used internal market_rates baseline (${args.yacht.yacht_type ?? "yacht"} · ${band} · ${args.region} · ${hit.season}). Add a real charter rate (manual mode) for sharper numbers.`
-          : "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers.",
+        reasoning:
+          reasonOverride ??
+          (hit
+            ? `AI market lookup was unavailable. Used internal market_rates baseline (${args.yacht.yacht_type ?? "yacht"} · ${band} · ${args.region} · ${hit.season}). Add a real charter rate (manual mode) for sharper numbers.`
+            : "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers."),
         confidence: "low",
         ai_used: false,
       };
@@ -653,9 +654,11 @@ function heuristicAiFallback(args: AiArgs): ComputedRevenue {
     occupancy_pct: occupancyPct,
     market_rating: null,
     comparables: [],
-    reasoning: hit
-      ? `AI market lookup was unavailable. Used internal market_rates baseline (${args.yacht.yacht_type ?? "yacht"} · ${band} · ${args.region} · ${hit.season}). Add a real charter rate (manual mode) for sharper numbers.`
-      : "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers.",
+    reasoning:
+      reasonOverride ??
+      (hit
+        ? `AI market lookup was unavailable. Used internal market_rates baseline (${args.yacht.yacht_type ?? "yacht"} · ${band} · ${args.region} · ${hit.season}). Add a real charter rate (manual mode) for sharper numbers.`
+        : "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers."),
     confidence: "low",
     ai_used: false,
   };
@@ -666,30 +669,28 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   let raw = "";
   let webSearchUsed = false;
   try {
-    raw = await aiResponses(prompt, "gpt-5-mini", [{ type: "web_search_preview" }]);
+    // Bound the web-search workload: "low" context + a tool-call cap keeps the
+    // call comfortably inside AI_RESPONSES_TIMEOUT_MS instead of running ~9
+    // search rounds. Web search must succeed here — there is NO tool-less chat
+    // fallback, because a no-browse chat answer hallucinates "I cannot perform
+    // live web searches" and returns €0 rates. On any failure we go straight to
+    // the deterministic heuristic.
+    raw = await aiResponses(
+      prompt,
+      "gpt-5-mini",
+      [{ type: "web_search_preview", search_context_size: "low" }],
+      undefined,
+      5,
+    );
     webSearchUsed = true;
   } catch {
-    try {
-      raw = await aiChat(
-        [
-          {
-            role: "system",
-            content:
-              "You are a charter market analyst. Return STRICT JSON only, no commentary.",
-          },
-          { role: "user", content: prompt },
-        ],
-        "gpt-5-mini",
-      );
-    } catch {
-      return heuristicAiFallback(args);
-    }
+    return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
   let parsed: Record<string, unknown>;
   try {
     parsed = extractJson(raw) as Record<string, unknown>;
   } catch {
-    return heuristicAiFallback(args);
+    return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
 
   const num = (k: string, fb = 0): number => {
@@ -740,6 +741,17 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     };
   });
   const reasoning = cleanReasoning(parsed["reasoning"] || "");
+
+  // Zero-rate guard: a valid market result must have a positive rate AND at least
+  // one comparable. A non-positive rate or empty comparable list means the model
+  // had no real data — reject it and use the heuristic so €0 never enters the ROI
+  // calc (which would otherwise multiply fixed table weeks by €0 → €0 income).
+  if (daily <= 0 || weekly <= 0 || comparables.length === 0) {
+    return heuristicAiFallback(
+      args,
+      "Live market search unavailable; heuristic fallback used.",
+    );
+  }
 
   // Model regions: units (weeks/days) are fixed by the owner table; the AI only
   // supplied the rate. Override gross/weeks/occupancy/daily-range with the model
