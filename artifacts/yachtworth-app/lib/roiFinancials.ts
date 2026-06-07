@@ -26,14 +26,16 @@ export const CREW_POSITIONS: { key: string; label: string }[] = [
 
 export interface CrewRow {
   role: string;
-  monthly_salary_eur: string; // string while editing
+  monthly_salary_eur: string; // string while editing — PER PERSON
   months_per_year: number; // 1..12
+  count: number; // headcount in this role, 1..50 (e.g. 3 deckhands)
 }
 
 export const INITIAL_CREW: CrewRow[] = CREW_POSITIONS.map((p) => ({
   role: p.label,
   monthly_salary_eur: "",
   months_per_year: 12,
+  count: 1,
 }));
 
 // ── Expense fields ──────────────────────────────────────────────────────
@@ -103,7 +105,14 @@ export function hydrateCrew(
           Number.isFinite(monthsRaw) && monthsRaw >= 1 && monthsRaw <= 12
             ? Math.round(monthsRaw)
             : 12;
-        return role ? { role, monthly_salary_eur: salary, months_per_year: months } : null;
+        const countRaw = Number(o.count);
+        const count =
+          Number.isFinite(countRaw) && countRaw >= 1 && countRaw <= 50
+            ? Math.round(countRaw)
+            : 1;
+        return role
+          ? { role, monthly_salary_eur: salary, months_per_year: months, count }
+          : null;
       })
       .filter((r): r is CrewRow => r !== null);
     const merged = INITIAL_CREW.map((def) => {
@@ -123,13 +132,17 @@ export function hydrateCrew(
   return INITIAL_CREW;
 }
 
+function crewCount(c: number): number {
+  return c > 0 && c <= 50 ? Math.round(c) : 1;
+}
+
 export function computeCrewMonthlyTotal(rows: CrewRow[]): number {
   let total = 0;
   for (const r of rows) {
     const s = parseFloat(r.monthly_salary_eur.replace(",", "."));
     if (isFinite(s) && s > 0) {
       const m = r.months_per_year > 0 && r.months_per_year <= 12 ? r.months_per_year : 12;
-      total += s * (m / 12);
+      total += s * crewCount(r.count) * (m / 12);
     }
   }
   return Math.round(total);
@@ -138,14 +151,24 @@ export function computeCrewMonthlyTotal(rows: CrewRow[]): number {
 // Strip empty crew rows and coerce to the API CrewMember shape.
 export function crewBreakdownToApi(
   rows: CrewRow[],
-): { role: string; monthly_salary_eur: number; months_per_year: number }[] {
-  const out: { role: string; monthly_salary_eur: number; months_per_year: number }[] = [];
+): { role: string; monthly_salary_eur: number; months_per_year: number; count: number }[] {
+  const out: {
+    role: string;
+    monthly_salary_eur: number;
+    months_per_year: number;
+    count: number;
+  }[] = [];
   for (const r of rows) {
     const salary = parseNum(r.monthly_salary_eur);
     if (salary == null || salary <= 0) continue;
     const months =
       r.months_per_year > 0 && r.months_per_year <= 12 ? r.months_per_year : 12;
-    out.push({ role: r.role, monthly_salary_eur: salary, months_per_year: months });
+    out.push({
+      role: r.role,
+      monthly_salary_eur: salary,
+      months_per_year: months,
+      count: crewCount(r.count),
+    });
   }
   return out;
 }
@@ -243,7 +266,7 @@ export function hydrateFinancialsFromYacht(
 }
 
 export interface RoiOverrides {
-  crew_breakdown?: { role: string; monthly_salary_eur: number; months_per_year: number }[];
+  crew_breakdown?: { role: string; monthly_salary_eur: number; months_per_year: number; count: number }[];
   purchase_price_eur?: number;
   monthly_crew_eur?: number;
   monthly_mooring_eur?: number;

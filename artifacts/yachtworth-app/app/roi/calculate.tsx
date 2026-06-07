@@ -844,6 +844,7 @@ export default function RoiCalculateScreen() {
                   row={row}
                   onSalary={(v) => setCrew(i, { monthly_salary_eur: v })}
                   onMonths={(m) => setCrew(i, { months_per_year: m })}
+                  onCount={(c) => setCrew(i, { count: c })}
                 />
               ))}
               <View style={styles.crewTotalRow}>
@@ -853,6 +854,7 @@ export default function RoiCalculateScreen() {
                 </Text>
               </View>
               <Text style={styles.fieldHint}>
+                Salary is per person; crew count multiplies it (e.g. 3 deckhands).
                 Months/year covers seasonal crew. The total feeds the ROI engine.
               </Text>
 
@@ -1114,10 +1116,12 @@ function CrewRowEditor({
   row,
   onSalary,
   onMonths,
+  onCount,
 }: {
   row: CrewRow;
   onSalary: (v: string) => void;
   onMonths: (n: number) => void;
+  onCount: (n: number) => void;
 }) {
   const dec = () => {
     const next = Math.max(1, row.months_per_year - 1);
@@ -1133,9 +1137,45 @@ function CrewRowEditor({
       if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
     }
   };
+  const decCount = () => {
+    const next = Math.max(1, row.count - 1);
+    if (next !== row.count) {
+      onCount(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  const incCount = () => {
+    const next = Math.min(50, row.count + 1);
+    if (next !== row.count) {
+      onCount(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
   return (
     <View style={styles.crewRow}>
-      <Text style={styles.crewRole}>{row.role}</Text>
+      <View style={styles.crewHeadRow}>
+        <Text style={styles.crewRole}>{row.role}</Text>
+        <View style={styles.crewStepper}>
+          <Pressable
+            onPress={decCount}
+            hitSlop={6}
+            style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Feather name="minus" size={14} color={GOLD} />
+          </Pressable>
+          <View style={styles.crewMonthsBox}>
+            <Text style={styles.crewMonthsValue}>{row.count}</Text>
+            <Text style={styles.crewMonthsLabel}>crew</Text>
+          </View>
+          <Pressable
+            onPress={incCount}
+            hitSlop={6}
+            style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Feather name="plus" size={14} color={GOLD} />
+          </Pressable>
+        </View>
+      </View>
       <View style={styles.crewControls}>
         <View style={styles.crewSalaryWrap}>
           <TextInput
@@ -1438,11 +1478,17 @@ const styles = StyleSheet.create({
     borderBottomColor: DIVIDER,
     borderBottomWidth: 1,
   },
+  crewHeadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   crewRole: {
+    flex: 1,
     color: IVORY,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
-    marginBottom: 8,
   },
   crewControls: {
     flexDirection: "row",

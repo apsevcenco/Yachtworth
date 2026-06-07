@@ -9,11 +9,20 @@
 export interface CrewMember {
   /** Free-text role label (e.g. "Captain", "Chef") */
   role: string;
-  /** @minimum 0 */
+  /**
+   * Salary PER PERSON. Multiply by count for the row total.
+   * @minimum 0
+   */
   monthly_salary_eur: number;
   /**
    * @minimum 1
    * @maximum 12
    */
   months_per_year: number;
+  /**
+   * Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count * monthly_salary_eur * months_per_year / 12, summed into monthly_crew_eur.
+   * @minimum 1
+   * @maximum 50
+   */
+  count?: number;
 }

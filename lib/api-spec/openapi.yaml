@@ -1968,10 +1968,20 @@ components:
         monthly_salary_eur:
           type: number
           minimum: 0
+          description: Salary PER PERSON. Multiply by count for the row total.
         months_per_year:
           type: integer
           minimum: 1
           maximum: 12
+        count:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 1
+          description: >-
+            Number of crew in this role (e.g. 3 deckhands). Optional; absent
+            means 1. Row monthly cost = count * monthly_salary_eur *
+            months_per_year / 12, summed into monthly_crew_eur.
     Yacht:
       type: object
       required: [id, clerk_user_id, created_at, updated_at]

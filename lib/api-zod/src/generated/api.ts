@@ -410,6 +410,9 @@ export const listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin = 0
 
 export const listYachtsResponseItemsItemCrewBreakdownItemMonthsPerYearMax = 12;
 
+export const listYachtsResponseItemsItemCrewBreakdownItemCountDefault = 1;
+export const listYachtsResponseItemsItemCrewBreakdownItemCountMax = 50;
+
 export const ListYachtsResponse = zod.object({
   items: zod.array(
     zod.object({
@@ -470,12 +473,23 @@ export const ListYachtsResponse = zod.object({
               .number()
               .min(
                 listYachtsResponseItemsItemCrewBreakdownItemMonthlySalaryEurMin,
+              )
+              .describe(
+                "Salary PER PERSON. Multiply by count for the row total.",
               ),
             months_per_year: zod
               .number()
               .min(1)
               .max(
                 listYachtsResponseItemsItemCrewBreakdownItemMonthsPerYearMax,
+              ),
+            count: zod
+              .number()
+              .min(1)
+              .max(listYachtsResponseItemsItemCrewBreakdownItemCountMax)
+              .default(listYachtsResponseItemsItemCrewBreakdownItemCountDefault)
+              .describe(
+                "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
               ),
           }),
         )
@@ -567,6 +581,9 @@ export const createYachtBodyCharterCommissionPctMax = 100;
 export const createYachtBodyCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const createYachtBodyCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const createYachtBodyCrewBreakdownItemCountDefault = 1;
+export const createYachtBodyCrewBreakdownItemCountMax = 50;
 
 export const createYachtBodyDraftMetersMin = 0;
 
@@ -697,11 +714,20 @@ export const CreateYachtBody = zod.object({
           .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
         monthly_salary_eur: zod
           .number()
-          .min(createYachtBodyCrewBreakdownItemMonthlySalaryEurMin),
+          .min(createYachtBodyCrewBreakdownItemMonthlySalaryEurMin)
+          .describe("Salary PER PERSON. Multiply by count for the row total."),
         months_per_year: zod
           .number()
           .min(1)
           .max(createYachtBodyCrewBreakdownItemMonthsPerYearMax),
+        count: zod
+          .number()
+          .min(1)
+          .max(createYachtBodyCrewBreakdownItemCountMax)
+          .default(createYachtBodyCrewBreakdownItemCountDefault)
+          .describe(
+            "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
+          ),
       }),
     )
     .nullish(),
@@ -737,6 +763,9 @@ export const getYachtResponsePhotoUrlsMax = 10;
 export const getYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const getYachtResponseCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const getYachtResponseCrewBreakdownItemCountDefault = 1;
+export const getYachtResponseCrewBreakdownItemCountMax = 50;
 
 export const GetYachtResponse = zod.object({
   id: zod.string(),
@@ -794,11 +823,20 @@ export const GetYachtResponse = zod.object({
           .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
         monthly_salary_eur: zod
           .number()
-          .min(getYachtResponseCrewBreakdownItemMonthlySalaryEurMin),
+          .min(getYachtResponseCrewBreakdownItemMonthlySalaryEurMin)
+          .describe("Salary PER PERSON. Multiply by count for the row total."),
         months_per_year: zod
           .number()
           .min(1)
           .max(getYachtResponseCrewBreakdownItemMonthsPerYearMax),
+        count: zod
+          .number()
+          .min(1)
+          .max(getYachtResponseCrewBreakdownItemCountMax)
+          .default(getYachtResponseCrewBreakdownItemCountDefault)
+          .describe(
+            "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
+          ),
       }),
     )
     .nullish(),
@@ -888,6 +926,9 @@ export const updateYachtBodyCharterCommissionPctMax = 100;
 export const updateYachtBodyCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const updateYachtBodyCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const updateYachtBodyCrewBreakdownItemCountDefault = 1;
+export const updateYachtBodyCrewBreakdownItemCountMax = 50;
 
 export const updateYachtBodyDraftMetersMin = 0;
 
@@ -1018,11 +1059,20 @@ export const UpdateYachtBody = zod.object({
           .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
         monthly_salary_eur: zod
           .number()
-          .min(updateYachtBodyCrewBreakdownItemMonthlySalaryEurMin),
+          .min(updateYachtBodyCrewBreakdownItemMonthlySalaryEurMin)
+          .describe("Salary PER PERSON. Multiply by count for the row total."),
         months_per_year: zod
           .number()
           .min(1)
           .max(updateYachtBodyCrewBreakdownItemMonthsPerYearMax),
+        count: zod
+          .number()
+          .min(1)
+          .max(updateYachtBodyCrewBreakdownItemCountMax)
+          .default(updateYachtBodyCrewBreakdownItemCountDefault)
+          .describe(
+            "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
+          ),
       }),
     )
     .nullish(),
@@ -1051,6 +1101,9 @@ export const updateYachtResponsePhotoUrlsMax = 10;
 export const updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const updateYachtResponseCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const updateYachtResponseCrewBreakdownItemCountDefault = 1;
+export const updateYachtResponseCrewBreakdownItemCountMax = 50;
 
 export const UpdateYachtResponse = zod.object({
   id: zod.string(),
@@ -1108,11 +1161,20 @@ export const UpdateYachtResponse = zod.object({
           .describe('Free-text role label (e.g. \"Captain\", \"Chef\")'),
         monthly_salary_eur: zod
           .number()
-          .min(updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin),
+          .min(updateYachtResponseCrewBreakdownItemMonthlySalaryEurMin)
+          .describe("Salary PER PERSON. Multiply by count for the row total."),
         months_per_year: zod
           .number()
           .min(1)
           .max(updateYachtResponseCrewBreakdownItemMonthsPerYearMax),
+        count: zod
+          .number()
+          .min(1)
+          .max(updateYachtResponseCrewBreakdownItemCountMax)
+          .default(updateYachtResponseCrewBreakdownItemCountDefault)
+          .describe(
+            "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
+          ),
       }),
     )
     .nullish(),
@@ -1462,6 +1524,9 @@ export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 
 
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
 
+export const calculateRoiBodyOverridesOneCrewBreakdownItemCountDefault = 1;
+export const calculateRoiBodyOverridesOneCrewBreakdownItemCountMax = 50;
+
 export const calculateRoiBodyOverridesOnePurchasePriceEurMin = 0;
 
 export const calculateRoiBodyOverridesOneMonthlyCrewEurMin = 0;
@@ -1653,12 +1718,25 @@ export const CalculateRoiBody = zod.object({
                   .number()
                   .min(
                     calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin,
+                  )
+                  .describe(
+                    "Salary PER PERSON. Multiply by count for the row total.",
                   ),
                 months_per_year: zod
                   .number()
                   .min(1)
                   .max(
                     calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax,
+                  ),
+                count: zod
+                  .number()
+                  .min(1)
+                  .max(calculateRoiBodyOverridesOneCrewBreakdownItemCountMax)
+                  .default(
+                    calculateRoiBodyOverridesOneCrewBreakdownItemCountDefault,
+                  )
+                  .describe(
+                    "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
                   ),
               }),
             )
@@ -2683,6 +2761,9 @@ export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlyS
 
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
 
+export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemCountDefault = 1;
+export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemCountMax = 50;
+
 export const getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin = 0;
@@ -2918,12 +2999,27 @@ export const GetRoiCalculationResponse = zod.object({
                     .number()
                     .min(
                       getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlySalaryEurMin,
+                    )
+                    .describe(
+                      "Salary PER PERSON. Multiply by count for the row total.",
                     ),
                   months_per_year: zod
                     .number()
                     .min(1)
                     .max(
                       getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax,
+                    ),
+                  count: zod
+                    .number()
+                    .min(1)
+                    .max(
+                      getRoiCalculationResponseInputOverridesOneCrewBreakdownItemCountMax,
+                    )
+                    .default(
+                      getRoiCalculationResponseInputOverridesOneCrewBreakdownItemCountDefault,
+                    )
+                    .describe(
+                      "Number of crew in this role (e.g. 3 deckhands). Optional; absent means 1. Row monthly cost = count \* monthly_salary_eur \* months_per_year \/ 12, summed into monthly_crew_eur.",
                     ),
                 }),
               )

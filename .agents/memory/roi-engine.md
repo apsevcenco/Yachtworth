@@ -16,6 +16,7 @@ description: Non-obvious behaviors of the api-server ROI engine that affect any 
 
 ## Engine reads `monthly_crew_eur`, not `crew_breakdown`
 The crew total fed to ROI is the single `monthly_crew_eur` column. `crew_breakdown` jsonb is for the editor/history only. Any crew override must compute and send `monthly_crew_eur`.
+**Crew `count` (headcount) is a frontend-only multiplier:** each `CrewRow` has `count` (1..50, default 1) and salary is PER PERSON. `computeCrewMonthlyTotal` does `salary * count * months/12` and folds it into `monthly_crew_eur`; the engine never sees `count`. `count` is in the OpenAPI `CrewMember` schema (optional, default 1) only so it survives zod and round-trips in the stored `crew_breakdown` snapshot for re-open. Legacy rows without `count` hydrate to 1 → totals byte-identical.
 
 ## Season is NOT a user input — full-year only, driven by occupancy posture
 The ROI questionnaire has NO season picker and NO management-style picker (owner removed both, June 2026). The frontend never sends `season` or `management_style`; both are absent from `RoiCalculationInput` in openapi. Backend hard-codes `season: "mixed"` into `computeAiRevenue` (full year = blend of all sub-seasons). The user-facing knob that selects region numbers is the **occupancy posture** (`occupancy_target`: conservative/realistic/optimistic), NOT season.
