@@ -24,6 +24,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../../hooks/useUnits";
+import {
+  ANNUAL_FIELDS,
+  computeCrewMonthlyTotal,
+  CREW_POSITIONS,
+  hydrateCrew,
+  INITIAL_CREW,
+  MONTHLY_FIELDS,
+  parseInt10,
+  parseNum,
+  toStr,
+  type AnnualKey,
+  type CrewRow,
+  type MonthlyKey,
+} from "../../lib/roiFinancials";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -50,54 +64,9 @@ const TYPE_OPTIONS: { value: YachtType; label: string }[] = [
 
 const STEP_TITLES = ["Basics", "Operations", "Expenses", "Financing"];
 
-// ── Crew positions ──────────────────────────────────────────────────────
-// Six default roles. The user fills monthly salary + months/year per row;
-// total monthly_crew_eur is auto-derived on submit so the ROI engine
-// (which reads monthly_crew_eur) keeps working unchanged.
-const CREW_POSITIONS: { key: string; label: string }[] = [
-  { key: "captain", label: "Captain" },
-  { key: "first_officer", label: "First officer / Mate" },
-  { key: "engineer", label: "Chief engineer" },
-  { key: "chef", label: "Chef" },
-  { key: "stewardess", label: "Stewardess" },
-  { key: "deckhand", label: "Deckhand" },
-];
-
-interface CrewRow {
-  role: string;
-  monthly_salary_eur: string; // string while editing
-  months_per_year: number; // 1..12
-}
-
-const INITIAL_CREW: CrewRow[] = CREW_POSITIONS.map((p) => ({
-  role: p.label,
-  monthly_salary_eur: "",
-  months_per_year: 12,
-}));
-
-// ── Expense fields ──────────────────────────────────────────────────────
-// Naming convention matches DB columns / OpenAPI exactly so payload mapping
-// is a 1-to-1 copy at submit time.
-const MONTHLY_FIELDS = [
-  { key: "monthly_mooring_eur", label: "Mooring / berth", hint: "Marina contract or rolling fees" },
-  { key: "monthly_fuel_eur", label: "Fuel", hint: "Average across the season" },
-  { key: "monthly_provisioning_eur", label: "Provisioning", hint: "Food, drink, consumables" },
-  { key: "monthly_communications_eur", label: "Communications", hint: "Satellite, Wi-Fi, phone" },
-  { key: "monthly_maintenance_eur", label: "Routine maintenance", hint: "Servicing, small repairs" },
-  { key: "monthly_management_fee_eur", label: "Management fee", hint: "If yacht is professionally managed" },
-  { key: "monthly_misc_eur", label: "Other monthly costs", hint: "Anything not listed above" },
-] as const;
-
-const ANNUAL_FIELDS = [
-  { key: "annual_insurance_eur", label: "Insurance", hint: "Hull + P&I, full annual premium" },
-  { key: "annual_registration_eur", label: "Registration / flag", hint: "Annual flag-state fees" },
-  { key: "annual_classification_eur", label: "Classification & survey", hint: "Class society, MCA, audits" },
-  { key: "annual_antifouling_eur", label: "Antifouling & haul-out", hint: "Yearly bottom service" },
-  { key: "annual_refit_reserve_eur", label: "Refit reserve", hint: "Money set aside for major refit" },
-] as const;
-
-type MonthlyKey = (typeof MONTHLY_FIELDS)[number]["key"];
-type AnnualKey = (typeof ANNUAL_FIELDS)[number]["key"];
+// Crew positions, expense field lists, and the crew/parse helpers live in
+// `lib/roiFinancials.ts` so this wizard and the ROI scenario screen (which
+// sends them as per-calculation overrides) can never silently drift apart.
 type ExpenseKey = MonthlyKey | AnnualKey | "charter_commission_pct";
 
 interface FormState {
@@ -178,81 +147,6 @@ const INITIAL: FormState = {
   loan_rate_pct: "",
   loan_term_years: "",
 };
-
-function parseNum(v: string): number | null {
-  const n = parseFloat(v.replace(",", "."));
-  return isFinite(n) ? n : null;
-}
-
-function parseInt10(v: string): number | null {
-  const n = parseInt(v.replace(/[^0-9]/g, ""), 10);
-  return isFinite(n) ? n : null;
-}
-
-function toStr(n: number | null | undefined): string {
-  return n != null ? String(n) : "";
-}
-
-/**
- * Build the crew_breakdown form state from a saved yacht. If the DB row has
- * a real crew_breakdown array, use it; otherwise fall back to the 6 default
- * rows and put any legacy monthly_crew_eur total into the Captain row so
- * existing data isn't silently dropped on the next save.
- */
-function hydrateCrew(
-  raw: unknown,
-  legacyTotal: number | null | undefined,
-): CrewRow[] {
-  if (Array.isArray(raw) && raw.length > 0) {
-    const incoming = raw
-      .map((r) => {
-        if (!r || typeof r !== "object") return null;
-        const o = r as Record<string, unknown>;
-        const role = typeof o.role === "string" ? o.role : "";
-        const salary =
-          typeof o.monthly_salary_eur === "number"
-            ? String(o.monthly_salary_eur)
-            : typeof o.monthly_salary_eur === "string"
-            ? o.monthly_salary_eur
-            : "";
-        const monthsRaw = Number(o.months_per_year);
-        const months =
-          Number.isFinite(monthsRaw) && monthsRaw >= 1 && monthsRaw <= 12
-            ? Math.round(monthsRaw)
-            : 12;
-        return role ? { role, monthly_salary_eur: salary, months_per_year: months } : null;
-      })
-      .filter((r): r is CrewRow => r !== null);
-    // Make sure we always show at least the 6 default rows so the user can
-    // edit positions that were not previously populated.
-    const merged = INITIAL_CREW.map((def) => {
-      const match = incoming.find((r) => r.role === def.role);
-      return match ?? def;
-    });
-    const extras = incoming.filter(
-      (r) => !INITIAL_CREW.some((def) => def.role === r.role),
-    );
-    return [...merged, ...extras];
-  }
-  if (legacyTotal != null && legacyTotal > 0) {
-    return INITIAL_CREW.map((p, i) =>
-      i === 0 ? { ...p, monthly_salary_eur: String(legacyTotal) } : p,
-    );
-  }
-  return INITIAL_CREW;
-}
-
-function computeCrewMonthlyTotal(rows: CrewRow[]): number {
-  let total = 0;
-  for (const r of rows) {
-    const s = parseFloat(r.monthly_salary_eur.replace(",", "."));
-    if (isFinite(s) && s > 0) {
-      const m = r.months_per_year > 0 && r.months_per_year <= 12 ? r.months_per_year : 12;
-      total += s * (m / 12);
-    }
-  }
-  return Math.round(total);
-}
 
 export default function YachtFormScreen() {
   const insets = useSafeAreaInsets();

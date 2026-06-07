@@ -1456,6 +1456,45 @@ export const calculateRoiBodyManagementFeePctMax = 50;
 export const calculateRoiBodyTargetWeeksMin = 0;
 export const calculateRoiBodyTargetWeeksMax = 52;
 
+export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const calculateRoiBodyOverridesOneMonthlyCrewEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyMooringEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyFuelEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyProvisioningEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyCommunicationsEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyMaintenanceEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyManagementFeeEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyMiscEurMin = 0;
+
+export const calculateRoiBodyOverridesOneAnnualInsuranceEurMin = 0;
+
+export const calculateRoiBodyOverridesOneAnnualRegistrationEurMin = 0;
+
+export const calculateRoiBodyOverridesOneAnnualClassificationEurMin = 0;
+
+export const calculateRoiBodyOverridesOneAnnualAntifoulingEurMin = 0;
+
+export const calculateRoiBodyOverridesOneAnnualRefitReserveEurMin = 0;
+
+export const calculateRoiBodyOverridesOneCharterCommissionPctMin = 0;
+export const calculateRoiBodyOverridesOneCharterCommissionPctMax = 100;
+
+export const calculateRoiBodyOverridesOneLoanAmountEurMin = 0;
+
+export const calculateRoiBodyOverridesOneLoanRatePctMin = 0;
+
+export const calculateRoiBodyOverridesOneLoanTermYearsMin = 0;
+
 export const CalculateRoiBody = zod.object({
   yacht_id: zod.string(),
   region: zod.enum([
@@ -1508,6 +1547,114 @@ export const CalculateRoiBody = zod.object({
     .max(calculateRoiBodyTargetWeeksMax)
     .nullish()
     .describe("AI mode only — override AI-predicted charter weeks"),
+  overrides: zod
+    .union([
+      zod
+        .object({
+          crew_breakdown: zod
+            .array(
+              zod.object({
+                role: zod
+                  .string()
+                  .describe(
+                    'Free-text role label (e.g. \"Captain\", \"Chef\")',
+                  ),
+                monthly_salary_eur: zod
+                  .number()
+                  .min(
+                    calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin,
+                  ),
+                months_per_year: zod
+                  .number()
+                  .min(1)
+                  .max(
+                    calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax,
+                  ),
+              }),
+            )
+            .nullish(),
+          monthly_crew_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyCrewEurMin)
+            .nullish(),
+          monthly_mooring_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyMooringEurMin)
+            .nullish(),
+          monthly_fuel_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyFuelEurMin)
+            .nullish(),
+          monthly_provisioning_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyProvisioningEurMin)
+            .nullish(),
+          monthly_communications_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyCommunicationsEurMin)
+            .nullish(),
+          monthly_maintenance_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyMaintenanceEurMin)
+            .nullish(),
+          monthly_management_fee_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyManagementFeeEurMin)
+            .nullish(),
+          monthly_misc_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneMonthlyMiscEurMin)
+            .nullish(),
+          annual_insurance_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneAnnualInsuranceEurMin)
+            .nullish(),
+          annual_registration_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneAnnualRegistrationEurMin)
+            .nullish(),
+          annual_classification_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneAnnualClassificationEurMin)
+            .nullish(),
+          annual_antifouling_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneAnnualAntifoulingEurMin)
+            .nullish(),
+          annual_refit_reserve_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneAnnualRefitReserveEurMin)
+            .nullish(),
+          charter_commission_pct: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneCharterCommissionPctMin)
+            .max(calculateRoiBodyOverridesOneCharterCommissionPctMax)
+            .nullish(),
+          financing_type: zod
+            .union([zod.enum(["cash", "loan"]), zod.null()])
+            .optional(),
+          loan_amount_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneLoanAmountEurMin)
+            .nullish(),
+          loan_rate_pct: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneLoanRatePctMin)
+            .nullish(),
+          loan_term_years: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneLoanTermYearsMin)
+            .nullish(),
+        })
+        .describe(
+          "Optional overrides for the ROI calculation. crew_breakdown is stored for history\/re-open; the engine uses monthly_crew_eur as the crew total.",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      'Per-calculation crew\/expense\/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type \"cash\" clears any inherited loan figures for the calc.',
+    ),
 });
 
 export const calculateRoiResponseRiskScoreMax = 10;
@@ -2353,6 +2500,45 @@ export const getRoiCalculationResponseInputManagementFeePctMax = 50;
 export const getRoiCalculationResponseInputTargetWeeksMin = 0;
 export const getRoiCalculationResponseInputTargetWeeksMax = 52;
 
+export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyMooringEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyFuelEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyProvisioningEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyCommunicationsEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyMaintenanceEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyManagementFeeEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyMiscEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneAnnualInsuranceEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneAnnualRegistrationEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneAnnualClassificationEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneAnnualAntifoulingEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneAnnualRefitReserveEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneCharterCommissionPctMin = 0;
+export const getRoiCalculationResponseInputOverridesOneCharterCommissionPctMax = 100;
+
+export const getRoiCalculationResponseInputOverridesOneLoanAmountEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneLoanRatePctMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneLoanTermYearsMin = 0;
+
 export const getRoiCalculationResponseResultRiskScoreMax = 10;
 
 export const getRoiCalculationResponseResultRevenueByMonthItemMonthMax = 12;
@@ -2418,6 +2604,138 @@ export const GetRoiCalculationResponse = zod.object({
       .max(getRoiCalculationResponseInputTargetWeeksMax)
       .nullish()
       .describe("AI mode only — override AI-predicted charter weeks"),
+    overrides: zod
+      .union([
+        zod
+          .object({
+            crew_breakdown: zod
+              .array(
+                zod.object({
+                  role: zod
+                    .string()
+                    .describe(
+                      'Free-text role label (e.g. \"Captain\", \"Chef\")',
+                    ),
+                  monthly_salary_eur: zod
+                    .number()
+                    .min(
+                      getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlySalaryEurMin,
+                    ),
+                  months_per_year: zod
+                    .number()
+                    .min(1)
+                    .max(
+                      getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax,
+                    ),
+                }),
+              )
+              .nullish(),
+            monthly_crew_eur: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin)
+              .nullish(),
+            monthly_mooring_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneMonthlyMooringEurMin,
+              )
+              .nullish(),
+            monthly_fuel_eur: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneMonthlyFuelEurMin)
+              .nullish(),
+            monthly_provisioning_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneMonthlyProvisioningEurMin,
+              )
+              .nullish(),
+            monthly_communications_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneMonthlyCommunicationsEurMin,
+              )
+              .nullish(),
+            monthly_maintenance_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneMonthlyMaintenanceEurMin,
+              )
+              .nullish(),
+            monthly_management_fee_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneMonthlyManagementFeeEurMin,
+              )
+              .nullish(),
+            monthly_misc_eur: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneMonthlyMiscEurMin)
+              .nullish(),
+            annual_insurance_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneAnnualInsuranceEurMin,
+              )
+              .nullish(),
+            annual_registration_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneAnnualRegistrationEurMin,
+              )
+              .nullish(),
+            annual_classification_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneAnnualClassificationEurMin,
+              )
+              .nullish(),
+            annual_antifouling_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneAnnualAntifoulingEurMin,
+              )
+              .nullish(),
+            annual_refit_reserve_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneAnnualRefitReserveEurMin,
+              )
+              .nullish(),
+            charter_commission_pct: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneCharterCommissionPctMin,
+              )
+              .max(
+                getRoiCalculationResponseInputOverridesOneCharterCommissionPctMax,
+              )
+              .nullish(),
+            financing_type: zod
+              .union([zod.enum(["cash", "loan"]), zod.null()])
+              .optional(),
+            loan_amount_eur: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneLoanAmountEurMin)
+              .nullish(),
+            loan_rate_pct: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneLoanRatePctMin)
+              .nullish(),
+            loan_term_years: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneLoanTermYearsMin)
+              .nullish(),
+          })
+          .describe(
+            "Optional overrides for the ROI calculation. crew_breakdown is stored for history\/re-open; the engine uses monthly_crew_eur as the crew total.",
+          ),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        'Per-calculation crew\/expense\/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type \"cash\" clears any inherited loan figures for the calc.',
+      ),
   }),
   result: zod.object({
     id: zod.string().nullish(),

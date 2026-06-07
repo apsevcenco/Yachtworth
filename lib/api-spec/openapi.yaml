@@ -2145,6 +2145,83 @@ components:
           minimum: 0
           maximum: 52
           description: AI mode only — override AI-predicted charter weeks
+        overrides:
+          oneOf:
+            - $ref: "#/components/schemas/RoiExpenseOverrides"
+            - type: "null"
+          description: >-
+            Per-calculation crew/expense/financing overrides. Applied on top of
+            the saved yacht for THIS calculation only and never written back to
+            the yacht profile. A null field falls back to the saved yacht value;
+            if that is also empty the engine omits the line (maintenance,
+            management fee and broker commission always use a default). Choosing
+            financing_type "cash" clears any inherited loan figures for the calc.
+    RoiExpenseOverrides:
+      type: object
+      description: >-
+        Optional overrides for the ROI calculation. crew_breakdown is stored for
+        history/re-open; the engine uses monthly_crew_eur as the crew total.
+      properties:
+        crew_breakdown:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/CrewMember"
+        monthly_crew_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_mooring_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_fuel_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_provisioning_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_communications_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_maintenance_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_management_fee_eur:
+          type: ["number", "null"]
+          minimum: 0
+        monthly_misc_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_insurance_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_registration_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_classification_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_antifouling_eur:
+          type: ["number", "null"]
+          minimum: 0
+        annual_refit_reserve_eur:
+          type: ["number", "null"]
+          minimum: 0
+        charter_commission_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+        financing_type:
+          oneOf:
+            - $ref: "#/components/schemas/FinancingType"
+            - type: "null"
+        loan_amount_eur:
+          type: ["number", "null"]
+          minimum: 0
+        loan_rate_pct:
+          type: ["number", "null"]
+          minimum: 0
+        loan_term_years:
+          type: ["integer", "null"]
+          minimum: 0
     RoiComparable:
       type: object
       required: [name]

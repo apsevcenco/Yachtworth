@@ -756,6 +756,101 @@ export interface YachtListResponse {
   items: Yacht[];
 }
 
+/**
+ * Optional overrides for the ROI calculation. crew_breakdown is stored for history/re-open; the engine uses monthly_crew_eur as the crew total.
+ */
+export interface RoiExpenseOverrides {
+  /** @nullable */
+  crew_breakdown?: CrewMember[] | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_crew_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_mooring_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_fuel_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_provisioning_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_communications_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_maintenance_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_management_fee_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  monthly_misc_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_insurance_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_registration_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_classification_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_antifouling_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  annual_refit_reserve_eur?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  charter_commission_pct?: number | null;
+  financing_type?: FinancingType | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_amount_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_rate_pct?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  loan_term_years?: number | null;
+}
+
 export interface RoiCalculationInput {
   yacht_id: string;
   region: CharterRegion;
@@ -792,6 +887,8 @@ export interface RoiCalculationInput {
    * @nullable
    */
   target_weeks?: number | null;
+  /** Per-calculation crew/expense/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type "cash" clears any inherited loan figures for the calc. */
+  overrides?: RoiExpenseOverrides | null;
 }
 
 export interface RoiComparable {

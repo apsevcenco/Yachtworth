@@ -94,6 +94,7 @@ export * from "./roiCalculationListItem";
 export * from "./roiCalculationListResponse";
 export * from "./roiCalculationMarketRating";
 export * from "./roiComparable";
+export * from "./roiExpenseOverrides";
 export * from "./saleRegion";
 export * from "./subAgent";
 export * from "./subAgentType";

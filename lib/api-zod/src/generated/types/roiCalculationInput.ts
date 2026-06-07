@@ -10,6 +10,7 @@ import type { CharterSeason } from "./charterSeason";
 import type { ManagementStyle } from "./managementStyle";
 import type { OccupancyTarget } from "./occupancyTarget";
 import type { PricingMode } from "./pricingMode";
+import type { RoiExpenseOverrides } from "./roiExpenseOverrides";
 
 export interface RoiCalculationInput {
   yacht_id: string;
@@ -47,4 +48,6 @@ export interface RoiCalculationInput {
    * @nullable
    */
   target_weeks?: number | null;
+  /** Per-calculation crew/expense/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type "cash" clears any inherited loan figures for the calc. */
+  overrides?: RoiExpenseOverrides | null;
 }

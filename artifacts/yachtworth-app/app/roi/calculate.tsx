@@ -1,21 +1,39 @@
 import { Feather } from "@expo/vector-icons";
-import { useCalculateRoi } from "@workspace/api-client-react";
+import {
+  getGetYachtQueryKey,
+  useCalculateRoi,
+  useGetYacht,
+} from "@workspace/api-client-react";
+import { useAuth } from "@clerk/expo";
 import { AIRateEstimator } from "../../components/AIRateEstimator";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  UIManager,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  ANNUAL_FIELDS,
+  buildRoiOverrides,
+  computeCrewMonthlyTotal,
+  EMPTY_FINANCIALS,
+  hydrateFinancialsFromYacht,
+  MONTHLY_FIELDS,
+  type CrewRow,
+  type FinancialsState,
+  type FinancingType,
+} from "../../lib/roiFinancials";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -27,6 +45,13 @@ const ERROR = "#FF8A8A";
 
 const DEC_RE = /^\d+([.,]\d+)?$/;
 const INT_RE = /^\d+$/;
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const REGION_OPTS = [
   { v: "mediterranean", l: "Mediterranean" },
@@ -73,6 +98,7 @@ function parseInt10(v: string) {
 export default function RoiCalculateScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isSignedIn } = useAuth();
   const params = useLocalSearchParams<{ yacht_id?: string }>();
   const yachtId = typeof params.yacht_id === "string" ? params.yacht_id : null;
 
@@ -85,12 +111,57 @@ export default function RoiCalculateScreen() {
   const [units, setUnits] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
+  // Crew / expenses / financing — prefilled from the yacht where available,
+  // editable here, and sent as per-calculation overrides (never saved back to
+  // the yacht profile).
+  const [fin, setFin] = useState<FinancialsState>(EMPTY_FINANCIALS);
+  const hydratedRef = useRef<string | null>(null);
+  const [expensesOpen, setExpensesOpen] = useState(true);
+  const [financingOpen, setFinancingOpen] = useState(false);
+
+  const yachtQ = useGetYacht(yachtId ?? "", {
+    query: {
+      queryKey: yachtId ? getGetYachtQueryKey(yachtId) : ["yacht-disabled"],
+      enabled: Boolean(yachtId && isSignedIn),
+    },
+  });
+
+  useEffect(() => {
+    if (!yachtId) return;
+    if (hydratedRef.current === yachtId) return;
+    const y = yachtQ.data;
+    if (!y) return;
+    hydratedRef.current = yachtId;
+    setFin(hydrateFinancialsFromYacht(y as unknown as Record<string, unknown>));
+  }, [yachtId, yachtQ.data]);
+
+  const updateFin = useCallback(
+    <K extends keyof FinancialsState>(k: K, v: FinancialsState[K]) => {
+      setFin((p) => ({ ...p, [k]: v }));
+    },
+    [],
+  );
+
+  const setCrew = useCallback((idx: number, patch: Partial<CrewRow>) => {
+    setFin((p) => ({
+      ...p,
+      crew_breakdown: p.crew_breakdown.map((r, i) =>
+        i === idx ? { ...r, ...patch } : r,
+      ),
+    }));
+  }, []);
+
   const mutation = useCalculateRoi();
 
   const isManual = pricingMode !== "ai";
   const unitLabel = pricingMode === "manual_daily" ? "days" : "weeks";
   const rateLabel = pricingMode === "manual_daily" ? "Rate per day (€)" : "Rate per week (€)";
   const unitsLabel = pricingMode === "manual_daily" ? "Charter days per year" : "Charter weeks per year";
+
+  const crewTotal = useMemo(
+    () => computeCrewMonthlyTotal(fin.crew_breakdown),
+    [fin.crew_breakdown],
+  );
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
@@ -118,6 +189,7 @@ export default function RoiCalculateScreen() {
     setShowErrors(false);
     if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
     try {
+      const overrides = buildRoiOverrides(fin);
       const result = await mutation.mutateAsync({
         data: {
           yacht_id: yachtId,
@@ -128,6 +200,7 @@ export default function RoiCalculateScreen() {
           pricing_mode: pricingMode,
           manual_rate_eur: isManual ? parseNum(rate) : null,
           manual_charter_units: isManual ? parseInt10(units) : null,
+          overrides: overrides ?? null,
         } as never,
       });
       router.replace({
@@ -142,6 +215,15 @@ export default function RoiCalculateScreen() {
   const mutError =
     mutation.error instanceof Error ? mutation.error.message : null;
 
+  const toggleExpenses = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpensesOpen((v) => !v);
+  };
+  const toggleFinancing = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setFinancingOpen((v) => !v);
+  };
+
   if (!yachtId) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
@@ -153,6 +235,8 @@ export default function RoiCalculateScreen() {
       </View>
     );
   }
+
+  const isLoan = fin.financing_type === "loan";
 
   return (
     <KeyboardAvoidingView
@@ -214,7 +298,6 @@ export default function RoiCalculateScreen() {
                 season={season === "mixed" ? "high" : season}
                 ratePeriod={pricingMode === "manual_daily" ? "day" : "week"}
                 onAccept={(acceptedRate, period) => {
-                  // If returned period mismatches current mode, convert.
                   const wantsDaily = pricingMode === "manual_daily";
                   const rateInWanted =
                     wantsDaily && period === "week"
@@ -256,6 +339,147 @@ export default function RoiCalculateScreen() {
               />
             </Section>
           )}
+
+          {/* ── Crew & operating expenses ─────────────────────────── */}
+          <CollapsibleHeader
+            title="CREW & EXPENSES"
+            open={expensesOpen}
+            onToggle={toggleExpenses}
+          />
+          {expensesOpen ? (
+            <View style={styles.collapseBody}>
+              <Text style={styles.lead}>
+                Specs come from your yacht. Fill in the running costs below for an
+                accurate ROI. A blank line is left out of the calculation —
+                except maintenance, management and broker commission, which
+                always use a sensible default.
+              </Text>
+
+              <Text style={styles.subLabel}>CREW · BY POSITION</Text>
+              {fin.crew_breakdown.map((row, i) => (
+                <CrewRowEditor
+                  key={`${row.role}-${i}`}
+                  row={row}
+                  onSalary={(v) => setCrew(i, { monthly_salary_eur: v })}
+                  onMonths={(m) => setCrew(i, { months_per_year: m })}
+                />
+              ))}
+              <View style={styles.crewTotalRow}>
+                <Text style={styles.crewTotalLabel}>Total crew cost</Text>
+                <Text style={styles.crewTotalValue}>
+                  {crewTotal > 0 ? `€ ${crewTotal.toLocaleString("en-US")} / mo` : "—"}
+                </Text>
+              </View>
+              <Text style={styles.fieldHint}>
+                Months/year covers seasonal crew. The total feeds the ROI engine.
+              </Text>
+
+              <Text style={styles.subLabel}>MONTHLY · € PER MONTH</Text>
+              {MONTHLY_FIELDS.map((f) => (
+                <Field key={f.key} label={f.label} hint={f.hint}>
+                  <MoneyInput
+                    value={fin[f.key]}
+                    onChangeText={(v) => updateFin(f.key, v)}
+                    suffix="€ / mo"
+                  />
+                </Field>
+              ))}
+
+              <Text style={styles.subLabel}>ANNUAL · € PER YEAR</Text>
+              {ANNUAL_FIELDS.map((f) => (
+                <Field key={f.key} label={f.label} hint={f.hint}>
+                  <MoneyInput
+                    value={fin[f.key]}
+                    onChangeText={(v) => updateFin(f.key, v)}
+                    suffix="€ / yr"
+                  />
+                </Field>
+              ))}
+
+              <Text style={styles.subLabel}>CHARTER</Text>
+              <Field
+                label="Broker commission"
+                hint="% of gross charter revenue paid to your broker"
+              >
+                <MoneyInput
+                  value={fin.charter_commission_pct}
+                  onChangeText={(v) => updateFin("charter_commission_pct", v)}
+                  suffix="%"
+                  placeholder="15"
+                />
+              </Field>
+            </View>
+          ) : null}
+
+          {/* ── Financing ─────────────────────────────────────────── */}
+          <CollapsibleHeader
+            title="FINANCING"
+            open={financingOpen}
+            onToggle={toggleFinancing}
+          />
+          {financingOpen ? (
+            <View style={styles.collapseBody}>
+              <Field label="Financing">
+                <View style={styles.pillRow}>
+                  {[
+                    { v: "cash" as const, l: "Cash purchase" },
+                    { v: "loan" as const, l: "Loan / financing" },
+                  ].map((opt) => {
+                    const active = fin.financing_type === opt.v;
+                    return (
+                      <Pressable
+                        key={opt.v}
+                        onPress={() =>
+                          updateFin("financing_type", opt.v as FinancingType)
+                        }
+                        style={[styles.pill, active && styles.pillActive]}
+                      >
+                        <Text
+                          style={[styles.pillText, active && styles.pillTextActive]}
+                        >
+                          {opt.l}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Field>
+
+              {isLoan ? (
+                <>
+                  <Field label="Loan amount (€)">
+                    <MoneyInput
+                      value={fin.loan_amount_eur}
+                      onChangeText={(v) => updateFin("loan_amount_eur", v)}
+                      suffix="€"
+                      placeholder="800000"
+                    />
+                  </Field>
+                  <Field label="Interest rate (%)">
+                    <MoneyInput
+                      value={fin.loan_rate_pct}
+                      onChangeText={(v) => updateFin("loan_rate_pct", v)}
+                      suffix="%"
+                      placeholder="5.5"
+                    />
+                  </Field>
+                  <Field label="Term (years)">
+                    <MoneyInput
+                      value={fin.loan_term_years}
+                      onChangeText={(v) => updateFin("loan_term_years", v)}
+                      suffix="yr"
+                      placeholder="10"
+                    />
+                  </Field>
+                </>
+              ) : (
+                <Text style={styles.fieldHint}>
+                  Loan details only affect this ROI calculation; they are not saved
+                  to the yacht.
+                </Text>
+              )}
+            </View>
+          ) : null}
 
           {mutError ? <Text style={styles.errorBanner}>{mutError}</Text> : null}
         </ScrollView>
@@ -320,6 +544,33 @@ function Section({
   );
 }
 
+function CollapsibleHeader({
+  title,
+  open,
+  onToggle,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      style={({ pressed }) => [
+        styles.collapseHeader,
+        { opacity: pressed ? 0.7 : 1 },
+      ]}
+    >
+      <Text style={styles.sectionLabel}>{title}</Text>
+      <Feather
+        name={open ? "chevron-up" : "chevron-down"}
+        size={20}
+        color={GOLD}
+      />
+    </Pressable>
+  );
+}
+
 function PillGroup<T extends string>({
   options,
   value,
@@ -369,6 +620,69 @@ function Field({
       ) : hint ? (
         <Text style={styles.fieldHint}>{hint}</Text>
       ) : null}
+    </View>
+  );
+}
+
+function CrewRowEditor({
+  row,
+  onSalary,
+  onMonths,
+}: {
+  row: CrewRow;
+  onSalary: (v: string) => void;
+  onMonths: (n: number) => void;
+}) {
+  const dec = () => {
+    const next = Math.max(1, row.months_per_year - 1);
+    if (next !== row.months_per_year) {
+      onMonths(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  const inc = () => {
+    const next = Math.min(12, row.months_per_year + 1);
+    if (next !== row.months_per_year) {
+      onMonths(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  return (
+    <View style={styles.crewRow}>
+      <Text style={styles.crewRole}>{row.role}</Text>
+      <View style={styles.crewControls}>
+        <View style={styles.crewSalaryWrap}>
+          <TextInput
+            value={row.monthly_salary_eur}
+            onChangeText={onSalary}
+            placeholder="0"
+            placeholderTextColor={MUTED}
+            keyboardType="decimal-pad"
+            style={styles.crewSalaryInput}
+          />
+          <Text style={styles.crewSalarySuffix}>€ / mo</Text>
+        </View>
+        <View style={styles.crewStepper}>
+          <Pressable
+            onPress={dec}
+            hitSlop={6}
+            style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Feather name="minus" size={14} color={GOLD} />
+          </Pressable>
+          <View style={styles.crewMonthsBox}>
+            <Text style={styles.crewMonthsValue}>{row.months_per_year}</Text>
+            <Text style={styles.crewMonthsLabel}>mo / yr</Text>
+          </View>
+          <Pressable
+            onPress={inc}
+            hitSlop={6}
+            style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Feather name="plus" size={14} color={GOLD} />
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -427,6 +741,31 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginBottom: 10,
   },
+  lead: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  subLabel: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    letterSpacing: 1.4,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  collapseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    borderTopColor: DIVIDER,
+    borderTopWidth: 1,
+    marginTop: 6,
+  },
+  collapseBody: { marginBottom: 8 },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pill: {
     paddingHorizontal: 14,
@@ -476,6 +815,81 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 12,
     letterSpacing: 0.5,
+  },
+  // Crew breakdown
+  crewRow: {
+    paddingVertical: 12,
+    borderBottomColor: DIVIDER,
+    borderBottomWidth: 1,
+  },
+  crewRole: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  crewControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  crewSalaryWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: NAVY_DEEP,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingRight: 12,
+  },
+  crewSalaryInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+  },
+  crewSalarySuffix: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+  },
+  crewStepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  crewStepBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    backgroundColor: NAVY_DEEP,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  crewMonthsBox: { alignItems: "center", minWidth: 42 },
+  crewMonthsValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  crewMonthsLabel: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 9 },
+  crewTotalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  crewTotalLabel: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  crewTotalValue: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
   },
   footer: {
     paddingHorizontal: 24,

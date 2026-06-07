@@ -34,6 +34,63 @@ const VALID_CHARTER_TYPES: ReadonlySet<CharterType> = new Set([
 
 const router: IRouter = Router();
 
+// Numeric yacht columns the ROI engine reads and that callers may override
+// per-calculation. crew_breakdown / financing_type are handled separately.
+const OVERRIDABLE_NUMERIC_KEYS = [
+  "monthly_crew_eur",
+  "monthly_mooring_eur",
+  "monthly_fuel_eur",
+  "monthly_provisioning_eur",
+  "monthly_communications_eur",
+  "monthly_maintenance_eur",
+  "monthly_management_fee_eur",
+  "monthly_misc_eur",
+  "annual_insurance_eur",
+  "annual_registration_eur",
+  "annual_classification_eur",
+  "annual_antifouling_eur",
+  "annual_refit_reserve_eur",
+  "charter_commission_pct",
+  "loan_amount_eur",
+  "loan_rate_pct",
+  "loan_term_years",
+] as const satisfies readonly (keyof YachtRow)[];
+
+/**
+ * Apply per-calculation overrides on top of the saved yacht WITHOUT mutating it.
+ * Only fields explicitly provided (non-null) win; everything else keeps the
+ * saved-yacht value (which then falls back to a regional baseline downstream).
+ * Overrides are never persisted to the yacht profile — they live only in this
+ * calculation and its ROI-history `input` snapshot.
+ */
+function applyRoiOverrides(
+  yacht: YachtRow,
+  overrides: Record<string, unknown> | null | undefined,
+): YachtRow {
+  if (!overrides) return yacht;
+  const merged: YachtRow = { ...yacht };
+  for (const key of OVERRIDABLE_NUMERIC_KEYS) {
+    const v = overrides[key];
+    if (typeof v === "number" && Number.isFinite(v)) {
+      merged[key] = v as never;
+    }
+  }
+  const ft = overrides["financing_type"];
+  if (ft === "cash" || ft === "loan") {
+    merged.financing_type = ft;
+    // The engine derives loan repayment purely from the loan_* columns and
+    // ignores financing_type. So when the user explicitly chooses CASH for this
+    // calculation, clear any loan figures inherited from the saved yacht —
+    // otherwise the ROI would still be charged the inherited annuity.
+    if (ft === "cash") {
+      merged.loan_amount_eur = null;
+      merged.loan_rate_pct = null;
+      merged.loan_term_years = null;
+    }
+  }
+  return merged;
+}
+
 const YACHT_COLUMNS_FOR_ROI =
   "id, clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown";
 
@@ -103,8 +160,13 @@ router.post(
       return;
     }
 
+    const yachtForCalc = applyRoiOverrides(
+      yacht,
+      input.overrides as Record<string, unknown> | null | undefined,
+    );
+
     try {
-      const result = await calculateRoi(yacht, {
+      const result = await calculateRoi(yachtForCalc, {
         yacht_id: input.yacht_id,
         region: input.region,
         season: input.season ?? null,
