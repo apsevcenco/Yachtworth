@@ -18,9 +18,8 @@ import type {
   YachtProfile,
 } from "../documentTypes";
 import { getTheme } from "../core/theme";
-import { PACK_BUDGET_MM } from "../core/types";
 import { chunk, num, photoList } from "../core/util";
-import { HEADING_MM, measureNode } from "../model/measure";
+import { measureNode } from "../model/measure";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
 
 // ─── money ──────────────────────────────────────────────────────────────────
@@ -350,46 +349,37 @@ function groupByCategory(
  * Equipment grouped BY CATEGORY (in priority order) and rendered as a STRICT
  * two-column ROW GRID — NOT masonry. Category cards are paired sequentially in
  * the priority order (Power | Navigation, Safety | Comfort, Water | Deck,
- * Toys | Tenders, Other), so the two cards in every row begin at exactly the
- * same vertical position. Each row is padded so both columns occupy the row's
- * max height, keeping the next row's headers aligned too.
+ * Toys | Tenders, Other).
  *
- * Rows are packed into `columns` regions (one region per page). A row is kept
- * whole: if a pair does not fit the remaining space it moves to the next
- * equipment page intact. The FIRST region is sized to the room left on page 2
- * (after Specifications + Accommodation) via `firstRegionColBudgetMm`, so the
- * first pair shares page 2 when it fits there; otherwise equipment starts on a
- * fresh page. Each category is one atomic card; only a single category taller
- * than a full column is chunked (its chunks stay labelled and pair sequentially).
+ * Each PAIR is its OWN `columns` block (one `.two-col` flex row), so the two
+ * category headers in a row ALWAYS start at exactly the same vertical position
+ * by CSS construction — no height estimation, no padding, no masonry. Cards may
+ * have different heights; that is fine. The block's `break-inside: avoid` keeps
+ * a pair whole, and the section heading is emitted on the FIRST pair only.
+ *
+ * Because every pair is a small standalone block, the paginator's greedy packer
+ * naturally tucks the first pair (Power | Navigation) onto page 2 under
+ * Accommodation whenever it fits, then flows the rest — filling pages instead of
+ * stranding the section on a fresh page. Each category is one atomic card; only
+ * a single category taller than a full column is chunked (chunks stay labelled
+ * and continue to pair sequentially).
  */
-function equipmentNodes(
-  items: ProposalEquipmentItem[],
-  d: Dict,
-  firstRegionColBudgetMm: number,
-): ContentNode[] {
+function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] {
   if (!items.length) return [];
-  const ROW_GAP_MM = 6; // vertical breathing room BETWEEN rows
-  // Per-column hard cap (mm) on a DEDICATED equipment page. Cards are MEASURED
-  // at their real half-width so wrapped metadata is already counted; this leaves
-  // the cap as a true physical limit. A4 usable ≈267mm minus the section heading
-  // (~14mm) and a safety margin → 244mm.
+  // Per-column hard cap (mm): the most a single card may grow before it is split
+  // into labelled chunks. A4 usable ≈267mm minus the section heading (~14mm) and
+  // a safety margin → 244mm. Cards are measured at their real half-width.
   const PER_COL_MAX = 244;
-  // Smallest page-2 leftover worth filling: heading + roughly one card row.
-  const MIN_FILL_MM = 36;
 
-  // Measure each category card at its real height (heading bar + per-item rows,
-  // wrap-aware). The card measure already assumes a half-width column.
   const measureCard = (heading: string, its: { name: string; meta?: string }[]): number =>
     measureNode({ kind: "card", heading, items: its });
 
   // 1) Ordered list of category cards (priority order; oversized ones chunked).
-  type Card = { node: ContentNode; h: number };
-  const cards: Card[] = [];
+  const cards: ContentNode[] = [];
   for (const g of groupByCategory(items)) {
     const allItems = equipmentItems(g.items);
-    const wholeH = measureCard(g.label, allItems);
-    if (wholeH <= PER_COL_MAX) {
-      cards.push({ node: { kind: "card", heading: g.label, items: allItems }, h: wholeH });
+    if (measureCard(g.label, allItems) <= PER_COL_MAX) {
+      cards.push({ kind: "card", heading: g.label, items: allItems });
       continue;
     }
     const chunks: { name: string; meta?: string }[][] = [];
@@ -403,65 +393,24 @@ function equipmentNodes(
     }
     if (cur.length) chunks.push(cur);
     chunks.forEach((its, i) => {
-      const heading = `${g.label} (${i + 1}/${chunks.length})`;
-      cards.push({ node: { kind: "card", heading, items: its }, h: measureCard(heading, its) });
+      cards.push({ kind: "card", heading: `${g.label} (${i + 1}/${chunks.length})`, items: its });
     });
   }
 
-  // 2) Pair cards into rows (left | right). The row's height is the taller card
-  //    so both headers line up; a final odd card is a single-card row.
-  type Row = { left: Card; right?: Card; h: number };
-  const rows: Row[] = [];
+  // 2) Emit one `columns` block per pair. The two cards in a row top-align via
+  //    the `.two-col` flex layout. A final odd card keeps the left half-width
+  //    (empty right column) so it lines up under the grid. Heading on first only.
+  const blocks: ContentNode[] = [];
   for (let i = 0; i < cards.length; i += 2) {
     const left = cards[i]!;
     const right = cards[i + 1];
-    rows.push({ left, right, h: right ? Math.max(left.h, right.h) : left.h });
+    blocks.push({
+      kind: "columns",
+      ...(i === 0 ? { heading: d["equipment"]! } : {}),
+      columns: [{ nodes: [left] }, { nodes: right ? [right] : [] }],
+    });
   }
-
-  // 3) Pack whole rows into regions (pages). First region = page-2 leftover when
-  //    the first pair actually fits it; otherwise a full dedicated page.
-  const canFillPage2 =
-    firstRegionColBudgetMm >= MIN_FILL_MM && rows[0]!.h <= firstRegionColBudgetMm;
-  const firstBudget = canFillPage2 ? Math.min(firstRegionColBudgetMm, PER_COL_MAX) : PER_COL_MAX;
-
-  type Region = { rows: Row[]; cap: number; used: number };
-  const regions: Region[] = [{ rows: [], cap: firstBudget, used: 0 }];
-  for (const row of rows) {
-    let r = regions[regions.length - 1]!;
-    const need = (r.rows.length ? ROW_GAP_MM : 0) + row.h;
-    if (r.rows.length && r.used + need > r.cap) {
-      regions.push({ rows: [], cap: PER_COL_MAX, used: 0 });
-      r = regions[regions.length - 1]!;
-    }
-    r.used += (r.rows.length ? ROW_GAP_MM : 0) + row.h;
-    r.rows.push(row);
-  }
-
-  // 4) Build each region as one `columns` block. Each column stacks its row
-  //    cards, padding the shorter card in every row so the two columns stay
-  //    height-aligned row-by-row.
-  const buildColumn = (rg: Region, side: "left" | "right"): ContentNode[] => {
-    const o: ContentNode[] = [];
-    for (const row of rg.rows) {
-      const card = side === "left" ? row.left : row.right;
-      if (!card) continue; // only the final odd row can lack a right card
-      if (o.length) o.push({ kind: "spacer", mm: ROW_GAP_MM });
-      o.push(card.node);
-      const pad = row.h - card.h;
-      if (pad > 0.01) o.push({ kind: "spacer", mm: pad });
-    }
-    return o;
-  };
-
-  return regions.map((rg, idx) => {
-    const columns: { subHeading?: string; nodes: ContentNode[] }[] = [
-      { nodes: buildColumn(rg, "left") },
-    ];
-    const right = buildColumn(rg, "right");
-    if (right.length) columns.push({ nodes: right });
-    const heading = idx === 0 ? d["equipment"]! : `${d["equipment"]} (${idx + 1})`;
-    return { kind: "columns", heading, columns };
-  });
+  return blocks;
 }
 
 // ─── photography ─────────────────────────────────────────────────────────────
@@ -628,15 +577,11 @@ export function buildProposalModel(input: {
   };
   body.push(accomNode);
 
-  // P2/P3 — Equipment grouped by category, balanced across two columns. Size the
-  // first region to the room left on page 2 after Specifications + Accommodation
-  // so leading equipment cards fill that gap before spilling onto a fresh page.
-  // SAFETY_MM absorbs the inter-block margins the paginator does not measure.
-  const SAFETY_MM = 10;
-  const page2Used = measureNode(specNode) + measureNode(accomNode);
-  const firstRegionColBudget = PACK_BUDGET_MM - page2Used - HEADING_MM - SAFETY_MM;
+  // P2/P3 — Equipment as a paired two-column grid. Each pair is its own small
+  // block, so the paginator greedily tucks the first pair (Power | Navigation)
+  // onto page 2 under Accommodation when it fits, then flows the rest.
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  body.push(...equipmentNodes(equip, d, firstRegionColBudget));
+  body.push(...equipmentNodes(equip, d));
 
   // P4 — Photography (validated photos only; editorial hero + grid that fills).
   body.push(...photographyNodes(photos, d));
