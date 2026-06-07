@@ -188,8 +188,8 @@ function specRows(y: YachtProfile): { label: string; value: string }[] {
   };
   push("Builder", y.builder);
   push("Model", y.model);
-  push("Type", y.yacht_type ? humanize(String(y.yacht_type)) : null);
   push("Year built", y.year_built);
+  push("Type", y.yacht_type ? humanize(String(y.yacht_type)) : null);
   push("Length", num(y.length_meters), num(y.length_meters) != null ? " m" : "");
   push("Beam", num(y.beam_meters), num(y.beam_meters) != null ? " m" : "");
   push("Draft", num(y.draft_meters), num(y.draft_meters) != null ? " m" : "");
@@ -197,13 +197,9 @@ function specRows(y: YachtProfile): { label: string; value: string }[] {
   push("Hull type", y.hull_type);
   push("Flag", y.flag);
   push("Home port", y.home_port);
-  push("Registration", y.registration_number);
-  push("IMO", y.imo_number);
-  push("Hull ID", y.hull_id);
-  push("VAT status", y.vat_status ? vatLabel(y.vat_status) : null);
+  push("Engines", y.engine_count);
   push("Engine maker", y.engine_maker);
   push("Engine model", y.engine_model);
-  push("Engines", y.engine_count);
   push("Total HP", y.total_hp);
   push("Engine hours", y.engine_hours);
   push("Max speed", num(y.max_speed_knots), num(y.max_speed_knots) != null ? " kn" : "");
@@ -214,6 +210,10 @@ function specRows(y: YachtProfile): { label: string; value: string }[] {
   );
   push("Range", num(y.range_nm), num(y.range_nm) != null ? " nm" : "");
   push("Fuel capacity", num(y.fuel_capacity_l), num(y.fuel_capacity_l) != null ? " L" : "");
+  push("Registration", y.registration_number);
+  push("IMO", y.imo_number);
+  push("Hull ID", y.hull_id);
+  push("VAT status", y.vat_status ? vatLabel(y.vat_status) : null);
   return rows;
 }
 
