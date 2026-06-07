@@ -1733,6 +1733,12 @@ export const CalculateRoiResponse = zod.object({
     )
     .optional(),
   reasoning: zod.string(),
+  methodology: zod
+    .string()
+    .optional()
+    .describe(
+      "System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI\/payback formulas). Optional for backward compatibility with calculations saved before this field existed.",
+    ),
   recommendations: zod.array(zod.string()).optional(),
   confidence: zod.enum(["high", "medium", "low"]),
   legal_disclaimer: zod.string(),
@@ -2815,6 +2821,12 @@ export const GetRoiCalculationResponse = zod.object({
       )
       .optional(),
     reasoning: zod.string(),
+    methodology: zod
+      .string()
+      .optional()
+      .describe(
+        "System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI\/payback formulas). Optional for backward compatibility with calculations saved before this field existed.",
+      ),
     recommendations: zod.array(zod.string()).optional(),
     confidence: zod.enum(["high", "medium", "low"]),
     legal_disclaimer: zod.string(),

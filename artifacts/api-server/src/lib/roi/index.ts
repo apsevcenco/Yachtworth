@@ -9,6 +9,7 @@ import {
 import {
   computeManualRevenue,
   computeAiRevenue,
+  describeRevenueMethod,
   type ComputedRevenue,
 } from "./revenue";
 import { loadRoiRates } from "./rates";
@@ -52,6 +53,7 @@ export interface RoiResult {
   roi_projection_5y: { year_offset: number; value_eur: number }[];
   comparables: ComputedRevenue["comparables"];
   reasoning: string;
+  methodology: string;
   recommendations: string[];
   confidence: "high" | "medium" | "low";
   legal_disclaimer: string;
@@ -109,6 +111,96 @@ function recommendations(args: {
     );
   }
   return out;
+}
+
+const money = (n: number): string => Math.round(n).toLocaleString("en-US");
+
+/**
+ * Compose the full, system-generated "how this was calculated" explanation
+ * for THIS specific projection: charter-income algorithm + expense handling +
+ * loan + P&L/ROI/payback formulas + projection basis. Deterministic, no AI.
+ */
+function buildMethodology(args: {
+  input: RoiInput;
+  yacht: YachtRow;
+  revenue: ComputedRevenue;
+  totalExpenses: number;
+  net: number;
+  roiPct: number;
+  payback: number;
+  hasLoan: boolean;
+  hasPurchasePrice: boolean;
+  charterCommissionPct: number;
+  managementFeePct: number;
+  ownerManagementFee: boolean;
+}): string {
+  const lines: string[] = [];
+
+  lines.push("1. Charter income");
+  for (const b of describeRevenueMethod(
+    {
+      pricingMode: args.input.pricing_mode,
+      region: args.input.region,
+      occupancyTarget: args.input.occupancy_target ?? null,
+      charterType: args.input.charter_type ?? null,
+      targetWeeksOverride: args.input.target_weeks ?? null,
+    },
+    args.revenue,
+  )) {
+    lines.push(`• ${b}`);
+  }
+
+  lines.push("");
+  lines.push("2. Operating expenses");
+  lines.push(
+    "• Expense lines come from your yacht profile. Any line left blank is excluded (treated as €0) — except routine maintenance, which is always estimated from a regional baseline because no operating yacht has zero maintenance.",
+  );
+  if (args.ownerManagementFee) {
+    lines.push("• Management fee uses your yacht's monthly management fee (× 12).");
+  } else if (args.managementFeePct > 0) {
+    lines.push(
+      `• Management fee = ${args.managementFeePct}% of gross charter income.`,
+    );
+  } else {
+    lines.push("• No management fee was applied (none set on the yacht).");
+  }
+  lines.push(
+    `• Charter broker commission = ${args.charterCommissionPct}% of gross charter income.`,
+  );
+  if (args.hasLoan) {
+    lines.push(
+      "• Loan repayment is an annuity computed from your loan amount, interest rate and term.",
+    );
+  }
+  lines.push(
+    `• Total annual expenses = sum of all lines above = €${money(args.totalExpenses)}.`,
+  );
+
+  lines.push("");
+  lines.push("3. Profit, ROI & payback");
+  lines.push(
+    `• Net result = charter income (€${money(args.revenue.annual_gross_eur)}) − total expenses (€${money(args.totalExpenses)}) = €${money(args.net)} per year.`,
+  );
+  lines.push(
+    `• ROI = annual net ÷ capital base (${args.hasPurchasePrice ? "your purchase price" : "your loan amount, used as a proxy"}) = ${args.roiPct.toFixed(1)}%.`,
+  );
+  if (args.payback >= 999 || args.net <= 0) {
+    lines.push(
+      "• Payback period: not reached — charter income does not exceed annual costs at this scenario.",
+    );
+  } else {
+    lines.push(
+      `• Payback period = capital base ÷ annual net = ${args.payback.toFixed(1)} years.`,
+    );
+  }
+
+  lines.push("");
+  lines.push("4. Depreciation & 5-year outlook");
+  lines.push(
+    "• Yacht value is projected on a 5-year depreciation curve, and cumulative cash flow is projected over 5 years using the annual net above.",
+  );
+
+  return lines.join("\n");
 }
 
 export async function calculateRoi(
@@ -204,6 +296,21 @@ export async function calculateRoi(
     yacht.annual_refit_reserve_eur,
   ].some((v) => v != null);
 
+  const methodology = buildMethodology({
+    input,
+    yacht,
+    revenue,
+    totalExpenses,
+    net,
+    roiPct,
+    payback,
+    hasLoan: loanAnnual > 0,
+    hasPurchasePrice: purchase > 0,
+    charterCommissionPct: exp.charterCommissionPct,
+    managementFeePct: exp.managementFeePct,
+    ownerManagementFee: yacht.monthly_management_fee_eur != null,
+  });
+
   return {
     annual_revenue_eur: Math.round(revenue.annual_gross_eur),
     annual_expenses_eur: Math.round(totalExpenses),
@@ -229,6 +336,7 @@ export async function calculateRoi(
     roi_projection_5y: projection,
     comparables: revenue.comparables,
     reasoning: revenue.reasoning,
+    methodology,
     recommendations: recommendations({
       netEur: net,
       paybackYears: payback,

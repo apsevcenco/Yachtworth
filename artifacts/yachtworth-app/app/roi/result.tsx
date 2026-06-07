@@ -32,8 +32,6 @@ function eur(n: number | null | undefined): string {
   return (n < 0 ? "−€ " : "€ ") + formatted;
 }
 
-const MONTH_LABELS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-
 export default function RoiResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -88,7 +86,6 @@ export default function RoiResultScreen() {
   const netPositive = data.net_profit_eur >= 0;
   const paybackDisplay =
     data.payback_years >= 999 ? "—" : `${data.payback_years.toFixed(1)} yr`;
-  const maxMonth = Math.max(...data.revenue_by_month.map((m) => m.value_eur)) || 1;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
@@ -127,20 +124,12 @@ export default function RoiResultScreen() {
           />
         </View>
 
-        {/* MONTHLY REVENUE CHART */}
-        <Card title="Monthly revenue">
-          <View style={styles.chartRow}>
-            {data.revenue_by_month.map((m, i) => {
-              const h = Math.max(8, (m.value_eur / maxMonth) * 90);
-              return (
-                <View key={m.month} style={styles.chartCol}>
-                  <View style={[styles.chartBar, { height: h }]} />
-                  <Text style={styles.chartLabel}>{MONTH_LABELS[i]}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </Card>
+        {/* CALCULATION METHOD */}
+        {data.methodology ? (
+          <Card title="How this was calculated">
+            <Text style={styles.reasoning}>{data.methodology}</Text>
+          </Card>
+        ) : null}
 
         {/* EXPENSE BREAKDOWN */}
         <Card title="Expense breakdown">
@@ -334,15 +323,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     marginBottom: 14,
   },
-  chartRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    height: 110,
-  },
-  chartCol: { alignItems: "center", flex: 1 },
-  chartBar: { width: 10, backgroundColor: GOLD, borderRadius: 3 },
-  chartLabel: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 9, marginTop: 6 },
   expRow: {
     flexDirection: "row",
     alignItems: "center",

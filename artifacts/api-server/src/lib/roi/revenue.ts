@@ -732,3 +732,113 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     ai_used: true,
   };
 }
+
+const OCC_TEXT: Record<string, string> = {
+  conservative: "conservative",
+  realistic: "realistic",
+  optimistic: "optimistic",
+};
+
+const SUBSEASON_LABEL: Record<string, string> = {
+  peak: "Peak",
+  shoulder: "Shoulder",
+  high: "High",
+  low: "Low",
+};
+
+const fmt = (n: number): string => Math.round(n).toLocaleString("en-US");
+
+/**
+ * Human-readable explanation of the charter-income algorithm used for THIS
+ * calculation. Returns one bullet per sentence. Mirrors the branch logic of
+ * computeManualRevenue / computeAiRevenue so the wording always matches the
+ * path that actually produced the numbers (manual, AI region-model, or AI
+ * legacy / heuristic fallback). Region-model knowledge stays in this file.
+ */
+export function describeRevenueMethod(
+  args: {
+    pricingMode: "manual_daily" | "manual_weekly" | "ai";
+    region: string;
+    occupancyTarget: string | null;
+    charterType: string | null;
+    targetWeeksOverride: number | null;
+  },
+  revenue: ComputedRevenue,
+): string[] {
+  const regionLabel = REGION_LABEL[args.region] || args.region;
+  const out: string[] = [];
+
+  if (args.pricingMode !== "ai") {
+    const basisWord = args.pricingMode === "manual_daily" ? "day" : "week";
+    out.push(
+      `Pricing mode: manual. Your own charter rate of €${fmt(revenue.weekly_rate_eur)}/week (€${fmt(revenue.daily_rate_eur)}/day) was used directly — no market analysis was performed.`,
+    );
+    out.push(
+      `Annual charter income = your rate × the number of booked ${basisWord}s you entered = €${fmt(revenue.annual_gross_eur)}.`,
+    );
+    return out;
+  }
+
+  const occ = args.occupancyTarget ?? "realistic";
+  const occWord = OCC_TEXT[occ] ?? "realistic";
+  const rateSource = revenue.ai_used
+    ? "live comparable charter listings found by the AI market search"
+    : "an internal length-and-region baseline (the live AI market lookup was unavailable, so this figure is a deterministic estimate)";
+
+  const basis = resolveBasis(args.region, args.charterType ?? null);
+  if (basis) {
+    const m = REGION_MODELS[args.region]!;
+    const bm = basis === "daily" ? m.daily : m.weekly;
+    if (bm) {
+      const unitWord = basis === "daily" ? "days" : "weeks";
+      const occKey = occ as OccKey;
+      const keys = bm.seasonMap["mixed"] ?? [];
+      const parts: string[] = [];
+      let totalUnits = 0;
+      for (const k of keys) {
+        const ss = bm.subSeasons[k];
+        if (!ss) continue;
+        const u = ss.units[occKey] ?? 0;
+        totalUnits += u;
+        parts.push(
+          `${u} ${(SUBSEASON_LABEL[k] ?? k).toLowerCase()}-season ${unitWord} at ${Math.round(ss.mult * 100)}% of the base rate`,
+        );
+      }
+      out.push(
+        `Pricing mode: AI market rate with a fixed regional booking model. For ${regionLabel}, the number of charter ${unitWord} is fixed by Yachtworth's regional model at a ${occWord} occupancy posture across the full year — the AI does not change this volume.`,
+      );
+      out.push(
+        `Booked ${unitWord} (full year): ${parts.join(" + ")} = ${totalUnits} ${unitWord}.`,
+      );
+      out.push(
+        `The AI estimated only the base rate, from ${rateSource}: €${fmt(revenue.weekly_rate_eur)}/week, giving a daily rate of €${fmt(revenue.daily_rate_eur)} (weekly ÷ ${m.dailyDivisor}).`,
+      );
+      out.push(
+        `Annual charter income = each season's booked ${unitWord} × the base rate × that season's rate multiplier = €${fmt(revenue.annual_gross_eur)}.`,
+      );
+      return out;
+    }
+  }
+
+  const tw = tableWeeks(args.region, "mixed", args.occupancyTarget ?? null);
+  out.push(
+    `Pricing mode: AI market rate. For ${regionLabel}, the AI estimated the weekly charter rate from ${rateSource}.`,
+  );
+  if (args.targetWeeksOverride != null) {
+    out.push(
+      `The number of charter weeks (${revenue.expected_charter_weeks}) is the target you set for this scenario — the AI estimated only the rate.`,
+    );
+  } else if (tw != null) {
+    out.push(
+      `The number of charter weeks (${revenue.expected_charter_weeks}) is fixed by Yachtworth's regional season table at a ${occWord} occupancy posture across the full year — the AI estimated only the rate.`,
+    );
+  } else {
+    out.push(
+      `Charter weeks (${revenue.expected_charter_weeks}) reflect a ${occWord} occupancy posture for the region.`,
+    );
+  }
+  out.push(
+    `Annual charter income = €${fmt(revenue.weekly_rate_eur)}/week × ${revenue.expected_charter_weeks} weeks = €${fmt(revenue.annual_gross_eur)}.`,
+  );
+  return out;
+}

@@ -1054,6 +1054,8 @@ export interface RoiCalculation {
   roi_projection_5y: YearlyPoint[];
   comparables?: RoiComparable[];
   reasoning: string;
+  /** System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI/payback formulas). Optional for backward compatibility with calculations saved before this field existed. */
+  methodology?: string;
   recommendations?: string[];
   confidence: RoiCalculationConfidence;
   legal_disclaimer: string;
