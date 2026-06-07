@@ -29,6 +29,13 @@ function normalizeClientName(name: string | null | undefined): string | null {
 // NB: apa_percent default is 30, not 0 (migration 009).
 const NOT_NULL_NUMERIC_DEFAULTS: Record<string, number> = {
   transfer_fee: 0,
+  // Owner expenses (migration 008: NOT NULL DEFAULT 0). These are optional in
+  // the UI — an empty field arrives as `null`. Coerce to 0 so leaving them
+  // blank never trips the NOT NULL constraint (i.e. never "required" on save).
+  port_fees: 0,
+  provisioning: 0,
+  cleaning: 0,
+  other_expenses: 0,
   apa_percent: 30,
   apa_amount: 0,
   apa_fuel: 0,

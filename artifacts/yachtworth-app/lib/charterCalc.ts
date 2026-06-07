@@ -224,7 +224,10 @@ export function calcCharter(input: CharterCalcInput): CharterCalcResult {
   const fuel_cost = round2(input.fuel_liters * input.fuel_price_per_liter);
 
   // ── COMMISSIONS ──────────────────────────────────────────────────
-  const central_agent_amount =
+  // Central Agent's GROSS commission — the full slice the owner allocates to
+  // the central agency. Sub-agents are paid OUT OF this slice (not on top), so
+  // it is also the total commission cost to the owner in the normal case.
+  const central_agent_gross =
     input.central_agent_type === "fixed"
       ? round2(Math.max(0, input.central_agent_value))
       : round2(base_net * (Math.max(0, input.central_agent_value) / 100));
@@ -234,7 +237,7 @@ export function calcCharter(input: CharterCalcInput): CharterCalcResult {
     const v = Math.max(0, s.value);
     if (s.type === "fixed") amount = round2(v);
     else if (s.type === "percent_central")
-      amount = round2(central_agent_amount * (v / 100));
+      amount = round2(central_agent_gross * (v / 100));
     else amount = round2(base_net * (v / 100)); // percent_net
     const pct = base_net > 0 ? (amount / base_net) * 100 : 0;
     return { name: s.name || "Sub-agent", amount, pct };
@@ -243,6 +246,16 @@ export function calcCharter(input: CharterCalcInput): CharterCalcResult {
     sub_agent_results.reduce((s, r) => s + r.amount, 0),
   );
 
+  // Sub-agent commissions are DEDUCTED FROM the central agent's gross, not
+  // added on top. The central agent keeps the remainder (never negative).
+  const central_agent_amount = round2(
+    Math.max(0, central_agent_gross - sub_agent_total),
+  );
+
+  // Total deducted from the owner = what everyone actually receives. Equals the
+  // central agent's gross in the normal case (net + subs = gross); if sub-agents
+  // are mis-configured above the gross, the clamp keeps central at 0 and the
+  // owner pays exactly the sub-agent total (no money created or destroyed).
   const total_commissions = round2(central_agent_amount + sub_agent_total);
 
   // ── CUSTOM DISTRIBUTION (on base_net, after commissions) ─────────
