@@ -64,6 +64,9 @@ const REGION_SEASON_WEEKS: Record<
   string,
   Record<string, Record<string, number>>
 > = {
+  // NOTE: Mediterranean is now modelled in REGION_MODELS below (weekly + daily).
+  // This legacy entry is kept inert as documentation of the original week counts
+  // — REGION_MODELS takes priority in every code path, so it is never read.
   mediterranean: {
     // High season (Jun–Aug): 13 weeks available
     high: { conservative: 4, realistic: 7, optimistic: 10 },
@@ -103,8 +106,8 @@ function tableWeeks(
 // "mixed"/"all" season BLENDS the sub-seasons each at its own rate.
 //
 // Regions NOT listed here keep the legacy REGION_SEASON_WEEKS / heuristic
-// path completely unchanged (Mediterranean included). daily_rate is derived
-// as base weekly rate / dailyDivisor (new regions use 6, not 7).
+// path completely unchanged. daily_rate is derived as base weekly rate /
+// dailyDivisor (new regions use 6, not 7).
 // ─────────────────────────────────────────────────────────────────────
 type Basis = "weekly" | "daily";
 type OccKey = "conservative" | "realistic" | "optimistic";
@@ -153,7 +156,36 @@ const PEAK_SHOULDER_SEASON_MAP: Record<string, string[]> = {
   low: [],
 };
 
+// Mediterranean: peak (Jun–Aug) + shoulder (May, Sep–Oct); winter (Nov–Apr) is
+// effectively dead (low → 0). Weekly units mirror the original legacy week table
+// 1:1 with a flat rate (mult 1.0 both sub-seasons) so existing weekly estimates
+// stay numerically equivalent; daily adds a day-charter basis (shoulder -15%).
+const MED_SEASON_MAP: Record<string, string[]> = {
+  high: ["peak"],
+  shoulder: ["shoulder"],
+  mixed: ["peak", "shoulder"],
+  low: [],
+};
+
 const REGION_MODELS: Record<string, RegionModel> = {
+  mediterranean: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak: { units: { conservative: 4, realistic: 7, optimistic: 10 }, mult: 1.0 },
+        shoulder: { units: { conservative: 2, realistic: 4, optimistic: 6 }, mult: 1.0 },
+      },
+      seasonMap: MED_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak: { units: { conservative: 28, realistic: 50, optimistic: 75 }, mult: 1.0 },
+        shoulder: { units: { conservative: 14, realistic: 28, optimistic: 45 }, mult: 0.85 },
+      },
+      seasonMap: MED_SEASON_MAP,
+    },
+  },
   caribbean: {
     bases: ["weekly", "daily"],
     dailyDivisor: 6,
@@ -548,14 +580,22 @@ function heuristicAiFallback(args: AiArgs): ComputedRevenue {
     dailyHigh = Math.round(daily * 1.3);
   }
 
-  // New-model regions (Caribbean, Middle East): units + multipliers come from
-  // the owner table; only the base rate is heuristic. The market_rates seed is
-  // a DAILY rate, so derive base weekly via the region's dailyDivisor (6) — NOT
-  // the legacy ×7 — otherwise the day rate (baseWeekly/6) would be inflated.
+  // Model regions: units + multipliers come from the owner table; only the base
+  // rate is heuristic. baseWeekly meaning depends on basis:
+  //   • weekly basis → gross = baseWeekly × weeks, so baseWeekly IS the weekly
+  //     rate (daily×7, which `weekly` already holds on a hit). This keeps
+  //     Mediterranean weekly equivalent to the legacy path.
+  //   • daily basis → dayRate = baseWeekly / dailyDivisor, and the market_rates
+  //     seed is a DAILY rate, so on a hit baseWeekly = daily × dailyDivisor (6),
+  //     NOT ×7, else the day rate inflates ~16.7%.
   const hBasis = resolveBasis(args.region, args.charterType ?? null);
   if (hBasis) {
     const hm = REGION_MODELS[args.region]!;
-    const baseWeekly = hit ? daily * hm.dailyDivisor : weekly;
+    const baseWeekly = hit
+      ? hBasis === "weekly"
+        ? weekly
+        : daily * hm.dailyDivisor
+      : weekly;
     const rm = regionModelRevenue(
       args.region,
       hBasis,
@@ -668,10 +708,16 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   let weeks = num("expected_charter_weeks");
   // Owner-defined week model (or explicit target) is authoritative — the AI
   // only supplies the rate. Explicit target_weeks wins over the table.
+  // REGION_MODELS regions override weeks entirely in the branch below, so the
+  // legacy week table is consulted ONLY for non-model regions — this keeps the
+  // now-inert Mediterranean legacy entry genuinely unread.
+  const aiBasis = resolveBasis(args.region, args.charterType ?? null);
   const fixedWeeks =
     args.targetWeeksOverride != null
       ? args.targetWeeksOverride
-      : tableWeeks(args.region, args.season, args.occupancyTarget);
+      : aiBasis != null
+        ? null
+        : tableWeeks(args.region, args.season, args.occupancyTarget);
   if (fixedWeeks != null) weeks = fixedWeeks;
   weeks = Math.max(0, Math.min(52, weeks));
   const occupancyPct =
@@ -695,10 +741,9 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   });
   const reasoning = cleanReasoning(parsed["reasoning"] || "");
 
-  // New-model regions (Caribbean, Middle East): units (weeks/days) are fixed
-  // by the owner table; the AI only supplied the rate. Override gross/weeks/
-  // occupancy/daily-range with the model so the AI cannot drift the volume.
-  const aiBasis = resolveBasis(args.region, args.charterType ?? null);
+  // Model regions: units (weeks/days) are fixed by the owner table; the AI only
+  // supplied the rate. Override gross/weeks/occupancy/daily-range with the model
+  // so the AI cannot drift the volume. (`aiBasis` resolved above.)
   if (aiBasis) {
     const m = REGION_MODELS[args.region]!;
     const baseWeekly = rawWeekly || rawDaily * m.dailyDivisor || weekly;

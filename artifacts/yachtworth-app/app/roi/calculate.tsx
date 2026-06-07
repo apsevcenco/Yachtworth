@@ -79,6 +79,7 @@ type CharterType = (typeof CHARTER_TYPE_OPTS)[number]["v"];
 // region shows a note instead). Regions absent here keep the default (weekly
 // basis, no toggle). Only affects pricing_mode="ai" — manual modes unchanged.
 const REGION_CHARTER: Record<string, { bases: CharterType[] }> = {
+  mediterranean: { bases: ["weekly", "daily"] },
   caribbean: { bases: ["weekly", "daily"] },
   middle_east: { bases: ["daily"] },
   northern_europe: { bases: ["weekly", "daily"] },
