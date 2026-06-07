@@ -7,6 +7,7 @@
  */
 import type { CharterRegion } from "./charterRegion";
 import type { CharterSeason } from "./charterSeason";
+import type { CharterType } from "./charterType";
 import type { ManagementStyle } from "./managementStyle";
 import type { OccupancyTarget } from "./occupancyTarget";
 import type { PricingMode } from "./pricingMode";
@@ -48,6 +49,8 @@ export interface RoiCalculationInput {
    * @nullable
    */
   target_weeks?: number | null;
+  /** AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null. */
+  charter_type?: CharterType | null;
   /** Per-calculation crew/expense/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type "cash" clears any inherited loan figures for the calc. */
   overrides?: RoiExpenseOverrides | null;
 }

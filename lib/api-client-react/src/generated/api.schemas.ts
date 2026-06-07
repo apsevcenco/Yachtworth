@@ -309,6 +309,20 @@ export const PricingMode = {
   ai: "ai",
 } as const;
 
+/**
+ * AI mode only. Whether the yacht is chartered by the week or by the day.
+Only consulted for regions that model a daily-charter market (e.g.
+Caribbean offers both; Middle East / Dubai is daily-only). Ignored for
+regions without a daily model and for manual pricing modes.
+
+ */
+export type CharterType = (typeof CharterType)[keyof typeof CharterType];
+
+export const CharterType = {
+  weekly: "weekly",
+  daily: "daily",
+} as const;
+
 export type EquipmentCategory =
   (typeof EquipmentCategory)[keyof typeof EquipmentCategory];
 
@@ -887,6 +901,8 @@ export interface RoiCalculationInput {
    * @nullable
    */
   target_weeks?: number | null;
+  /** AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null. */
+  charter_type?: CharterType | null;
   /** Per-calculation crew/expense/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type "cash" clears any inherited loan figures for the calc. */
   overrides?: RoiExpenseOverrides | null;
 }

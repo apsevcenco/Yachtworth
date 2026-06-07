@@ -1708,6 +1708,14 @@ components:
         * manual_daily  — user provides daily rate + number of charter days
         * manual_weekly — user provides weekly rate + number of charter weeks
         * ai            — engine asks AI (web-search) for plausible rate + weeks
+    CharterType:
+      type: string
+      enum: [weekly, daily]
+      description: |
+        AI mode only. Whether the yacht is chartered by the week or by the day.
+        Only consulted for regions that model a daily-charter market (e.g.
+        Caribbean offers both; Middle East / Dubai is daily-only). Ignored for
+        regions without a daily model and for manual pricing modes.
     EquipmentCategory:
       type: string
       enum: [power, water, navigation, safety, comfort, toys, deck, sailing]
@@ -2145,6 +2153,15 @@ components:
           minimum: 0
           maximum: 52
           description: AI mode only — override AI-predicted charter weeks
+        charter_type:
+          oneOf:
+            - $ref: "#/components/schemas/CharterType"
+            - type: "null"
+          description: >-
+            AI mode only. weekly | daily. Only consulted for regions with a
+            daily-charter model (Caribbean = both, Middle East = daily-only);
+            ignored elsewhere and for manual modes. Defaults to the region's
+            primary basis when null.
         overrides:
           oneOf:
             - $ref: "#/components/schemas/RoiExpenseOverrides"

@@ -173,6 +173,7 @@ router.post(
         management_style: input.management_style,
         occupancy_target: input.occupancy_target ?? null,
         pricing_mode: input.pricing_mode,
+        charter_type: input.charter_type ?? null,
         manual_rate_eur: input.manual_rate_eur ?? null,
         manual_charter_units: input.manual_charter_units ?? null,
         management_fee_pct: input.management_fee_pct ?? null,

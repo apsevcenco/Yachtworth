@@ -1547,6 +1547,19 @@ export const CalculateRoiBody = zod.object({
     .max(calculateRoiBodyTargetWeeksMax)
     .nullish()
     .describe("AI mode only — override AI-predicted charter weeks"),
+  charter_type: zod
+    .union([
+      zod
+        .enum(["weekly", "daily"])
+        .describe(
+          "AI mode only. Whether the yacht is chartered by the week or by the day.\nOnly consulted for regions that model a daily-charter market (e.g.\nCaribbean offers both; Middle East \/ Dubai is daily-only). Ignored for\nregions without a daily model and for manual pricing modes.\n",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null.",
+    ),
   overrides: zod
     .union([
       zod
@@ -2604,6 +2617,19 @@ export const GetRoiCalculationResponse = zod.object({
       .max(getRoiCalculationResponseInputTargetWeeksMax)
       .nullish()
       .describe("AI mode only — override AI-predicted charter weeks"),
+    charter_type: zod
+      .union([
+        zod
+          .enum(["weekly", "daily"])
+          .describe(
+            "AI mode only. Whether the yacht is chartered by the week or by the day.\nOnly consulted for regions that model a daily-charter market (e.g.\nCaribbean offers both; Middle East \/ Dubai is daily-only). Ignored for\nregions without a daily model and for manual pricing modes.\n",
+          ),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null.",
+      ),
     overrides: zod
       .union([
         zod

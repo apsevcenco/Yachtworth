@@ -27,6 +27,7 @@ export interface RoiInput {
   management_style: string;
   occupancy_target?: string | null;
   pricing_mode: "manual_daily" | "manual_weekly" | "ai";
+  charter_type?: string | null;
   manual_rate_eur?: number | null;
   manual_charter_units?: number | null;
   management_fee_pct?: number | null;
@@ -140,6 +141,7 @@ export async function calculateRoi(
       season: input.season || "mixed",
       occupancyTarget: input.occupancy_target ?? null,
       targetWeeksOverride: input.target_weeks ?? null,
+      charterType: input.charter_type ?? null,
       marketRates: rates.market,
     });
   } else {

@@ -20,6 +20,7 @@ export * from "./charterRateType";
 export * from "./charterRegion";
 export * from "./charterSeason";
 export * from "./charterStatus";
+export * from "./charterType";
 export * from "./client";
 export * from "./clientDetail";
 export * from "./clientListResponse";

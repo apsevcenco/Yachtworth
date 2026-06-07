@@ -94,6 +94,198 @@ function tableWeeks(
   return typeof w === "number" ? w : null;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Region charter models (NEW — additive). Where a region appears here it
+// drives BOTH the AI and the deterministic path: the charter units (weeks
+// for a weekly basis, days for a daily basis) per season/occupancy are
+// FIXED by the owner, and the AI estimates only the base rate. Per-sub-
+// season rate multipliers let shoulder/low seasons be discounted, and the
+// "mixed"/"all" season BLENDS the sub-seasons each at its own rate.
+//
+// Regions NOT listed here keep the legacy REGION_SEASON_WEEKS / heuristic
+// path completely unchanged (Mediterranean included). daily_rate is derived
+// as base weekly rate / dailyDivisor (new regions use 6, not 7).
+// ─────────────────────────────────────────────────────────────────────
+type Basis = "weekly" | "daily";
+type OccKey = "conservative" | "realistic" | "optimistic";
+
+interface SubSeason {
+  /** Physical charter units per occupancy posture — weeks for a weekly
+   *  basis, days for a daily basis. */
+  units: Record<OccKey, number>;
+  /** Rate multiplier vs the base rate (peak = 1.0, shoulder/low < 1.0). */
+  mult: number;
+}
+
+interface BasisModel {
+  subSeasons: Record<string, SubSeason>;
+  /** Questionnaire season → sub-seasons to combine. Empty list (or a season
+   *  absent from the map) = dead season → 0 revenue. */
+  seasonMap: Record<string, string[]>;
+}
+
+interface RegionModel {
+  weekly?: BasisModel;
+  daily?: BasisModel;
+  /** base weekly rate / dailyDivisor = day rate. New regions use 6. */
+  dailyDivisor: number;
+  /** Charter bases the region offers, in priority order. A daily-only region
+   *  lists only "daily" so any weekly request is coerced to daily. */
+  bases: Basis[];
+}
+
+// Caribbean: peak (Dec–Apr) + shoulder (Nov, May–Jun); summer hurricane
+// season is dead (low → 0). Shoulder discounted 20% (mult 0.80).
+const CARIB_SEASON_MAP: Record<string, string[]> = {
+  high: ["peak"],
+  shoulder: ["shoulder"],
+  mixed: ["peak", "shoulder"],
+  low: [],
+};
+
+const REGION_MODELS: Record<string, RegionModel> = {
+  caribbean: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak: { units: { conservative: 5, realistic: 10, optimistic: 14 }, mult: 1.0 },
+        shoulder: { units: { conservative: 2, realistic: 3, optimistic: 5 }, mult: 0.8 },
+      },
+      seasonMap: CARIB_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak: { units: { conservative: 30, realistic: 60, optimistic: 90 }, mult: 1.0 },
+        shoulder: { units: { conservative: 5, realistic: 15, optimistic: 25 }, mult: 0.8 },
+      },
+      seasonMap: CARIB_SEASON_MAP,
+    },
+  },
+  // Dubai / Middle East — DAILY only. High (Oct–Apr) + low (May–Sep); no
+  // shoulder. Low season discounted 25% (mult 0.75). "mixed" = full-year all.
+  middle_east: {
+    bases: ["daily"],
+    dailyDivisor: 6,
+    daily: {
+      subSeasons: {
+        high: { units: { conservative: 56, realistic: 84, optimistic: 133 }, mult: 1.0 },
+        low: { units: { conservative: 10, realistic: 25, optimistic: 50 }, mult: 0.75 },
+      },
+      seasonMap: {
+        high: ["high"],
+        low: ["low"],
+        mixed: ["high", "low"],
+        shoulder: [],
+      },
+    },
+  },
+};
+
+/** Resolve the effective charter basis for a region + requested type. Returns
+ *  null when the region is not in the new model (caller keeps legacy path). */
+function resolveBasis(region: string, requested: string | null): Basis | null {
+  const m = REGION_MODELS[region];
+  if (!m) return null;
+  if (requested === "daily" && m.bases.includes("daily")) return "daily";
+  if (requested === "weekly" && m.bases.includes("weekly")) return "weekly";
+  return m.bases[0] ?? null;
+}
+
+/** Fixed physical charter units for a region/basis/season/occupancy — weeks
+ *  for a weekly basis, days for a daily basis. */
+function regionModelUnits(
+  region: string,
+  basis: Basis,
+  season: string,
+  occupancy: string | null,
+): number | null {
+  const m = REGION_MODELS[region];
+  if (!m) return null;
+  const bm = basis === "daily" ? m.daily : m.weekly;
+  if (!bm) return null;
+  const occ = (occupancy ?? "realistic") as OccKey;
+  const keys = bm.seasonMap[season] ?? [];
+  let total = 0;
+  for (const k of keys) {
+    const ss = bm.subSeasons[k];
+    if (ss) total += ss.units[occ] ?? 0;
+  }
+  return total;
+}
+
+interface RegionRevenue {
+  grossEur: number;
+  /** Weeks-equivalent of the booked units (for display + occupancy). */
+  physicalWeeks: number;
+  dailyRate: number;
+  weeklyRate: number;
+  dailyLow: number;
+  dailyHigh: number;
+  occupancyPct: number;
+}
+
+/**
+ * Compute revenue for a region in the NEW model. `baseWeekly` is the weekly
+ * base rate (from the AI or the heuristic). Units are fixed by the table; the
+ * rate is the only estimated input. Returns null when the region is not in the
+ * new model so callers keep their existing behaviour.
+ */
+function regionModelRevenue(
+  region: string,
+  basis: Basis,
+  season: string,
+  occupancy: string | null,
+  baseWeekly: number,
+): RegionRevenue | null {
+  const m = REGION_MODELS[region];
+  if (!m) return null;
+  const bm = basis === "daily" ? m.daily : m.weekly;
+  if (!bm) return null;
+  const occ = (occupancy ?? "realistic") as OccKey;
+  const keys = bm.seasonMap[season] ?? [];
+  const dailyRate = baseWeekly / m.dailyDivisor;
+
+  let physical = 0; // weeks or days, depending on basis
+  let rateWeighted = 0; // physical units × per-sub-season multiplier
+  let maxMult = 0;
+  let minMult = Number.POSITIVE_INFINITY;
+  for (const k of keys) {
+    const ss = bm.subSeasons[k];
+    if (!ss) continue;
+    const u = ss.units[occ] ?? 0;
+    physical += u;
+    rateWeighted += u * ss.mult;
+    if (ss.mult > maxMult) maxMult = ss.mult;
+    if (ss.mult < minMult) minMult = ss.mult;
+  }
+  if (!isFinite(minMult)) minMult = 1;
+  if (maxMult === 0) maxMult = 1;
+
+  let grossEur: number;
+  let physicalWeeks: number;
+  if (basis === "daily") {
+    grossEur = dailyRate * rateWeighted;
+    physicalWeeks = physical / 7; // weeks-equivalent of booked days
+  } else {
+    grossEur = baseWeekly * rateWeighted;
+    physicalWeeks = physical;
+  }
+  const occupancyPct = Math.max(
+    0,
+    Math.min(100, Math.round((physicalWeeks / 52) * 100)),
+  );
+  return {
+    grossEur: Math.round(grossEur),
+    physicalWeeks: Math.round(physicalWeeks * 10) / 10,
+    dailyRate: Math.round(dailyRate),
+    weeklyRate: Math.round(baseWeekly),
+    dailyLow: Math.round(dailyRate * minMult),
+    dailyHigh: Math.round(dailyRate * maxMult),
+    occupancyPct,
+  };
+}
+
 interface ManualArgs {
   mode: "manual_daily" | "manual_weekly";
   rateEur: number;
@@ -138,12 +330,15 @@ interface AiArgs {
   season: string; // high|shoulder|low|mixed
   occupancyTarget: string | null;
   targetWeeksOverride: number | null;
+  /** AI mode charter basis (weekly|daily). Only consulted for regions in the
+   *  new REGION_MODELS table; null = use the region's primary basis. */
+  charterType?: string | null;
   /** Pre-fetched market_rates rows (Stage 4). Used by the deterministic
    *  fallback only — the AI path is unchanged. */
   marketRates?: MarketRateRow[];
 }
 
-function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOverride }: AiArgs): string {
+function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOverride, charterType }: AiArgs): string {
   const L = Number(yacht.length_meters) || 0;
   const lengthFt = L > 0 ? Math.round(L * 3.28084) : null;
   const yachtLabel =
@@ -154,22 +349,50 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
   const guests = yacht.guests ? `${yacht.guests} guests` : "guest capacity unknown";
   const crew = yacht.crew ? `${yacht.crew} crew` : "crew unknown";
   const lengthStr = L > 0 ? `${L.toFixed(1)}m (${lengthFt}ft)` : "length unknown";
-  const fixedWeeks =
-    targetWeeksOverride != null
-      ? targetWeeksOverride
-      : tableWeeks(region, season, occupancyTarget);
-  const occHint =
-    fixedWeeks != null
-      ? `OVERRIDE: expected_charter_weeks MUST equal ${fixedWeeks}. Do NOT change this number — estimate only the realistic weekly rate.`
-      : occupancyTarget
-      ? `Occupancy posture: ${OCC_LABEL[occupancyTarget]}.`
-      : `Use a realistic occupancy posture.`;
-  const weeksInstruction =
-    fixedWeeks != null
-      ? `The number of charter weeks per year is FIXED at ${fixedWeeks}. Set expected_charter_weeks to exactly ${fixedWeeks} — do NOT estimate or change it. Your only job is the weekly rate.`
-      : `Decide a realistic number of charter weeks per year for this yacht in
+
+  // New-model regions (Caribbean, Middle East): units (weeks or days) are
+  // fixed by the owner table; AI estimates only the rate. Legacy regions keep
+  // the Mediterranean fixed-weeks / free-estimate behaviour.
+  const basis = resolveBasis(region, charterType ?? null);
+  const modelUnits =
+    basis != null
+      ? regionModelUnits(region, basis, season, occupancyTarget ?? null)
+      : null;
+  const legacyFixed =
+    modelUnits == null
+      ? targetWeeksOverride != null
+        ? targetWeeksOverride
+        : tableWeeks(region, season, occupancyTarget)
+      : null;
+
+  const occPosture = occupancyTarget
+    ? `Occupancy posture: ${OCC_LABEL[occupancyTarget]}.`
+    : "Use a realistic occupancy posture.";
+
+  let occHint: string;
+  let weeksInstruction: string;
+  let rateLine = "4. Compute average daily rate (midpoint weekly / 7).";
+  if (modelUnits != null && basis === "daily") {
+    const weeksEq = Math.round((modelUnits / 7) * 10) / 10;
+    occHint = occPosture;
+    weeksInstruction = `This region charters BY THE DAY. The number of charter DAYS per year is FIXED at ${modelUnits} — do NOT estimate or change it. Your only job is the rate: give the typical full-day charter rate in EUR as daily_rate_eur, and its weekly-equivalent (daily_rate_eur × 6) as weekly_rate_eur. Set expected_charter_weeks to ${weeksEq}.`;
+    rateLine =
+      "4. The day rate is the primary figure for this region; weekly_rate_eur = daily_rate_eur × 6.";
+  } else if (modelUnits != null) {
+    occHint = occPosture;
+    weeksInstruction = `The number of charter WEEKS per year is FIXED at ${modelUnits} — do NOT estimate or change it. Set expected_charter_weeks to exactly ${modelUnits}. Your only job is the realistic weekly rate. The daily rate is weekly_rate_eur / 6.`;
+  } else {
+    occHint =
+      legacyFixed != null
+        ? `OVERRIDE: expected_charter_weeks MUST equal ${legacyFixed}. Do NOT change this number — estimate only the realistic weekly rate.`
+        : occPosture;
+    weeksInstruction =
+      legacyFixed != null
+        ? `The number of charter weeks per year is FIXED at ${legacyFixed}. Set expected_charter_weeks to exactly ${legacyFixed} — do NOT estimate or change it. Your only job is the weekly rate.`
+        : `Decide a realistic number of charter weeks per year for this yacht in
    this region with the requested occupancy posture. Typical industry
    range: 8–18 weeks for owner-operated, 14–24 for commercially managed.`;
+  }
 
   return `You are a charter market analyst. Estimate the realistic gross
 charter revenue for the yacht below over one full year.
@@ -193,7 +416,7 @@ INSTRUCTIONS
 2. Determine a realistic weekly rate range (low–high) in EUR. If listings
    are in USD/GBP, convert at current FX.
 3. ${weeksInstruction}
-4. Compute average daily rate (midpoint weekly / 7).
+${rateLine}
 5. Output STRICT JSON, no prose around it:
 
 {
@@ -257,6 +480,41 @@ function heuristicAiFallback(args: AiArgs): ComputedRevenue {
     daily = Math.round(weekly / 7);
     dailyLow = Math.round(daily * 0.7);
     dailyHigh = Math.round(daily * 1.3);
+  }
+
+  // New-model regions (Caribbean, Middle East): units + multipliers come from
+  // the owner table; only the base rate is heuristic. The market_rates seed is
+  // a DAILY rate, so derive base weekly via the region's dailyDivisor (6) — NOT
+  // the legacy ×7 — otherwise the day rate (baseWeekly/6) would be inflated.
+  const hBasis = resolveBasis(args.region, args.charterType ?? null);
+  if (hBasis) {
+    const hm = REGION_MODELS[args.region]!;
+    const baseWeekly = hit ? daily * hm.dailyDivisor : weekly;
+    const rm = regionModelRevenue(
+      args.region,
+      hBasis,
+      args.season,
+      args.occupancyTarget ?? null,
+      baseWeekly,
+    );
+    if (rm) {
+      return {
+        annual_gross_eur: rm.grossEur,
+        daily_rate_eur: rm.dailyRate,
+        weekly_rate_eur: rm.weeklyRate,
+        expected_charter_weeks: rm.physicalWeeks,
+        daily_rate_low_eur: rm.dailyLow,
+        daily_rate_high_eur: rm.dailyHigh,
+        occupancy_pct: rm.occupancyPct,
+        market_rating: null,
+        comparables: [],
+        reasoning: hit
+          ? `AI market lookup was unavailable. Used internal market_rates baseline (${args.yacht.yacht_type ?? "yacht"} · ${band} · ${args.region} · ${hit.season}). Add a real charter rate (manual mode) for sharper numbers.`
+          : "AI market lookup was unavailable. Used a deterministic length-and-region heuristic. Add a real charter rate (manual mode) for sharper numbers.",
+        confidence: "low",
+        ai_used: false,
+      };
+    }
   }
 
   // Default weeks by occupancy hint, then season modifier
@@ -333,8 +591,10 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     const n = typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : NaN;
     return isFinite(n) ? n : fb;
   };
-  let daily = num("daily_rate_eur");
-  let weekly = num("weekly_rate_eur");
+  const rawDaily = num("daily_rate_eur");
+  const rawWeekly = num("weekly_rate_eur");
+  let daily = rawDaily;
+  let weekly = rawWeekly;
   if (!weekly && daily) weekly = daily * 7;
   if (!daily && weekly) daily = weekly / 7;
   const dailyLow = num("daily_rate_low_eur") || null;
@@ -368,6 +628,39 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     };
   });
   const reasoning = cleanReasoning(parsed["reasoning"] || "");
+
+  // New-model regions (Caribbean, Middle East): units (weeks/days) are fixed
+  // by the owner table; the AI only supplied the rate. Override gross/weeks/
+  // occupancy/daily-range with the model so the AI cannot drift the volume.
+  const aiBasis = resolveBasis(args.region, args.charterType ?? null);
+  if (aiBasis) {
+    const m = REGION_MODELS[args.region]!;
+    const baseWeekly = rawWeekly || rawDaily * m.dailyDivisor || weekly;
+    const rm = regionModelRevenue(
+      args.region,
+      aiBasis,
+      args.season,
+      args.occupancyTarget ?? null,
+      baseWeekly,
+    );
+    if (rm) {
+      return {
+        annual_gross_eur: rm.grossEur,
+        daily_rate_eur: rm.dailyRate,
+        weekly_rate_eur: rm.weeklyRate,
+        expected_charter_weeks: rm.physicalWeeks,
+        daily_rate_low_eur: rm.dailyLow,
+        daily_rate_high_eur: rm.dailyHigh,
+        occupancy_pct: rm.occupancyPct,
+        market_rating: marketRating,
+        comparables,
+        reasoning: reasoning || "Estimated from comparable listings in the region.",
+        confidence: webSearchUsed ? "high" : "medium",
+        ai_used: true,
+      };
+    }
+  }
+
   return {
     annual_gross_eur: Math.round(weekly * weeks),
     daily_rate_eur: Math.round(daily),

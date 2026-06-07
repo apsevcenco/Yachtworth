@@ -74,6 +74,32 @@ const MGMT_OPTS = [
   { v: "brokerage", l: "Brokerage" },
 ] as const;
 
+const CHARTER_TYPE_OPTS = [
+  { v: "weekly", l: "Weekly" },
+  { v: "daily", l: "Daily" },
+] as const;
+
+type CharterType = (typeof CHARTER_TYPE_OPTS)[number]["v"];
+
+// Per-region AI-mode charter config. `bases` = which charter bases the region
+// supports in "По анкете"/AI mode (a region with >1 base shows the toggle; a
+// single-base region shows a note instead). `seasons` = which season options
+// apply. Regions absent here keep the default (all seasons, weekly basis, no
+// toggle). Only affects pricing_mode="ai" — manual modes are unchanged.
+const REGION_CHARTER: Record<
+  string,
+  { bases: CharterType[]; seasons: Season[] }
+> = {
+  caribbean: {
+    bases: ["weekly", "daily"],
+    seasons: ["mixed", "high", "shoulder"],
+  },
+  middle_east: {
+    bases: ["daily"],
+    seasons: ["mixed", "high", "low"],
+  },
+};
+
 const OCC_OPTS = [
   { v: "conservative", l: "Conservative" },
   { v: "realistic", l: "Realistic" },
@@ -107,6 +133,7 @@ export default function RoiCalculateScreen() {
   const [mgmt, setMgmt] = useState<Mgmt>("owner_operated");
   const [occ, setOcc] = useState<Occ>("realistic");
   const [pricingMode, setPricingMode] = useState<PricingMode>("ai");
+  const [charterType, setCharterType] = useState<CharterType>("weekly");
   const [rate, setRate] = useState("");
   const [units, setUnits] = useState("");
   const [showErrors, setShowErrors] = useState(false);
@@ -158,6 +185,29 @@ export default function RoiCalculateScreen() {
   const rateLabel = pricingMode === "manual_daily" ? "Rate per day (€)" : "Rate per week (€)";
   const unitsLabel = pricingMode === "manual_daily" ? "Charter days per year" : "Charter weeks per year";
 
+  // AI-mode charter config for the selected region (toggle + season options).
+  const regionCharter = REGION_CHARTER[region];
+  const availableBases: CharterType[] = regionCharter?.bases ?? ["weekly"];
+  const seasonOptions = useMemo(() => {
+    if (pricingMode === "ai" && regionCharter) {
+      return SEASON_OPTS.filter((s) => regionCharter.seasons.includes(s.v));
+    }
+    return SEASON_OPTS;
+  }, [pricingMode, regionCharter]);
+
+  // Reconcile charterType + season whenever the region OR pricing mode changes
+  // (e.g. switching manual→AI can expose a now-invalid season/basis) so we
+  // never hold a value the selected region does not offer in AI mode.
+  useEffect(() => {
+    if (!availableBases.includes(charterType)) {
+      setCharterType(availableBases[0]!);
+    }
+    if (!seasonOptions.some((s) => s.v === season)) {
+      setSeason(seasonOptions[0]!.v);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [region, pricingMode]);
+
   const crewTotal = useMemo(
     () => computeCrewMonthlyTotal(fin.crew_breakdown),
     [fin.crew_breakdown],
@@ -198,6 +248,8 @@ export default function RoiCalculateScreen() {
           management_style: mgmt,
           occupancy_target: pricingMode === "ai" ? occ : null,
           pricing_mode: pricingMode,
+          charter_type:
+            pricingMode === "ai" && regionCharter ? charterType : null,
           manual_rate_eur: isManual ? parseNum(rate) : null,
           manual_charter_units: isManual ? parseInt10(units) : null,
           overrides: overrides ?? null,
@@ -261,11 +313,36 @@ export default function RoiCalculateScreen() {
 
           <Section label="SEASON">
             <PillGroup
-              options={SEASON_OPTS}
+              options={seasonOptions}
               value={season}
               onChange={(v) => setSeason(v as Season)}
             />
           </Section>
+
+          {pricingMode === "ai" && regionCharter ? (
+            <Section
+              label="CHARTER BASIS"
+              sublabel={
+                availableBases.length > 1
+                  ? "Charter this yacht by the week or by the day in this region."
+                  : "This region is chartered by the day."
+              }
+            >
+              {availableBases.length > 1 ? (
+                <PillGroup
+                  options={CHARTER_TYPE_OPTS.filter((o) =>
+                    availableBases.includes(o.v),
+                  )}
+                  value={charterType}
+                  onChange={(v) => setCharterType(v as CharterType)}
+                />
+              ) : (
+                <View style={styles.basisNote}>
+                  <Text style={styles.basisNoteText}>Daily charters only</Text>
+                </View>
+              )}
+            </Section>
+          ) : null}
 
           <Section label="MANAGEMENT">
             <PillGroup
@@ -733,6 +810,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.6,
     marginBottom: 8,
+  },
+  basisNote: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.35)",
+    backgroundColor: "rgba(201,169,97,0.08)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  basisNoteText: {
+    color: GOLD,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
   },
   sectionSub: {
     color: MUTED,
