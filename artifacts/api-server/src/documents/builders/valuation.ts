@@ -60,6 +60,20 @@ function impactTone(impact: string | null | undefined): CellTone {
   return "neu";
 }
 
+/**
+ * Density control for PDF body copy: collapse whitespace into a single small
+ * paragraph and hard-cap length on a word boundary (adds an ellipsis when cut).
+ * Returns the text unchanged when it is already within `max` — so short market
+ * notes / disclaimers keep their full wording, long ones are trimmed to fit.
+ */
+function truncateText(s: string, max: number): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,.;:–—-]+$/, "") + "…";
+}
+
 // ─── labels (multi-language, valuation subset) ──────────────────────────────
 
 type Dict = Record<string, string>;
@@ -416,38 +430,46 @@ export function buildValuationModel(input: {
   if (capParts.length) metrics.caption = capParts.join("  ·  ");
   body.push(metrics);
 
-  // ── Evidence group (Comparables + Factors) ──
-  // No forced breaks — the shared paginator packs these naturally onto the
-  // available space. Each block already has break-inside:avoid, so a table
-  // moves to the next page only when it genuinely doesn't fit.
+  // ── Evidence group → page 2 ──
+  // ONE intentional break starts the evidence group on a fresh page, so the
+  // layout is deterministic: page 1 = Yacht Summary + Valuation Result, page 2 =
+  // Comparables + Factors + Market Notes + Disclaimer. Page-2 density is kept in
+  // budget by truncating the notes (≤450 chars) and disclaimer below.
   const comparables = Array.isArray(reportData.comparableYachts) ? reportData.comparableYachts : [];
   const factors = Array.isArray(reportData.valuationFactors) ? reportData.valuationFactors : [];
+  let evidenceStarted = false;
   if (comparables.length) {
     body.push({
       kind: "table",
       heading: d["comparables"]!,
+      breakBefore: true,
       columns: [{}, { align: "right", widthPct: 28 }],
       rows: comparableRows(comparables, d, money),
     });
+    evidenceStarted = true;
   }
   if (factors.length) {
     body.push({
       kind: "table",
       heading: d["factors"]!,
+      ...(evidenceStarted ? {} : { breakBefore: true }),
       columns: [{}, { align: "right", widthPct: 30 }],
       rows: factorRows(factors, d),
     });
+    evidenceStarted = true;
   }
 
-  // ── Closing group (Market Notes + Contact + Disclaimer) ──
-  // No forced break — let the paginator place these wherever space remains.
+  // ── Closing group (Market Notes + Contact + Disclaimer) on page 2 ──
+  // Market Notes capped at ~450 chars / 4 lines for density (full value stays in
+  // the data — this only limits what the PDF prints).
   const notes: ContentNode = {
     kind: "paragraph",
     heading: d["marketNotes"]!,
     panel: true,
-    text: reportData.marketNotes ?? "",
+    text: reportData.marketNotes ? truncateText(reportData.marketNotes, 450) : "",
     emptyText: d["none"]!,
   };
+  if (!evidenceStarted) notes.breakBefore = true;
   body.push(notes);
 
   // Contact
@@ -473,7 +495,7 @@ export function buildValuationModel(input: {
       generatedAt: date,
       disclaimer:
         typeof reportData.legalDisclaimer === "string" && reportData.legalDisclaimer.trim()
-          ? reportData.legalDisclaimer.trim()
+          ? truncateText(reportData.legalDisclaimer, 300)
           : "Indicative · not certified · valid 30 days from issue.",
     },
     theme,
