@@ -36,6 +36,7 @@ import {
   EMPTY_FINANCIALS,
   hydrateFinancialsFromYacht,
   MONTHLY_FIELDS,
+  roleSupportsCount,
   type CrewRow,
   type FinancialsState,
   type FinancingType,
@@ -854,8 +855,9 @@ export default function RoiCalculateScreen() {
                 </Text>
               </View>
               <Text style={styles.fieldHint}>
-                Salary is per person; crew count multiplies it (e.g. 3 deckhands).
-                Months/year covers seasonal crew. The total feeds the ROI engine.
+                Deckhand & stewardess salaries are per person — use the crew
+                counter for multiple. Months/year covers seasonal crew. The total
+                feeds the ROI engine.
               </Text>
 
               <Text style={styles.subLabel}>MONTHLY · € PER MONTH</Text>
@@ -1151,30 +1153,33 @@ function CrewRowEditor({
       if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
     }
   };
+  const countable = roleSupportsCount(row.role);
   return (
     <View style={styles.crewRow}>
       <View style={styles.crewHeadRow}>
         <Text style={styles.crewRole}>{row.role}</Text>
-        <View style={styles.crewStepper}>
-          <Pressable
-            onPress={decCount}
-            hitSlop={6}
-            style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Feather name="minus" size={14} color={GOLD} />
-          </Pressable>
-          <View style={styles.crewMonthsBox}>
-            <Text style={styles.crewMonthsValue}>{row.count}</Text>
-            <Text style={styles.crewMonthsLabel}>crew</Text>
+        {countable ? (
+          <View style={styles.crewStepper}>
+            <Pressable
+              onPress={decCount}
+              hitSlop={6}
+              style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Feather name="minus" size={14} color={GOLD} />
+            </Pressable>
+            <View style={styles.crewMonthsBox}>
+              <Text style={styles.crewMonthsValue}>{row.count}</Text>
+              <Text style={styles.crewMonthsLabel}>crew</Text>
+            </View>
+            <Pressable
+              onPress={incCount}
+              hitSlop={6}
+              style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Feather name="plus" size={14} color={GOLD} />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={incCount}
-            hitSlop={6}
-            style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Feather name="plus" size={14} color={GOLD} />
-          </Pressable>
-        </View>
+        ) : null}
       </View>
       <View style={styles.crewControls}>
         <View style={styles.crewSalaryWrap}>

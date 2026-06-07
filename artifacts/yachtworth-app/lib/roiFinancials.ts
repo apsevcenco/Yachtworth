@@ -15,14 +15,26 @@
  */
 
 // ── Crew positions ──────────────────────────────────────────────────────
-export const CREW_POSITIONS: { key: string; label: string }[] = [
+// `countable` roles get a headcount stepper (a yacht can carry several
+// stewardesses / deckhands). Singular roles (captain, mate, engineer, chef)
+// are always exactly one person — no counter, no clutter.
+export const CREW_POSITIONS: { key: string; label: string; countable?: boolean }[] = [
   { key: "captain", label: "Captain" },
   { key: "first_officer", label: "First officer / Mate" },
   { key: "engineer", label: "Chief engineer" },
   { key: "chef", label: "Chef" },
-  { key: "stewardess", label: "Stewardess" },
-  { key: "deckhand", label: "Deckhand" },
+  { key: "stewardess", label: "Stewardess", countable: true },
+  { key: "deckhand", label: "Deckhand", countable: true },
 ];
+
+const COUNTABLE_ROLES: ReadonlySet<string> = new Set(
+  CREW_POSITIONS.filter((p) => p.countable).map((p) => p.label),
+);
+
+/** Only stewardess + deckhand may carry more than one person. */
+export function roleSupportsCount(role: string): boolean {
+  return COUNTABLE_ROLES.has(role);
+}
 
 export interface CrewRow {
   role: string;
@@ -142,7 +154,8 @@ export function computeCrewMonthlyTotal(rows: CrewRow[]): number {
     const s = parseFloat(r.monthly_salary_eur.replace(",", "."));
     if (isFinite(s) && s > 0) {
       const m = r.months_per_year > 0 && r.months_per_year <= 12 ? r.months_per_year : 12;
-      total += s * crewCount(r.count) * (m / 12);
+      const c = roleSupportsCount(r.role) ? crewCount(r.count) : 1;
+      total += s * c * (m / 12);
     }
   }
   return Math.round(total);
@@ -167,7 +180,7 @@ export function crewBreakdownToApi(
       role: r.role,
       monthly_salary_eur: salary,
       months_per_year: months,
-      count: crewCount(r.count),
+      count: roleSupportsCount(r.role) ? crewCount(r.count) : 1,
     });
   }
   return out;
