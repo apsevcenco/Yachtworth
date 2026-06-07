@@ -10,6 +10,7 @@ import type { MonthlyPoint } from "./monthlyPoint";
 import type { RoiCalculationConfidence } from "./roiCalculationConfidence";
 import type { RoiCalculationMarketRating } from "./roiCalculationMarketRating";
 import type { RoiComparable } from "./roiComparable";
+import type { RoiDualRegionBreakdown } from "./roiDualRegionBreakdown";
 import type { YearlyPoint } from "./yearlyPoint";
 
 export interface RoiCalculation {
@@ -45,6 +46,8 @@ export interface RoiCalculation {
   /** System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI/payback formulas). Optional for backward compatibility with calculations saved before this field existed. */
   methodology?: string;
   recommendations?: string[];
+  /** Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null/absent for single-region calculations. annual_revenue_eur already equals the combined total. */
+  dual_region?: RoiDualRegionBreakdown | null;
   confidence: RoiCalculationConfidence;
   legal_disclaimer: string;
 }

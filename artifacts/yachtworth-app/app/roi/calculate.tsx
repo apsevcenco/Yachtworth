@@ -91,8 +91,32 @@ const OCC_OPTS = [
   { v: "optimistic", l: "Optimistic" },
 ] as const;
 
+// Season options for the second region (dual-region only). Region 1 always uses
+// its full charter window; the second region can be narrowed to a season.
+const SEASON_OPTS = [
+  { v: "mixed", l: "All season" },
+  { v: "high", l: "High" },
+  { v: "shoulder", l: "Shoulder" },
+  { v: "low", l: "Low" },
+] as const;
+
+// Charter-active months per region (1 = Jan). `all` = the full charter window
+// used by region 1; the per-season subsets drive the dual-region overlap
+// warning. Purely advisory — used only to flag a likely scheduling clash.
+const REGION_MONTHS: Record<
+  string,
+  { high: number[]; shoulder: number[]; low: number[]; all: number[] }
+> = {
+  mediterranean: { high: [7, 8], shoulder: [5, 6, 9, 10], low: [4, 11], all: [4, 5, 6, 7, 8, 9, 10, 11] },
+  caribbean: { high: [12, 1, 2, 3], shoulder: [4, 11], low: [5], all: [11, 12, 1, 2, 3, 4, 5] },
+  northern_europe: { high: [7, 8], shoulder: [6, 9], low: [5], all: [5, 6, 7, 8, 9] },
+  asia_pacific_me: { high: [12, 1, 2, 3], shoulder: [11, 4], low: [10], all: [10, 11, 12, 1, 2, 3, 4] },
+  middle_east: { high: [12, 1, 2], shoulder: [11, 3], low: [10, 4], all: [10, 11, 12, 1, 2, 3, 4] },
+};
+
 type Region = (typeof REGION_OPTS)[number]["v"];
 type Occ = (typeof OCC_OPTS)[number]["v"];
+type Season = (typeof SEASON_OPTS)[number]["v"];
 type PricingMode = "manual_daily" | "manual_weekly" | "ai";
 
 function parseNum(v: string) {
@@ -173,6 +197,15 @@ export default function RoiCalculateScreen() {
   const [occ, setOcc] = useState<Occ>("realistic");
   const [pricingMode, setPricingMode] = useState<PricingMode>("ai");
   const [charterType, setCharterType] = useState<CharterType>("weekly");
+
+  // Dual-region (AI mode only, additive). Off by default — when off the request
+  // is byte-identical to the single-region path.
+  const [dualRegion, setDualRegion] = useState(false);
+  const [region2, setRegion2] = useState<Region>("caribbean");
+  const [season2, setSeason2] = useState<Season>("mixed");
+  const [charterType2, setCharterType2] = useState<CharterType>("weekly");
+  const [occ2, setOcc2] = useState<Occ>("realistic");
+  const [reposition, setReposition] = useState("");
   const [rate, setRate] = useState("");
   const [units, setUnits] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
@@ -233,6 +266,26 @@ export default function RoiCalculateScreen() {
     }
     if (inp.manual_rate_eur != null) setRate(String(inp.manual_rate_eur));
     if (inp.manual_charter_units != null) setUnits(String(inp.manual_charter_units));
+    // Restore dual-region inputs when the saved request used a second region.
+    if (inp.region_2 && REGION_OPTS.some((o) => o.v === inp.region_2)) {
+      setDualRegion(true);
+      setRegion2(inp.region_2 as Region);
+      if (inp.season_2 && SEASON_OPTS.some((o) => o.v === inp.season_2)) {
+        setSeason2(inp.season_2 as Season);
+      }
+      if (inp.charter_type_2 === "weekly" || inp.charter_type_2 === "daily") {
+        setCharterType2(inp.charter_type_2);
+      }
+      if (
+        inp.occupancy_target_2 &&
+        OCC_OPTS.some((o) => o.v === inp.occupancy_target_2)
+      ) {
+        setOcc2(inp.occupancy_target_2 as Occ);
+      }
+      if (inp.repositioning_cost_eur != null) {
+        setReposition(String(inp.repositioning_cost_eur));
+      }
+    }
     const ov = (inp.overrides ?? {}) as Record<string, unknown>;
     setFin(hydrateFinancialsFromYacht(ov));
     const pp = ov.purchase_price_eur;
@@ -276,6 +329,29 @@ export default function RoiCalculateScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region, pricingMode]);
+
+  // Second-region charter config (dual-region). Mirrors region 1: daily-only
+  // regions (e.g. Middle East) force daily and hide the weekly toggle.
+  const regionCharter2 = REGION_CHARTER[region2];
+  const availableBases2: CharterType[] = regionCharter2?.bases ?? ["weekly"];
+  useEffect(() => {
+    if (!availableBases2.includes(charterType2)) {
+      setCharterType2(availableBases2[0]!);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [region2]);
+
+  // Non-blocking season-overlap warning: region 1 charters across its full
+  // window; if the second region's selected season shares any active month with
+  // it, the two charter periods likely clash. Advisory only — never blocks.
+  const seasonOverlap = useMemo(() => {
+    if (!dualRegion || pricingMode !== "ai") return false;
+    const m1 = REGION_MONTHS[region]?.all ?? [];
+    const r2 = REGION_MONTHS[region2];
+    if (!r2 || m1.length === 0) return false;
+    const m2 = season2 === "mixed" ? r2.all : r2[season2];
+    return m1.some((m) => m2.includes(m));
+  }, [dualRegion, pricingMode, region, region2, season2]);
 
   const crewTotal = useMemo(
     () => computeCrewMonthlyTotal(fin.crew_breakdown),
@@ -349,6 +425,18 @@ export default function RoiCalculateScreen() {
       const pp = parseNum(purchasePrice);
       if (pp != null && pp >= 0) overrides.purchase_price_eur = pp;
       const hasOverrides = Object.keys(overrides).length > 0;
+      // Dual-region is additive and AI-only. When off (or in manual mode) these
+      // keys are omitted entirely so the request stays byte-identical.
+      const useDual = dualRegion && pricingMode === "ai";
+      const dualFields = useDual
+        ? {
+            region_2: region2,
+            season_2: season2,
+            charter_type_2: regionCharter2 ? charterType2 : null,
+            occupancy_target_2: occ2,
+            repositioning_cost_eur: parseNum(reposition),
+          }
+        : {};
       const result = await mutation.mutateAsync({
         data: {
           yacht_id: yachtId ?? null,
@@ -361,6 +449,7 @@ export default function RoiCalculateScreen() {
           manual_rate_eur: isManual ? parseNum(rate) : null,
           manual_charter_units: isManual ? parseInt10(units) : null,
           overrides: hasOverrides ? overrides : null,
+          ...dualFields,
         } as never,
       });
       // Editing replaces the old request: now that the new run saved, remove the
@@ -620,6 +709,117 @@ export default function RoiCalculateScreen() {
               />
             </Section>
           )}
+
+          {/* ── Dual-region (AI mode only) ─────────────────────────── */}
+          {pricingMode === "ai" ? (
+            <>
+              <View style={styles.dualToggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.dualToggleTitle}>Add second region</Text>
+                  <Text style={styles.dualToggleSub}>
+                    Charter in two regions across the year. Income from both is
+                    added together.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    LayoutAnimation.configureNext(
+                      LayoutAnimation.Presets.easeInEaseOut,
+                    );
+                    setDualRegion((v) => !v);
+                  }}
+                  style={[styles.switch, dualRegion && styles.switchOn]}
+                >
+                  <View
+                    style={[styles.knob, dualRegion && styles.knobOn]}
+                  />
+                </Pressable>
+              </View>
+
+              {dualRegion ? (
+                <>
+                  <Section label="SECOND REGION">
+                    <PillGroup
+                      options={REGION_OPTS}
+                      value={region2}
+                      onChange={(v) => setRegion2(v as Region)}
+                    />
+                  </Section>
+
+                  <Section
+                    label="SECOND REGION · SEASON"
+                    sublabel="Which part of the second region's charter window to model. Region 1 always uses its full window."
+                  >
+                    <PillGroup
+                      options={SEASON_OPTS}
+                      value={season2}
+                      onChange={(v) => setSeason2(v as Season)}
+                    />
+                  </Section>
+
+                  <Section
+                    label="SECOND REGION · CHARTER BASIS"
+                    sublabel={
+                      availableBases2.length > 1
+                        ? "Charter the second region by the week or by the day."
+                        : "This region is chartered by the day."
+                    }
+                  >
+                    {availableBases2.length > 1 ? (
+                      <PillGroup
+                        options={CHARTER_TYPE_OPTS.filter((o) =>
+                          availableBases2.includes(o.v),
+                        )}
+                        value={charterType2}
+                        onChange={(v) => setCharterType2(v as CharterType)}
+                      />
+                    ) : (
+                      <View style={styles.basisNote}>
+                        <Text style={styles.basisNoteText}>
+                          Daily charters only
+                        </Text>
+                      </View>
+                    )}
+                  </Section>
+
+                  <Section
+                    label="SECOND REGION · OCCUPANCY POSTURE"
+                    sublabel="How busy should the AI assume the yacht will be in the second region?"
+                  >
+                    <PillGroup
+                      options={OCC_OPTS}
+                      value={occ2}
+                      onChange={(v) => setOcc2(v as Occ)}
+                    />
+                  </Section>
+
+                  <Section
+                    label="ANNUAL REPOSITIONING COST"
+                    sublabel="Total cost of moving the yacht between the two regions (both ways combined). Added as an annual expense line."
+                  >
+                    <MoneyInput
+                      value={reposition}
+                      onChangeText={setReposition}
+                      suffix="€ / yr"
+                      placeholder="80000"
+                    />
+                  </Section>
+
+                  {seasonOverlap ? (
+                    <View style={styles.overlapWarn}>
+                      <Feather name="alert-triangle" size={15} color={GOLD} />
+                      <Text style={styles.overlapWarnText}>
+                        These two regions' charter seasons overlap, so the yacht
+                        likely can't be fully booked in both at once. The estimate
+                        still adds both — adjust the second region's season if this
+                        isn't realistic.
+                      </Text>
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
+            </>
+          ) : null}
 
           {/* ── Crew & operating expenses ─────────────────────────── */}
           <CollapsibleHeader
@@ -1086,6 +1286,68 @@ const styles = StyleSheet.create({
     color: GOLD,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
+  },
+  dualToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 26,
+    paddingTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: DIVIDER,
+  },
+  dualToggleTitle: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  dualToggleSub: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  switch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(247,243,236,0.14)",
+    padding: 3,
+    justifyContent: "center",
+  },
+  switchOn: {
+    backgroundColor: GOLD,
+  },
+  knob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: IVORY,
+    alignSelf: "flex-start",
+  },
+  knobOn: {
+    alignSelf: "flex-end",
+    backgroundColor: NAVY,
+  },
+  overlapWarn: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.35)",
+    backgroundColor: "rgba(201,169,97,0.08)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  overlapWarnText: {
+    flex: 1,
+    color: GOLD,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
   },
   sectionSub: {
     color: MUTED,

@@ -946,6 +946,20 @@ export interface RoiCalculationInput {
   target_weeks?: number | null;
   /** AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null. */
   charter_type?: CharterType | null;
+  /** AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions. */
+  region_2?: CharterRegion | null;
+  /** AI dual-region only. Season basis for region_2 (high | shoulder | low | mixed). "mixed" = the region's full charter window. Ignored unless region_2 is set. Region 1 always uses its full window. */
+  season_2?: CharterSeason | null;
+  /** AI dual-region only. Charter basis (weekly | daily) for region_2. Forced to daily for daily-only regions (e.g. Middle East). Defaults to the region's primary basis when null. Ignored unless region_2 set. */
+  charter_type_2?: CharterType | null;
+  /** AI dual-region only. Occupancy posture for region_2. Defaults to realistic. Ignored unless region_2 is set. */
+  occupancy_target_2?: OccupancyTarget | null;
+  /**
+   * AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.
+   * @minimum 0
+   * @nullable
+   */
+  repositioning_cost_eur?: number | null;
   /** Per-calculation crew/expense/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type "cash" clears any inherited loan figures for the calc. */
   overrides?: RoiExpenseOverrides | null;
 }
@@ -1070,6 +1084,45 @@ export const RoiCalculationConfidence = {
   low: "low",
 } as const;
 
+/**
+ * Effective charter basis used for this region.
+ */
+export type RoiRegionIncomeCharterType =
+  (typeof RoiRegionIncomeCharterType)[keyof typeof RoiRegionIncomeCharterType];
+
+export const RoiRegionIncomeCharterType = {
+  weekly: "weekly",
+  daily: "daily",
+} as const;
+
+export interface RoiRegionIncome {
+  region: CharterRegion;
+  season?: CharterSeason | null;
+  /** Effective charter basis used for this region. */
+  charter_type: RoiRegionIncomeCharterType;
+  /** Annual gross charter income for this region alone. */
+  income_eur: number;
+  expected_charter_weeks: number;
+  /**
+   * Present (weeks×7) when charter_type=daily, else null.
+   * @nullable
+   */
+  expected_charter_days?: number | null;
+  occupancy_pct: number;
+  avg_daily_rate_eur: number;
+  weekly_rate_eur: number;
+}
+
+export interface RoiDualRegionBreakdown {
+  region_1: RoiRegionIncome;
+  region_2: RoiRegionIncome;
+  /** region_1.income_eur + region_2.income_eur. */
+  total_gross_income_eur: number;
+  repositioning_cost_eur: number;
+  /** total_gross_income_eur − repositioning_cost_eur (charter income net of repositioning, before other operating expenses). */
+  net_charter_income_eur: number;
+}
+
 export interface RoiCalculation {
   /** @nullable */
   id?: string | null;
@@ -1103,6 +1156,8 @@ export interface RoiCalculation {
   /** System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI/payback formulas). Optional for backward compatibility with calculations saved before this field existed. */
   methodology?: string;
   recommendations?: string[];
+  /** Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null/absent for single-region calculations. annual_revenue_eur already equals the combined total. */
+  dual_region?: RoiDualRegionBreakdown | null;
   confidence: RoiCalculationConfidence;
   legal_disclaimer: string;
 }

@@ -241,6 +241,11 @@ router.post(
         manual_charter_units: input.manual_charter_units ?? null,
         management_fee_pct: input.management_fee_pct ?? null,
         target_weeks: input.target_weeks ?? null,
+        region_2: input.region_2 ?? null,
+        season_2: input.season_2 ?? null,
+        charter_type_2: input.charter_type_2 ?? null,
+        occupancy_target_2: input.occupancy_target_2 ?? null,
+        repositioning_cost_eur: input.repositioning_cost_eur ?? null,
       });
 
       // Persist. The row is the same whether or not migration 022 has added the

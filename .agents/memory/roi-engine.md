@@ -39,3 +39,8 @@ The ROI questionnaire has NO season picker and NO management-style picker (owner
 
 ## ROI result screen has NO chart and NO PDF export
 The "report" = `app/roi/result.tsx` only (no ROI PDF generator exists). The old "Monthly revenue" bar chart was removed (June 2026) and replaced by a server-generated "How this was calculated" card fed by `RoiResult.methodology` (composed by `buildMethodology` in `index.ts` + `describeRevenueMethod` in `revenue.ts`; deterministic, no AI). `methodology` is OPTIONAL in openapi `RoiCalculation` so rows persisted before it existed still validate; frontend guards `data.methodology ?`. `revenue_by_month` is still computed/returned, just unused by the UI.
+
+## Dual-region charter income is additive and AI-only
+Optional `region_2`/`season_2`/`charter_type_2`/`occupancy_target_2`/`repositioning_cost_eur` on `RoiCalculationInput` trigger a second `computeAiRevenue` run that is summed into the result via `combineRevenue` (weeks add, rates weeks-weighted, occupancy capped 100, confidence = worse of the two). Region 1 stays byte-identical: it still runs with season `"mixed"`. Repositioning is pushed as one expense line ("Repositioning (annual, both ways)") so net/roi formulas are untouched. Result carries `dual_region` breakdown.
+**Why:** owner wants two-region income without disturbing the single-region/manual paths at all.
+**How to apply:** to keep legacy responses byte-identical, `dual_region` is OMITTED (conditional spread), never `null` — same trick applies to any future additive response field. Dual fields are ignored unless `pricing_mode==="ai"` AND `region_2` non-empty. Frontend `REGION_MONTHS` table drives only an advisory, non-blocking season-overlap warning (region 1 = full window, region 2 = selected season).

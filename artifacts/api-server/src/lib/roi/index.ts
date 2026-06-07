@@ -10,6 +10,7 @@ import {
   computeManualRevenue,
   computeAiRevenue,
   describeRevenueMethod,
+  charterBasis,
   type ComputedRevenue,
 } from "./revenue";
 import { loadRoiRates } from "./rates";
@@ -31,6 +32,34 @@ export interface RoiInput {
   manual_charter_units?: number | null;
   management_fee_pct?: number | null;
   target_weeks?: number | null;
+  // Dual-region (AI mode only, additive). When region_2 is set the engine
+  // computes a second region's charter income and sums it. All ignored unless
+  // pricing_mode === "ai" AND region_2 is a non-empty region.
+  region_2?: string | null;
+  season_2?: string | null;
+  charter_type_2?: string | null;
+  occupancy_target_2?: string | null;
+  repositioning_cost_eur?: number | null;
+}
+
+export interface RoiRegionIncome {
+  region: string;
+  season: string | null;
+  charter_type: "weekly" | "daily";
+  income_eur: number;
+  expected_charter_weeks: number;
+  expected_charter_days: number | null;
+  occupancy_pct: number;
+  avg_daily_rate_eur: number;
+  weekly_rate_eur: number;
+}
+
+export interface RoiDualRegionBreakdown {
+  region_1: RoiRegionIncome;
+  region_2: RoiRegionIncome;
+  total_gross_income_eur: number;
+  repositioning_cost_eur: number;
+  net_charter_income_eur: number;
 }
 
 export interface RoiResult {
@@ -55,6 +84,9 @@ export interface RoiResult {
   reasoning: string;
   methodology: string;
   recommendations: string[];
+  // Present ONLY when a second region was supplied. Omitted entirely otherwise
+  // so single-region / manual responses stay byte-identical to the legacy shape.
+  dual_region?: RoiDualRegionBreakdown;
   confidence: "high" | "medium" | "low";
   legal_disclaimer: string;
 }
@@ -115,6 +147,37 @@ function recommendations(args: {
 
 const money = (n: number): string => Math.round(n).toLocaleString("en-US");
 
+const REGION_NAME: Record<string, string> = {
+  mediterranean: "Mediterranean",
+  caribbean: "Caribbean",
+  northern_europe: "Northern Europe",
+  asia_pacific_me: "Asia-Pacific",
+  middle_east: "Middle East",
+};
+const regionName = (r: string): string => REGION_NAME[r] ?? r;
+
+const SEASON_NAME: Record<string, string> = {
+  high: "high season",
+  shoulder: "shoulder season",
+  low: "low season",
+  mixed: "full charter window",
+};
+const seasonName = (s: string | null): string =>
+  s ? SEASON_NAME[s] ?? s : "full charter window";
+
+/** One human-readable charter-income line for a region in the dual breakdown. */
+function regionIncomeLine(label: string, ri: RoiRegionIncome): string {
+  const units =
+    ri.charter_type === "daily"
+      ? `${ri.expected_charter_days ?? Math.round(ri.expected_charter_weeks * 7)} charter days`
+      : `${ri.expected_charter_weeks} charter weeks`;
+  return (
+    `${label} (${regionName(ri.region)}, ${seasonName(ri.season)}): ${units} ` +
+    `at an AI base rate ≈ €${money(ri.weekly_rate_eur)}/week (€${money(ri.avg_daily_rate_eur)}/day) ` +
+    `→ €${money(ri.income_eur)}/yr.`
+  );
+}
+
 /**
  * Compose the full, system-generated "how this was calculated" explanation
  * for THIS specific projection: charter-income algorithm + expense handling +
@@ -133,21 +196,40 @@ function buildMethodology(args: {
   charterCommissionPct: number;
   managementFeePct: number;
   ownerManagementFee: boolean;
+  dual: RoiDualRegionBreakdown | null;
 }): string {
   const lines: string[] = [];
 
-  lines.push("1. Charter income");
-  for (const b of describeRevenueMethod(
-    {
-      pricingMode: args.input.pricing_mode,
-      region: args.input.region,
-      occupancyTarget: args.input.occupancy_target ?? null,
-      charterType: args.input.charter_type ?? null,
-      targetWeeksOverride: args.input.target_weeks ?? null,
-    },
-    args.revenue,
-  )) {
-    lines.push(`• ${b}`);
+  if (args.dual) {
+    const d = args.dual;
+    lines.push("1. Charter income (dual-region)");
+    lines.push(
+      "• This scenario charters the yacht in two regions across the year. Each region is priced independently and the incomes are summed.",
+    );
+    lines.push(`• ${regionIncomeLine("Region 1", d.region_1)}`);
+    lines.push(`• ${regionIncomeLine("Region 2", d.region_2)}`);
+    lines.push(
+      `• Total gross charter income = €${money(d.region_1.income_eur)} + €${money(d.region_2.income_eur)} = €${money(d.total_gross_income_eur)}.`,
+    );
+    if (d.repositioning_cost_eur > 0) {
+      lines.push(
+        `• Repositioning between the two regions (both ways) = €${money(d.repositioning_cost_eur)}/yr, included in operating expenses below.`,
+      );
+    }
+  } else {
+    lines.push("1. Charter income");
+    for (const b of describeRevenueMethod(
+      {
+        pricingMode: args.input.pricing_mode,
+        region: args.input.region,
+        occupancyTarget: args.input.occupancy_target ?? null,
+        charterType: args.input.charter_type ?? null,
+        targetWeeksOverride: args.input.target_weeks ?? null,
+      },
+      args.revenue,
+    )) {
+      lines.push(`• ${b}`);
+    }
   }
 
   lines.push("");
@@ -203,6 +285,76 @@ function buildMethodology(args: {
   return lines.join("\n");
 }
 
+const CONFIDENCE_RANK: Record<"high" | "medium" | "low", number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+/** Lower (more conservative) of two confidences. */
+function worseConfidence(
+  a: "high" | "medium" | "low",
+  b: "high" | "medium" | "low",
+): "high" | "medium" | "low" {
+  return CONFIDENCE_RANK[a] <= CONFIDENCE_RANK[b] ? a : b;
+}
+
+/**
+ * Merge two single-region revenue computations into one combined ComputedRevenue
+ * for the dual-region scenario. Gross income and charter weeks add; rates are
+ * weighted by each region's weeks; occupancy adds (capped at 100); confidence
+ * takes the more conservative of the two. Used only when region_2 is set — the
+ * single-region path never calls this, so it stays byte-identical.
+ */
+function combineRevenue(a: ComputedRevenue, b: ComputedRevenue): ComputedRevenue {
+  const weeks = a.expected_charter_weeks + b.expected_charter_weeks;
+  const wAvg = (xa: number, xb: number): number =>
+    weeks > 0
+      ? (xa * a.expected_charter_weeks + xb * b.expected_charter_weeks) / weeks
+      : (xa + xb) / 2;
+  const lows = [a.daily_rate_low_eur, b.daily_rate_low_eur].filter(
+    (v): v is number => v != null,
+  );
+  const highs = [a.daily_rate_high_eur, b.daily_rate_high_eur].filter(
+    (v): v is number => v != null,
+  );
+  return {
+    annual_gross_eur: a.annual_gross_eur + b.annual_gross_eur,
+    daily_rate_eur: Math.round(wAvg(a.daily_rate_eur, b.daily_rate_eur)),
+    weekly_rate_eur: Math.round(wAvg(a.weekly_rate_eur, b.weekly_rate_eur)),
+    expected_charter_weeks: weeks,
+    daily_rate_low_eur: lows.length ? Math.min(...lows) : null,
+    daily_rate_high_eur: highs.length ? Math.max(...highs) : null,
+    occupancy_pct: Math.min(100, a.occupancy_pct + b.occupancy_pct),
+    market_rating: a.market_rating ?? b.market_rating,
+    comparables: [...a.comparables, ...b.comparables].slice(0, 6),
+    reasoning: `Region 1 — ${a.reasoning} Region 2 — ${b.reasoning}`,
+    confidence: worseConfidence(a.confidence, b.confidence),
+    ai_used: a.ai_used || b.ai_used,
+  };
+}
+
+/** Build a per-region income line for the dual-region breakdown. */
+function toRegionIncome(
+  region: string,
+  season: string | null,
+  basis: "weekly" | "daily",
+  rev: ComputedRevenue,
+): RoiRegionIncome {
+  const weeks = Math.round(rev.expected_charter_weeks * 10) / 10;
+  return {
+    region,
+    season,
+    charter_type: basis,
+    income_eur: Math.round(rev.annual_gross_eur),
+    expected_charter_weeks: weeks,
+    expected_charter_days: basis === "daily" ? Math.round(weeks * 7) : null,
+    occupancy_pct: rev.occupancy_pct,
+    avg_daily_rate_eur: rev.daily_rate_eur,
+    weekly_rate_eur: rev.weekly_rate_eur,
+  };
+}
+
 export async function calculateRoi(
   yacht: YachtRow,
   input: RoiInput,
@@ -218,8 +370,11 @@ export async function calculateRoi(
 
   // ── 1. Revenue ────────────────────────────────────────────────────
   let revenue: ComputedRevenue;
+  let dualBreakdown: RoiDualRegionBreakdown | null = null;
   if (input.pricing_mode === "ai") {
-    revenue = await computeAiRevenue({
+    // Region 1 — identical to the single-region path (season "mixed" = its own
+    // charter window). NEVER changed by the dual-region feature.
+    const rev1 = await computeAiRevenue({
       yacht,
       region: input.region,
       season: "mixed",
@@ -228,6 +383,56 @@ export async function calculateRoi(
       charterType: input.charter_type ?? null,
       marketRates: rates.market,
     });
+
+    // Dual-region (additive). Only when a non-empty second region is supplied.
+    const region2 =
+      typeof input.region_2 === "string" && input.region_2.trim()
+        ? input.region_2
+        : null;
+    if (region2) {
+      const season2 = input.season_2 ?? "mixed";
+      const rates2 = await loadRoiRates({
+        yachtType: yacht.yacht_type ?? null,
+        lengthMeters: Number(yacht.length_meters) || 0,
+        region: region2,
+      });
+      const rev2 = await computeAiRevenue({
+        yacht,
+        region: region2,
+        season: season2,
+        occupancyTarget: input.occupancy_target_2 ?? null,
+        targetWeeksOverride: null,
+        charterType: input.charter_type_2 ?? null,
+        marketRates: rates2.market,
+      });
+      revenue = combineRevenue(rev1, rev2);
+      const reposition =
+        input.repositioning_cost_eur != null &&
+        input.repositioning_cost_eur > 0
+          ? Math.round(input.repositioning_cost_eur)
+          : 0;
+      const income1 = Math.round(rev1.annual_gross_eur);
+      const income2 = Math.round(rev2.annual_gross_eur);
+      dualBreakdown = {
+        region_1: toRegionIncome(
+          input.region,
+          "mixed",
+          charterBasis(input.region, input.charter_type ?? null),
+          rev1,
+        ),
+        region_2: toRegionIncome(
+          region2,
+          season2,
+          charterBasis(region2, input.charter_type_2 ?? null),
+          rev2,
+        ),
+        total_gross_income_eur: income1 + income2,
+        repositioning_cost_eur: reposition,
+        net_charter_income_eur: income1 + income2 - reposition,
+      };
+    } else {
+      revenue = rev1;
+    }
   } else {
     const rate = Number(input.manual_rate_eur);
     const units = Number(input.manual_charter_units);
@@ -266,6 +471,14 @@ export async function calculateRoi(
       formula: `Annuity on €${Math.round(Number(yacht.loan_amount_eur) || 0)} at ${
         yacht.loan_rate_pct ?? 0
       }% for ${yacht.loan_term_years ?? 0}y`,
+    });
+  }
+  // Dual-region repositioning is an additional annual operating cost.
+  if (dualBreakdown && dualBreakdown.repositioning_cost_eur > 0) {
+    allLines.push({
+      category: "Repositioning (annual, both ways)",
+      amount_eur: dualBreakdown.repositioning_cost_eur,
+      formula: "Dual-region transit between the two charter areas",
     });
   }
   const totalExpenses = allLines.reduce((s, l) => s + l.amount_eur, 0);
@@ -309,6 +522,7 @@ export async function calculateRoi(
     charterCommissionPct: exp.charterCommissionPct,
     managementFeePct: exp.managementFeePct,
     ownerManagementFee: yacht.monthly_management_fee_eur != null,
+    dual: dualBreakdown,
   });
 
   return {
@@ -343,6 +557,8 @@ export async function calculateRoi(
       occupancyPct: revenue.occupancy_pct,
       ownerHasExpenses,
     }),
+    // Spread only in the dual-region case — legacy responses omit the key.
+    ...(dualBreakdown ? { dual_region: dualBreakdown } : {}),
     confidence: revenue.confidence,
     legal_disclaimer: ROI_DISCLAIMER,
   };

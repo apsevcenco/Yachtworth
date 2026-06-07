@@ -1456,6 +1456,8 @@ export const calculateRoiBodyManagementFeePctMax = 50;
 export const calculateRoiBodyTargetWeeksMin = 0;
 export const calculateRoiBodyTargetWeeksMax = 52;
 
+export const calculateRoiBodyRepositioningCostEurMin = 0;
+
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
@@ -1587,6 +1589,53 @@ export const CalculateRoiBody = zod.object({
     .optional()
     .describe(
       "AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null.",
+    ),
+  region_2: zod
+    .union([
+      zod.enum([
+        "mediterranean",
+        "caribbean",
+        "northern_europe",
+        "asia_pacific_me",
+        "middle_east",
+      ]),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions.",
+    ),
+  season_2: zod
+    .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
+    .optional()
+    .describe(
+      'AI dual-region only. Season basis for region_2 (high | shoulder | low | mixed). \"mixed\" = the region\'s full charter window. Ignored unless region_2 is set. Region 1 always uses its full window.',
+    ),
+  charter_type_2: zod
+    .union([
+      zod
+        .enum(["weekly", "daily"])
+        .describe(
+          "AI mode only. Whether the yacht is chartered by the week or by the day.\nOnly consulted for regions that model a daily-charter market (e.g.\nCaribbean offers both; Middle East \/ Dubai is daily-only). Ignored for\nregions without a daily model and for manual pricing modes.\n",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "AI dual-region only. Charter basis (weekly | daily) for region_2. Forced to daily for daily-only regions (e.g. Middle East). Defaults to the region's primary basis when null. Ignored unless region_2 set.",
+    ),
+  occupancy_target_2: zod
+    .union([zod.enum(["conservative", "realistic", "optimistic"]), zod.null()])
+    .optional()
+    .describe(
+      "AI dual-region only. Occupancy posture for region_2. Defaults to realistic. Ignored unless region_2 is set.",
+    ),
+  repositioning_cost_eur: zod
+    .number()
+    .min(calculateRoiBodyRepositioningCostEurMin)
+    .nullish()
+    .describe(
+      "AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
     ),
   overrides: zod
     .union([
@@ -1782,6 +1831,77 @@ export const CalculateRoiResponse = zod.object({
       "System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI\/payback formulas). Optional for backward compatibility with calculations saved before this field existed.",
     ),
   recommendations: zod.array(zod.string()).optional(),
+  dual_region: zod
+    .union([
+      zod.object({
+        region_1: zod.object({
+          region: zod.enum([
+            "mediterranean",
+            "caribbean",
+            "northern_europe",
+            "asia_pacific_me",
+            "middle_east",
+          ]),
+          season: zod
+            .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
+            .optional(),
+          charter_type: zod
+            .enum(["weekly", "daily"])
+            .describe("Effective charter basis used for this region."),
+          income_eur: zod
+            .number()
+            .describe("Annual gross charter income for this region alone."),
+          expected_charter_weeks: zod.number(),
+          expected_charter_days: zod
+            .number()
+            .nullish()
+            .describe("Present (weeks×7) when charter_type=daily, else null."),
+          occupancy_pct: zod.number(),
+          avg_daily_rate_eur: zod.number(),
+          weekly_rate_eur: zod.number(),
+        }),
+        region_2: zod.object({
+          region: zod.enum([
+            "mediterranean",
+            "caribbean",
+            "northern_europe",
+            "asia_pacific_me",
+            "middle_east",
+          ]),
+          season: zod
+            .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
+            .optional(),
+          charter_type: zod
+            .enum(["weekly", "daily"])
+            .describe("Effective charter basis used for this region."),
+          income_eur: zod
+            .number()
+            .describe("Annual gross charter income for this region alone."),
+          expected_charter_weeks: zod.number(),
+          expected_charter_days: zod
+            .number()
+            .nullish()
+            .describe("Present (weeks×7) when charter_type=daily, else null."),
+          occupancy_pct: zod.number(),
+          avg_daily_rate_eur: zod.number(),
+          weekly_rate_eur: zod.number(),
+        }),
+        total_gross_income_eur: zod
+          .number()
+          .describe("region_1.income_eur + region_2.income_eur."),
+        repositioning_cost_eur: zod.number(),
+        net_charter_income_eur: zod
+          .number()
+          .describe(
+            "total_gross_income_eur − repositioning_cost_eur (charter income net of repositioning, before other operating expenses).",
+          ),
+      }),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null\/absent for single-region calculations. annual_revenue_eur already equals the combined total.",
+    ),
   confidence: zod.enum(["high", "medium", "low"]),
   legal_disclaimer: zod.string(),
 });
@@ -2557,6 +2677,8 @@ export const getRoiCalculationResponseInputManagementFeePctMax = 50;
 export const getRoiCalculationResponseInputTargetWeeksMin = 0;
 export const getRoiCalculationResponseInputTargetWeeksMax = 52;
 
+export const getRoiCalculationResponseInputRepositioningCostEurMin = 0;
+
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
@@ -2729,6 +2851,56 @@ export const GetRoiCalculationResponse = zod.object({
       .optional()
       .describe(
         "AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null.",
+      ),
+    region_2: zod
+      .union([
+        zod.enum([
+          "mediterranean",
+          "caribbean",
+          "northern_europe",
+          "asia_pacific_me",
+          "middle_east",
+        ]),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions.",
+      ),
+    season_2: zod
+      .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
+      .optional()
+      .describe(
+        'AI dual-region only. Season basis for region_2 (high | shoulder | low | mixed). \"mixed\" = the region\'s full charter window. Ignored unless region_2 is set. Region 1 always uses its full window.',
+      ),
+    charter_type_2: zod
+      .union([
+        zod
+          .enum(["weekly", "daily"])
+          .describe(
+            "AI mode only. Whether the yacht is chartered by the week or by the day.\nOnly consulted for regions that model a daily-charter market (e.g.\nCaribbean offers both; Middle East \/ Dubai is daily-only). Ignored for\nregions without a daily model and for manual pricing modes.\n",
+          ),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "AI dual-region only. Charter basis (weekly | daily) for region_2. Forced to daily for daily-only regions (e.g. Middle East). Defaults to the region's primary basis when null. Ignored unless region_2 set.",
+      ),
+    occupancy_target_2: zod
+      .union([
+        zod.enum(["conservative", "realistic", "optimistic"]),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "AI dual-region only. Occupancy posture for region_2. Defaults to realistic. Ignored unless region_2 is set.",
+      ),
+    repositioning_cost_eur: zod
+      .number()
+      .min(getRoiCalculationResponseInputRepositioningCostEurMin)
+      .nullish()
+      .describe(
+        "AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
       ),
     overrides: zod
       .union([
@@ -2945,6 +3117,87 @@ export const GetRoiCalculationResponse = zod.object({
         "System-generated, human-readable explanation of the exact algorithm used for this calculation (charter-income model, expense handling, ROI\/payback formulas). Optional for backward compatibility with calculations saved before this field existed.",
       ),
     recommendations: zod.array(zod.string()).optional(),
+    dual_region: zod
+      .union([
+        zod.object({
+          region_1: zod.object({
+            region: zod.enum([
+              "mediterranean",
+              "caribbean",
+              "northern_europe",
+              "asia_pacific_me",
+              "middle_east",
+            ]),
+            season: zod
+              .union([
+                zod.enum(["high", "shoulder", "low", "mixed"]),
+                zod.null(),
+              ])
+              .optional(),
+            charter_type: zod
+              .enum(["weekly", "daily"])
+              .describe("Effective charter basis used for this region."),
+            income_eur: zod
+              .number()
+              .describe("Annual gross charter income for this region alone."),
+            expected_charter_weeks: zod.number(),
+            expected_charter_days: zod
+              .number()
+              .nullish()
+              .describe(
+                "Present (weeks×7) when charter_type=daily, else null.",
+              ),
+            occupancy_pct: zod.number(),
+            avg_daily_rate_eur: zod.number(),
+            weekly_rate_eur: zod.number(),
+          }),
+          region_2: zod.object({
+            region: zod.enum([
+              "mediterranean",
+              "caribbean",
+              "northern_europe",
+              "asia_pacific_me",
+              "middle_east",
+            ]),
+            season: zod
+              .union([
+                zod.enum(["high", "shoulder", "low", "mixed"]),
+                zod.null(),
+              ])
+              .optional(),
+            charter_type: zod
+              .enum(["weekly", "daily"])
+              .describe("Effective charter basis used for this region."),
+            income_eur: zod
+              .number()
+              .describe("Annual gross charter income for this region alone."),
+            expected_charter_weeks: zod.number(),
+            expected_charter_days: zod
+              .number()
+              .nullish()
+              .describe(
+                "Present (weeks×7) when charter_type=daily, else null.",
+              ),
+            occupancy_pct: zod.number(),
+            avg_daily_rate_eur: zod.number(),
+            weekly_rate_eur: zod.number(),
+          }),
+          total_gross_income_eur: zod
+            .number()
+            .describe("region_1.income_eur + region_2.income_eur."),
+          repositioning_cost_eur: zod.number(),
+          net_charter_income_eur: zod
+            .number()
+            .describe(
+              "total_gross_income_eur − repositioning_cost_eur (charter income net of repositioning, before other operating expenses).",
+            ),
+        }),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "Present only for dual-region AI scenarios. Per-region charter income breakdown plus the repositioning cost. null\/absent for single-region calculations. annual_revenue_eur already equals the combined total.",
+      ),
     confidence: zod.enum(["high", "medium", "low"]),
     legal_disclaimer: zod.string(),
   }),

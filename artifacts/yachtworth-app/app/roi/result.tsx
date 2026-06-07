@@ -201,6 +201,36 @@ export default function RoiResultScreen() {
           />
         </View>
 
+        {/* DUAL-REGION INCOME BREAKDOWN */}
+        {data.dual_region ? (
+          <Card title="Dual-region charter income">
+            <RegionIncomeBlock label="Region 1" income={data.dual_region.region_1} />
+            <View style={styles.dualDivider} />
+            <RegionIncomeBlock label="Region 2" income={data.dual_region.region_2} />
+            <View style={styles.dualDivider} />
+            <View style={styles.dualTotalRow}>
+              <Text style={styles.dualTotalLabel}>Total gross charter income</Text>
+              <Text style={styles.dualTotalValue}>
+                {eur(data.dual_region.total_gross_income_eur)}
+              </Text>
+            </View>
+            {data.dual_region.repositioning_cost_eur > 0 ? (
+              <View style={styles.dualSubRow}>
+                <Text style={styles.dualSubLabel}>Repositioning (both ways)</Text>
+                <Text style={[styles.dualSubValue, { color: NEGATIVE }]}>
+                  − {eur(data.dual_region.repositioning_cost_eur)}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.dualTotalRow}>
+              <Text style={styles.dualTotalLabel}>Net charter income</Text>
+              <Text style={[styles.dualTotalValue, { color: GOLD }]}>
+                {eur(data.dual_region.net_charter_income_eur)}
+              </Text>
+            </View>
+          </Card>
+        ) : null}
+
         {/* CALCULATION METHOD */}
         {data.methodology ? (
           <Card title="How this was calculated">
@@ -375,6 +405,47 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+const SEASON_LABELS: Record<string, string> = {
+  high: "High season",
+  shoulder: "Shoulder season",
+  low: "Low season",
+  mixed: "Full charter window",
+};
+
+function RegionIncomeBlock({
+  label,
+  income,
+}: {
+  label: string;
+  income: NonNullable<RoiCalculation["dual_region"]>["region_1"];
+}) {
+  const regionName = REGION_LABELS[income.region] ?? income.region;
+  const seasonName = income.season ? SEASON_LABELS[income.season] ?? income.season : null;
+  const units =
+    income.charter_type === "daily"
+      ? `${income.expected_charter_days ?? Math.round(income.expected_charter_weeks * 7)} charter days`
+      : `${income.expected_charter_weeks} charter weeks`;
+  const rate =
+    income.charter_type === "daily"
+      ? `€${income.avg_daily_rate_eur.toLocaleString("en-US")}/day`
+      : `€${income.weekly_rate_eur.toLocaleString("en-US")}/wk`;
+  return (
+    <View style={styles.dualRegionBlock}>
+      <View style={styles.dualRegionHead}>
+        <Text style={styles.dualRegionLabel}>
+          {label} · {regionName}
+        </Text>
+        <Text style={styles.dualRegionIncome}>{eur(income.income_eur)}</Text>
+      </View>
+      <Text style={styles.dualRegionMeta}>
+        {[seasonName, units, rate, `${income.occupancy_pct}% occupancy`]
+          .filter(Boolean)
+          .join(" · ")}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
   topBar: {
@@ -436,6 +507,70 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.6,
     marginBottom: 14,
+  },
+  dualRegionBlock: { marginBottom: 2 },
+  dualRegionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  dualRegionLabel: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  dualRegionIncome: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+  },
+  dualRegionMeta: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  dualDivider: {
+    height: 1,
+    backgroundColor: DIVIDER,
+    marginVertical: 14,
+  },
+  dualTotalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  dualTotalLabel: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  dualTotalValue: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+  },
+  dualSubRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 8,
+  },
+  dualSubLabel: {
+    flex: 1,
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+  },
+  dualSubValue: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
   },
   expRow: {
     flexDirection: "row",

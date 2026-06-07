@@ -248,6 +248,16 @@ function resolveBasis(region: string, requested: string | null): Basis | null {
   return m.bases[0] ?? null;
 }
 
+/**
+ * Effective charter basis (weekly | daily) actually used for a region, with the
+ * legacy fallback resolved: regions not in REGION_MODELS (e.g. Mediterranean)
+ * are weekly. Exported for the dual-region breakdown so the result can report
+ * per-region weeks vs days. Pure lookup — no behaviour change for callers.
+ */
+export function charterBasis(region: string, requested: string | null): Basis {
+  return resolveBasis(region, requested) ?? "weekly";
+}
+
 /** Fixed physical charter units for a region/basis/season/occupancy — weeks
  *  for a weekly basis, days for a daily basis. */
 function regionModelUnits(

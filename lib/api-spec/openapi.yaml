@@ -2207,6 +2207,46 @@ components:
             daily-charter model (Caribbean = both, Middle East = daily-only);
             ignored elsewhere and for manual modes. Defaults to the region's
             primary basis when null.
+        region_2:
+          oneOf:
+            - $ref: "#/components/schemas/CharterRegion"
+            - type: "null"
+          description: >-
+            AI mode only. Optional SECOND charter region for a dual-region
+            scenario (e.g. Mediterranean summer + Caribbean winter). When set
+            (and pricing_mode=ai), charter income is computed for BOTH regions
+            and summed. null = single-region, which is byte-identical to the
+            previous behaviour. Manual modes ignore this field. Max 2 regions.
+        season_2:
+          oneOf:
+            - $ref: "#/components/schemas/CharterSeason"
+            - type: "null"
+          description: >-
+            AI dual-region only. Season basis for region_2 (high | shoulder |
+            low | mixed). "mixed" = the region's full charter window. Ignored
+            unless region_2 is set. Region 1 always uses its full window.
+        charter_type_2:
+          oneOf:
+            - $ref: "#/components/schemas/CharterType"
+            - type: "null"
+          description: >-
+            AI dual-region only. Charter basis (weekly | daily) for region_2.
+            Forced to daily for daily-only regions (e.g. Middle East). Defaults
+            to the region's primary basis when null. Ignored unless region_2 set.
+        occupancy_target_2:
+          oneOf:
+            - $ref: "#/components/schemas/OccupancyTarget"
+            - type: "null"
+          description: >-
+            AI dual-region only. Occupancy posture for region_2. Defaults to
+            realistic. Ignored unless region_2 is set.
+        repositioning_cost_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: >-
+            AI dual-region only. Annual cost of repositioning the yacht between
+            the two regions (both ways combined). Added as a single expense
+            line. Ignored when region_2 is null.
         overrides:
           oneOf:
             - $ref: "#/components/schemas/RoiExpenseOverrides"
@@ -2501,11 +2541,77 @@ components:
           type: array
           items:
             type: string
+        dual_region:
+          oneOf:
+            - $ref: "#/components/schemas/RoiDualRegionBreakdown"
+            - type: "null"
+          description: >-
+            Present only for dual-region AI scenarios. Per-region charter income
+            breakdown plus the repositioning cost. null/absent for single-region
+            calculations. annual_revenue_eur already equals the combined total.
         confidence:
           type: string
           enum: [high, medium, low]
         legal_disclaimer:
           type: string
+    RoiRegionIncome:
+      type: object
+      required:
+        - region
+        - charter_type
+        - income_eur
+        - expected_charter_weeks
+        - occupancy_pct
+        - avg_daily_rate_eur
+        - weekly_rate_eur
+      properties:
+        region:
+          $ref: "#/components/schemas/CharterRegion"
+        season:
+          oneOf:
+            - $ref: "#/components/schemas/CharterSeason"
+            - type: "null"
+        charter_type:
+          type: string
+          enum: [weekly, daily]
+          description: Effective charter basis used for this region.
+        income_eur:
+          type: number
+          description: Annual gross charter income for this region alone.
+        expected_charter_weeks:
+          type: number
+        expected_charter_days:
+          type: ["number", "null"]
+          description: Present (weeks×7) when charter_type=daily, else null.
+        occupancy_pct:
+          type: number
+        avg_daily_rate_eur:
+          type: number
+        weekly_rate_eur:
+          type: number
+    RoiDualRegionBreakdown:
+      type: object
+      required:
+        - region_1
+        - region_2
+        - total_gross_income_eur
+        - repositioning_cost_eur
+        - net_charter_income_eur
+      properties:
+        region_1:
+          $ref: "#/components/schemas/RoiRegionIncome"
+        region_2:
+          $ref: "#/components/schemas/RoiRegionIncome"
+        total_gross_income_eur:
+          type: number
+          description: region_1.income_eur + region_2.income_eur.
+        repositioning_cost_eur:
+          type: number
+        net_charter_income_eur:
+          type: number
+          description: >-
+            total_gross_income_eur − repositioning_cost_eur (charter income net
+            of repositioning, before other operating expenses).
     RoiCalculationListItem:
       type: object
       required:
