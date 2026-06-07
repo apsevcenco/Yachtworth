@@ -18,6 +18,7 @@ import type {
   YachtProfile,
 } from "../documentTypes";
 import { getTheme } from "../core/theme";
+import { A4_CONTENT_HEIGHT_MM } from "../core/types";
 import { chunk, num, photoList } from "../core/util";
 import { measureNode } from "../model/measure";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
@@ -565,7 +566,6 @@ export function buildProposalModel(input: {
   // P2 — Vessel Overview: compact paired specs (full width), then full-width
   // Accommodation. No commercial content on this page.
   const specNode = specPairsTable(yacht, d);
-  body.push(specNode);
 
   // Accommodation spans the full width.
   const accomNode: ContentNode = {
@@ -575,13 +575,55 @@ export function buildProposalModel(input: {
     layout: "pairs",
     emptyText: d["none"]!,
   };
-  body.push(accomNode);
 
-  // P2/P3 — Equipment as a paired two-column grid. Each pair is its own small
-  // block, so the paginator greedily tucks the first pair (Power | Navigation)
-  // onto page 2 under Accommodation when it fits, then flows the rest.
+  // P2/P3 — Equipment as a paired two-column grid (one block per pair, headers
+  // top-aligned by the `.two-col` flex row).
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  body.push(...equipmentNodes(equip, d));
+  const equipPairs = equipmentNodes(equip, d);
+
+  // The paginator uses a deliberately CONSERVATIVE pack budget (PACK_BUDGET_MM,
+  // ~25mm under the true usable page) so heuristic heights can never overflow a
+  // physical page. The side effect is a half-empty page 2: Specifications +
+  // Accommodation fit with room to spare, yet the first equipment pair
+  // (Power | Navigation) is pushed onto a fresh page even though it physically
+  // fits beneath Accommodation.
+  //
+  // Fix (page 2 ONLY): bundle Specifications + Accommodation + the FIRST
+  // equipment pair into ONE block. The paginator never bumps the block that is
+  // first on an otherwise-empty page (it only flushes when the page already has
+  // content), so this trio always renders together on page 2 whenever it
+  // physically fits an A4 page; the remaining pairs flow normally onto page 3.
+  // The fit test uses the conservative `measureNode` content heights against the
+  // true usable page height — and because those estimates already run ABOVE the
+  // real rendered height, the small cosmetic spacers added below stay absorbed
+  // within that headroom (no clipping). If the trio genuinely would not fit (an
+  // unusually tall first pair), we fall back to separate blocks so the first
+  // pair simply flows to its own page rather than being clipped.
+  const firstPair = equipPairs[0];
+  const trioFits =
+    firstPair != null &&
+    measureNode(specNode) + measureNode(accomNode) + measureNode(firstPair) <=
+      A4_CONTENT_HEIGHT_MM;
+  if (firstPair && trioFits) {
+    const GAP_MM = 6; // mirrors the 24px inter-block margin between page sections
+    body.push({
+      kind: "columns",
+      columns: [
+        {
+          nodes: [
+            specNode,
+            { kind: "spacer", mm: GAP_MM },
+            accomNode,
+            { kind: "spacer", mm: GAP_MM },
+            firstPair,
+          ],
+        },
+      ],
+    });
+    body.push(...equipPairs.slice(1));
+  } else {
+    body.push(specNode, accomNode, ...equipPairs);
+  }
 
   // P4 — Photography (validated photos only; editorial hero + grid that fills).
   body.push(...photographyNodes(photos, d));
