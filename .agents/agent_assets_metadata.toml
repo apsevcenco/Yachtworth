@@ -95,3 +95,9 @@ id = "_pFppMvDSB50_cuzs_0bO"
 uri = "file://Yachtworth_Valuation_Sample.pdf"
 type = "pdf"
 title = "Yachtworth Valuation — Azimut 68S (tighter packing)"
+
+[[outputs]]
+id = "Q2tVXJhS8sansFkWSszrJ"
+uri = "file://Yachtworth_Valuation_Azimut68S.pdf"
+type = "pdf"
+title = "Yachtworth Valuation — Azimut 68S"
