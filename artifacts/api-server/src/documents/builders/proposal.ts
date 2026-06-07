@@ -18,8 +18,9 @@ import type {
   YachtProfile,
 } from "../documentTypes";
 import { getTheme } from "../core/theme";
+import { PACK_BUDGET_MM } from "../core/types";
 import { chunk, num, photoList } from "../core/util";
-import { measureNode } from "../model/measure";
+import { HEADING_MM, measureNode } from "../model/measure";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
 
 // ─── money ──────────────────────────────────────────────────────────────────
@@ -298,7 +299,34 @@ function equipmentItems(items: ProposalEquipmentItem[]): { name: string; meta?: 
   });
 }
 
-/** Group items by category, preserving first-seen category order. */
+// Fixed display priority for equipment categories. A category is ranked by the
+// FIRST keyword in this list that appears (case-insensitive) in its name, so
+// loose source labels like "Water Toys" or "Deck Equipment" still slot in. Any
+// category that matches nothing sorts last ("Other").
+const CATEGORY_PRIORITY = [
+  "power",
+  "navigation",
+  "safety",
+  "comfort",
+  "water",
+  "deck",
+  "toys",
+  "tenders",
+] as const;
+
+function categoryRank(label: string): number {
+  const l = label.toLowerCase();
+  for (let i = 0; i < CATEGORY_PRIORITY.length; i++) {
+    if (l.includes(CATEGORY_PRIORITY[i]!)) return i;
+  }
+  return CATEGORY_PRIORITY.length; // "Other" — always last
+}
+
+/**
+ * Group items by category, then order the groups by the fixed display priority
+ * (Power → Navigation → Safety → Comfort → Water → Deck → Toys → Tenders →
+ * Other). Categories sharing a rank keep their first-seen order (stable).
+ */
 function groupByCategory(
   items: ProposalEquipmentItem[],
 ): { label: string; items: ProposalEquipmentItem[] }[] {
@@ -312,25 +340,41 @@ function groupByCategory(
     }
     map.get(cat)!.push(it);
   }
-  return order.map((c) => ({ label: humanize(c), items: map.get(c)! }));
+  return order
+    .map((c, i) => ({ cat: c, seen: i }))
+    .sort((a, b) => categoryRank(a.cat) - categoryRank(b.cat) || a.seen - b.seen)
+    .map(({ cat }) => ({ label: humanize(cat), items: map.get(cat)! }));
 }
 
 /**
- * Equipment grouped BY CATEGORY, balanced across two columns and paginated.
- * Each category renders as a small uppercase heading (eyebrow) over its items;
- * categories are packed shortest-column-first so the two columns stay balanced.
- * Large categories are chunked (≤8 rows) so a single block never overflows a
- * half-width column even when every metadata line wraps.
+ * Equipment grouped BY CATEGORY (in priority order), balanced across two columns
+ * and emitted as one or more `columns` regions. Each region becomes a single
+ * paginator block, so by sizing the FIRST region to the space left on page 2
+ * (after Specifications + Accommodation) the leading equipment cards flow up to
+ * fill that gap instead of stranding the whole section on a fresh page.
+ *
+ * `firstRegionColBudgetMm` = the vertical room (per column) the equipment may use
+ * in its first region while still sharing page 2. When that leftover is too small
+ * to be worth using, equipment simply starts its own full page (no page-2 fill).
+ *
+ * Within every region, categories are packed shortest-column-first so the two
+ * columns stay balanced. Each category is kept as ONE atomic card; only a single
+ * category taller than a full column is chunked (its chunks stay labelled).
  */
-function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] {
+function equipmentNodes(
+  items: ProposalEquipmentItem[],
+  d: Dict,
+  firstRegionColBudgetMm: number,
+): ContentNode[] {
   if (!items.length) return [];
   const GAP_MM = 6; // breathing room BETWEEN categories (larger than row gap)
-  // Per-column hard cap (mm). Blocks are MEASURED at their real half-width
-  // (see below) so wrapped metadata is already counted; this leaves the cap as
-  // a true physical limit. A4 usable height ≈267mm minus the section heading
-  // (~14mm) and a safety margin → 244mm. Keeps a dense one-page list on one
-  // page without risking clip/overflow.
+  // Per-column hard cap (mm) on a DEDICATED equipment page. Blocks are MEASURED
+  // at their real half-width so wrapped metadata is already counted; this leaves
+  // the cap as a true physical limit. A4 usable ≈267mm minus the section heading
+  // (~14mm) and a safety margin → 244mm.
   const PER_COL_MAX = 244;
+  // Smallest page-2 leftover worth filling: heading + roughly one card row.
+  const MIN_FILL_MM = 36;
 
   // Measure each category card at its real height (heading bar + per-item rows,
   // wrap-aware). The card measure already assumes a half-width column.
@@ -342,16 +386,8 @@ function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] 
   for (const g of groupByCategory(items)) {
     const allItems = equipmentItems(g.items);
     const wholeH = measureCard(g.label, allItems);
-    // Keep every category as ONE atomic card so its items never split across
-    // columns or interleave with other categories (the "Power (1/2)" … "Comfort"
-    // … "Power (2/2)" bug). Each whole-category card is placed entirely in one
-    // column by the packer below. Only split when a single category is itself
-    // taller than a full column — then its consecutive chunks stay labelled.
     if (wholeH <= PER_COL_MAX) {
-      blocks.push({
-        node: { kind: "card", heading: g.label, items: allItems },
-        h: wholeH,
-      });
+      blocks.push({ node: { kind: "card", heading: g.label, items: allItems }, h: wholeH });
       continue;
     }
     const chunks: { name: string; meta?: string }[][] = [];
@@ -366,48 +402,50 @@ function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] 
     if (cur.length) chunks.push(cur);
     chunks.forEach((its, i) => {
       const heading = `${g.label} (${i + 1}/${chunks.length})`;
-      blocks.push({
-        node: { kind: "card", heading, items: its },
-        h: measureCard(heading, its),
-      });
+      blocks.push({ node: { kind: "card", heading, items: its }, h: measureCard(heading, its) });
     });
   }
 
-  // Pick the page count from the TOTAL height first, then fill each column to a
-  // soft per-column target (total / 2·pages). This keeps multi-page equipment
-  // lists evenly balanced — no trailing page left near-empty — while a list
-  // that fits one page stays on one page.
-  const totalH = blocks.reduce((s, b) => s + b.h + GAP_MM, 0);
-  const pagesCount = Math.max(1, Math.ceil(totalH / (2 * PER_COL_MAX)));
-  const target = totalH / (2 * pagesCount);
+  // Decide the first region's per-column budget. Only attempt a page-2 fill when
+  // the leftover is usable AND the leading card actually fits it — otherwise the
+  // first card would overflow page 2 and equipment would still jump to page 3,
+  // so we just give it a full dedicated page from the start.
+  const canFillPage2 =
+    firstRegionColBudgetMm >= MIN_FILL_MM && blocks[0]!.h <= firstRegionColBudgetMm;
+  const firstBudget = canFillPage2 ? Math.min(firstRegionColBudgetMm, PER_COL_MAX) : PER_COL_MAX;
 
-  type Pg = { left: ContentNode[]; right: ContentNode[]; lh: number; rh: number };
-  const pages: Pg[] = [{ left: [], right: [], lh: 0, rh: 0 }];
+  type Region = { left: ContentNode[]; right: ContentNode[]; lh: number; rh: number; cap: number };
+  const regions: Region[] = [{ left: [], right: [], lh: 0, rh: 0, cap: firstBudget }];
+
   for (const { node, h } of blocks) {
-    let pg = pages[pages.length - 1]!;
+    let r = regions[regions.length - 1]!;
+    const colHeight = (side: "L" | "R"): number => (side === "L" ? r.lh : r.rh);
     const place = (side: "L" | "R"): void => {
+      const add = (colHeight(side) ? GAP_MM : 0) + h;
       if (side === "L") {
-        pg.left.push(node);
-        pg.lh += h + GAP_MM;
+        r.left.push(node);
+        r.lh += add;
       } else {
-        pg.right.push(node);
-        pg.rh += h + GAP_MM;
+        r.right.push(node);
+        r.rh += add;
       }
     };
-    const shorter: "L" | "R" = pg.lh <= pg.rh ? "L" : "R";
+    // Try the shorter column first (keeps the two columns balanced), then the
+    // other; only open a new region (a fresh full page) when neither fits.
+    const shorter: "L" | "R" = r.lh <= r.rh ? "L" : "R";
     const other: "L" | "R" = shorter === "L" ? "R" : "L";
-    const cur = shorter === "L" ? pg.lh : pg.rh;
-    const oth = other === "L" ? pg.lh : pg.rh;
-    // Move to a fresh page once BOTH columns have reached the balance target
-    // (only while more pages are expected); otherwise pack onto this page up to
-    // the hard physical cap.
-    const bothFull = pages.length < pagesCount && Math.min(pg.lh, pg.rh) >= target;
-    if (cur === 0) place(shorter);
-    else if (!bothFull && cur + h <= PER_COL_MAX) place(shorter);
-    else if (!bothFull && oth + h <= PER_COL_MAX) place(other);
+    // Enforce the region cap even on an empty column, so a card taller than a
+    // small first-region (page-2 leftover) cap is pushed to a fresh full page
+    // instead of overgrowing the first region and being bumped by the paginator.
+    const fits = (side: "L" | "R"): boolean => {
+      const used = colHeight(side);
+      return used === 0 ? h <= r.cap : used + GAP_MM + h <= r.cap;
+    };
+    if (fits(shorter)) place(shorter);
+    else if (fits(other)) place(other);
     else {
-      pages.push({ left: [], right: [], lh: 0, rh: 0 });
-      pg = pages[pages.length - 1]!;
+      regions.push({ left: [], right: [], lh: 0, rh: 0, cap: PER_COL_MAX });
+      r = regions[regions.length - 1]!;
       place("L");
     }
   }
@@ -421,11 +459,11 @@ function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] 
     return o;
   };
 
-  return pages.map((pg, idx) => {
+  return regions.map((rg, idx) => {
     const columns: { subHeading?: string; nodes: ContentNode[] }[] = [
-      { nodes: withGaps(pg.left) },
+      { nodes: withGaps(rg.left) },
     ];
-    if (pg.right.length) columns.push({ nodes: withGaps(pg.right) });
+    if (rg.right.length) columns.push({ nodes: withGaps(rg.right) });
     const heading = idx === 0 ? d["equipment"]! : `${d["equipment"]} (${idx + 1})`;
     return { kind: "columns", heading, columns };
   });
@@ -582,7 +620,8 @@ export function buildProposalModel(input: {
 
   // P2 — Vessel Overview: compact paired specs (full width), then full-width
   // Accommodation. No commercial content on this page.
-  body.push(specPairsTable(yacht, d));
+  const specNode = specPairsTable(yacht, d);
+  body.push(specNode);
 
   // Accommodation spans the full width.
   const accomNode: ContentNode = {
@@ -594,9 +633,15 @@ export function buildProposalModel(input: {
   };
   body.push(accomNode);
 
-  // P3 — Equipment grouped by category, balanced across two columns.
+  // P2/P3 — Equipment grouped by category, balanced across two columns. Size the
+  // first region to the room left on page 2 after Specifications + Accommodation
+  // so leading equipment cards fill that gap before spilling onto a fresh page.
+  // SAFETY_MM absorbs the inter-block margins the paginator does not measure.
+  const SAFETY_MM = 10;
+  const page2Used = measureNode(specNode) + measureNode(accomNode);
+  const firstRegionColBudget = PACK_BUDGET_MM - page2Used - HEADING_MM - SAFETY_MM;
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  body.push(...equipmentNodes(equip, d));
+  body.push(...equipmentNodes(equip, d, firstRegionColBudget));
 
   // P4 — Photography (validated photos only; editorial hero + grid that fills).
   body.push(...photographyNodes(photos, d));
