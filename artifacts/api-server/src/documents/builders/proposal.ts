@@ -347,19 +347,20 @@ function groupByCategory(
 }
 
 /**
- * Equipment grouped BY CATEGORY (in priority order), balanced across two columns
- * and emitted as one or more `columns` regions. Each region becomes a single
- * paginator block, so by sizing the FIRST region to the space left on page 2
- * (after Specifications + Accommodation) the leading equipment cards flow up to
- * fill that gap instead of stranding the whole section on a fresh page.
+ * Equipment grouped BY CATEGORY (in priority order) and rendered as a STRICT
+ * two-column ROW GRID — NOT masonry. Category cards are paired sequentially in
+ * the priority order (Power | Navigation, Safety | Comfort, Water | Deck,
+ * Toys | Tenders, Other), so the two cards in every row begin at exactly the
+ * same vertical position. Each row is padded so both columns occupy the row's
+ * max height, keeping the next row's headers aligned too.
  *
- * `firstRegionColBudgetMm` = the vertical room (per column) the equipment may use
- * in its first region while still sharing page 2. When that leftover is too small
- * to be worth using, equipment simply starts its own full page (no page-2 fill).
- *
- * Within every region, categories are packed shortest-column-first so the two
- * columns stay balanced. Each category is kept as ONE atomic card; only a single
- * category taller than a full column is chunked (its chunks stay labelled).
+ * Rows are packed into `columns` regions (one region per page). A row is kept
+ * whole: if a pair does not fit the remaining space it moves to the next
+ * equipment page intact. The FIRST region is sized to the room left on page 2
+ * (after Specifications + Accommodation) via `firstRegionColBudgetMm`, so the
+ * first pair shares page 2 when it fits there; otherwise equipment starts on a
+ * fresh page. Each category is one atomic card; only a single category taller
+ * than a full column is chunked (its chunks stay labelled and pair sequentially).
  */
 function equipmentNodes(
   items: ProposalEquipmentItem[],
@@ -367,8 +368,8 @@ function equipmentNodes(
   firstRegionColBudgetMm: number,
 ): ContentNode[] {
   if (!items.length) return [];
-  const GAP_MM = 6; // breathing room BETWEEN categories (larger than row gap)
-  // Per-column hard cap (mm) on a DEDICATED equipment page. Blocks are MEASURED
+  const ROW_GAP_MM = 6; // vertical breathing room BETWEEN rows
+  // Per-column hard cap (mm) on a DEDICATED equipment page. Cards are MEASURED
   // at their real half-width so wrapped metadata is already counted; this leaves
   // the cap as a true physical limit. A4 usable ≈267mm minus the section heading
   // (~14mm) and a safety margin → 244mm.
@@ -381,13 +382,14 @@ function equipmentNodes(
   const measureCard = (heading: string, its: { name: string; meta?: string }[]): number =>
     measureNode({ kind: "card", heading, items: its });
 
-  type Blk = { node: ContentNode; h: number };
-  const blocks: Blk[] = [];
+  // 1) Ordered list of category cards (priority order; oversized ones chunked).
+  type Card = { node: ContentNode; h: number };
+  const cards: Card[] = [];
   for (const g of groupByCategory(items)) {
     const allItems = equipmentItems(g.items);
     const wholeH = measureCard(g.label, allItems);
     if (wholeH <= PER_COL_MAX) {
-      blocks.push({ node: { kind: "card", heading: g.label, items: allItems }, h: wholeH });
+      cards.push({ node: { kind: "card", heading: g.label, items: allItems }, h: wholeH });
       continue;
     }
     const chunks: { name: string; meta?: string }[][] = [];
@@ -402,68 +404,61 @@ function equipmentNodes(
     if (cur.length) chunks.push(cur);
     chunks.forEach((its, i) => {
       const heading = `${g.label} (${i + 1}/${chunks.length})`;
-      blocks.push({ node: { kind: "card", heading, items: its }, h: measureCard(heading, its) });
+      cards.push({ node: { kind: "card", heading, items: its }, h: measureCard(heading, its) });
     });
   }
 
-  // Decide the first region's per-column budget. Only attempt a page-2 fill when
-  // the leftover is usable AND the leading card actually fits it — otherwise the
-  // first card would overflow page 2 and equipment would still jump to page 3,
-  // so we just give it a full dedicated page from the start.
+  // 2) Pair cards into rows (left | right). The row's height is the taller card
+  //    so both headers line up; a final odd card is a single-card row.
+  type Row = { left: Card; right?: Card; h: number };
+  const rows: Row[] = [];
+  for (let i = 0; i < cards.length; i += 2) {
+    const left = cards[i]!;
+    const right = cards[i + 1];
+    rows.push({ left, right, h: right ? Math.max(left.h, right.h) : left.h });
+  }
+
+  // 3) Pack whole rows into regions (pages). First region = page-2 leftover when
+  //    the first pair actually fits it; otherwise a full dedicated page.
   const canFillPage2 =
-    firstRegionColBudgetMm >= MIN_FILL_MM && blocks[0]!.h <= firstRegionColBudgetMm;
+    firstRegionColBudgetMm >= MIN_FILL_MM && rows[0]!.h <= firstRegionColBudgetMm;
   const firstBudget = canFillPage2 ? Math.min(firstRegionColBudgetMm, PER_COL_MAX) : PER_COL_MAX;
 
-  type Region = { left: ContentNode[]; right: ContentNode[]; lh: number; rh: number; cap: number };
-  const regions: Region[] = [{ left: [], right: [], lh: 0, rh: 0, cap: firstBudget }];
-
-  for (const { node, h } of blocks) {
+  type Region = { rows: Row[]; cap: number; used: number };
+  const regions: Region[] = [{ rows: [], cap: firstBudget, used: 0 }];
+  for (const row of rows) {
     let r = regions[regions.length - 1]!;
-    const colHeight = (side: "L" | "R"): number => (side === "L" ? r.lh : r.rh);
-    const place = (side: "L" | "R"): void => {
-      const add = (colHeight(side) ? GAP_MM : 0) + h;
-      if (side === "L") {
-        r.left.push(node);
-        r.lh += add;
-      } else {
-        r.right.push(node);
-        r.rh += add;
-      }
-    };
-    // Try the shorter column first (keeps the two columns balanced), then the
-    // other; only open a new region (a fresh full page) when neither fits.
-    const shorter: "L" | "R" = r.lh <= r.rh ? "L" : "R";
-    const other: "L" | "R" = shorter === "L" ? "R" : "L";
-    // Enforce the region cap even on an empty column, so a card taller than a
-    // small first-region (page-2 leftover) cap is pushed to a fresh full page
-    // instead of overgrowing the first region and being bumped by the paginator.
-    const fits = (side: "L" | "R"): boolean => {
-      const used = colHeight(side);
-      return used === 0 ? h <= r.cap : used + GAP_MM + h <= r.cap;
-    };
-    if (fits(shorter)) place(shorter);
-    else if (fits(other)) place(other);
-    else {
-      regions.push({ left: [], right: [], lh: 0, rh: 0, cap: PER_COL_MAX });
+    const need = (r.rows.length ? ROW_GAP_MM : 0) + row.h;
+    if (r.rows.length && r.used + need > r.cap) {
+      regions.push({ rows: [], cap: PER_COL_MAX, used: 0 });
       r = regions[regions.length - 1]!;
-      place("L");
     }
+    r.used += (r.rows.length ? ROW_GAP_MM : 0) + row.h;
+    r.rows.push(row);
   }
 
-  const withGaps = (nodes: ContentNode[]): ContentNode[] => {
+  // 4) Build each region as one `columns` block. Each column stacks its row
+  //    cards, padding the shorter card in every row so the two columns stay
+  //    height-aligned row-by-row.
+  const buildColumn = (rg: Region, side: "left" | "right"): ContentNode[] => {
     const o: ContentNode[] = [];
-    nodes.forEach((n, i) => {
-      if (i) o.push({ kind: "spacer", mm: GAP_MM });
-      o.push(n);
-    });
+    for (const row of rg.rows) {
+      const card = side === "left" ? row.left : row.right;
+      if (!card) continue; // only the final odd row can lack a right card
+      if (o.length) o.push({ kind: "spacer", mm: ROW_GAP_MM });
+      o.push(card.node);
+      const pad = row.h - card.h;
+      if (pad > 0.01) o.push({ kind: "spacer", mm: pad });
+    }
     return o;
   };
 
   return regions.map((rg, idx) => {
     const columns: { subHeading?: string; nodes: ContentNode[] }[] = [
-      { nodes: withGaps(rg.left) },
+      { nodes: buildColumn(rg, "left") },
     ];
-    if (rg.right.length) columns.push({ nodes: withGaps(rg.right) });
+    const right = buildColumn(rg, "right");
+    if (right.length) columns.push({ nodes: right });
     const heading = idx === 0 ? d["equipment"]! : `${d["equipment"]} (${idx + 1})`;
     return { kind: "columns", heading, columns };
   });
