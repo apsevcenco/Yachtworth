@@ -1,10 +1,109 @@
 import { Router, type IRouter } from "express";
+import multer from "multer";
 import { SaveProposalBody } from "@workspace/api-zod";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
-import { getSupabase, PROPOSALS_TABLE } from "../lib/supabase";
+import {
+  getSupabase,
+  PROPOSALS_TABLE,
+  YACHT_PHOTOS_BUCKET,
+} from "../lib/supabase";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
+
+// ── Proposal photo upload ──────────────────────────────────────────────
+// Manual proposals have no yacht row to attach photos to, so we accept the
+// compressed JPEG here and upload it to the existing public `yacht-photos`
+// bucket under a `proposals/<user>/…` prefix via the service-role key (the
+// mobile app never sees storage credentials). We return the public URL; the
+// frontend keeps the URL list + cover purely in the proposal snapshot jsonb.
+// No DB row, no schema change — additive only.
+const PHOTO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5 MB raw
+const ALLOWED_PHOTO_MIME: Record<string, "jpg" | "png" | "webp"> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: PHOTO_UPLOAD_MAX_BYTES, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_PHOTO_MIME[file.mimetype]) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("UNSUPPORTED_MEDIA_TYPE"));
+  },
+});
+
+const photoUploadMw: import("express").RequestHandler = (req, res, next) => {
+  photoUpload.single("file")(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: `File too large. Max ${PHOTO_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
+        });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err instanceof Error && err.message === "UNSUPPORTED_MEDIA_TYPE") {
+      res
+        .status(415)
+        .json({ error: "Only JPEG, PNG, or WebP images are allowed." });
+      return;
+    }
+    next(err);
+  });
+};
+
+router.post(
+  "/proposals/photo",
+  softClerkAuth(),
+  requireAuth(),
+  photoUploadMw,
+  async (req, res): Promise<void> => {
+    const file = req.file;
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      res.status(400).json({ error: "Missing file" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Proposal storage not configured" });
+      return;
+    }
+    const ext = ALLOWED_PHOTO_MIME[file.mimetype] ?? "jpg";
+    const userKey = req.userId!.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const objectPath = `proposals/${userKey}/${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}.${ext}`;
+
+    const uploadRes = await sb.storage
+      .from(YACHT_PHOTOS_BUCKET)
+      .upload(objectPath, file.buffer, {
+        contentType: file.mimetype || "image/jpeg",
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (uploadRes.error) {
+      req.log.error(
+        { err: uploadRes.error.message },
+        "Proposal photo storage upload failed",
+      );
+      res.status(502).json({ error: uploadRes.error.message });
+      return;
+    }
+    const { data: pub } = sb.storage
+      .from(YACHT_PHOTOS_BUCKET)
+      .getPublicUrl(objectPath);
+    res.json({ url: pub.publicUrl });
+  },
+);
 
 const PROPOSAL_LIST_COLUMNS =
   "id,yacht_id,yacht_name,proposal_type,language,created_at";

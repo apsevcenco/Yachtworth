@@ -4,9 +4,10 @@ import {
   getListYachtEquipmentQueryKey,
   useGetYacht,
   useListYachtEquipment,
+  type EquipmentItem,
 } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +29,8 @@ import type {
   ProposalYachtSnapshot,
 } from "../../lib/proposalTypes";
 import TemplatePickerSheet from "../../components/TemplatePickerSheet";
+import EquipmentSection from "../../components/EquipmentSection";
+import { ProposalPhotoSection } from "../../components/ProposalPhotoSection";
 
 const TEMPLATE_LABELS: Record<ProposalTemplate, string> = {
   minimal: "Minimal · White & Gold",
@@ -81,20 +84,6 @@ const VAT_OPTIONS: Option[] = [
   { value: "unknown", label: "Unknown" },
 ];
 
-// Lowercase category keys so the backend's category-priority ranking matches
-// (power/navigation/safety/comfort/water/deck/toys/tenders, else Other).
-const EQUIP_CATEGORIES: Option[] = [
-  { value: "power", label: "Power" },
-  { value: "navigation", label: "Navigation" },
-  { value: "safety", label: "Safety" },
-  { value: "comfort", label: "Comfort" },
-  { value: "water", label: "Water" },
-  { value: "deck", label: "Deck" },
-  { value: "toys", label: "Toys" },
-  { value: "tenders", label: "Tenders" },
-  { value: "other", label: "Other" },
-];
-
 const TYPES: { key: ProposalType; label: string }[] = [
   { key: "sale", label: "Sale" },
   { key: "charter", label: "Charter" },
@@ -109,42 +98,6 @@ const LANGS: { key: ProposalLanguage; label: string }[] = [
   { key: "german", label: "DE" },
   { key: "russian", label: "RU" },
 ];
-
-type ManualEquip = {
-  id: string;
-  category: string;
-  equipment_type: string;
-  brand: string;
-  model: string;
-  quantity: string;
-  power_kw: string;
-  power_hp: string;
-  total_watts: string;
-  capacity_liters: string;
-  capacity_persons: string;
-  hours: string;
-  year_installed: string;
-  notes: string;
-};
-
-function blankEquip(): ManualEquip {
-  return {
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    category: "other",
-    equipment_type: "",
-    brand: "",
-    model: "",
-    quantity: "",
-    power_kw: "",
-    power_hp: "",
-    total_watts: "",
-    capacity_liters: "",
-    capacity_persons: "",
-    hours: "",
-    year_installed: "",
-    notes: "",
-  };
-}
 
 function toNum(s: string): number | null {
   if (!s.trim()) return null;
@@ -215,11 +168,19 @@ export default function ProposalFormScreen() {
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [imoNumber, setImoNumber] = useState("");
   const [hullId, setHullId] = useState("");
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
-  const [galleryUrls, setGalleryUrls] = useState("");
 
-  // Manual equipment (available in both modes; appended to any pulled items)
-  const [manualEquip, setManualEquip] = useState<ManualEquip[]>([]);
+  // Photos — direct upload (camera + library), local state in both modes.
+  // Seeded from the linked yacht once it loads.
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
+  // Equipment — the My Yachts catalog editor. Local EquipmentItem[] state in
+  // both modes; seeded from the linked yacht's equipment once it loads.
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+
+  // One-time seeding guards so re-renders / refetches don't clobber edits.
+  const seededPhotos = useRef(false);
+  const seededEquip = useRef(false);
 
   // ── Settings ──
   const [template, setTemplate] = useState<ProposalTemplate>("minimal");
@@ -255,11 +216,25 @@ export default function ProposalFormScreen() {
     setDimUnit(next);
   };
 
-  const addEquip = () => setManualEquip((p) => [...p, blankEquip()]);
-  const updateEquip = (id: string, patch: Partial<ManualEquip>) =>
-    setManualEquip((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  const removeEquip = (id: string) =>
-    setManualEquip((p) => p.filter((e) => e.id !== id));
+  // Seed photos from the linked yacht once it loads (linked mode only).
+  useEffect(() => {
+    if (!y || seededPhotos.current) return;
+    seededPhotos.current = true;
+    const urls = Array.isArray(y.photo_urls)
+      ? y.photo_urls.filter((u): u is string => typeof u === "string")
+      : [];
+    const cover = y.cover_photo_url ?? y.photo_url ?? urls[0] ?? null;
+    if (urls.length) setPhotos(urls);
+    if (cover) setCoverUrl(cover);
+  }, [y]);
+
+  // Seed equipment from the linked yacht's equipment once it loads.
+  useEffect(() => {
+    const items = equipQ.data?.items;
+    if (!items || seededEquip.current) return;
+    seededEquip.current = true;
+    if (items.length) setEquipment(items);
+  }, [equipQ.data]);
 
   const snapshot: ProposalYachtSnapshot = useMemo(() => {
     if (y) {
@@ -289,9 +264,9 @@ export default function ProposalFormScreen() {
         imo_number: y.imo_number ?? null,
         hull_id: y.hull_id ?? null,
         vat_status: y.vat_status ?? null,
-        photo_url: y.cover_photo_url ?? y.photo_url ?? null,
-        cover_photo_url: y.cover_photo_url ?? null,
-        photo_urls: Array.isArray(y.photo_urls) ? y.photo_urls : null,
+        photo_url: coverUrl,
+        cover_photo_url: coverUrl,
+        photo_urls: photos.length ? photos : null,
       };
     }
     const toMeters = (s: string): number | null => {
@@ -300,11 +275,6 @@ export default function ProposalFormScreen() {
       const m = dimUnit === "imperial" ? n * M_PER_FT : n;
       return Number(m.toFixed(2));
     };
-    const gallery = galleryUrls
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const cover = coverPhotoUrl.trim() || null;
     return {
       name: name.trim() || "Untitled yacht",
       builder: builder.trim() || null,
@@ -338,9 +308,9 @@ export default function ProposalFormScreen() {
       registration_number: registrationNumber.trim() || null,
       imo_number: imoNumber.trim() || null,
       hull_id: hullId.trim() || null,
-      cover_photo_url: cover,
-      photo_url: cover,
-      photo_urls: gallery.length ? gallery : null,
+      cover_photo_url: coverUrl,
+      photo_url: coverUrl,
+      photo_urls: photos.length ? photos : null,
     };
   }, [
     y,
@@ -377,8 +347,8 @@ export default function ProposalFormScreen() {
     registrationNumber,
     imoNumber,
     hullId,
-    coverPhotoUrl,
-    galleryUrls,
+    coverUrl,
+    photos,
   ]);
 
   const onPreview = () => {
@@ -414,45 +384,22 @@ export default function ProposalFormScreen() {
       broker_website: brokerWebsite.trim() || null,
     };
 
-    // Equipment pulled from My Yacht (linked mode) …
-    const linkedEquip: ProposalEquipmentItem[] = (equipQ.data?.items ?? []).map(
-      (e) => ({
-        category: e.category,
-        equipment_type: e.equipment_type,
-        brand: e.brand ?? null,
-        model: e.model ?? null,
-        quantity: e.quantity ?? null,
-        power_kw: e.power_kw ?? null,
-        power_hp: e.power_hp ?? null,
-        capacity_liters: e.capacity_liters ?? null,
-        capacity_persons: e.capacity_persons ?? null,
-        total_watts: e.total_watts ?? null,
-        year_installed: e.year_installed ?? null,
-        hours: e.hours ?? null,
-        notes: e.notes ?? null,
-      }),
-    );
-
-    // … plus any equipment entered manually on this screen.
-    const manualEquipItems: ProposalEquipmentItem[] = manualEquip
-      .filter((e) => e.equipment_type.trim())
-      .map((e) => ({
-        category: e.category.trim() || "other",
-        equipment_type: e.equipment_type.trim(),
-        brand: e.brand.trim() || null,
-        model: e.model.trim() || null,
-        quantity: toNum(e.quantity),
-        power_kw: toNum(e.power_kw),
-        power_hp: toNum(e.power_hp),
-        capacity_liters: toNum(e.capacity_liters),
-        capacity_persons: toNum(e.capacity_persons),
-        total_watts: toNum(e.total_watts),
-        year_installed: toNum(e.year_installed),
-        hours: toNum(e.hours),
-        notes: e.notes.trim() || null,
-      }));
-
-    const equipmentItems = [...linkedEquip, ...manualEquipItems];
+    // Equipment from the My Yachts catalog editor (same shape in both modes).
+    const equipmentItems: ProposalEquipmentItem[] = equipment.map((e) => ({
+      category: e.category,
+      equipment_type: e.equipment_type,
+      brand: e.brand ?? null,
+      model: e.model ?? null,
+      quantity: e.quantity ?? null,
+      power_kw: e.power_kw ?? null,
+      power_hp: e.power_hp ?? null,
+      capacity_liters: e.capacity_liters ?? null,
+      capacity_persons: e.capacity_persons ?? null,
+      total_watts: e.total_watts ?? null,
+      year_installed: e.year_installed ?? null,
+      hours: e.hours ?? null,
+      notes: e.notes ?? null,
+    }));
 
     router.push({
       pathname: "/yacht-proposal/preview",
@@ -760,161 +707,28 @@ export default function ProposalFormScreen() {
               </Row2>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Photos</Text>
-              <Field
-                label="Cover photo URL (https)"
-                value={coverPhotoUrl}
-                onChange={setCoverPhotoUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-                placeholder="https://…"
-              />
-              <Field
-                label="Gallery photo URLs — one per line"
-                value={galleryUrls}
-                onChange={setGalleryUrls}
-                autoCapitalize="none"
-                keyboardType="url"
-                placeholder={"https://…\nhttps://…"}
-                multiline
-              />
-              <Text style={styles.helpText}>
-                Only public https image links appear in the PDF.
-              </Text>
-            </View>
           </>
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Equipment{yachtId ? " (added to this proposal)" : ""}
-          </Text>
-          {manualEquip.length === 0 ? (
-            <Text style={styles.helpText}>
-              {yachtId
-                ? "Add extra items on top of those pulled from My Yacht."
-                : "Add equipment to feature in the proposal."}
-            </Text>
-          ) : null}
-          {manualEquip.map((e, idx) => (
-            <View key={e.id} style={styles.equipCard}>
-              <View style={styles.equipCardHead}>
-                <Text style={styles.equipCardTitle}>Item {idx + 1}</Text>
-                <Pressable
-                  onPress={() => removeEquip(e.id)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove item ${idx + 1}`}
-                >
-                  <Feather name="x" size={18} color={MUTED} />
-                </Pressable>
-              </View>
-              <PillSelect
-                label="Category"
-                options={EQUIP_CATEGORIES}
-                value={e.category}
-                onChange={(v) => updateEquip(e.id, { category: v || "other" })}
-              />
-              <Field
-                label="Item name *"
-                value={e.equipment_type}
-                onChange={(v) => updateEquip(e.id, { equipment_type: v })}
-                placeholder="e.g. Bow thruster"
-              />
-              <Row2>
-                <Field
-                  label="Brand"
-                  value={e.brand}
-                  onChange={(v) => updateEquip(e.id, { brand: v })}
-                  half
-                />
-                <Field
-                  label="Model"
-                  value={e.model}
-                  onChange={(v) => updateEquip(e.id, { model: v })}
-                  half
-                />
-              </Row2>
-              <Row2>
-                <Field
-                  label="Quantity"
-                  value={e.quantity}
-                  onChange={(v) => updateEquip(e.id, { quantity: v })}
-                  keyboardType="number-pad"
-                  half
-                />
-                <Field
-                  label="Year installed"
-                  value={e.year_installed}
-                  onChange={(v) => updateEquip(e.id, { year_installed: v })}
-                  keyboardType="number-pad"
-                  half
-                />
-              </Row2>
-              <Row2>
-                <Field
-                  label="Power (kW)"
-                  value={e.power_kw}
-                  onChange={(v) => updateEquip(e.id, { power_kw: v })}
-                  keyboardType="decimal-pad"
-                  half
-                />
-                <Field
-                  label="Power (HP)"
-                  value={e.power_hp}
-                  onChange={(v) => updateEquip(e.id, { power_hp: v })}
-                  keyboardType="decimal-pad"
-                  half
-                />
-              </Row2>
-              <Row2>
-                <Field
-                  label="Total watts"
-                  value={e.total_watts}
-                  onChange={(v) => updateEquip(e.id, { total_watts: v })}
-                  keyboardType="number-pad"
-                  half
-                />
-                <Field
-                  label="Hours"
-                  value={e.hours}
-                  onChange={(v) => updateEquip(e.id, { hours: v })}
-                  keyboardType="number-pad"
-                  half
-                />
-              </Row2>
-              <Row2>
-                <Field
-                  label="Capacity (L)"
-                  value={e.capacity_liters}
-                  onChange={(v) => updateEquip(e.id, { capacity_liters: v })}
-                  keyboardType="number-pad"
-                  half
-                />
-                <Field
-                  label="Capacity (pax)"
-                  value={e.capacity_persons}
-                  onChange={(v) => updateEquip(e.id, { capacity_persons: v })}
-                  keyboardType="number-pad"
-                  half
-                />
-              </Row2>
-              <Field
-                label="Notes"
-                value={e.notes}
-                onChange={(v) => updateEquip(e.id, { notes: v })}
-                multiline
-              />
-            </View>
-          ))}
-          <Pressable
-            onPress={addEquip}
-            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }]}
-          >
-            <Feather name="plus" size={16} color={GOLD} />
-            <Text style={styles.addBtnText}>Add equipment item</Text>
-          </Pressable>
+          <Text style={styles.sectionTitle}>Photos</Text>
+          <ProposalPhotoSection
+            photos={photos}
+            coverUrl={coverUrl}
+            onChange={(nextPhotos, nextCover) => {
+              setPhotos(nextPhotos);
+              setCoverUrl(nextCover);
+            }}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Equipment</Text>
+          <EquipmentSection
+            items={equipment}
+            onChange={setEquipment}
+            yachtType={y?.yacht_type ?? (yachtType.trim() || null)}
+          />
         </View>
 
         <View style={styles.section}>
@@ -1269,40 +1083,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
   },
-  equipCard: {
-    backgroundColor: NAVY_ELEV,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: DIVIDER,
-    marginBottom: 12,
-  },
-  equipCardHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  equipCardTitle: {
-    color: IVORY,
-    fontFamily: "Inter_700Bold",
-    fontSize: 13,
-    letterSpacing: 0.3,
-  },
-  addBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "rgba(201,169,97,0.5)",
-    backgroundColor: "rgba(201,169,97,0.06)",
-    marginTop: 2,
-  },
-  addBtnText: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   templateRow: {
     flexDirection: "row",
     alignItems: "center",
