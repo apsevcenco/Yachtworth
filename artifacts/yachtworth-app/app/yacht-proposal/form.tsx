@@ -157,6 +157,8 @@ export default function ProposalFormScreen() {
   const [engineCount, setEngineCount] = useState("");
   const [totalHp, setTotalHp] = useState("");
   const [engineHours, setEngineHours] = useState("");
+  const [enginePortHours, setEnginePortHours] = useState("");
+  const [engineStbdHours, setEngineStbdHours] = useState("");
   const [maxSpeed, setMaxSpeed] = useState("");
   const [cruiseSpeed, setCruiseSpeed] = useState("");
   const [rangeNm, setRangeNm] = useState("");
@@ -260,6 +262,8 @@ export default function ProposalFormScreen() {
         engine_count: y.engine_count ?? null,
         total_hp: y.total_hp ?? null,
         engine_hours: y.engine_hours ?? null,
+        engine_hours_port: null,
+        engine_hours_starboard: null,
         registration_number: y.registration_number ?? null,
         imo_number: y.imo_number ?? null,
         hull_id: y.hull_id ?? null,
@@ -297,6 +301,8 @@ export default function ProposalFormScreen() {
       engine_count: toNum(engineCount),
       total_hp: toNum(totalHp),
       engine_hours: toNum(engineHours),
+      engine_hours_port: toNum(enginePortHours),
+      engine_hours_starboard: toNum(engineStbdHours),
       max_speed_knots: toNum(maxSpeed),
       cruising_speed_knots: toNum(cruiseSpeed),
       range_nm: toNum(rangeNm),
@@ -336,6 +342,8 @@ export default function ProposalFormScreen() {
     engineCount,
     totalHp,
     engineHours,
+    enginePortHours,
+    engineStbdHours,
     maxSpeed,
     cruiseSpeed,
     rangeNm,
@@ -624,6 +632,22 @@ export default function ProposalFormScreen() {
                   label="Range (nm)"
                   value={rangeNm}
                   onChange={setRangeNm}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Port engine hours"
+                  value={enginePortHours}
+                  onChange={setEnginePortHours}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Starboard engine hours"
+                  value={engineStbdHours}
+                  onChange={setEngineStbdHours}
                   keyboardType="number-pad"
                   half
                 />

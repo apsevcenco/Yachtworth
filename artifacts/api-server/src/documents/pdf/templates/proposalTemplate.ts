@@ -228,6 +228,8 @@ function specRows(y: YachtProfile): [string, string][] {
   push("Engines", y.engine_count);
   push("Total HP", y.total_hp);
   push("Engine hours", y.engine_hours);
+  push("Port engine hours", y.engine_hours_port);
+  push("Starboard engine hours", y.engine_hours_starboard);
   push("Max speed", num(y.max_speed_knots), num(y.max_speed_knots) != null ? " kn" : "");
   push(
     "Cruising speed",

@@ -664,6 +664,8 @@ function buildSpecsPage(
     ["Engines",       eng],
     ["Total power",   yacht.total_hp    ? `${yacht.total_hp} HP`         : null],
     ["Engine hours",  yacht.engine_hours ? `${yacht.engine_hours} hrs`   : null],
+    ["Port engine hours", yacht.engine_hours_port ? `${yacht.engine_hours_port} hrs` : null],
+    ["Starboard engine hours", yacht.engine_hours_starboard ? `${yacht.engine_hours_starboard} hrs` : null],
     ["Max speed",     yacht.max_speed_knots      ? `${yacht.max_speed_knots} kn`      : null],
     ["Cruise speed",  yacht.cruising_speed_knots ? `${yacht.cruising_speed_knots} kn` : null],
     ["Range",         yacht.range_nm        ? `${yacht.range_nm} nm`       : null],

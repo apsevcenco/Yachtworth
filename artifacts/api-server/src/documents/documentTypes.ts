@@ -55,6 +55,8 @@ export interface YachtProfile {
   engine_count?: number | null;
   total_hp?: number | null;
   engine_hours?: number | null;
+  engine_hours_port?: number | null;
+  engine_hours_starboard?: number | null;
   max_speed_knots?: number | null;
   cruising_speed_knots?: number | null;
   range_nm?: number | null;

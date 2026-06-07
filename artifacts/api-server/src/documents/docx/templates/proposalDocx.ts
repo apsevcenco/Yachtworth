@@ -110,6 +110,8 @@ function specPairs(y: YachtProfile): [string, string][] {
   add("Engines", y.engine_count);
   add("Total HP", y.total_hp);
   add("Engine hours", y.engine_hours);
+  add("Port engine hours", y.engine_hours_port);
+  add("Starboard engine hours", y.engine_hours_starboard);
   add("Max speed", n(y.max_speed_knots), n(y.max_speed_knots) != null ? " kn" : "");
   add(
     "Cruising speed",
