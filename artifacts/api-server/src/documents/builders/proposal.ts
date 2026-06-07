@@ -239,6 +239,7 @@ function specGroups(y: YachtProfile): SpecRow[][] {
     );
     push("Range", num(y.range_nm), num(y.range_nm) != null ? " nm" : "");
     push("Fuel capacity", num(y.fuel_capacity_l), num(y.fuel_capacity_l) != null ? " L" : "");
+    push("Water capacity", num(y.water_capacity_l), num(y.water_capacity_l) != null ? " L" : "");
   });
   // 5) Registration & identifiers
   group((push) => {

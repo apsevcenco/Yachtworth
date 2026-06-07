@@ -33,6 +33,7 @@ export interface ProposalYachtSnapshot {
   cruising_speed_knots?: number | null;
   range_nm?: number | null;
   fuel_capacity_l?: number | null;
+  water_capacity_l?: number | null;
   hull_material?: string | null;
   hull_type?: string | null;
   registration_number?: string | null;

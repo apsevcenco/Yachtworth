@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type {
+  ProposalEquipmentItem,
   ProposalLanguage,
   ProposalSettings,
   ProposalTemplate,
@@ -43,6 +44,57 @@ const MUTED = "rgba(247,243,236,0.6)";
 const FAINT = "rgba(247,243,236,0.4)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 
+const M_PER_FT = 0.3048;
+
+type Option = { value: string; label: string };
+
+// Mirrors the enum values used by My Yacht (edit.tsx) so the backend builder
+// humanizes/labels them identically. Values must stay lowercase snake_case.
+const YACHT_TYPE_OPTIONS: Option[] = [
+  { value: "motor_yacht", label: "Motor" },
+  { value: "sailing_yacht", label: "Sailing" },
+  { value: "catamaran", label: "Catamaran" },
+  { value: "superyacht", label: "Superyacht" },
+];
+
+// Hull material/type have no My Yacht counterpart — stored as plain display
+// strings (the builder prints them verbatim).
+const HULL_MATERIAL_OPTIONS: Option[] = [
+  { value: "GRP / Fibreglass", label: "GRP" },
+  { value: "Steel", label: "Steel" },
+  { value: "Aluminium", label: "Aluminium" },
+  { value: "Wood", label: "Wood" },
+  { value: "Carbon composite", label: "Composite" },
+];
+
+const HULL_TYPE_OPTIONS: Option[] = [
+  { value: "Planing", label: "Planing" },
+  { value: "Semi-displacement", label: "Semi-disp." },
+  { value: "Displacement", label: "Displacement" },
+  { value: "Multihull", label: "Multihull" },
+];
+
+// Same enum values My Yacht uses; the builder maps these to human VAT labels.
+const VAT_OPTIONS: Option[] = [
+  { value: "tax_paid_eu", label: "VAT paid" },
+  { value: "tax_not_paid", label: "VAT not paid" },
+  { value: "unknown", label: "Unknown" },
+];
+
+// Lowercase category keys so the backend's category-priority ranking matches
+// (power/navigation/safety/comfort/water/deck/toys/tenders, else Other).
+const EQUIP_CATEGORIES: Option[] = [
+  { value: "power", label: "Power" },
+  { value: "navigation", label: "Navigation" },
+  { value: "safety", label: "Safety" },
+  { value: "comfort", label: "Comfort" },
+  { value: "water", label: "Water" },
+  { value: "deck", label: "Deck" },
+  { value: "toys", label: "Toys" },
+  { value: "tenders", label: "Tenders" },
+  { value: "other", label: "Other" },
+];
+
 const TYPES: { key: ProposalType; label: string }[] = [
   { key: "sale", label: "Sale" },
   { key: "charter", label: "Charter" },
@@ -57,6 +109,42 @@ const LANGS: { key: ProposalLanguage; label: string }[] = [
   { key: "german", label: "DE" },
   { key: "russian", label: "RU" },
 ];
+
+type ManualEquip = {
+  id: string;
+  category: string;
+  equipment_type: string;
+  brand: string;
+  model: string;
+  quantity: string;
+  power_kw: string;
+  power_hp: string;
+  total_watts: string;
+  capacity_liters: string;
+  capacity_persons: string;
+  hours: string;
+  year_installed: string;
+  notes: string;
+};
+
+function blankEquip(): ManualEquip {
+  return {
+    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    category: "other",
+    equipment_type: "",
+    brand: "",
+    model: "",
+    quantity: "",
+    power_kw: "",
+    power_hp: "",
+    total_watts: "",
+    capacity_liters: "",
+    capacity_persons: "",
+    hours: "",
+    year_installed: "",
+    notes: "",
+  };
+}
 
 function toNum(s: string): number | null {
   if (!s.trim()) return null;
@@ -93,23 +181,47 @@ export default function ProposalFormScreen() {
 
   const y = yachtQ.data;
 
-  // Manual fields (used only when yachtId is null)
+  // ── Manual yacht fields (used only when yachtId is null) ──
   const [name, setName] = useState("");
   const [builder, setBuilder] = useState("");
   const [model, setModel] = useState("");
   const [yachtType, setYachtType] = useState("");
   const [yearBuilt, setYearBuilt] = useState("");
-  const [lengthMeters, setLengthMeters] = useState("");
-  const [beamMeters, setBeamMeters] = useState("");
-  const [draftMeters, setDraftMeters] = useState("");
+  const [dimUnit, setDimUnit] = useState<"metric" | "imperial">("metric");
+  const [lengthInput, setLengthInput] = useState("");
+  const [beamInput, setBeamInput] = useState("");
+  const [draftInput, setDraftInput] = useState("");
   const [flag, setFlag] = useState("");
   const [homePort, setHomePort] = useState("");
   const [cabins, setCabins] = useState("");
   const [guests, setGuests] = useState("");
-  const [crew, setCrew] = useState("");
   const [berths, setBerths] = useState("");
+  const [heads, setHeads] = useState("");
+  const [crew, setCrew] = useState("");
+  const [crewCabins, setCrewCabins] = useState("");
+  const [engineMaker, setEngineMaker] = useState("");
+  const [engineModel, setEngineModel] = useState("");
+  const [engineCount, setEngineCount] = useState("");
+  const [totalHp, setTotalHp] = useState("");
+  const [engineHours, setEngineHours] = useState("");
+  const [maxSpeed, setMaxSpeed] = useState("");
+  const [cruiseSpeed, setCruiseSpeed] = useState("");
+  const [rangeNm, setRangeNm] = useState("");
+  const [fuelCapacity, setFuelCapacity] = useState("");
+  const [waterCapacity, setWaterCapacity] = useState("");
+  const [hullMaterial, setHullMaterial] = useState("");
+  const [hullType, setHullType] = useState("");
+  const [vatStatus, setVatStatus] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [imoNumber, setImoNumber] = useState("");
+  const [hullId, setHullId] = useState("");
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
+  const [galleryUrls, setGalleryUrls] = useState("");
 
-  // Settings
+  // Manual equipment (available in both modes; appended to any pulled items)
+  const [manualEquip, setManualEquip] = useState<ManualEquip[]>([]);
+
+  // ── Settings ──
   const [template, setTemplate] = useState<ProposalTemplate>("minimal");
   const [pickerVisible, setPickerVisible] = useState(false);
   const [proposalType, setProposalType] = useState<ProposalType>("sale");
@@ -127,6 +239,27 @@ export default function ProposalFormScreen() {
   const [watermark, setWatermark] = useState(false);
 
   const loadingYacht = yachtId && (yachtQ.isLoading || equipQ.isLoading);
+
+  const switchUnit = (next: "metric" | "imperial") => {
+    if (next === dimUnit) return;
+    const conv = (s: string): string => {
+      const n = toNum(s);
+      if (n == null) return s;
+      return next === "imperial"
+        ? (n / M_PER_FT).toFixed(1)
+        : (n * M_PER_FT).toFixed(2);
+    };
+    setLengthInput((v) => conv(v));
+    setBeamInput((v) => conv(v));
+    setDraftInput((v) => conv(v));
+    setDimUnit(next);
+  };
+
+  const addEquip = () => setManualEquip((p) => [...p, blankEquip()]);
+  const updateEquip = (id: string, patch: Partial<ManualEquip>) =>
+    setManualEquip((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  const removeEquip = (id: string) =>
+    setManualEquip((p) => p.filter((e) => e.id !== id));
 
   const snapshot: ProposalYachtSnapshot = useMemo(() => {
     if (y) {
@@ -161,21 +294,53 @@ export default function ProposalFormScreen() {
         photo_urls: Array.isArray(y.photo_urls) ? y.photo_urls : null,
       };
     }
+    const toMeters = (s: string): number | null => {
+      const n = toNum(s);
+      if (n == null) return null;
+      const m = dimUnit === "imperial" ? n * M_PER_FT : n;
+      return Number(m.toFixed(2));
+    };
+    const gallery = galleryUrls
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const cover = coverPhotoUrl.trim() || null;
     return {
       name: name.trim() || "Untitled yacht",
       builder: builder.trim() || null,
       model: model.trim() || null,
       yacht_type: yachtType.trim() || null,
       year_built: toNum(yearBuilt),
-      length_meters: toNum(lengthMeters),
-      beam_meters: toNum(beamMeters),
-      draft_meters: toNum(draftMeters),
+      length_meters: toMeters(lengthInput),
+      beam_meters: toMeters(beamInput),
+      draft_meters: toMeters(draftInput),
       flag: flag.trim() || null,
       home_port: homePort.trim() || null,
       cabins: toNum(cabins),
       guests: toNum(guests),
       crew: toNum(crew),
       berths: toNum(berths),
+      heads: toNum(heads),
+      crew_cabins: toNum(crewCabins),
+      engine_maker: engineMaker.trim() || null,
+      engine_model: engineModel.trim() || null,
+      engine_count: toNum(engineCount),
+      total_hp: toNum(totalHp),
+      engine_hours: toNum(engineHours),
+      max_speed_knots: toNum(maxSpeed),
+      cruising_speed_knots: toNum(cruiseSpeed),
+      range_nm: toNum(rangeNm),
+      fuel_capacity_l: toNum(fuelCapacity),
+      water_capacity_l: toNum(waterCapacity),
+      hull_material: hullMaterial.trim() || null,
+      hull_type: hullType.trim() || null,
+      vat_status: vatStatus.trim() || null,
+      registration_number: registrationNumber.trim() || null,
+      imo_number: imoNumber.trim() || null,
+      hull_id: hullId.trim() || null,
+      cover_photo_url: cover,
+      photo_url: cover,
+      photo_urls: gallery.length ? gallery : null,
     };
   }, [
     y,
@@ -184,18 +349,43 @@ export default function ProposalFormScreen() {
     model,
     yachtType,
     yearBuilt,
-    lengthMeters,
-    beamMeters,
-    draftMeters,
+    dimUnit,
+    lengthInput,
+    beamInput,
+    draftInput,
     flag,
     homePort,
     cabins,
     guests,
     crew,
     berths,
+    heads,
+    crewCabins,
+    engineMaker,
+    engineModel,
+    engineCount,
+    totalHp,
+    engineHours,
+    maxSpeed,
+    cruiseSpeed,
+    rangeNm,
+    fuelCapacity,
+    waterCapacity,
+    hullMaterial,
+    hullType,
+    vatStatus,
+    registrationNumber,
+    imoNumber,
+    hullId,
+    coverPhotoUrl,
+    galleryUrls,
   ]);
 
   const onPreview = () => {
+    if (yachtId && (loadingYacht || !y)) {
+      Alert.alert("Still loading", "Please wait for the yacht details to load.");
+      return;
+    }
     if (!snapshot.name || snapshot.name === "Untitled yacht") {
       if (!yachtId) {
         Alert.alert("Yacht name required", "Please enter at least the yacht name.");
@@ -224,20 +414,45 @@ export default function ProposalFormScreen() {
       broker_website: brokerWebsite.trim() || null,
     };
 
-    const equipmentItems = (equipQ.data?.items ?? []).map((e) => ({
-      category: e.category,
-      equipment_type: e.equipment_type,
-      brand: e.brand ?? null,
-      model: e.model ?? null,
-      quantity: e.quantity ?? null,
-      power_kw: e.power_kw ?? null,
-      power_hp: e.power_hp ?? null,
-      capacity_liters: e.capacity_liters ?? null,
-      capacity_persons: e.capacity_persons ?? null,
-      total_watts: e.total_watts ?? null,
-      year_installed: e.year_installed ?? null,
-      notes: e.notes ?? null,
-    }));
+    // Equipment pulled from My Yacht (linked mode) …
+    const linkedEquip: ProposalEquipmentItem[] = (equipQ.data?.items ?? []).map(
+      (e) => ({
+        category: e.category,
+        equipment_type: e.equipment_type,
+        brand: e.brand ?? null,
+        model: e.model ?? null,
+        quantity: e.quantity ?? null,
+        power_kw: e.power_kw ?? null,
+        power_hp: e.power_hp ?? null,
+        capacity_liters: e.capacity_liters ?? null,
+        capacity_persons: e.capacity_persons ?? null,
+        total_watts: e.total_watts ?? null,
+        year_installed: e.year_installed ?? null,
+        hours: e.hours ?? null,
+        notes: e.notes ?? null,
+      }),
+    );
+
+    // … plus any equipment entered manually on this screen.
+    const manualEquipItems: ProposalEquipmentItem[] = manualEquip
+      .filter((e) => e.equipment_type.trim())
+      .map((e) => ({
+        category: e.category.trim() || "other",
+        equipment_type: e.equipment_type.trim(),
+        brand: e.brand.trim() || null,
+        model: e.model.trim() || null,
+        quantity: toNum(e.quantity),
+        power_kw: toNum(e.power_kw),
+        power_hp: toNum(e.power_hp),
+        capacity_liters: toNum(e.capacity_liters),
+        capacity_persons: toNum(e.capacity_persons),
+        total_watts: toNum(e.total_watts),
+        year_installed: toNum(e.year_installed),
+        hours: toNum(e.hours),
+        notes: e.notes.trim() || null,
+      }));
+
+    const equipmentItems = [...linkedEquip, ...manualEquipItems];
 
     router.push({
       pathname: "/yacht-proposal/preview",
@@ -252,6 +467,7 @@ export default function ProposalFormScreen() {
 
   const showSalePrice = proposalType === "sale" || proposalType === "both";
   const showCharter = proposalType === "charter" || proposalType === "both";
+  const dimSuffix = dimUnit === "metric" ? "m" : "ft";
 
   return (
     <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 56 }]}>
@@ -261,6 +477,7 @@ export default function ProposalFormScreen() {
           paddingBottom: insets.bottom + 120,
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Pressable
           onPress={() => router.back()}
@@ -284,92 +501,421 @@ export default function ProposalFormScreen() {
         ) : null}
 
         {!yachtId && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Yacht details</Text>
-            <Field label="Yacht name *" value={name} onChange={setName} />
-            <Field label="Builder" value={builder} onChange={setBuilder} />
-            <Field label="Model" value={model} onChange={setModel} />
-            <Field
-              label="Type (e.g. motor_yacht)"
-              value={yachtType}
-              onChange={setYachtType}
-              autoCapitalize="none"
-            />
-            <Row2>
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Yacht basics</Text>
+              <Field label="Yacht name *" value={name} onChange={setName} />
+              <Row2>
+                <Field label="Builder" value={builder} onChange={setBuilder} half />
+                <Field label="Model" value={model} onChange={setModel} half />
+              </Row2>
+              <PillSelect
+                label="Type"
+                options={YACHT_TYPE_OPTIONS}
+                value={yachtType}
+                onChange={setYachtType}
+              />
               <Field
                 label="Year built"
                 value={yearBuilt}
                 onChange={setYearBuilt}
                 keyboardType="number-pad"
-                half
               />
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>Dimensions</Text>
+                <View style={styles.unitToggle}>
+                  {(["metric", "imperial"] as const).map((u) => {
+                    const active = dimUnit === u;
+                    return (
+                      <Pressable
+                        key={u}
+                        onPress={() => switchUnit(u)}
+                        style={[styles.unitBtn, active && styles.segActive]}
+                      >
+                        <Text
+                          style={[styles.unitText, active && styles.segTextActive]}
+                        >
+                          {u === "metric" ? "m" : "ft"}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+              <Row2>
+                <Field
+                  label={`Length (${dimSuffix})`}
+                  value={lengthInput}
+                  onChange={setLengthInput}
+                  keyboardType="decimal-pad"
+                  half
+                />
+                <Field
+                  label={`Beam (${dimSuffix})`}
+                  value={beamInput}
+                  onChange={setBeamInput}
+                  keyboardType="decimal-pad"
+                  half
+                />
+              </Row2>
               <Field
-                label="Length (m)"
-                value={lengthMeters}
-                onChange={setLengthMeters}
+                label={`Draft (${dimSuffix})`}
+                value={draftInput}
+                onChange={setDraftInput}
                 keyboardType="decimal-pad"
-                half
               />
-            </Row2>
-            <Row2>
+              <PillSelect
+                label="Hull material"
+                options={HULL_MATERIAL_OPTIONS}
+                value={hullMaterial}
+                onChange={setHullMaterial}
+              />
+              <PillSelect
+                label="Hull type"
+                options={HULL_TYPE_OPTIONS}
+                value={hullType}
+                onChange={setHullType}
+              />
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Accommodation</Text>
+              <Row2>
+                <Field
+                  label="Guest cabins"
+                  value={cabins}
+                  onChange={setCabins}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Guests sleeping"
+                  value={guests}
+                  onChange={setGuests}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Berths"
+                  value={berths}
+                  onChange={setBerths}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Heads"
+                  value={heads}
+                  onChange={setHeads}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Crew"
+                  value={crew}
+                  onChange={setCrew}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Crew cabins"
+                  value={crewCabins}
+                  onChange={setCrewCabins}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Engines & performance</Text>
+              <Row2>
+                <Field
+                  label="Engine maker"
+                  value={engineMaker}
+                  onChange={setEngineMaker}
+                  half
+                />
+                <Field
+                  label="Engine model"
+                  value={engineModel}
+                  onChange={setEngineModel}
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Engines"
+                  value={engineCount}
+                  onChange={setEngineCount}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Total HP"
+                  value={totalHp}
+                  onChange={setTotalHp}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Engine hours"
+                  value={engineHours}
+                  onChange={setEngineHours}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Range (nm)"
+                  value={rangeNm}
+                  onChange={setRangeNm}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Max speed (kn)"
+                  value={maxSpeed}
+                  onChange={setMaxSpeed}
+                  keyboardType="decimal-pad"
+                  half
+                />
+                <Field
+                  label="Cruise speed (kn)"
+                  value={cruiseSpeed}
+                  onChange={setCruiseSpeed}
+                  keyboardType="decimal-pad"
+                  half
+                />
+              </Row2>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Capacities</Text>
+              <Row2>
+                <Field
+                  label="Fuel capacity (L)"
+                  value={fuelCapacity}
+                  onChange={setFuelCapacity}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Water capacity (L)"
+                  value={waterCapacity}
+                  onChange={setWaterCapacity}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Registration & legal</Text>
+              <Row2>
+                <Field label="Flag" value={flag} onChange={setFlag} half />
+                <Field
+                  label="Home port"
+                  value={homePort}
+                  onChange={setHomePort}
+                  half
+                />
+              </Row2>
+              <PillSelect
+                label="VAT status"
+                options={VAT_OPTIONS}
+                value={vatStatus}
+                onChange={setVatStatus}
+              />
               <Field
-                label="Beam (m)"
-                value={beamMeters}
-                onChange={setBeamMeters}
-                keyboardType="decimal-pad"
-                half
+                label="Registration no."
+                value={registrationNumber}
+                onChange={setRegistrationNumber}
+                autoCapitalize="characters"
+              />
+              <Row2>
+                <Field
+                  label="IMO number"
+                  value={imoNumber}
+                  onChange={setImoNumber}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Hull ID (HIN)"
+                  value={hullId}
+                  onChange={setHullId}
+                  autoCapitalize="characters"
+                  half
+                />
+              </Row2>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Photos</Text>
+              <Field
+                label="Cover photo URL (https)"
+                value={coverPhotoUrl}
+                onChange={setCoverPhotoUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+                placeholder="https://…"
               />
               <Field
-                label="Draft (m)"
-                value={draftMeters}
-                onChange={setDraftMeters}
-                keyboardType="decimal-pad"
-                half
+                label="Gallery photo URLs — one per line"
+                value={galleryUrls}
+                onChange={setGalleryUrls}
+                autoCapitalize="none"
+                keyboardType="url"
+                placeholder={"https://…\nhttps://…"}
+                multiline
               />
-            </Row2>
-            <Row2>
-              <Field label="Flag" value={flag} onChange={setFlag} half />
-              <Field
-                label="Home port"
-                value={homePort}
-                onChange={setHomePort}
-                half
-              />
-            </Row2>
-            <Row2>
-              <Field
-                label="Guest cabins"
-                value={cabins}
-                onChange={setCabins}
-                keyboardType="number-pad"
-                half
-              />
-              <Field
-                label="Guests"
-                value={guests}
-                onChange={setGuests}
-                keyboardType="number-pad"
-                half
-              />
-            </Row2>
-            <Row2>
-              <Field
-                label="Berths"
-                value={berths}
-                onChange={setBerths}
-                keyboardType="number-pad"
-                half
-              />
-              <Field
-                label="Crew"
-                value={crew}
-                onChange={setCrew}
-                keyboardType="number-pad"
-                half
-              />
-            </Row2>
-          </View>
+              <Text style={styles.helpText}>
+                Only public https image links appear in the PDF.
+              </Text>
+            </View>
+          </>
         )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            Equipment{yachtId ? " (added to this proposal)" : ""}
+          </Text>
+          {manualEquip.length === 0 ? (
+            <Text style={styles.helpText}>
+              {yachtId
+                ? "Add extra items on top of those pulled from My Yacht."
+                : "Add equipment to feature in the proposal."}
+            </Text>
+          ) : null}
+          {manualEquip.map((e, idx) => (
+            <View key={e.id} style={styles.equipCard}>
+              <View style={styles.equipCardHead}>
+                <Text style={styles.equipCardTitle}>Item {idx + 1}</Text>
+                <Pressable
+                  onPress={() => removeEquip(e.id)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove item ${idx + 1}`}
+                >
+                  <Feather name="x" size={18} color={MUTED} />
+                </Pressable>
+              </View>
+              <PillSelect
+                label="Category"
+                options={EQUIP_CATEGORIES}
+                value={e.category}
+                onChange={(v) => updateEquip(e.id, { category: v || "other" })}
+              />
+              <Field
+                label="Item name *"
+                value={e.equipment_type}
+                onChange={(v) => updateEquip(e.id, { equipment_type: v })}
+                placeholder="e.g. Bow thruster"
+              />
+              <Row2>
+                <Field
+                  label="Brand"
+                  value={e.brand}
+                  onChange={(v) => updateEquip(e.id, { brand: v })}
+                  half
+                />
+                <Field
+                  label="Model"
+                  value={e.model}
+                  onChange={(v) => updateEquip(e.id, { model: v })}
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Quantity"
+                  value={e.quantity}
+                  onChange={(v) => updateEquip(e.id, { quantity: v })}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Year installed"
+                  value={e.year_installed}
+                  onChange={(v) => updateEquip(e.id, { year_installed: v })}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Power (kW)"
+                  value={e.power_kw}
+                  onChange={(v) => updateEquip(e.id, { power_kw: v })}
+                  keyboardType="decimal-pad"
+                  half
+                />
+                <Field
+                  label="Power (HP)"
+                  value={e.power_hp}
+                  onChange={(v) => updateEquip(e.id, { power_hp: v })}
+                  keyboardType="decimal-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Total watts"
+                  value={e.total_watts}
+                  onChange={(v) => updateEquip(e.id, { total_watts: v })}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Hours"
+                  value={e.hours}
+                  onChange={(v) => updateEquip(e.id, { hours: v })}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Row2>
+                <Field
+                  label="Capacity (L)"
+                  value={e.capacity_liters}
+                  onChange={(v) => updateEquip(e.id, { capacity_liters: v })}
+                  keyboardType="number-pad"
+                  half
+                />
+                <Field
+                  label="Capacity (pax)"
+                  value={e.capacity_persons}
+                  onChange={(v) => updateEquip(e.id, { capacity_persons: v })}
+                  keyboardType="number-pad"
+                  half
+                />
+              </Row2>
+              <Field
+                label="Notes"
+                value={e.notes}
+                onChange={(v) => updateEquip(e.id, { notes: v })}
+                multiline
+              />
+            </View>
+          ))}
+          <Pressable
+            onPress={addEquip}
+            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Feather name="plus" size={16} color={GOLD} />
+            <Text style={styles.addBtnText}>Add equipment item</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Template</Text>
@@ -530,9 +1076,10 @@ export default function ProposalFormScreen() {
 
         <Pressable
           onPress={onPreview}
+          disabled={!!loadingYacht}
           style={({ pressed }) => [
             styles.primaryBtn,
-            { opacity: pressed ? 0.85 : 1 },
+            { opacity: loadingYacht ? 0.5 : pressed ? 0.85 : 1 },
           ]}
         >
           <Feather name="file-text" size={18} color={NAVY} />
@@ -557,6 +1104,9 @@ function Field({
   keyboardType,
   autoCapitalize,
   half,
+  multiline,
+  placeholder,
+  hidden,
 }: {
   label: string;
   value: string;
@@ -564,7 +1114,11 @@ function Field({
   keyboardType?: React.ComponentProps<typeof TextInput>["keyboardType"];
   autoCapitalize?: React.ComponentProps<typeof TextInput>["autoCapitalize"];
   half?: boolean;
+  multiline?: boolean;
+  placeholder?: string;
+  hidden?: boolean;
 }) {
+  if (hidden) return null;
   return (
     <View style={[styles.field, half && { flex: 1 }]}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -573,9 +1127,45 @@ function Field({
         onChangeText={onChange}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        placeholder={placeholder}
         placeholderTextColor={FAINT}
-        style={styles.fieldInput}
+        multiline={multiline}
+        style={[styles.fieldInput, multiline && styles.fieldInputMulti]}
       />
+    </View>
+  );
+}
+
+function PillSelect({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: Option[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.segRow}>
+        {options.map((o) => {
+          const active = value === o.value;
+          return (
+            <Pressable
+              key={o.value}
+              onPress={() => onChange(active ? "" : o.value)}
+              style={[styles.segSmall, active && styles.segActive]}
+            >
+              <Text style={[styles.segText, active && styles.segTextActive]}>
+                {o.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -617,6 +1207,12 @@ const styles = StyleSheet.create({
     borderColor: DIVIDER,
     marginBottom: 14,
   },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
   sectionTitle: {
     color: GOLD,
     fontFamily: "Inter_600SemiBold",
@@ -624,6 +1220,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: "uppercase",
     marginBottom: 10,
+  },
+  helpText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 4,
   },
   row2: { flexDirection: "row", gap: 10 },
   field: { marginBottom: 10 },
@@ -645,6 +1248,61 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: DIVIDER,
   },
+  fieldInputMulti: { minHeight: 70, textAlignVertical: "top" },
+  unitToggle: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 10,
+  },
+  unitBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: NAVY_ELEV,
+    minWidth: 42,
+    alignItems: "center",
+  },
+  unitText: {
+    color: MUTED,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+  },
+  equipCard: {
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    marginBottom: 12,
+  },
+  equipCardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  equipCardTitle: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(201,169,97,0.5)",
+    backgroundColor: "rgba(201,169,97,0.06)",
+    marginTop: 2,
+  },
+  addBtnText: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   templateRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -732,4 +1390,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
-

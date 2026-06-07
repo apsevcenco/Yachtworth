@@ -1,0 +1,157 @@
+PROPOSAL FORM — ADD BROKER-CRITICAL YACHT DATA + EQUIPMENT INPUT
+
+Goal:
+Upgrade Yacht Proposal form so a broker can create a proper Sale Proposal manually from inside the app, without first creating the yacht in MyYachts.
+
+Scope:
+Frontend app only unless type definitions require small shared updates.
+
+Likely files:
+- artifacts/yachtworth-app/app/yacht-proposal/form.tsx
+- artifacts/yachtworth-app/lib/proposalTypes.ts
+- artifacts/yachtworth-app/lib/documentExport.ts only if new fields are not already passed to backend
+- reuse existing MyYachts constants/components if available
+
+Do not touch:
+- PDF layout
+- backend PDF builders
+- valuation
+- DOCX
+- survey
+- ROI
+- charter
+- pricing calculations
+- Supabase schema unless absolutely required
+- architecture
+
+Task 1 — compare first
+
+Before coding, inspect:
+- MyYachts yacht input form
+- MyYachts equipment/options input
+- current Proposal yacht form
+- current Proposal equipment form
+
+Reuse existing MyYachts dropdown/options/components where possible.
+
+Task 2 — add missing yacht fields to Proposal form
+
+Add these manual input fields:
+
+Yacht basics:
+- yacht type dropdown, not free text
+- hull material
+- hull type
+
+Dimensions:
+- metric / imperial switch
+- length
+- beam
+- draft
+
+Accommodation:
+- cabins
+- guests
+- berths
+- heads
+- crew
+- crew cabins
+
+Engines:
+- engine maker
+- engine model
+- engine count
+- total HP
+- engine hours
+
+Performance:
+- max speed
+- cruising speed
+- range
+
+Capacities:
+- fuel capacity
+- water capacity
+
+Legal / registration:
+- VAT status dropdown
+- registration number
+- IMO number
+- hull ID
+- flag
+- home port
+
+Photos:
+- cover photo URL
+- gallery photo URLs multiline
+
+Task 3 — add equipment/options input to Proposal form
+
+Proposal must allow manual equipment entry, not only equipment pulled from MyYachts.
+
+Add or reuse equipment editor with these fields:
+
+- category dropdown
+- equipment type dropdown or text fallback
+- brand
+- model
+- quantity
+- power kW
+- power HP
+- total watts
+- capacity liters
+- capacity persons
+- hours
+- year installed
+- notes
+
+Equipment categories must include:
+- Power
+- Navigation
+- Safety
+- Comfort
+- Water
+- Deck
+- Toys
+- Tenders
+- Other
+
+Task 4 — data mapping
+
+Ensure all new yacht fields are saved into the Proposal yacht snapshot / payload used by exportProposalDocument.
+
+Ensure equipment is saved into reportData.equipment in the same shape the Proposal PDF builder already expects.
+
+Do not change PDF builder unless field names are missing from existing types.
+
+Task 5 — UI
+
+Keep UI simple:
+- grouped sections
+- collapsible if already used in the app
+- same style as existing app
+- no new design system
+- no new architecture
+
+Task 6 — validation
+
+Test manually:
+1. Create Proposal without selecting existing MyYachts yacht.
+2. Fill yacht data.
+3. Add equipment manually.
+4. Add photo URLs.
+5. Export Professional PDF.
+6. Confirm PDF receives:
+   - engines
+   - VAT
+   - registration
+   - heads / crew cabins
+   - equipment
+   - photos
+
+Return only:
+- files changed
+- fields added
+- whether MyYachts components/options were reused
+- commit SHA
+- screenshots of updated Proposal form
