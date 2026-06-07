@@ -2112,12 +2112,62 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Yacht"
+    RoiYachtSnapshot:
+      type: object
+      description: >-
+        Passport-only snapshot of a yacht for an ROI calculation that is NOT
+        backed by a saved My-Yacht profile (manual entry). Carries identity and
+        dimensions only — purchase price, crew, expenses and financing are
+        supplied separately via `overrides`. A manual ROI yacht is persisted ONLY
+        in ROI history (roi_calculations.yacht_snapshot) and never creates a row
+        in the yachts table.
+      properties:
+        name:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        year_built:
+          type: ["integer", "null"]
+        yacht_type:
+          type: ["string", "null"]
+        length_meters:
+          type: ["number", "null"]
+        beam_meters:
+          type: ["number", "null"]
+        cabins:
+          type: ["integer", "null"]
+        guests:
+          type: ["integer", "null"]
+        crew:
+          type: ["integer", "null"]
+        engine_hours:
+          type: ["integer", "null"]
+        marina_location:
+          type: ["string", "null"]
+        flag:
+          type: ["string", "null"]
+        commercial_registration:
+          type: ["boolean", "null"]
     RoiCalculationInput:
       type: object
-      required: [yacht_id, region, pricing_mode]
+      required: [region, pricing_mode]
       properties:
         yacht_id:
-          type: string
+          type: ["string", "null"]
+          description: >-
+            ID of a saved My-Yacht profile to pull passport/dimensions from.
+            Provide EITHER yacht_id OR yacht_snapshot. My-Yacht profiles are
+            read-only here; ROI never writes back to them.
+        yacht_snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/RoiYachtSnapshot"
+            - type: "null"
+          description: >-
+            Passport snapshot for a manually-entered yacht (no saved profile).
+            Provide EITHER yacht_id OR yacht_snapshot. Persisted only in ROI
+            history; never creates a yachts row.
         region:
           $ref: "#/components/schemas/CharterRegion"
         occupancy_target:
@@ -2178,6 +2228,13 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/CrewMember"
+        purchase_price_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: >-
+            Yacht purchase price for THIS calculation (capital base for ROI /
+            payback / depreciation). Lives only in ROI — entered on the scenario
+            screen, prefilled from a saved yacht when present, never written back.
         monthly_crew_eur:
           type: ["number", "null"]
           minimum: 0
@@ -2453,7 +2510,6 @@ components:
       type: object
       required:
         - id
-        - yacht_id
         - created_at
         - region
         - annual_revenue_eur
@@ -2463,7 +2519,8 @@ components:
         id:
           type: string
         yacht_id:
-          type: string
+          type: ["string", "null"]
+          description: Null for manually-entered (snapshot-only) ROI yachts.
         created_at:
           type: string
         region:
@@ -2488,12 +2545,17 @@ components:
             $ref: "#/components/schemas/RoiCalculationListItem"
     RoiCalculationDetail:
       type: object
-      required: [id, yacht_id, created_at, input, result]
+      required: [id, created_at, input, result]
       properties:
         id:
           type: string
         yacht_id:
-          type: string
+          type: ["string", "null"]
+          description: Null for manually-entered (snapshot-only) ROI yachts.
+        yacht_snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/RoiYachtSnapshot"
+            - type: "null"
         created_at:
           type: string
         input:

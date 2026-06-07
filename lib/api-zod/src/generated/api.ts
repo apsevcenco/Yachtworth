@@ -1460,6 +1460,8 @@ export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 
 
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
 
+export const calculateRoiBodyOverridesOnePurchasePriceEurMin = 0;
+
 export const calculateRoiBodyOverridesOneMonthlyCrewEurMin = 0;
 
 export const calculateRoiBodyOverridesOneMonthlyMooringEurMin = 0;
@@ -1496,7 +1498,40 @@ export const calculateRoiBodyOverridesOneLoanRatePctMin = 0;
 export const calculateRoiBodyOverridesOneLoanTermYearsMin = 0;
 
 export const CalculateRoiBody = zod.object({
-  yacht_id: zod.string(),
+  yacht_id: zod
+    .string()
+    .nullish()
+    .describe(
+      "ID of a saved My-Yacht profile to pull passport\/dimensions from. Provide EITHER yacht_id OR yacht_snapshot. My-Yacht profiles are read-only here; ROI never writes back to them.",
+    ),
+  yacht_snapshot: zod
+    .union([
+      zod
+        .object({
+          name: zod.string().nullish(),
+          brand: zod.string().nullish(),
+          model: zod.string().nullish(),
+          year_built: zod.number().nullish(),
+          yacht_type: zod.string().nullish(),
+          length_meters: zod.number().nullish(),
+          beam_meters: zod.number().nullish(),
+          cabins: zod.number().nullish(),
+          guests: zod.number().nullish(),
+          crew: zod.number().nullish(),
+          engine_hours: zod.number().nullish(),
+          marina_location: zod.string().nullish(),
+          flag: zod.string().nullish(),
+          commercial_registration: zod.boolean().nullish(),
+        })
+        .describe(
+          "Passport-only snapshot of a yacht for an ROI calculation that is NOT backed by a saved My-Yacht profile (manual entry). Carries identity and dimensions only — purchase price, crew, expenses and financing are supplied separately via `overrides`. A manual ROI yacht is persisted ONLY in ROI history (roi_calculations.yacht_snapshot) and never creates a row in the yachts table.",
+        ),
+      zod.null(),
+    ])
+    .optional()
+    .describe(
+      "Passport snapshot for a manually-entered yacht (no saved profile). Provide EITHER yacht_id OR yacht_snapshot. Persisted only in ROI history; never creates a yachts row.",
+    ),
   region: zod.enum([
     "mediterranean",
     "caribbean",
@@ -1579,6 +1614,13 @@ export const CalculateRoiBody = zod.object({
               }),
             )
             .nullish(),
+          purchase_price_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOnePurchasePriceEurMin)
+            .nullish()
+            .describe(
+              "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
+            ),
           monthly_crew_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyCrewEurMin)
@@ -1829,7 +1871,10 @@ export const ListRoiCalculationsResponse = zod.object({
   items: zod.array(
     zod.object({
       id: zod.string(),
-      yacht_id: zod.string(),
+      yacht_id: zod
+        .string()
+        .nullish()
+        .describe("Null for manually-entered (snapshot-only) ROI yachts."),
       created_at: zod.string(),
       region: zod.string(),
       annual_revenue_eur: zod.number(),
@@ -2516,6 +2561,8 @@ export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlyS
 
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
 
+export const getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin = 0;
+
 export const getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneMonthlyMooringEurMin = 0;
@@ -2557,10 +2604,71 @@ export const getRoiCalculationResponseResultRevenueByMonthItemMonthMax = 12;
 
 export const GetRoiCalculationResponse = zod.object({
   id: zod.string(),
-  yacht_id: zod.string(),
+  yacht_id: zod
+    .string()
+    .nullish()
+    .describe("Null for manually-entered (snapshot-only) ROI yachts."),
+  yacht_snapshot: zod
+    .union([
+      zod
+        .object({
+          name: zod.string().nullish(),
+          brand: zod.string().nullish(),
+          model: zod.string().nullish(),
+          year_built: zod.number().nullish(),
+          yacht_type: zod.string().nullish(),
+          length_meters: zod.number().nullish(),
+          beam_meters: zod.number().nullish(),
+          cabins: zod.number().nullish(),
+          guests: zod.number().nullish(),
+          crew: zod.number().nullish(),
+          engine_hours: zod.number().nullish(),
+          marina_location: zod.string().nullish(),
+          flag: zod.string().nullish(),
+          commercial_registration: zod.boolean().nullish(),
+        })
+        .describe(
+          "Passport-only snapshot of a yacht for an ROI calculation that is NOT backed by a saved My-Yacht profile (manual entry). Carries identity and dimensions only — purchase price, crew, expenses and financing are supplied separately via `overrides`. A manual ROI yacht is persisted ONLY in ROI history (roi_calculations.yacht_snapshot) and never creates a row in the yachts table.",
+        ),
+      zod.null(),
+    ])
+    .optional(),
   created_at: zod.string(),
   input: zod.object({
-    yacht_id: zod.string(),
+    yacht_id: zod
+      .string()
+      .nullish()
+      .describe(
+        "ID of a saved My-Yacht profile to pull passport\/dimensions from. Provide EITHER yacht_id OR yacht_snapshot. My-Yacht profiles are read-only here; ROI never writes back to them.",
+      ),
+    yacht_snapshot: zod
+      .union([
+        zod
+          .object({
+            name: zod.string().nullish(),
+            brand: zod.string().nullish(),
+            model: zod.string().nullish(),
+            year_built: zod.number().nullish(),
+            yacht_type: zod.string().nullish(),
+            length_meters: zod.number().nullish(),
+            beam_meters: zod.number().nullish(),
+            cabins: zod.number().nullish(),
+            guests: zod.number().nullish(),
+            crew: zod.number().nullish(),
+            engine_hours: zod.number().nullish(),
+            marina_location: zod.string().nullish(),
+            flag: zod.string().nullish(),
+            commercial_registration: zod.boolean().nullish(),
+          })
+          .describe(
+            "Passport-only snapshot of a yacht for an ROI calculation that is NOT backed by a saved My-Yacht profile (manual entry). Carries identity and dimensions only — purchase price, crew, expenses and financing are supplied separately via `overrides`. A manual ROI yacht is persisted ONLY in ROI history (roi_calculations.yacht_snapshot) and never creates a row in the yachts table.",
+          ),
+        zod.null(),
+      ])
+      .optional()
+      .describe(
+        "Passport snapshot for a manually-entered yacht (no saved profile). Provide EITHER yacht_id OR yacht_snapshot. Persisted only in ROI history; never creates a yachts row.",
+      ),
     region: zod.enum([
       "mediterranean",
       "caribbean",
@@ -2648,6 +2756,15 @@ export const GetRoiCalculationResponse = zod.object({
                 }),
               )
               .nullish(),
+            purchase_price_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin,
+              )
+              .nullish()
+              .describe(
+                "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
+              ),
             monthly_crew_eur: zod
               .number()
               .min(getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin)

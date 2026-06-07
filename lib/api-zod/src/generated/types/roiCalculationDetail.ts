@@ -7,10 +7,16 @@
  */
 import type { RoiCalculation } from "./roiCalculation";
 import type { RoiCalculationInput } from "./roiCalculationInput";
+import type { RoiYachtSnapshot } from "./roiYachtSnapshot";
 
 export interface RoiCalculationDetail {
   id: string;
-  yacht_id: string;
+  /**
+   * Null for manually-entered (snapshot-only) ROI yachts.
+   * @nullable
+   */
+  yacht_id?: string | null;
+  yacht_snapshot?: RoiYachtSnapshot | null;
   created_at: string;
   input: RoiCalculationInput;
   result: RoiCalculation;

@@ -23,6 +23,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useUnits } from "../../hooks/useUnits";
 import {
   ANNUAL_FIELDS,
   buildRoiOverrides,
@@ -98,12 +99,45 @@ function parseInt10(v: string) {
   return isFinite(n) ? n : null;
 }
 
+const YACHT_TYPE_LABELS: Record<string, string> = {
+  motor_yacht: "Motor Yacht",
+  sailing_yacht: "Sailing Yacht",
+  catamaran: "Catamaran",
+  superyacht: "Superyacht",
+};
+
+function formatLength(
+  meters: number | null,
+  units: "metric" | "imperial",
+): string {
+  if (meters == null || !Number.isFinite(meters)) return "—";
+  if (units === "imperial") {
+    return `${Math.round(meters * 3.28084)} ft`;
+  }
+  return `${meters % 1 === 0 ? meters : meters.toFixed(1)} m`;
+}
+
 export default function RoiCalculateScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isSignedIn } = useAuth();
-  const params = useLocalSearchParams<{ yacht_id?: string }>();
+  const { units: displayUnits } = useUnits();
+  const params = useLocalSearchParams<{ yacht_id?: string; snapshot?: string }>();
   const yachtId = typeof params.yacht_id === "string" ? params.yacht_id : null;
+
+  // A manually-entered yacht arrives as a JSON passport snapshot. It is never a
+  // My Yachts record — it is sent to the backend as `yacht_snapshot` and lives
+  // only in ROI history.
+  const snapshot = useMemo<Record<string, unknown> | null>(() => {
+    if (typeof params.snapshot !== "string" || !params.snapshot) return null;
+    try {
+      const parsed = JSON.parse(params.snapshot);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [params.snapshot]);
+  const isManualYacht = !yachtId && snapshot != null;
 
   const [region, setRegion] = useState<Region>("mediterranean");
   const [occ, setOcc] = useState<Occ>("realistic");
@@ -111,6 +145,7 @@ export default function RoiCalculateScreen() {
   const [charterType, setCharterType] = useState<CharterType>("weekly");
   const [rate, setRate] = useState("");
   const [units, setUnits] = useState("");
+  const [purchasePrice, setPurchasePrice] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
   // Crew / expenses / financing — prefilled from the yacht where available,
@@ -135,6 +170,11 @@ export default function RoiCalculateScreen() {
     if (!y) return;
     hydratedRef.current = yachtId;
     setFin(hydrateFinancialsFromYacht(y as unknown as Record<string, unknown>));
+    // Prefill purchase price from a saved profile when it has one (legacy
+    // profiles created before ROI was decoupled). Purchase price is otherwise
+    // an ROI-only field, entered here.
+    const pp = (y as { purchase_price_eur?: number | null }).purchase_price_eur;
+    if (pp != null && Number.isFinite(pp)) setPurchasePrice(String(pp));
   }, [yachtId, yachtQ.data]);
 
   const updateFin = useCallback(
@@ -179,6 +219,38 @@ export default function RoiCalculateScreen() {
     [fin.crew_breakdown],
   );
 
+  // Unified passport for the read-only summary — from the saved My Yacht (when a
+  // yacht_id was passed) or the manual snapshot. ROI never writes back to it.
+  const passport = useMemo(() => {
+    const src = (yachtId ? yachtQ.data : snapshot) as
+      | Record<string, unknown>
+      | null
+      | undefined;
+    if (!src) return null;
+    const s = (k: string) =>
+      typeof src[k] === "string" && (src[k] as string).trim() !== ""
+        ? (src[k] as string)
+        : null;
+    const n = (k: string) =>
+      typeof src[k] === "number" && Number.isFinite(src[k] as number)
+        ? (src[k] as number)
+        : null;
+    const title =
+      s("name") ||
+      [s("brand"), s("model")].filter(Boolean).join(" ") ||
+      "Your yacht";
+    return {
+      title,
+      yacht_type: s("yacht_type"),
+      year_built: n("year_built"),
+      length_meters: n("length_meters"),
+      cabins: n("cabins"),
+      guests: n("guests"),
+      crew: n("crew"),
+      flag: s("flag"),
+    };
+  }, [yachtId, yachtQ.data, snapshot]);
+
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
     if (isManual) {
@@ -197,7 +269,7 @@ export default function RoiCalculateScreen() {
   }, [isManual, rate, units, pricingMode]);
 
   const onSubmit = async () => {
-    if (!yachtId) return;
+    if (!yachtId && !snapshot) return;
     if (Object.keys(errors).length) {
       setShowErrors(true);
       return;
@@ -205,10 +277,16 @@ export default function RoiCalculateScreen() {
     setShowErrors(false);
     if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
     try {
-      const overrides = buildRoiOverrides(fin);
+      // Purchase price is an ROI-only input — fold it into the overrides so the
+      // engine uses it for payback / depreciation. Never saved to the yacht.
+      const overrides = buildRoiOverrides(fin) ?? {};
+      const pp = parseNum(purchasePrice);
+      if (pp != null && pp >= 0) overrides.purchase_price_eur = pp;
+      const hasOverrides = Object.keys(overrides).length > 0;
       const result = await mutation.mutateAsync({
         data: {
-          yacht_id: yachtId,
+          yacht_id: yachtId ?? null,
+          yacht_snapshot: yachtId ? null : snapshot,
           region,
           occupancy_target: pricingMode === "ai" ? occ : null,
           pricing_mode: pricingMode,
@@ -216,7 +294,7 @@ export default function RoiCalculateScreen() {
             pricingMode === "ai" && regionCharter ? charterType : null,
           manual_rate_eur: isManual ? parseNum(rate) : null,
           manual_charter_units: isManual ? parseInt10(units) : null,
-          overrides: overrides ?? null,
+          overrides: hasOverrides ? overrides : null,
         } as never,
       });
       router.replace({
@@ -240,7 +318,7 @@ export default function RoiCalculateScreen() {
     setFinancingOpen((v) => !v);
   };
 
-  if (!yachtId) {
+  if (!yachtId && !snapshot) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
         <TopBar onBack={() => router.back()} title="Charter ROI" />
@@ -267,6 +345,62 @@ export default function RoiCalculateScreen() {
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }}
           keyboardShouldPersistTaps="handled"
         >
+          {passport ? (
+            <View style={styles.yachtSummary}>
+              <Text style={styles.yachtSummaryName} numberOfLines={1}>
+                {passport.title}
+              </Text>
+              {passport.yacht_type || passport.year_built ? (
+                <Text style={styles.yachtSummaryType}>
+                  {[
+                    passport.yacht_type
+                      ? YACHT_TYPE_LABELS[passport.yacht_type] ??
+                        passport.yacht_type
+                      : null,
+                    passport.year_built ? String(passport.year_built) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              ) : null}
+              <View style={styles.yachtSummaryRow}>
+                <SummarySpec
+                  label="Length"
+                  value={formatLength(passport.length_meters, displayUnits)}
+                />
+                <SummarySpec
+                  label="Cabins"
+                  value={passport.cabins != null ? String(passport.cabins) : "—"}
+                />
+                <SummarySpec
+                  label="Guests"
+                  value={passport.guests != null ? String(passport.guests) : "—"}
+                />
+                <SummarySpec
+                  label="Crew"
+                  value={passport.crew != null ? String(passport.crew) : "—"}
+                />
+              </View>
+              <Text style={styles.yachtSummaryHint}>
+                {isManualYacht
+                  ? "Manually entered for this ROI — not saved to My Yachts."
+                  : "Specs from My Yachts (read-only). ROI inputs stay here."}
+              </Text>
+            </View>
+          ) : null}
+
+          <Section
+            label="PURCHASE PRICE"
+            sublabel="Used for payback and depreciation. Stored only with this ROI scenario."
+          >
+            <MoneyInput
+              value={purchasePrice}
+              onChangeText={setPurchasePrice}
+              suffix="€"
+              placeholder="1500000"
+            />
+          </Section>
+
           <Section label="REGION">
             <PillGroup
               options={REGION_OPTS}
@@ -317,23 +451,25 @@ export default function RoiCalculateScreen() {
 
           {isManual ? (
             <>
-              <AIRateEstimator
-                yachtId={yachtId}
-                region={region}
-                season="high"
-                ratePeriod={pricingMode === "manual_daily" ? "day" : "week"}
-                onAccept={(acceptedRate, period) => {
-                  const wantsDaily = pricingMode === "manual_daily";
-                  const rateInWanted =
-                    wantsDaily && period === "week"
-                      ? Math.round(acceptedRate / 7)
-                      : !wantsDaily && period === "day"
-                        ? Math.round(acceptedRate * 7)
-                        : Math.round(acceptedRate);
-                  setRate(String(rateInWanted));
-                  setShowErrors(false);
-                }}
-              />
+              {yachtId ? (
+                <AIRateEstimator
+                  yachtId={yachtId}
+                  region={region}
+                  season="high"
+                  ratePeriod={pricingMode === "manual_daily" ? "day" : "week"}
+                  onAccept={(acceptedRate, period) => {
+                    const wantsDaily = pricingMode === "manual_daily";
+                    const rateInWanted =
+                      wantsDaily && period === "week"
+                        ? Math.round(acceptedRate / 7)
+                        : !wantsDaily && period === "day"
+                          ? Math.round(acceptedRate * 7)
+                          : Math.round(acceptedRate);
+                    setRate(String(rateInWanted));
+                    setShowErrors(false);
+                  }}
+                />
+              ) : null}
               <Field label={rateLabel} error={showErrors ? errors.rate : undefined}>
                 <MoneyInput
                   value={rate}
@@ -738,8 +874,63 @@ function MoneyInput({
   );
 }
 
+function SummarySpec({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summarySpec}>
+      <Text style={styles.summarySpecValue}>{value}</Text>
+      <Text style={styles.summarySpecLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
+  yachtSummary: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: "rgba(247,243,236,0.04)",
+    padding: 16,
+    marginBottom: 24,
+  },
+  yachtSummaryName: {
+    color: IVORY,
+    fontFamily: "Gilroy-Regular",
+    fontSize: 20,
+  },
+  yachtSummaryType: {
+    color: GOLD,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 0.4,
+    marginTop: 3,
+  },
+  yachtSummaryRow: {
+    flexDirection: "row",
+    marginTop: 14,
+    gap: 8,
+  },
+  yachtSummaryHint: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 14,
+  },
+  summarySpec: { flex: 1 },
+  summarySpecValue: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  summarySpecLabel: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: 3,
+  },
   topBar: {
     flexDirection: "row",
     alignItems: "center",

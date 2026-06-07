@@ -771,11 +771,51 @@ export interface YachtListResponse {
 }
 
 /**
+ * Passport-only snapshot of a yacht for an ROI calculation that is NOT backed by a saved My-Yacht profile (manual entry). Carries identity and dimensions only — purchase price, crew, expenses and financing are supplied separately via `overrides`. A manual ROI yacht is persisted ONLY in ROI history (roi_calculations.yacht_snapshot) and never creates a row in the yachts table.
+ */
+export interface RoiYachtSnapshot {
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year_built?: number | null;
+  /** @nullable */
+  yacht_type?: string | null;
+  /** @nullable */
+  length_meters?: number | null;
+  /** @nullable */
+  beam_meters?: number | null;
+  /** @nullable */
+  cabins?: number | null;
+  /** @nullable */
+  guests?: number | null;
+  /** @nullable */
+  crew?: number | null;
+  /** @nullable */
+  engine_hours?: number | null;
+  /** @nullable */
+  marina_location?: string | null;
+  /** @nullable */
+  flag?: string | null;
+  /** @nullable */
+  commercial_registration?: boolean | null;
+}
+
+/**
  * Optional overrides for the ROI calculation. crew_breakdown is stored for history/re-open; the engine uses monthly_crew_eur as the crew total.
  */
 export interface RoiExpenseOverrides {
   /** @nullable */
   crew_breakdown?: CrewMember[] | null;
+  /**
+   * Yacht purchase price for THIS calculation (capital base for ROI / payback / depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.
+   * @minimum 0
+   * @nullable
+   */
+  purchase_price_eur?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -866,7 +906,13 @@ export interface RoiExpenseOverrides {
 }
 
 export interface RoiCalculationInput {
-  yacht_id: string;
+  /**
+   * ID of a saved My-Yacht profile to pull passport/dimensions from. Provide EITHER yacht_id OR yacht_snapshot. My-Yacht profiles are read-only here; ROI never writes back to them.
+   * @nullable
+   */
+  yacht_id?: string | null;
+  /** Passport snapshot for a manually-entered yacht (no saved profile). Provide EITHER yacht_id OR yacht_snapshot. Persisted only in ROI history; never creates a yachts row. */
+  yacht_snapshot?: RoiYachtSnapshot | null;
   region: CharterRegion;
   /** Hint for AI mode; ignored in manual modes */
   occupancy_target?: OccupancyTarget | null;
@@ -1063,7 +1109,11 @@ export interface RoiCalculation {
 
 export interface RoiCalculationListItem {
   id: string;
-  yacht_id: string;
+  /**
+   * Null for manually-entered (snapshot-only) ROI yachts.
+   * @nullable
+   */
+  yacht_id?: string | null;
   created_at: string;
   region: string;
   annual_revenue_eur: number;
@@ -1081,7 +1131,12 @@ export interface RoiCalculationListResponse {
 
 export interface RoiCalculationDetail {
   id: string;
-  yacht_id: string;
+  /**
+   * Null for manually-entered (snapshot-only) ROI yachts.
+   * @nullable
+   */
+  yacht_id?: string | null;
+  yacht_snapshot?: RoiYachtSnapshot | null;
   created_at: string;
   input: RoiCalculationInput;
   result: RoiCalculation;

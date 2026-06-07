@@ -2,16 +2,13 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import {
   getListYachtsQueryKey,
-  useDeleteYacht,
   useListYachts,
   type Yacht,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -29,9 +26,6 @@ const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.08)";
-const DANGER = "#E07A6B";
-
-const MAX_YACHTS = 5;
 
 const TYPE_LABELS: Record<string, string> = {
   motor_yacht: "Motor Yacht",
@@ -44,11 +38,6 @@ function formatLength(m: number | null | undefined, units: "metric" | "imperial"
   if (m == null) return "—";
   if (units === "metric") return `${m.toFixed(1)} m`;
   return `${Math.round(m * 3.28084)} ft`;
-}
-
-function formatEur(n: number | null | undefined): string {
-  if (n == null) return "—";
-  return "€ " + Math.round(n).toLocaleString("en-US");
 }
 
 function yachtTitle(y: Yacht): string {
@@ -65,8 +54,10 @@ export default function CharterScreen() {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
   const { units } = useUnits();
-  const queryClient = useQueryClient();
 
+  // Read-only consumer of My Yachts. Charter ROI never creates, edits or
+  // deletes a yacht record — it only reads saved yachts as a starting point and
+  // also lets the user enter any yacht manually (kept in ROI history only).
   const query = useListYachts(undefined, {
     query: {
       queryKey: getListYachtsQueryKey(),
@@ -75,44 +66,7 @@ export default function CharterScreen() {
     },
   });
 
-  const deleteMut = useDeleteYacht({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListYachtsQueryKey() });
-      },
-    },
-  });
-
   const yachts: Yacht[] = query.data?.items ?? [];
-  const atLimit = yachts.length >= MAX_YACHTS;
-
-  const handleDelete = (y: Yacht) => {
-    const title = yachtTitle(y);
-    Alert.alert(
-      `Delete ${title}?`,
-      "This will also delete all ROI calculations saved for this yacht. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteMut.mutate(
-              { id: y.id! },
-              {
-                onError: (err) => {
-                  Alert.alert(
-                    "Couldn't delete yacht",
-                    err instanceof Error ? err.message : "Please try again.",
-                  );
-                },
-              },
-            );
-          },
-        },
-      ],
-    );
-  };
 
   return (
     <View style={{ flex: 1, backgroundColor: NAVY }}>
@@ -138,193 +92,139 @@ export default function CharterScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-      <View style={styles.headerBlock}>
-        <Text style={styles.kicker}>CHARTER ROI</Text>
-        <Text style={styles.title}>Investment intelligence</Text>
-        <Text style={styles.subtitle}>
-          See expected revenue, expenses, ROI and payback for your yacht in charter.
-        </Text>
-      </View>
+        <View style={styles.headerBlock}>
+          <Text style={styles.kicker}>CHARTER ROI</Text>
+          <Text style={styles.title}>Investment intelligence</Text>
+          <Text style={styles.subtitle}>
+            See expected revenue, expenses, ROI and payback for any yacht in charter.
+          </Text>
+        </View>
 
-      {!isLoaded || (isSignedIn && query.isLoading) ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={GOLD} />
-        </View>
-      ) : !isSignedIn ? (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Feather name="lock" size={26} color={GOLD} />
+        {!isLoaded || (isSignedIn && query.isLoading) ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={GOLD} />
           </View>
-          <Text style={styles.emptyTitle}>Sign in to use Charter ROI</Text>
-          <Text style={styles.emptyText}>
-            Save up to {MAX_YACHTS} yacht profiles and run unlimited charter ROI scenarios.
-          </Text>
-          <Pressable
-            onPress={() => router.push("/(auth)/sign-in")}
-            style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
-          >
-            <Text style={styles.ctaText}>Sign in</Text>
-          </Pressable>
-        </View>
-      ) : query.isError ? (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Feather name="alert-circle" size={26} color={GOLD} />
-          </View>
-          <Text style={styles.emptyTitle}>Couldn't load yachts</Text>
-          <Text style={styles.emptyText}>
-            {query.error instanceof Error ? query.error.message : "Something went wrong."}
-          </Text>
-          <Pressable
-            onPress={() => query.refetch()}
-            style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
-          >
-            <Text style={styles.ctaText}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : yachts.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Feather name="anchor" size={26} color={GOLD} />
-          </View>
-          <Text style={styles.emptyTitle}>Create your first yacht profile</Text>
-          <Text style={styles.emptyText}>
-            Tell us about your yacht once. You can save up to {MAX_YACHTS} profiles and run ROI scenarios across regions and seasons.
-          </Text>
-          <Pressable
-            onPress={() => router.push("/roi/yacht-form")}
-            style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
-          >
-            <Text style={styles.ctaText}>Create yacht profile</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View>
-          <View style={styles.listHeader}>
-            <Text style={styles.listHeaderText}>
-              {yachts.length} of {MAX_YACHTS} yacht profile{yachts.length === 1 ? "" : "s"}
+        ) : !isSignedIn ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Feather name="lock" size={26} color={GOLD} />
+            </View>
+            <Text style={styles.emptyTitle}>Sign in to use Charter ROI</Text>
+            <Text style={styles.emptyText}>
+              Run unlimited charter ROI scenarios on your saved yachts or any
+              yacht you enter manually.
             </Text>
+            <Pressable
+              onPress={() => router.push("/(auth)/sign-in")}
+              style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.ctaText}>Sign in</Text>
+            </Pressable>
           </View>
+        ) : query.isError ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Feather name="alert-circle" size={26} color={GOLD} />
+            </View>
+            <Text style={styles.emptyTitle}>Couldn't load yachts</Text>
+            <Text style={styles.emptyText}>
+              {query.error instanceof Error ? query.error.message : "Something went wrong."}
+            </Text>
+            <Pressable
+              onPress={() => query.refetch()}
+              style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.ctaText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : yachts.length === 0 ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Feather name="anchor" size={26} color={GOLD} />
+            </View>
+            <Text style={styles.emptyTitle}>Run your first ROI scenario</Text>
+            <Text style={styles.emptyText}>
+              Pick a yacht from My Yachts, or enter any yacht manually. Manual
+              entries are kept with this calculation only — they're never saved
+              to My Yachts.
+            </Text>
+            <Pressable
+              onPress={() => router.push("/roi/yacht-form")}
+              style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.ctaText}>Enter a yacht manually</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View>
+            <View style={styles.listHeader}>
+              <Text style={styles.listHeaderText}>FROM MY YACHTS</Text>
+            </View>
 
-          {yachts.map((yacht) => {
-            const hasId = Boolean(yacht.id);
-            const deleting =
-              deleteMut.isPending && deleteMut.variables?.id === yacht.id;
-            const disabled = deleting || !hasId;
-            const title = yachtTitle(yacht);
-            return (
-              <View key={yacht.id ?? title} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.yachtName} numberOfLines={1}>
-                      {yachtTitle(yacht)}
-                    </Text>
-                    {yacht.yacht_type ? (
-                      <Text style={styles.yachtType}>
-                        {TYPE_LABELS[yacht.yacht_type] ?? yacht.yacht_type}
-                        {yacht.year_built ? ` · ${yacht.year_built}` : ""}
+            {yachts.map((yacht) => {
+              const hasId = Boolean(yacht.id);
+              const title = yachtTitle(yacht);
+              return (
+                <View key={yacht.id ?? title} style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.yachtName} numberOfLines={1}>
+                        {title}
                       </Text>
-                    ) : null}
+                      {yacht.yacht_type ? (
+                        <Text style={styles.yachtType}>
+                          {TYPE_LABELS[yacht.yacht_type] ?? yacht.yacht_type}
+                          {yacht.year_built ? ` · ${yacht.year_built}` : ""}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                  <View style={styles.cardDivider} />
+                  <View style={styles.specGrid}>
+                    <Spec label="Length" value={formatLength(yacht.length_meters, units)} />
+                    <Spec label="Cabins" value={yacht.cabins != null ? String(yacht.cabins) : "—"} />
+                    <Spec label="Guests" value={yacht.guests != null ? String(yacht.guests) : "—"} />
+                    <Spec label="Crew" value={yacht.crew != null ? String(yacht.crew) : "—"} />
                   </View>
                   <Pressable
                     onPress={() =>
                       router.push({
-                        pathname: "/roi/yacht-form",
-                        params: { id: yacht.id },
+                        pathname: "/roi/calculate",
+                        params: { yacht_id: yacht.id },
                       })
                     }
-                    hitSlop={8}
-                    disabled={disabled}
+                    disabled={!hasId}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit yacht ${title}`}
+                    accessibilityLabel={`Calculate ROI for ${title}`}
                     style={({ pressed }) => [
-                      styles.iconBtn,
-                      { opacity: pressed || disabled ? 0.5 : 1 },
+                      styles.calcBtn,
+                      { opacity: pressed || !hasId ? 0.85 : 1 },
                     ]}
                   >
-                    <Feather name="edit-2" size={15} color={GOLD} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleDelete(yacht)}
-                    hitSlop={8}
-                    disabled={disabled}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete yacht ${title}`}
-                    style={({ pressed }) => [
-                      styles.iconBtn,
-                      styles.iconBtnDanger,
-                      { opacity: pressed || disabled ? 0.5 : 1, marginLeft: 8 },
-                    ]}
-                  >
-                    {deleting ? (
-                      <ActivityIndicator size="small" color={DANGER} />
-                    ) : (
-                      <Feather name="trash-2" size={15} color={DANGER} />
-                    )}
+                    <Feather name="trending-up" size={16} color={GOLD} />
+                    <Text style={styles.calcBtnText}>Calculate ROI</Text>
                   </Pressable>
                 </View>
-                <View style={styles.cardDivider} />
-                <View style={styles.specGrid}>
-                  <Spec label="Length" value={formatLength(yacht.length_meters, units)} />
-                  <Spec label="Cabins" value={yacht.cabins != null ? String(yacht.cabins) : "—"} />
-                  <Spec label="Guests" value={yacht.guests != null ? String(yacht.guests) : "—"} />
-                  <Spec label="Crew" value={yacht.crew != null ? String(yacht.crew) : "—"} />
-                  <Spec label="Marina" value={yacht.marina_location || "—"} wide />
-                  <Spec label="Purchase" value={formatEur(yacht.purchase_price_eur)} wide />
-                </View>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/roi/calculate",
-                      params: { yacht_id: yacht.id },
-                    })
-                  }
-                  disabled={disabled}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Calculate ROI for ${title}`}
-                  style={({ pressed }) => [
-                    styles.calcBtn,
-                    { opacity: pressed || disabled ? 0.85 : 1 },
-                  ]}
-                >
-                  <Feather name="trending-up" size={16} color={GOLD} />
-                  <Text style={styles.calcBtnText}>Calculate ROI</Text>
-                </Pressable>
-              </View>
-            );
-          })}
+              );
+            })}
 
-          <Pressable
-            onPress={() => {
-              if (atLimit) return;
-              router.push("/roi/yacht-form");
-            }}
-            disabled={atLimit}
-            accessibilityRole="button"
-            accessibilityLabel={atLimit ? `Yacht limit reached, ${MAX_YACHTS} maximum` : "Add yacht profile"}
-            style={({ pressed }) => [
-              styles.addBtn,
-              atLimit ? styles.addBtnDisabled : null,
-              { opacity: pressed && !atLimit ? 0.85 : 1 },
-            ]}
-          >
-            <Feather name="plus" size={18} color={atLimit ? MUTED : GOLD} />
-            <Text
-              style={[
-                styles.addBtnText,
-                atLimit ? { color: MUTED } : null,
+            <Pressable
+              onPress={() => router.push("/roi/yacht-form")}
+              accessibilityRole="button"
+              accessibilityLabel="Enter a yacht manually"
+              style={({ pressed }) => [
+                styles.addBtn,
+                { opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              {atLimit ? `Limit reached (${MAX_YACHTS} max)` : "Add yacht"}
-            </Text>
-          </Pressable>
-          {atLimit ? (
+              <Feather name="plus" size={18} color={GOLD} />
+              <Text style={styles.addBtnText}>Enter a yacht manually</Text>
+            </Pressable>
             <Text style={styles.limitHint}>
-              Delete a profile to add a new one.
+              Manual yachts are used for this ROI only — not saved to My Yachts.
             </Text>
-          ) : null}
-        </View>
-      )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -438,16 +338,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.4,
   },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderColor: GOLD,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconBtnDanger: { borderColor: DANGER },
   cardDivider: { height: 1, backgroundColor: DIVIDER, marginVertical: 16 },
   specGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   spec: { width: "47%" },
@@ -487,7 +377,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
   },
-  addBtnDisabled: { borderColor: DIVIDER, borderStyle: "solid" },
   addBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   limitHint: {
     color: MUTED,

@@ -37,6 +37,7 @@ const router: IRouter = Router();
 // Numeric yacht columns the ROI engine reads and that callers may override
 // per-calculation. crew_breakdown / financing_type are handled separately.
 const OVERRIDABLE_NUMERIC_KEYS = [
+  "purchase_price_eur",
   "monthly_crew_eur",
   "monthly_mooring_eur",
   "monthly_fuel_eur",
@@ -91,6 +92,53 @@ function applyRoiOverrides(
   return merged;
 }
 
+// Detect PostgREST/Postgres "undefined_column" (42703) so reads can fall back
+// when migration 022's yacht_snapshot column is not applied yet.
+function isUndefinedColumn(err: { code?: string; message?: string }): boolean {
+  if (err.code === "42703") return true;
+  const m = err.message?.toLowerCase() ?? "";
+  return m.includes("yacht_snapshot") && m.includes("does not exist");
+}
+
+// Build a transient YachtRow from a manual passport snapshot. The yacht is NEVER
+// written to the yachts table — it exists only for this calculation and is
+// persisted (as-is) in roi_calculations.yacht_snapshot for history/re-open.
+// Financials (purchase price, crew, expenses, financing) are intentionally left
+// null here; they arrive via `overrides`.
+function snapshotToYacht(
+  snap: Record<string, unknown>,
+  userId: string,
+): YachtRow {
+  const str = (v: unknown): string | null =>
+    typeof v === "string" && v.trim() !== "" ? v : null;
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const now = new Date().toISOString();
+  return {
+    id: "00000000-0000-0000-0000-000000000000",
+    clerk_user_id: userId,
+    created_at: now,
+    updated_at: now,
+    name: str(snap["name"]),
+    brand: str(snap["brand"]),
+    model: str(snap["model"]),
+    year_built: num(snap["year_built"]),
+    yacht_type: str(snap["yacht_type"]),
+    length_meters: num(snap["length_meters"]),
+    beam_meters: num(snap["beam_meters"]),
+    cabins: num(snap["cabins"]),
+    guests: num(snap["guests"]),
+    crew: num(snap["crew"]),
+    engine_hours: num(snap["engine_hours"]),
+    marina_location: str(snap["marina_location"]),
+    flag: str(snap["flag"]),
+    commercial_registration:
+      typeof snap["commercial_registration"] === "boolean"
+        ? (snap["commercial_registration"] as boolean)
+        : null,
+  };
+}
+
 const YACHT_COLUMNS_FOR_ROI =
   "id, clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown";
 
@@ -107,7 +155,16 @@ router.post(
     }
     const input = parsed.data;
 
-    if (!isUuid(input.yacht_id)) {
+    const hasYachtId = input.yacht_id != null && input.yacht_id !== "";
+    const snapshot =
+      input.yacht_snapshot && typeof input.yacht_snapshot === "object"
+        ? (input.yacht_snapshot as Record<string, unknown>)
+        : null;
+    if (!hasYachtId && !snapshot) {
+      res.status(400).json({ error: "yacht_id or yacht_snapshot is required" });
+      return;
+    }
+    if (hasYachtId && !isUuid(input.yacht_id as string)) {
       res.status(400).json({ error: "Invalid yacht_id" });
       return;
     }
@@ -143,21 +200,29 @@ router.post(
       return;
     }
 
-    // Load yacht (also enforces ownership)
-    const { data: yacht, error: yErr } = await sb
-      .from(YACHTS_TABLE)
-      .select(YACHT_COLUMNS_FOR_ROI)
-      .eq("clerk_user_id", req.userId!)
-      .eq("id", input.yacht_id)
-      .maybeSingle<YachtRow>();
-    if (yErr) {
-      req.log.error({ err: yErr.message }, "ROI: load yacht failed");
-      res.status(500).json({ error: yErr.message });
-      return;
-    }
-    if (!yacht) {
-      res.status(404).json({ error: "Yacht not found" });
-      return;
+    // Resolve the yacht: either a saved My-Yacht profile (read-only here, also
+    // enforces ownership) OR a transient passport snapshot for a manually
+    // entered yacht. Manual yachts are NEVER written to the yachts table.
+    let yacht: YachtRow | null = null;
+    if (hasYachtId) {
+      const { data, error: yErr } = await sb
+        .from(YACHTS_TABLE)
+        .select(YACHT_COLUMNS_FOR_ROI)
+        .eq("clerk_user_id", req.userId!)
+        .eq("id", input.yacht_id as string)
+        .maybeSingle<YachtRow>();
+      if (yErr) {
+        req.log.error({ err: yErr.message }, "ROI: load yacht failed");
+        res.status(500).json({ error: yErr.message });
+        return;
+      }
+      if (!data) {
+        res.status(404).json({ error: "Yacht not found" });
+        return;
+      }
+      yacht = data;
+    } else {
+      yacht = snapshotToYacht(snapshot!, req.userId!);
     }
 
     const yachtForCalc = applyRoiOverrides(
@@ -167,7 +232,7 @@ router.post(
 
     try {
       const result = await calculateRoi(yachtForCalc, {
-        yacht_id: input.yacht_id,
+        yacht_id: (input.yacht_id as string) ?? "",
         region: input.region,
         occupancy_target: input.occupancy_target ?? null,
         pricing_mode: input.pricing_mode,
@@ -183,7 +248,8 @@ router.post(
       const { data: saved, error: sErr } = await sb
         .from(ROI_CALCULATIONS_TABLE)
         .insert({
-          yacht_id: input.yacht_id,
+          yacht_id: hasYachtId ? (input.yacht_id as string) : null,
+          yacht_snapshot: snapshot ?? null,
           clerk_user_id: req.userId!,
           region: input.region,
           annual_revenue_eur: result.annual_revenue_eur,
@@ -268,12 +334,23 @@ router.get(
       res.status(503).json({ error: "ROI storage not configured" });
       return;
     }
-    const { data, error } = await sb
+    let { data, error } = await sb
       .from(ROI_CALCULATIONS_TABLE)
-      .select("id, yacht_id, created_at, input, result")
+      .select("id, yacht_id, yacht_snapshot, created_at, input, result")
       .eq("clerk_user_id", req.userId!)
       .eq("id", req.params["id"])
       .maybeSingle();
+    // Graceful degradation: migration 022 (yacht_snapshot column) may not be
+    // applied yet. PostgREST returns 42703 (undefined_column) — retry without
+    // the column so existing history items still open.
+    if (error && isUndefinedColumn(error)) {
+      ({ data, error } = await sb
+        .from(ROI_CALCULATIONS_TABLE)
+        .select("id, yacht_id, created_at, input, result")
+        .eq("clerk_user_id", req.userId!)
+        .eq("id", req.params["id"])
+        .maybeSingle());
+    }
     if (error) {
       req.log.error({ err: error.message }, "Get ROI calculation failed");
       res.status(500).json({ error: error.message });

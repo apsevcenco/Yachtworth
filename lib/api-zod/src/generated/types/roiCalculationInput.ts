@@ -10,9 +10,16 @@ import type { CharterType } from "./charterType";
 import type { OccupancyTarget } from "./occupancyTarget";
 import type { PricingMode } from "./pricingMode";
 import type { RoiExpenseOverrides } from "./roiExpenseOverrides";
+import type { RoiYachtSnapshot } from "./roiYachtSnapshot";
 
 export interface RoiCalculationInput {
-  yacht_id: string;
+  /**
+   * ID of a saved My-Yacht profile to pull passport/dimensions from. Provide EITHER yacht_id OR yacht_snapshot. My-Yacht profiles are read-only here; ROI never writes back to them.
+   * @nullable
+   */
+  yacht_id?: string | null;
+  /** Passport snapshot for a manually-entered yacht (no saved profile). Provide EITHER yacht_id OR yacht_snapshot. Persisted only in ROI history; never creates a yachts row. */
+  yacht_snapshot?: RoiYachtSnapshot | null;
   region: CharterRegion;
   /** Hint for AI mode; ignored in manual modes */
   occupancy_target?: OccupancyTarget | null;

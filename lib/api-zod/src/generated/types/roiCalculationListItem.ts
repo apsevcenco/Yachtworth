@@ -8,7 +8,11 @@
 
 export interface RoiCalculationListItem {
   id: string;
-  yacht_id: string;
+  /**
+   * Null for manually-entered (snapshot-only) ROI yachts.
+   * @nullable
+   */
+  yacht_id?: string | null;
   created_at: string;
   region: string;
   annual_revenue_eur: number;

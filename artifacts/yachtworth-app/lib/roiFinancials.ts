@@ -1,12 +1,14 @@
 /**
- * Shared ROI financials model — crew / operating expenses / financing.
+ * Shared ROI financials model — crew / operating expenses / financing /
+ * purchase price.
  *
- * Used by BOTH the ROI yacht wizard (`roi/yacht-form.tsx`, which persists these
- * onto the yacht profile) and the ROI scenario screen (`roi/calculate.tsx`,
- * which sends them as per-calculation overrides that are NEVER written back to
- * the yacht). Keeping the field lists + helpers in one place stops the two
- * screens from silently drifting apart — a missing field here would make the
- * ROI quietly wrong.
+ * These values live ONLY in ROI. The ROI scenario screen (`roi/calculate.tsx`)
+ * collects them and sends them as per-calculation overrides that are NEVER
+ * written back to the yacht (My Yachts is read-only from ROI). When a saved
+ * yacht is the starting point, `hydrateFinancialsFromYacht` prefills from any
+ * legacy financials already on the profile; otherwise the user enters them.
+ * Keeping the field lists + helpers in one place keeps hydration and override
+ * building in lockstep — a missing field here would make the ROI quietly wrong.
  *
  * Pure data + helpers only: no React Native imports so it stays trivially
  * testable and importable from anywhere in the app.
@@ -242,6 +244,7 @@ export function hydrateFinancialsFromYacht(
 
 export interface RoiOverrides {
   crew_breakdown?: { role: string; monthly_salary_eur: number; months_per_year: number }[];
+  purchase_price_eur?: number;
   monthly_crew_eur?: number;
   monthly_mooring_eur?: number;
   monthly_fuel_eur?: number;

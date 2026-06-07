@@ -15,6 +15,12 @@ export interface RoiExpenseOverrides {
   /** @nullable */
   crew_breakdown?: CrewMember[] | null;
   /**
+   * Yacht purchase price for THIS calculation (capital base for ROI / payback / depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.
+   * @minimum 0
+   * @nullable
+   */
+  purchase_price_eur?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */

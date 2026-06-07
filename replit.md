@@ -62,6 +62,7 @@ Run sequentially in Supabase SQL editor of `yachtworth-prod`. All idempotent.
 18. `019_survey_items_section_replace.sql` — PL/pgSQL function `replace_survey_section_items(report_id, section_number, items jsonb)` — **atomic** per-section delete+insert+counter-recompute. Required for safe concurrent section edits.
 19. `020_survey_item_photos.sql` — Supabase Storage bucket `survey-item-photos` (public, 5 MB cap, image/* allow-list) + `public_read_survey_item_photos` policy. Required for per-item photo upload.
 20. `021_survey_item_photo_atomic.sql` — PL/pgSQL functions `survey_item_append_photo(item_id,url,max)` + `survey_item_remove_photo(item_id,url)`. Row-level `FOR UPDATE` lock + RAISE EXCEPTION P0001 for limit / P0002 for missing. Backend calls these via RPC instead of read-modify-write — prevents lost updates and orphan storage when two uploads/deletes race.
+21. `022_roi_yacht_snapshot.sql` — decouples ROI from My Yachts: `roi_calculations.yacht_id` drop NOT NULL + add `yacht_snapshot jsonb`. Lets ROI run on a manually-entered yacht (passport stored only with the calc, never written to `yachts`). Until applied, ROI history-save degrades gracefully (insert error caught/warn-logged; calc still returns).
 
 Until each is run the corresponding feature degrades (POSTs no-op warn-logged, GETs empty/401, engines fall back to heuristics).
 
