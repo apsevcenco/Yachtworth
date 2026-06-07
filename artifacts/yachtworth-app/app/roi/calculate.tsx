@@ -75,6 +75,8 @@ type CharterType = (typeof CHARTER_TYPE_OPTS)[number]["v"];
 const REGION_CHARTER: Record<string, { bases: CharterType[] }> = {
   caribbean: { bases: ["weekly", "daily"] },
   middle_east: { bases: ["daily"] },
+  northern_europe: { bases: ["weekly", "daily"] },
+  asia_pacific_me: { bases: ["weekly", "daily"] },
 };
 
 const OCC_OPTS = [

@@ -143,6 +143,16 @@ const CARIB_SEASON_MAP: Record<string, string[]> = {
   low: [],
 };
 
+// Northern Europe + Southeast Asia: peak + shoulder only; no low season.
+// Season selector "high"|"shoulder"|"all" maps to high|shoulder|mixed here
+// ("all"/"mixed" blends peak + shoulder). Both new regions share this shape.
+const PEAK_SHOULDER_SEASON_MAP: Record<string, string[]> = {
+  high: ["peak"],
+  shoulder: ["shoulder"],
+  mixed: ["peak", "shoulder"],
+  low: [],
+};
+
 const REGION_MODELS: Record<string, RegionModel> = {
   caribbean: {
     bases: ["weekly", "daily"],
@@ -178,6 +188,52 @@ const REGION_MODELS: Record<string, RegionModel> = {
         mixed: ["high", "low"],
         shoulder: [],
       },
+    },
+  },
+  // Northern Europe (UK, Baltic, Norway) — weekly + daily. Short summer:
+  // peak (Jul–Aug) + shoulder (May–Jun, Sep); no winter charter (low → 0).
+  // Shoulder discounted 30% (mult 0.70). The booked units below already
+  // reflect the -15% weather deduction applied to available days, so no
+  // further deduction is applied here.
+  northern_europe: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak: { units: { conservative: 3, realistic: 5, optimistic: 7 }, mult: 1.0 },
+        shoulder: { units: { conservative: 1, realistic: 3, optimistic: 5 }, mult: 0.7 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak: { units: { conservative: 15, realistic: 28, optimistic: 42 }, mult: 1.0 },
+        shoulder: { units: { conservative: 5, realistic: 15, optimistic: 25 }, mult: 0.7 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+  },
+  // Southeast Asia (Phuket / Bali / Langkawi) — weekly + daily. Main window
+  // Nov–Apr: peak (Dec–Mar) + shoulder (Nov, Apr); off-season monsoon is
+  // dead (low → 0). Shoulder discounted 25% (mult 0.75). The booked units
+  // below already reflect the -10% weather deduction applied to available
+  // days, so no further deduction is applied here.
+  asia_pacific_me: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak: { units: { conservative: 4, realistic: 8, optimistic: 12 }, mult: 1.0 },
+        shoulder: { units: { conservative: 2, realistic: 3, optimistic: 5 }, mult: 0.75 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak: { units: { conservative: 25, realistic: 55, optimistic: 85 }, mult: 1.0 },
+        shoulder: { units: { conservative: 5, realistic: 12, optimistic: 20 }, mult: 0.75 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
     },
   },
 };
