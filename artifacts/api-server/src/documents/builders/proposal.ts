@@ -399,19 +399,64 @@ function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] 
   }
 
   // 2) Emit one `columns` block per pair. The two cards in a row top-align via
-  //    the `.two-col` flex layout. A final odd card keeps the left half-width
-  //    (empty right column) so it lines up under the grid. Heading on first only.
+  //    the `.two-col` flex layout. Heading on first only. A final odd card has
+  //    no partner, so it renders FULL WIDTH (single column) rather than a
+  //    half-width card beside an empty right column — it does not need a pair.
   const blocks: ContentNode[] = [];
   for (let i = 0; i < cards.length; i += 2) {
     const left = cards[i]!;
     const right = cards[i + 1];
+    const heading = i === 0 ? { heading: d["equipment"]! } : {};
     blocks.push({
       kind: "columns",
-      ...(i === 0 ? { heading: d["equipment"]! } : {}),
-      columns: [{ nodes: [left] }, { nodes: right ? [right] : [] }],
+      ...heading,
+      columns: right ? [{ nodes: [left] }, { nodes: [right] }] : [{ nodes: [left] }],
     });
   }
   return blocks;
+}
+
+/**
+ * Pack a run of equipment pair-blocks into the fewest single-column "page
+ * bundles" that each fit one physical A4 page (A4_CONTENT_HEIGHT_MM).
+ *
+ * The paginator never bumps the block that is FIRST on an otherwise-empty page
+ * (it only flushes when the page already holds content), so each bundle renders
+ * whole on its own page. This stops a trailing odd card (e.g. Toys) from being
+ * stranded alone on a fresh page when it physically fits beneath the preceding
+ * pairs: Safety|Comfort + Water|Deck + Toys ride one bundle → one page.
+ *
+ * Measurement is the same conservative `measureNode` the paginator trusts and
+ * already over-estimates real height, so the 6mm cosmetic spacers stitched
+ * between pairs stay absorbed within that headroom (no clipping). A bundle that
+ * happens to hold a single pair is returned untouched (no extra wrapper).
+ */
+function packEquipmentPages(pairs: ContentNode[]): ContentNode[] {
+  const GAP_MM = 6; // mirrors the inter-block section margin
+  const out: ContentNode[] = [];
+  let cur: ContentNode[] = [];
+  let curMm = 0;
+  const flush = (): void => {
+    if (!cur.length) return;
+    out.push(
+      cur.length === 1 ? cur[0]! : { kind: "columns", columns: [{ nodes: cur }] },
+    );
+    cur = [];
+    curMm = 0;
+  };
+  for (const p of pairs) {
+    const h = measureNode(p);
+    const projected = cur.length === 0 ? h : curMm + GAP_MM + h;
+    if (cur.length > 0 && projected > A4_CONTENT_HEIGHT_MM) flush();
+    if (cur.length > 0) {
+      cur.push({ kind: "spacer", mm: GAP_MM });
+      curMm += GAP_MM;
+    }
+    cur.push(p);
+    curMm += h;
+  }
+  flush();
+  return out;
 }
 
 // ─── photography ─────────────────────────────────────────────────────────────
@@ -604,6 +649,10 @@ export function buildProposalModel(input: {
     firstPair != null &&
     measureNode(specNode) + measureNode(accomNode) + measureNode(firstPair) <=
       A4_CONTENT_HEIGHT_MM;
+  // The equipment pairs that flow onto page 3+ are then packed into page-sized
+  // bundles (see `packEquipmentPages`) so a trailing odd card — e.g. Toys — is
+  // pulled up beneath the preceding pairs instead of being stranded alone on a
+  // fresh page when it physically fits.
   if (firstPair && trioFits) {
     const GAP_MM = 6; // mirrors the 24px inter-block margin between page sections
     body.push({
@@ -620,9 +669,9 @@ export function buildProposalModel(input: {
         },
       ],
     });
-    body.push(...equipPairs.slice(1));
+    body.push(...packEquipmentPages(equipPairs.slice(1)));
   } else {
-    body.push(specNode, accomNode, ...equipPairs);
+    body.push(specNode, accomNode, ...packEquipmentPages(equipPairs));
   }
 
   // P4 — Photography (validated photos only; editorial hero + grid that fills).
