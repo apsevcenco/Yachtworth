@@ -594,21 +594,6 @@ export function buildProposalModel(input: {
   };
   body.push(accomNode);
 
-  // P2 closes with ONE compact commercial snapshot strip (Sale · Charter · VAT)
-  // — an at-a-glance band, deliberately NOT the full price cards / charter terms
-  // that live on the final Pricing page.
-  const snapRows: { label: string; value: string }[] = [];
-  if (showSale) {
-    const saleVal =
-      r.price_on_application || num(r.sale_price_eur) == null ? d["poa"]! : money(r.sale_price_eur);
-    snapRows.push({ label: d["forSale"]!, value: saleVal });
-  }
-  if (showCharter) snapRows.push({ label: d["forCharter"]!, value: charterValue(r, d) });
-  if (yacht.vat_status) snapRows.push({ label: d["vat"]!, value: vatLabel(yacht.vat_status) });
-  if (snapRows.length) {
-    body.push({ kind: "keyValue", heading: d["commercial"]!, layout: "inline", rows: snapRows });
-  }
-
   // P3 — Equipment grouped by category, balanced across two columns.
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
   body.push(...equipmentNodes(equip, d));
