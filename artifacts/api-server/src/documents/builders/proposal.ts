@@ -181,40 +181,77 @@ function dict(lang: string | undefined): Dict {
 
 // ─── spec / accommodation rows ──────────────────────────────────────────────
 
-function specRows(y: YachtProfile): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [];
-  const push = (label: string, value: unknown, suffix = ""): void => {
-    if (value != null && value !== "") rows.push({ label, value: `${value}${suffix}` });
+type SpecRow = { label: string; value: string };
+
+/**
+ * Specification fields, ORDERED & GROUPED into logical clusters (the order the
+ * owner specified). Each inner array is one visual group; groups are kept
+ * together on the page rather than packed across boundaries. Fields not in the
+ * owner's explicit list are retained and slotted into their natural group:
+ * hull material/type join dimensions; speed/range/fuel join propulsion.
+ * Empty fields are skipped; a fully-empty group is dropped.
+ */
+function specGroups(y: YachtProfile): SpecRow[][] {
+  const groups: SpecRow[][] = [];
+  const group = (
+    build: (push: (label: string, value: unknown, suffix?: string) => void) => void,
+  ): void => {
+    const rows: SpecRow[] = [];
+    const push = (label: string, value: unknown, suffix = ""): void => {
+      if (value != null && value !== "") rows.push({ label, value: `${value}${suffix}` });
+    };
+    build(push);
+    if (rows.length) groups.push(rows);
   };
-  push("Builder", y.builder);
-  push("Model", y.model);
-  push("Year built", y.year_built);
-  push("Type", y.yacht_type ? humanize(String(y.yacht_type)) : null);
-  push("Length", num(y.length_meters), num(y.length_meters) != null ? " m" : "");
-  push("Beam", num(y.beam_meters), num(y.beam_meters) != null ? " m" : "");
-  push("Draft", num(y.draft_meters), num(y.draft_meters) != null ? " m" : "");
-  push("Hull material", y.hull_material);
-  push("Hull type", y.hull_type);
-  push("Flag", y.flag);
-  push("Home port", y.home_port);
-  push("Engines", y.engine_count);
-  push("Engine maker", y.engine_maker);
-  push("Engine model", y.engine_model);
-  push("Total HP", y.total_hp);
-  push("Engine hours", y.engine_hours);
-  push("Max speed", num(y.max_speed_knots), num(y.max_speed_knots) != null ? " kn" : "");
-  push(
-    "Cruise speed",
-    num(y.cruising_speed_knots),
-    num(y.cruising_speed_knots) != null ? " kn" : "",
-  );
-  push("Range", num(y.range_nm), num(y.range_nm) != null ? " nm" : "");
-  push("Fuel capacity", num(y.fuel_capacity_l), num(y.fuel_capacity_l) != null ? " L" : "");
-  push("Registration", y.registration_number);
-  push("IMO", y.imo_number);
-  push("Hull ID", y.hull_id);
-  push("VAT status", y.vat_status ? vatLabel(y.vat_status) : null);
-  return rows;
+
+  // 1) Identity
+  group((push) => {
+    push("Builder", y.builder);
+    push("Model", y.model);
+    push("Year built", y.year_built);
+    push("Type", y.yacht_type ? humanize(String(y.yacht_type)) : null);
+  });
+  // 2) Dimensions & hull
+  group((push) => {
+    push("Length", num(y.length_meters), num(y.length_meters) != null ? " m" : "");
+    push("Beam", num(y.beam_meters), num(y.beam_meters) != null ? " m" : "");
+    push("Draft", num(y.draft_meters), num(y.draft_meters) != null ? " m" : "");
+    push("Hull material", y.hull_material);
+    push("Hull type", y.hull_type);
+  });
+  // 3) Flag & home port
+  group((push) => {
+    push("Flag", y.flag);
+    push("Home port", y.home_port);
+  });
+  // 4) Propulsion & performance
+  group((push) => {
+    push("Engines", y.engine_count);
+    push("Engine maker", y.engine_maker);
+    push("Engine model", y.engine_model);
+    push("Total HP", y.total_hp);
+    push("Engine hours", y.engine_hours);
+    push("Max speed", num(y.max_speed_knots), num(y.max_speed_knots) != null ? " kn" : "");
+    push(
+      "Cruise speed",
+      num(y.cruising_speed_knots),
+      num(y.cruising_speed_knots) != null ? " kn" : "",
+    );
+    push("Range", num(y.range_nm), num(y.range_nm) != null ? " nm" : "");
+    push("Fuel capacity", num(y.fuel_capacity_l), num(y.fuel_capacity_l) != null ? " L" : "");
+  });
+  // 5) Registration & identifiers
+  group((push) => {
+    push("Registration", y.registration_number);
+    push("IMO", y.imo_number);
+    push("Hull ID", y.hull_id);
+  });
+  // 6) Tax
+  group((push) => {
+    push("VAT status", y.vat_status ? vatLabel(y.vat_status) : null);
+  });
+
+  return groups;
 }
 
 function accomRows(y: YachtProfile): { label: string; value: string }[] {
@@ -515,15 +552,38 @@ function photographyNodes(valid: string[], d: Dict): ContentNode[] {
   );
 }
 
-/** Full-width paired specification grid (the ONE shared spec style). */
+/**
+ * Full-width specification grid, rendered as logical GROUPS stacked vertically
+ * (the owner's ordering). Each group is its own paired key/value grid so fields
+ * never pack across a group boundary; a small spacer separates groups. The
+ * whole section is one `columns` node (single column) so it stays a SINGLE
+ * model node — keeping the page-2 trio bundling (spec + accommodation + first
+ * equipment pair) intact. The "Specifications" heading sits on the first group.
+ */
 function specPairsTable(y: YachtProfile, d: Dict): ContentNode {
-  return {
-    kind: "keyValue",
-    heading: d["specifications"]!,
-    rows: specRows(y),
-    layout: "pairs",
-    emptyText: d["none"]!,
-  };
+  const groups = specGroups(y);
+  if (!groups.length) {
+    return {
+      kind: "keyValue",
+      heading: d["specifications"]!,
+      rows: [],
+      layout: "pairs",
+      emptyText: d["none"]!,
+    };
+  }
+  const GAP_MM = 4; // subtle separation between logical spec groups
+  const nodes: ContentNode[] = [];
+  groups.forEach((rows, i) => {
+    if (i > 0) nodes.push({ kind: "spacer", mm: GAP_MM });
+    nodes.push({
+      kind: "keyValue",
+      ...(i === 0 ? { heading: d["specifications"]! } : {}),
+      rows,
+      layout: "pairs",
+      emptyText: d["none"]!,
+    });
+  });
+  return { kind: "columns", columns: [{ nodes }] };
 }
 
 // ─── pricing ────────────────────────────────────────────────────────────────
