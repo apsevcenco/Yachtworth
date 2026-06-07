@@ -5,9 +5,10 @@ import {
   type RoiCalculation,
 } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { exportRoiPdf } from "../../lib/roiPdf";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -59,6 +61,22 @@ export default function RoiResultScreen() {
     if (inlineData) return inlineData;
     return (detailQuery.data?.result as unknown as RoiCalculation) ?? null;
   }, [inlineData, detailQuery.data]);
+
+  const [exporting, setExporting] = useState(false);
+  const onExport = async () => {
+    if (!data || exporting) return;
+    setExporting(true);
+    try {
+      await exportRoiPdf(data);
+    } catch (err) {
+      Alert.alert(
+        "Couldn't export PDF",
+        err instanceof Error ? err.message : "Please try again.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (idParam && !inlineData && detailQuery.isLoading) {
     return (
@@ -207,6 +225,26 @@ export default function RoiResultScreen() {
         <Text style={styles.disclaimer}>{data.legal_disclaimer}</Text>
 
         <Pressable
+          onPress={onExport}
+          disabled={exporting}
+          accessibilityRole="button"
+          accessibilityLabel="Export PDF report"
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { opacity: pressed || exporting ? 0.85 : 1 },
+          ]}
+        >
+          {exporting ? (
+            <ActivityIndicator color={NAVY} />
+          ) : (
+            <>
+              <Feather name="download" size={16} color={NAVY} />
+              <Text style={styles.primaryBtnText}>Export PDF report</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.secondaryBtn,
@@ -345,6 +383,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 16,
   },
+  primaryBtn: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: GOLD,
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    minHeight: 50,
+  },
+  primaryBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
   secondaryBtn: {
     borderColor: GOLD,
     borderWidth: 1,

@@ -243,31 +243,44 @@ router.post(
         target_weeks: input.target_weeks ?? null,
       });
 
-      // Persist
+      // Persist. The row is the same whether or not migration 022 has added the
+      // `yacht_snapshot` column — only that one key depends on it.
+      const baseRow = {
+        yacht_id: hasYachtId ? (input.yacht_id as string) : null,
+        clerk_user_id: req.userId!,
+        region: input.region,
+        annual_revenue_eur: result.annual_revenue_eur,
+        annual_expenses_eur: result.annual_expenses_eur,
+        net_profit_eur: result.net_profit_eur,
+        roi_pct: result.roi_pct,
+        payback_years: result.payback_years >= 999 ? null : result.payback_years,
+        input,
+        result,
+      };
+
       let savedId: string | null = null;
-      const { data: saved, error: sErr } = await sb
+      let { data: saved, error: sErr } = await sb
         .from(ROI_CALCULATIONS_TABLE)
-        .insert({
-          yacht_id: hasYachtId ? (input.yacht_id as string) : null,
-          yacht_snapshot: snapshot ?? null,
-          clerk_user_id: req.userId!,
-          region: input.region,
-          annual_revenue_eur: result.annual_revenue_eur,
-          annual_expenses_eur: result.annual_expenses_eur,
-          net_profit_eur: result.net_profit_eur,
-          roi_pct: result.roi_pct,
-          payback_years: result.payback_years >= 999 ? null : result.payback_years,
-          input,
-          result,
-        })
+        .insert({ ...baseRow, yacht_snapshot: snapshot ?? null })
         .select("id")
         .single();
+      // Graceful degradation: migration 022 (yacht_snapshot column) may not be
+      // applied yet. PostgREST returns 42703 (undefined_column). Retry the insert
+      // WITHOUT yacht_snapshot so the ROI run still saves to history — only the
+      // manual-yacht passport (re-open prefill) is lost until the migration runs.
+      if (sErr && isUndefinedColumn(sErr)) {
+        ({ data: saved, error: sErr } = await sb
+          .from(ROI_CALCULATIONS_TABLE)
+          .insert(baseRow)
+          .select("id")
+          .single());
+      }
       if (sErr) {
         req.log.warn(
           { err: sErr.message },
           "Persist ROI failed — returning result anyway",
         );
-      } else {
+      } else if (saved) {
         savedId = saved.id as string;
       }
 
