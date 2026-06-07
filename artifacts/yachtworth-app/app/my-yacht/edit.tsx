@@ -622,12 +622,12 @@ export default function MyYachtEditScreen() {
                 max={20}
               />
             </Field>
-            <Field label="Crew cabins">
+            <Field label="Crew">
               <Stepper
                 value={state.crew_cabins}
                 onChange={(v) => set("crew_cabins", v)}
                 min={0}
-                max={20}
+                max={50}
               />
             </Field>
             <Field label="Berths">

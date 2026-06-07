@@ -308,8 +308,11 @@ export default function RoiCalculateScreen() {
       year_built: n("year_built"),
       length_meters: n("length_meters"),
       cabins: n("cabins"),
-      guests: n("guests"),
-      crew: n("crew"),
+      // Saved My Yachts store crew headcount in `crew_cabins` and passenger
+      // capacity in `berths`; manually-entered passports use `crew`/`guests`.
+      // Read both so every source fills the summary instead of showing "—".
+      guests: n("guests") ?? n("berths"),
+      crew: n("crew") ?? n("crew_cabins"),
       flag: s("flag"),
     };
   }, [yachtId, yachtQ.data, snapshot]);

@@ -2,6 +2,8 @@
 
 - [Photo uploader multi-select pitfall](photo-uploader-multiselect.md) — local-state RN uploaders must accumulate a batch then call onChange once; appending from a stale prop in a loop drops all but the last.
 
+- [RN numeric input decimals](rn-numeric-input-decimals.md) — a number field rendered from a parsed value strips "3." on re-render; give it local raw-text state, commit parsed number via onChange, re-sync only on divergence.
+
 - [Adaptive Document Engine — page grouping](adaptive-document-engine.md) — opt-in adaptive PDF; greedy packer strands trailing blocks; use `breakBefore` on model nodes to declare page groups.
 - [api-server dev = build-and-start, no watch](api-server-dev-restart.md) — backend edits don't hot-reload; restart the api-server workflow before testing via the route.
 - [api-server doc-engine probe](api-server-doc-engine-probe.md) — render PDFs from generateDocument() offline: esbuild + esbuild-plugin-pino + ESM __dirname banner + externalize puppeteer-core; else pino/puppeteer worker MODULE_NOT_FOUND.

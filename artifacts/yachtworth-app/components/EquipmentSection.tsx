@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import type { EquipmentItem } from "@workspace/api-client-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -346,27 +346,68 @@ function FieldInput({
     );
   }
   // text / number / integer → TextInput
+  return <FieldTextInput field={field} label={label} value={value} onChange={onChange} />;
+}
+
+/* ── FieldTextInput (text / number / integer) ──────────────────────── */
+// Numeric fields keep their own raw text while editing so an in-progress
+// decimal like "3." or "3,5" isn't immediately re-parsed back to "3" — that
+// strip-on-render bug made it impossible to type fractional lengths / power.
+
+function FieldTextInput({
+  field,
+  label,
+  value,
+  onChange,
+}: {
+  field: EquipmentField;
+  label: string;
+  value: unknown;
+  onChange: (v: string | number | null) => void;
+}) {
   const isNumeric = field.kind === "number" || field.kind === "integer";
-  const display = value == null ? "" : String(value);
+  const [text, setText] = useState(value == null ? "" : String(value));
+
+  // Re-sync the visible text only when the parent value diverges from what the
+  // current text parses to (e.g. data loaded from the server, or a reset).
+  // While the user is mid-edit ("3.") the parsed value matches, so we leave it.
+  useEffect(() => {
+    const parsed =
+      text.trim() === ""
+        ? null
+        : field.kind === "integer"
+          ? parseInt(text.replace(/[^\d-]/g, ""), 10)
+          : Number(text.replace(",", "."));
+    const norm = typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;
+    const incoming = typeof value === "number" || typeof value === "string" ? value : null;
+    if (isNumeric ? norm !== incoming : text !== (incoming ?? "")) {
+      setText(value == null ? "" : String(value));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        value={display}
+        value={text}
         onChangeText={(t) => {
           if (!isNumeric) {
+            setText(t);
             onChange(t === "" ? null : t);
             return;
           }
-          if (t === "") return onChange(null);
           if (field.kind === "integer") {
             const digits = t.replace(/[^\d-]/g, "");
+            setText(digits);
             const n = parseInt(digits, 10);
-            onChange(Number.isFinite(n) ? n : null);
+            onChange(digits === "" || !Number.isFinite(n) ? null : n);
           } else {
-            const cleaned = t.replace(",", ".").replace(/[^0-9.\-]/g, "");
-            const n = Number(cleaned);
-            onChange(Number.isFinite(n) ? n : null);
+            // Keep one comma/dot so the decimal separator survives mid-typing.
+            const cleaned = t.replace(/[^0-9.,\-]/g, "");
+            setText(cleaned);
+            const n = Number(cleaned.replace(",", "."));
+            onChange(cleaned.trim() === "" || !Number.isFinite(n) ? null : n);
           }
         }}
         placeholder={field.placeholder ?? (isNumeric ? "0" : "")}

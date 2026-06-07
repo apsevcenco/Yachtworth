@@ -221,6 +221,19 @@ export default function CharterScreen() {
               yachts.map((yacht) => {
                 const hasId = Boolean(yacht.id);
                 const title = yachtTitle(yacht);
+                // Saved yachts store crew in `crew_cabins` and passenger
+                // capacity in `berths`; fall back to those so the card shows
+                // real data instead of "—".
+                const yx = yacht as unknown as Record<string, unknown>;
+                const num = (...keys: string[]): number | null => {
+                  for (const k of keys) {
+                    const v = yx[k];
+                    if (typeof v === "number" && Number.isFinite(v)) return v;
+                  }
+                  return null;
+                };
+                const guestVal = num("guests", "berths");
+                const crewVal = num("crew", "crew_cabins");
                 return (
                   <View key={yacht.id ?? title} style={styles.card}>
                     <View style={styles.cardHeader}>
@@ -240,8 +253,8 @@ export default function CharterScreen() {
                     <View style={styles.specGrid}>
                       <Spec label="Length" value={formatLength(yacht.length_meters, units)} />
                       <Spec label="Cabins" value={yacht.cabins != null ? String(yacht.cabins) : "—"} />
-                      <Spec label="Guests" value={yacht.guests != null ? String(yacht.guests) : "—"} />
-                      <Spec label="Crew" value={yacht.crew != null ? String(yacht.crew) : "—"} />
+                      <Spec label="Guests" value={guestVal != null ? String(guestVal) : "—"} />
+                      <Spec label="Crew" value={crewVal != null ? String(crewVal) : "—"} />
                     </View>
                     <Pressable
                       onPress={() =>
