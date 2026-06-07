@@ -20,7 +20,7 @@ import type {
 import { getTheme } from "../core/theme";
 import { A4_CONTENT_HEIGHT_MM } from "../core/types";
 import { chunk, num, photoList } from "../core/util";
-import { measureNode } from "../model/measure";
+import { CARD_HEAD_MM, CARD_PAD_MM, HEADING_MM, measureNode } from "../model/measure";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
 
 // ─── money ──────────────────────────────────────────────────────────────────
@@ -384,116 +384,256 @@ function groupByCategory(
 }
 
 /**
- * Equipment grouped BY CATEGORY (in priority order) and rendered as a STRICT
- * two-column ROW GRID — NOT masonry. Category cards are paired sequentially in
- * the priority order (Power | Navigation, Safety | Comfort, Water | Deck,
- * Toys | Tenders, Other).
+ * Continuous-flow paginator for the vessel body: Specifications → Accommodation
+ * → Equipment, pre-fit into page-blocks that each measure ≤ PACK_BUDGET_MM so
+ * the greedy packer gives every block its own A4 page. (Pages are fixed-height
+ * with `overflow:hidden`, so content MUST be pre-fit here — CSS cannot reflow
+ * or split it across pages.)
  *
- * Each PAIR is its OWN `columns` block (one `.two-col` flex row), so the two
- * category headers in a row ALWAYS start at exactly the same vertical position
- * by CSS construction — no height estimation, no padding, no masonry. Cards may
- * have different heights; that is fine. The block's `break-inside: avoid` keeps
- * a pair whole, and the section heading is emitted on the FIRST pair only.
+ * Nothing is kept together:
+ *  - Specification GROUPS and Accommodation are full-width units that break
+ *    across pages.
+ *  - Equipment category cards flow down the LEFT column, then the RIGHT column,
+ *    then onto the next page. A category that does not fully fit the remaining
+ *    column space is SPLIT at the item boundary: the items that fit are rendered
+ *    now (original heading), and the remainder continues as a "(cont.)" card on
+ *    the next column/page. No space is reserved for an entire category.
  *
- * Because every pair is a small standalone block, the paginator's greedy packer
- * naturally tucks the first pair (Power | Navigation) onto page 2 under
- * Accommodation whenever it fits, then flows the rest — filling pages instead of
- * stranding the section on a fresh page. Each category is one atomic card; only
- * a single category taller than a full column is chunked (chunks stay labelled
- * and continue to pair sequentially).
+ * The result fills every page top-to-bottom with no large white gaps, while
+ * preserving the existing styling (paired key/value spec grids, two-column
+ * equipment cards) and the existing order (spec groups, then accommodation,
+ * then equipment in priority order).
  */
-function equipmentNodes(items: ProposalEquipmentItem[], d: Dict): ContentNode[] {
-  if (!items.length) return [];
-  // Per-column hard cap (mm): the most a single card may grow before it is split
-  // into labelled chunks. A4 usable ≈267mm minus the section heading (~14mm) and
-  // a safety margin → 244mm. Cards are measured at their real half-width.
-  const PER_COL_MAX = 244;
+function flowVesselBody(
+  yacht: YachtProfile,
+  accom: SpecRow[],
+  equip: ProposalEquipmentItem[],
+  d: Dict,
+): ContentNode[] {
+  // Fill target = true usable page height. `measureNode` is conservative and
+  // over-estimates real rendered height, so fitting to this budget fills pages
+  // top-to-bottom while the over-estimation headroom keeps content within the
+  // fixed-height (261mm, overflow:hidden) physical page — no clipping. The greedy
+  // packer never bumps the block that is first on an otherwise-empty page, so
+  // each pre-fit page-block still renders alone on its own page.
+  const BUDGET = A4_CONTENT_HEIGHT_MM;
+  const GAP_GROUP = 4; // between logical spec groups
+  const GAP_SECTION = 6; // around accommodation / the equipment region
+  const GAP_CARD = 6; // between cards stacked in a column
+  const CARD_BASE = CARD_HEAD_MM + CARD_PAD_MM;
 
-  const measureCard = (heading: string, its: { name: string; meta?: string }[]): number =>
-    measureNode({ kind: "card", heading, items: its });
+  // Height (mm) of one equipment item inside a half-width card (the card body
+  // contribution alone, i.e. measureNode minus the card's head + padding).
+  const itemH = (it: { name: string; meta?: string }): number =>
+    measureNode({ kind: "card", heading: "", items: [it] }) - CARD_BASE;
+  const cardHeight = (its: { name: string; meta?: string }[]): number =>
+    CARD_BASE + its.reduce((s, it) => s + itemH(it), 0);
+  // ── full-width preamble units: spec groups, then accommodation ──
+  type FullUnit = { node: ContentNode; h: number; gap: number };
+  const fulls: FullUnit[] = [];
+  const groups = specGroups(yacht);
+  if (groups.length) {
+    groups.forEach((rows, i) => {
+      const node: ContentNode = {
+        kind: "keyValue",
+        ...(i === 0 ? { heading: d["specifications"]! } : {}),
+        rows,
+        layout: "pairs",
+        emptyText: d["none"]!,
+      };
+      fulls.push({ node, h: measureNode(node), gap: i === 0 ? 0 : GAP_GROUP });
+    });
+  } else {
+    const node: ContentNode = {
+      kind: "keyValue",
+      heading: d["specifications"]!,
+      rows: [],
+      layout: "pairs",
+      emptyText: d["none"]!,
+    };
+    fulls.push({ node, h: measureNode(node), gap: 0 });
+  }
+  // Accommodation is ALWAYS emitted (empty rows fall back to `emptyText`), matching
+  // the prior builder which never omitted the section.
+  {
+    const node: ContentNode = {
+      kind: "keyValue",
+      heading: d["accommodation"]!,
+      rows: accom,
+      layout: "pairs",
+      emptyText: d["none"]!,
+    };
+    fulls.push({ node, h: measureNode(node), gap: fulls.length ? GAP_SECTION : 0 });
+  }
 
-  // 1) Ordered list of category cards (priority order; oversized ones chunked).
-  const cards: ContentNode[] = [];
-  for (const g of groupByCategory(items)) {
-    const allItems = equipmentItems(g.items);
-    if (measureCard(g.label, allItems) <= PER_COL_MAX) {
-      cards.push({ kind: "card", heading: g.label, items: allItems });
+  // ── equipment category cards (priority order; split on demand) ──
+  type QCard = { base: string; items: { name: string; meta?: string }[]; emitted: boolean };
+  const queue: QCard[] = groupByCategory(equip).map((g) => ({
+    base: g.label,
+    items: equipmentItems(g.items),
+    emitted: false,
+  }));
+
+  // ── per-page state ──
+  const pages: ContentNode[] = [];
+  let preamble: { node: ContentNode; gap: number }[] = [];
+  let floor = 0; // height consumed by full-width preamble + reserved eyebrow on this page
+  // Equipment cards already committed to the CURRENT page, in priority order.
+  // They are distributed left→right at flush time by the balanced split below.
+  type PageCard = { base: string; cont: boolean; items: { name: string; meta?: string }[]; h: number };
+  let pageCards: PageCard[] = [];
+  let started = false; // any content on the current page?
+  let headingReserved = false; // equipment eyebrow reserved on THIS page
+  let headingUsed = false; // equipment eyebrow already emitted (document-wide)
+
+  const reset = (): void => {
+    preamble = [];
+    floor = 0;
+    pageCards = [];
+    started = false;
+    headingReserved = false;
+  };
+
+  // Height (incl. the shared `floor`) of a column holding `cards` stacked with
+  // GAP_CARD between them. An empty column is just the floor.
+  const colHeight = (cards: PageCard[]): number =>
+    cards.length === 0
+      ? floor
+      : floor + cards.reduce((s, c) => s + c.h, 0) + (cards.length - 1) * GAP_CARD;
+
+  // Best ordered split of `cards` into [0..p) | [p..n): the split point p that
+  // minimises the taller column. Order is preserved (left = earlier categories,
+  // right = later), so priority/reading order is never reshuffled — the columns
+  // simply fill evenly instead of left-to-the-brim then right.
+  const bestSplit = (cards: PageCard[]): { p: number; max: number } => {
+    let best = { p: cards.length, max: Number.POSITIVE_INFINITY };
+    for (let p = 1; p <= cards.length; p += 1) {
+      const lh = colHeight(cards.slice(0, p));
+      const rh = p === cards.length ? floor : colHeight(cards.slice(p));
+      const m = Math.max(lh, rh);
+      if (m < best.max) best = { p, max: m };
+    }
+    return best;
+  };
+  // Does `cards` fit one physical page under some ordered split?
+  const fitsPage = (cards: PageCard[]): boolean =>
+    cards.length === 0 || bestSplit(cards).max <= BUDGET;
+
+  const flush = (): void => {
+    if (!started) return;
+    const nodes: ContentNode[] = [];
+    preamble.forEach((p, i) => {
+      if (i) nodes.push({ kind: "spacer", mm: p.gap });
+      nodes.push(p.node);
+    });
+    if (pageCards.length) {
+      if (preamble.length) nodes.push({ kind: "spacer", mm: GAP_SECTION });
+      const { p } = bestSplit(pageCards);
+      const toCol = (cards: PageCard[]): { nodes: ContentNode[] } => {
+        const out: ContentNode[] = [];
+        cards.forEach((c, i) => {
+          if (i) out.push({ kind: "spacer", mm: GAP_CARD });
+          out.push({
+            kind: "card",
+            heading: c.cont ? `${c.base} (cont.)` : c.base,
+            items: c.items,
+          });
+        });
+        return { nodes: out };
+      };
+      const leftCards = pageCards.slice(0, p);
+      const rightCards = pageCards.slice(p);
+      const cols = rightCards.length ? [toCol(leftCards), toCol(rightCards)] : [toCol(leftCards)];
+      nodes.push(
+        headingReserved
+          ? { kind: "columns", heading: d["equipment"]!, columns: cols }
+          : { kind: "columns", columns: cols },
+      );
+    }
+    pages.push(nodes.length === 1 ? nodes[0]! : { kind: "columns", columns: [{ nodes }] });
+    reset();
+  };
+
+  // 1) Place the full-width preamble (spec groups + accommodation), breaking
+  //    across pages whenever the next unit would overflow.
+  for (const fu of fulls) {
+    const gap = started && preamble.length ? fu.gap : 0;
+    if (started && floor + gap + fu.h > BUDGET) flush();
+    const g = started && preamble.length ? fu.gap : 0;
+    if (g) floor += g;
+    preamble.push({ node: fu.node, gap: g });
+    floor += fu.h;
+    started = true;
+  }
+
+  // 2) Flow the equipment cards. Greedily commit whole categories to the current
+  //    page while they still fit under a balanced split; when one no longer fits,
+  //    render the part that fits and carry the remainder to the next page.
+  while (queue.length) {
+    const c = queue[0]!;
+
+    // Reserve the equipment eyebrow on the first page that will carry cards
+    // (it sits above both columns, so it lowers the card start by HEADING_MM).
+    if (!headingUsed && !headingReserved) {
+      headingReserved = true;
+      floor += (preamble.length ? GAP_SECTION : 0) + HEADING_MM;
+    }
+
+    // Try to add the whole (remaining) category as one card.
+    const whole: PageCard = { base: c.base, cont: c.emitted, items: c.items, h: cardHeight(c.items) };
+    if (fitsPage([...pageCards, whole])) {
+      pageCards.push(whole);
+      c.emitted = true;
+      started = true;
+      if (headingReserved) headingUsed = true;
+      queue.shift();
       continue;
     }
-    const chunks: { name: string; meta?: string }[][] = [];
-    let cur: { name: string; meta?: string }[] = [];
-    for (const it of allItems) {
-      if (cur.length && measureCard(g.label, [...cur, it]) > PER_COL_MAX) {
-        chunks.push(cur);
-        cur = [];
-      }
-      cur.push(it);
-    }
-    if (cur.length) chunks.push(cur);
-    chunks.forEach((its, i) => {
-      cards.push({ kind: "card", heading: `${g.label} (${i + 1}/${chunks.length})`, items: its });
-    });
-  }
 
-  // 2) Emit one `columns` block per pair. The two cards in a row top-align via
-  //    the `.two-col` flex layout. Heading on first only. A final odd card has
-  //    no partner, so it renders FULL WIDTH (single column) rather than a
-  //    half-width card beside an empty right column — it does not need a pair.
-  const blocks: ContentNode[] = [];
-  for (let i = 0; i < cards.length; i += 2) {
-    const left = cards[i]!;
-    const right = cards[i + 1];
-    const heading = i === 0 ? { heading: d["equipment"]! } : {};
-    blocks.push({
-      kind: "columns",
-      ...heading,
-      columns: right ? [{ nodes: [left] }, { nodes: [right] }] : [{ nodes: [left] }],
-    });
-  }
-  return blocks;
-}
-
-/**
- * Pack a run of equipment pair-blocks into the fewest single-column "page
- * bundles" that each fit one physical A4 page (A4_CONTENT_HEIGHT_MM).
- *
- * The paginator never bumps the block that is FIRST on an otherwise-empty page
- * (it only flushes when the page already holds content), so each bundle renders
- * whole on its own page. This stops a trailing odd card (e.g. Toys) from being
- * stranded alone on a fresh page when it physically fits beneath the preceding
- * pairs: Safety|Comfort + Water|Deck + Toys ride one bundle → one page.
- *
- * Measurement is the same conservative `measureNode` the paginator trusts and
- * already over-estimates real height, so the 6mm cosmetic spacers stitched
- * between pairs stay absorbed within that headroom (no clipping). A bundle that
- * happens to hold a single pair is returned untouched (no extra wrapper).
- */
-function packEquipmentPages(pairs: ContentNode[]): ContentNode[] {
-  const GAP_MM = 6; // mirrors the inter-block section margin
-  const out: ContentNode[] = [];
-  let cur: ContentNode[] = [];
-  let curMm = 0;
-  const flush = (): void => {
-    if (!cur.length) return;
-    out.push(
-      cur.length === 1 ? cur[0]! : { kind: "columns", columns: [{ nodes: cur }] },
-    );
-    cur = [];
-    curMm = 0;
-  };
-  for (const p of pairs) {
-    const h = measureNode(p);
-    const projected = cur.length === 0 ? h : curMm + GAP_MM + h;
-    if (cur.length > 0 && projected > A4_CONTENT_HEIGHT_MM) flush();
-    if (cur.length > 0) {
-      cur.push({ kind: "spacer", mm: GAP_MM });
-      curMm += GAP_MM;
+    // Whole category won't fit. Find the largest leading slice of its items that
+    // still fits the page; render that part, carry the rest to the next page.
+    let k = 0;
+    for (let n = 1; n <= c.items.length; n += 1) {
+      const part: PageCard = {
+        base: c.base,
+        cont: c.emitted,
+        items: c.items.slice(0, n),
+        h: cardHeight(c.items.slice(0, n)),
+      };
+      if (fitsPage([...pageCards, part])) k = n;
+      else break;
     }
-    cur.push(p);
-    curMm += h;
+    if (k >= 1) {
+      const taken = c.items.slice(0, k);
+      pageCards.push({ base: c.base, cont: c.emitted, items: taken, h: cardHeight(taken) });
+      c.items = c.items.slice(k);
+      c.emitted = true;
+      started = true;
+      if (headingReserved) headingUsed = true;
+      // Do NOT flush here: the remainder stays at the head of the queue, so the
+      // loop keeps filling THIS page (remainder first, preserving order) until it
+      // is genuinely full — only then does the "no item fits" branch flush.
+      continue;
+    }
+
+    // Not even one item fits alongside what's already here. If the page already
+    // has content, move on to a fresh page; otherwise force a single over-tall
+    // item so we always make progress.
+    if (pageCards.length || preamble.length) {
+      flush();
+      continue;
+    }
+    const one = c.items.slice(0, 1);
+    pageCards.push({ base: c.base, cont: c.emitted, items: one, h: cardHeight(one) });
+    c.items = c.items.slice(1);
+    c.emitted = true;
+    started = true;
+    if (headingReserved) headingUsed = true;
+    flush();
   }
   flush();
-  return out;
+
+  return pages;
 }
 
 // ─── photography ─────────────────────────────────────────────────────────────
@@ -550,40 +690,6 @@ function photographyNodes(valid: string[], d: Dict): ContentNode[] {
   return chunk(valid, per).map((g, i) =>
     makePage(g, i === 0 ? d["photography"]! : `${d["photography"]} (${i + 1})`),
   );
-}
-
-/**
- * Full-width specification grid, rendered as logical GROUPS stacked vertically
- * (the owner's ordering). Each group is its own paired key/value grid so fields
- * never pack across a group boundary; a small spacer separates groups. The
- * whole section is one `columns` node (single column) so it stays a SINGLE
- * model node — keeping the page-2 trio bundling (spec + accommodation + first
- * equipment pair) intact. The "Specifications" heading sits on the first group.
- */
-function specPairsTable(y: YachtProfile, d: Dict): ContentNode {
-  const groups = specGroups(y);
-  if (!groups.length) {
-    return {
-      kind: "keyValue",
-      heading: d["specifications"]!,
-      rows: [],
-      layout: "pairs",
-      emptyText: d["none"]!,
-    };
-  }
-  const GAP_MM = 4; // subtle separation between logical spec groups
-  const nodes: ContentNode[] = [];
-  groups.forEach((rows, i) => {
-    if (i > 0) nodes.push({ kind: "spacer", mm: GAP_MM });
-    nodes.push({
-      kind: "keyValue",
-      ...(i === 0 ? { heading: d["specifications"]! } : {}),
-      rows,
-      layout: "pairs",
-      emptyText: d["none"]!,
-    });
-  });
-  return { kind: "columns", columns: [{ nodes }] };
 }
 
 // ─── pricing ────────────────────────────────────────────────────────────────
@@ -668,71 +774,13 @@ export function buildProposalModel(input: {
   // ── body ──
   const body: ContentNode[] = [];
 
-  // P2 — Vessel Overview: compact paired specs (full width), then full-width
-  // Accommodation. No commercial content on this page.
-  const specNode = specPairsTable(yacht, d);
-
-  // Accommodation spans the full width.
-  const accomNode: ContentNode = {
-    kind: "keyValue",
-    heading: d["accommodation"]!,
-    rows: accomRows(yacht),
-    layout: "pairs",
-    emptyText: d["none"]!,
-  };
-
-  // P2/P3 — Equipment as a paired two-column grid (one block per pair, headers
-  // top-aligned by the `.two-col` flex row).
+  // P2+ — Vessel body: Specifications → Accommodation → Equipment flow
+  // continuously across pages, filling each one top-to-bottom. Nothing is kept
+  // together: spec groups and accommodation break across pages, and equipment
+  // categories split at the item boundary when only part fits the remaining
+  // column space (see `flowVesselBody`).
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  const equipPairs = equipmentNodes(equip, d);
-
-  // The paginator uses a deliberately CONSERVATIVE pack budget (PACK_BUDGET_MM,
-  // ~25mm under the true usable page) so heuristic heights can never overflow a
-  // physical page. The side effect is a half-empty page 2: Specifications +
-  // Accommodation fit with room to spare, yet the first equipment pair
-  // (Power | Navigation) is pushed onto a fresh page even though it physically
-  // fits beneath Accommodation.
-  //
-  // Fix (page 2 ONLY): bundle Specifications + Accommodation + the FIRST
-  // equipment pair into ONE block. The paginator never bumps the block that is
-  // first on an otherwise-empty page (it only flushes when the page already has
-  // content), so this trio always renders together on page 2 whenever it
-  // physically fits an A4 page; the remaining pairs flow normally onto page 3.
-  // The fit test uses the conservative `measureNode` content heights against the
-  // true usable page height — and because those estimates already run ABOVE the
-  // real rendered height, the small cosmetic spacers added below stay absorbed
-  // within that headroom (no clipping). If the trio genuinely would not fit (an
-  // unusually tall first pair), we fall back to separate blocks so the first
-  // pair simply flows to its own page rather than being clipped.
-  const firstPair = equipPairs[0];
-  const trioFits =
-    firstPair != null &&
-    measureNode(specNode) + measureNode(accomNode) + measureNode(firstPair) <=
-      A4_CONTENT_HEIGHT_MM;
-  // The equipment pairs that flow onto page 3+ are then packed into page-sized
-  // bundles (see `packEquipmentPages`) so a trailing odd card — e.g. Toys — is
-  // pulled up beneath the preceding pairs instead of being stranded alone on a
-  // fresh page when it physically fits.
-  if (firstPair && trioFits) {
-    const GAP_MM = 6; // mirrors the 24px inter-block margin between page sections
-    body.push({
-      kind: "columns",
-      columns: [
-        {
-          nodes: [
-            specNode,
-            { kind: "spacer", mm: GAP_MM },
-            accomNode,
-            { kind: "spacer", mm: GAP_MM },
-            firstPair,
-          ],
-        },
-      ],
-    });
-    body.push(...packEquipmentPages(equipPairs.slice(1)));
-  } else {
-    body.push(specNode, accomNode, ...packEquipmentPages(equipPairs));
-  }
+  body.push(...flowVesselBody(yacht, accomRows(yacht), equip, d));
 
   // P4 — Photography (validated photos only; editorial hero + grid that fills).
   body.push(...photographyNodes(photos, d));
