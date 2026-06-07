@@ -390,7 +390,7 @@ export async function calculateRoi(
   if (input.pricing_mode === "ai") {
     // Region 1 — identical to the single-region path (season "mixed" = its own
     // charter window). NEVER changed by the dual-region feature.
-    const rev1 = await computeAiRevenue({
+    const rev1Promise = computeAiRevenue({
       yacht,
       region: input.region,
       season: "mixed",
@@ -407,20 +407,29 @@ export async function calculateRoi(
         : null;
     if (region2) {
       const season2 = input.season_2 ?? "mixed";
-      const rates2 = await loadRoiRates({
-        yachtType: yacht.yacht_type ?? null,
-        lengthMeters: Number(yacht.length_meters) || 0,
-        region: region2,
-      });
-      const rev2 = await computeAiRevenue({
-        yacht,
-        region: region2,
-        season: season2,
-        occupancyTarget: input.occupancy_target_2 ?? null,
-        targetWeeksOverride: null,
-        charterType: input.charter_type_2 ?? null,
-        marketRates: rates2.market,
-      });
+      // Run both regions' AI lookups concurrently. Each computeAiRevenue can take
+      // up to one full timeout window (≈70s incl. fallbacks); awaiting them in
+      // sequence would risk 2×70s > the 120s proxy cutoff → 502. Promise.all
+      // keeps worst-case latency to a single window. Results are independent.
+      const [rev1, rev2] = await Promise.all([
+        rev1Promise,
+        (async () => {
+          const rates2 = await loadRoiRates({
+            yachtType: yacht.yacht_type ?? null,
+            lengthMeters: Number(yacht.length_meters) || 0,
+            region: region2,
+          });
+          return computeAiRevenue({
+            yacht,
+            region: region2,
+            season: season2,
+            occupancyTarget: input.occupancy_target_2 ?? null,
+            targetWeeksOverride: null,
+            charterType: input.charter_type_2 ?? null,
+            marketRates: rates2.market,
+          });
+        })(),
+      ]);
       revenue = combineRevenue(rev1, rev2);
       const reposition =
         input.repositioning_cost_eur != null &&
@@ -447,7 +456,7 @@ export async function calculateRoi(
         net_charter_income_eur: income1 + income2 - reposition,
       };
     } else {
-      revenue = rev1;
+      revenue = await rev1Promise;
     }
   } else {
     const rate = Number(input.manual_rate_eur);

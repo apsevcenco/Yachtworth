@@ -19,19 +19,52 @@ function getApiKey(): string {
   return key;
 }
 
+// Default per-call ceilings. The shared reverse proxy aborts upstream requests
+// at ~120s, so any single OpenAI call MUST resolve (or abort) well before that
+// to leave room for the next fallback level (Responses → chat → heuristic).
+const AI_CHAT_TIMEOUT_MS = 25_000;
+const AI_RESPONSES_TIMEOUT_MS = 45_000; // higher — web_search legitimately takes 10–30s
+
+// fetch() never times out on its own; a hung OpenAI socket would block until the
+// proxy kills the whole request at 120s → HTTP 502. AbortController converts a
+// slow/hung call into a thrown error so the caller can fall back gracefully.
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`OpenAI request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function aiChat(
   messages: { role: string; content: string }[],
   model = "gpt-5-mini",
+  timeoutMs = AI_CHAT_TIMEOUT_MS,
 ): Promise<string> {
   const apiKey = getApiKey();
-  const resp = await fetch(`${getBaseUrl()}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const resp = await fetchWithTimeout(
+    `${getBaseUrl()}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ model, messages }),
     },
-    body: JSON.stringify({ model, messages }),
-  });
+    timeoutMs,
+  );
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
     throw new Error(`OpenAI chat ${resp.status}: ${txt.slice(0, 300)}`);
@@ -46,18 +79,23 @@ export async function aiResponses(
   input: string,
   model = "gpt-5-mini",
   tools?: unknown[],
+  timeoutMs = AI_RESPONSES_TIMEOUT_MS,
 ): Promise<string> {
   const apiKey = getApiKey();
   const body: Record<string, unknown> = { model, input };
   if (tools) body.tools = tools;
-  const resp = await fetch(`${getBaseUrl()}/responses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const resp = await fetchWithTimeout(
+    `${getBaseUrl()}/responses`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    timeoutMs,
+  );
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
     throw new Error(`OpenAI responses ${resp.status}: ${txt.slice(0, 300)}`);
