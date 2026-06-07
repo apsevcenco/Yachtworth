@@ -648,7 +648,7 @@ export function buildProposalModel(input: {
       brand,
       title: d["proposal"]!,
       language: settings.language ?? "english",
-      confidential: settings.confidential === true,
+      confidential: false,
       watermarkText: d["confidential"]!,
       generatedAt: date,
       disclaimer: "Indicative · not certified · valid 30 days from issue.",

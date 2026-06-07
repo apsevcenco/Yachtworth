@@ -253,11 +253,14 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   /* equipment category cards + boxed broker card share the navy title bar */
   .eq-card, .kv-card { border: 1px solid ${t.line}; border-radius: 4px; overflow: hidden; background: ${t.pageBg}; break-inside: avoid; }
   .eq-card-h { font-family: ${HEAD}; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; color: ${t.tableHeadText}; background: ${t.tableHeadBg}; padding: 6px 10px; }
-  .eq-card-body { padding: 3px 10px 5px; }
-  .eq-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid ${t.line}; }
+  /* equipment-only: gold accent rule under the navy category header (broker card unaffected) */
+  .eq-card > .eq-card-h { border-bottom: 2px solid ${t.accent}; }
+  .eq-card-body { padding: 4px 11px 6px; }
+  /* each item = stacked row: bold name over smaller muted meta, even spacing */
+  .eq-row { display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 6px 0; border-bottom: 1px solid ${t.line}; }
   .eq-row:last-child { border-bottom: 0; }
-  .eq-name { flex: 1 1 auto; font-weight: 700; color: ${t.text}; font-size: 10px; }
-  .eq-meta { flex: 0 0 auto; max-width: 58%; color: ${t.textMuted}; font-size: 8.5px; font-weight: 400; text-align: right; }
+  .eq-name { font-weight: 700; color: ${t.text}; font-size: 10px; line-height: 1.3; }
+  .eq-meta { color: ${t.textMuted}; font-size: 8.5px; font-weight: 400; line-height: 1.3; }
   /* compact inline commercial snapshot (page 2) */
   .kv-inline { background: ${t.panelBg}; border-left: 3px solid ${t.accent}; border-radius: 3px; padding: 11px 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
   .kvi-l { font-family: ${HEAD}; color: ${t.accentInk}; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; margin-right: 7px; }
