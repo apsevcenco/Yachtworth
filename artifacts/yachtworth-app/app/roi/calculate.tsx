@@ -1,9 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import {
+  getGetRoiCalculationQueryKey,
   getGetYachtQueryKey,
+  getListRoiCalculationsQueryKey,
   useCalculateRoi,
+  useDeleteRoiCalculation,
+  useGetRoiCalculation,
   useGetYacht,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/expo";
 import { AIRateEstimator } from "../../components/AIRateEstimator";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -122,13 +127,30 @@ export default function RoiCalculateScreen() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { units: displayUnits } = useUnits();
-  const params = useLocalSearchParams<{ yacht_id?: string; snapshot?: string }>();
-  const yachtId = typeof params.yacht_id === "string" ? params.yacht_id : null;
+  const queryClient = useQueryClient();
+  const params = useLocalSearchParams<{
+    yacht_id?: string;
+    snapshot?: string;
+    edit_id?: string;
+  }>();
+  const paramYachtId = typeof params.yacht_id === "string" ? params.yacht_id : null;
+
+  // Editing an existing ROI request: load the saved calculation and prefill the
+  // whole form from it. Editing replaces the old request (delete + re-create) so
+  // history shows the updated run. The underlying My Yacht is never touched.
+  const editId = typeof params.edit_id === "string" ? params.edit_id : null;
+  const editQ = useGetRoiCalculation(editId ?? "", {
+    query: {
+      queryKey: editId ? getGetRoiCalculationQueryKey(editId) : ["roi-edit-disabled"],
+      enabled: Boolean(editId && isSignedIn),
+    },
+  });
 
   // A manually-entered yacht arrives as a JSON passport snapshot. It is never a
   // My Yachts record — it is sent to the backend as `yacht_snapshot` and lives
-  // only in ROI history.
-  const snapshot = useMemo<Record<string, unknown> | null>(() => {
+  // only in ROI history. When editing, the yacht (id or snapshot) comes from the
+  // saved calculation instead.
+  const paramSnapshot = useMemo<Record<string, unknown> | null>(() => {
     if (typeof params.snapshot !== "string" || !params.snapshot) return null;
     try {
       const parsed = JSON.parse(params.snapshot);
@@ -137,6 +159,14 @@ export default function RoiCalculateScreen() {
       return null;
     }
   }, [params.snapshot]);
+
+  const yachtId =
+    paramYachtId ?? (editId ? editQ.data?.yacht_id ?? null : null);
+  const snapshot = useMemo<Record<string, unknown> | null>(() => {
+    if (paramSnapshot) return paramSnapshot;
+    const es = editId ? editQ.data?.yacht_snapshot : null;
+    return es && typeof es === "object" ? (es as Record<string, unknown>) : null;
+  }, [paramSnapshot, editId, editQ.data]);
   const isManualYacht = !yachtId && snapshot != null;
 
   const [region, setRegion] = useState<Region>("mediterranean");
@@ -153,6 +183,7 @@ export default function RoiCalculateScreen() {
   // the yacht profile).
   const [fin, setFin] = useState<FinancialsState>(EMPTY_FINANCIALS);
   const hydratedRef = useRef<string | null>(null);
+  const editHydratedRef = useRef<string | null>(null);
   const [expensesOpen, setExpensesOpen] = useState(true);
   const [financingOpen, setFinancingOpen] = useState(false);
 
@@ -164,6 +195,9 @@ export default function RoiCalculateScreen() {
   });
 
   useEffect(() => {
+    // When editing, the saved calculation's overrides own the form — skip the
+    // yacht-profile hydrate so it can't overwrite the user's saved ROI inputs.
+    if (editId) return;
     if (!yachtId) return;
     if (hydratedRef.current === yachtId) return;
     const y = yachtQ.data;
@@ -175,7 +209,35 @@ export default function RoiCalculateScreen() {
     // an ROI-only field, entered here.
     const pp = (y as { purchase_price_eur?: number | null }).purchase_price_eur;
     if (pp != null && Number.isFinite(pp)) setPurchasePrice(String(pp));
-  }, [yachtId, yachtQ.data]);
+  }, [editId, yachtId, yachtQ.data]);
+
+  // Prefill the whole form from a saved ROI request when editing. Runs once per
+  // edit_id. The overrides object uses the same field names as the yacht
+  // financials, so hydrateFinancialsFromYacht maps it directly.
+  useEffect(() => {
+    if (!editId) return;
+    if (editHydratedRef.current === editId) return;
+    const d = editQ.data;
+    if (!d) return;
+    editHydratedRef.current = editId;
+    const inp = d.input;
+    if (REGION_OPTS.some((o) => o.v === inp.region)) {
+      setRegion(inp.region as Region);
+    }
+    setPricingMode(inp.pricing_mode as PricingMode);
+    if (inp.occupancy_target && OCC_OPTS.some((o) => o.v === inp.occupancy_target)) {
+      setOcc(inp.occupancy_target as Occ);
+    }
+    if (inp.charter_type === "weekly" || inp.charter_type === "daily") {
+      setCharterType(inp.charter_type);
+    }
+    if (inp.manual_rate_eur != null) setRate(String(inp.manual_rate_eur));
+    if (inp.manual_charter_units != null) setUnits(String(inp.manual_charter_units));
+    const ov = (inp.overrides ?? {}) as Record<string, unknown>;
+    setFin(hydrateFinancialsFromYacht(ov));
+    const pp = ov.purchase_price_eur;
+    if (typeof pp === "number" && Number.isFinite(pp)) setPurchasePrice(String(pp));
+  }, [editId, editQ.data]);
 
   const updateFin = useCallback(
     <K extends keyof FinancialsState>(k: K, v: FinancialsState[K]) => {
@@ -194,6 +256,7 @@ export default function RoiCalculateScreen() {
   }, []);
 
   const mutation = useCalculateRoi();
+  const deleteMutation = useDeleteRoiCalculation();
 
   const isManual = pricingMode !== "ai";
   const unitLabel = pricingMode === "manual_daily" ? "days" : "weeks";
@@ -297,6 +360,19 @@ export default function RoiCalculateScreen() {
           overrides: hasOverrides ? overrides : null,
         } as never,
       });
+      // Editing replaces the old request: now that the new run saved, remove the
+      // one we opened so history shows a single updated entry. Best-effort —
+      // never blocks navigation, and never touches the My Yacht.
+      if (editId) {
+        try {
+          await deleteMutation.mutateAsync({ id: editId });
+        } catch {
+          /* leave the old one if delete fails; the new run still saved */
+        }
+        queryClient.invalidateQueries({
+          queryKey: getListRoiCalculationsQueryKey(),
+        });
+      }
       router.replace({
         pathname: "/roi/result",
         params: { data: JSON.stringify(result) },
@@ -317,6 +393,26 @@ export default function RoiCalculateScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setFinancingOpen((v) => !v);
   };
+
+  // While an edit request is still loading, show a spinner instead of the
+  // "no yacht selected" empty state (the yacht arrives with the saved calc).
+  if (editId && !yachtId && !snapshot) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
+        <TopBar onBack={() => router.back()} title="ROI scenario" />
+        <View style={styles.empty}>
+          {editQ.isError ? (
+            <>
+              <Feather name="alert-circle" size={24} color={GOLD} />
+              <Text style={styles.emptyTitle}>Couldn't load this ROI request</Text>
+            </>
+          ) : (
+            <ActivityIndicator color={GOLD} />
+          )}
+        </View>
+      </View>
+    );
+  }
 
   if (!yachtId && !snapshot) {
     return (
@@ -658,7 +754,11 @@ export default function RoiCalculateScreen() {
               <ActivityIndicator color={GOLD} />
             ) : (
               <Text style={styles.primaryBtnText}>
-                {pricingMode === "ai" ? "Run AI estimate" : "Calculate ROI"}
+                {editId
+                  ? "Save changes"
+                  : pricingMode === "ai"
+                    ? "Run AI estimate"
+                    : "Calculate ROI"}
               </Text>
             )}
           </Pressable>

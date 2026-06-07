@@ -16,7 +16,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,8 +28,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SwipeableCard } from "../components/SwipeableCard";
 import { useUnits } from "../hooks/useUnits";
 
 const NAVY = "#0B1E3F";
@@ -41,7 +41,6 @@ const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 const POSITIVE = "#7BD389";
 const NEGATIVE = "#FF8A8A";
-const DANGER = "#B5363A";
 
 type Tab = "estimates" | "cost" | "roi";
 
@@ -88,71 +87,6 @@ function formatLength(m: number | null | undefined, units: "metric" | "imperial"
   if (m == null) return "";
   if (units === "metric") return `${m.toFixed(1)} m`;
   return `${Math.round(m * 3.28084)} ft`;
-}
-
-interface SwipeableCardProps {
-  children: React.ReactNode;
-  onDelete: () => void;
-  deletingLabel: string;
-  confirmTitle: string;
-  confirmMessage: string;
-  isDeleting: boolean;
-}
-
-function SwipeableCard({
-  children,
-  onDelete,
-  deletingLabel,
-  confirmTitle,
-  confirmMessage,
-  isDeleting,
-}: SwipeableCardProps) {
-  const swipeRef = useRef<Swipeable>(null);
-  const handlePress = () => {
-    Alert.alert(confirmTitle, confirmMessage, [
-      { text: "Cancel", style: "cancel", onPress: () => swipeRef.current?.close() },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          swipeRef.current?.close();
-          onDelete();
-        },
-      },
-    ]);
-  };
-
-  return (
-    <Swipeable
-      ref={swipeRef}
-      renderRightActions={() => (
-        <Pressable
-          onPress={handlePress}
-          accessibilityRole="button"
-          accessibilityLabel={deletingLabel}
-          disabled={isDeleting}
-          style={({ pressed }) => [
-            styles.deleteAction,
-            { opacity: pressed || isDeleting ? 0.7 : 1 },
-          ]}
-        >
-          {isDeleting ? (
-            <ActivityIndicator color={IVORY} />
-          ) : (
-            <>
-              <Feather name="trash-2" size={18} color={IVORY} />
-              <Text style={styles.deleteActionText}>Delete</Text>
-            </>
-          )}
-        </Pressable>
-      )}
-      overshootRight={false}
-      friction={2}
-      rightThreshold={40}
-    >
-      {children}
-    </Swipeable>
-  );
 }
 
 export default function HistoryScreen() {
@@ -649,21 +583,6 @@ const styles = StyleSheet.create({
   cardPrice: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   cardPriceSuffix: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11 },
   roiSub: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11, marginTop: 2 },
-  deleteAction: {
-    backgroundColor: DANGER,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 92,
-    marginBottom: 10,
-    borderRadius: 14,
-    marginLeft: 8,
-    gap: 4,
-  },
-  deleteActionText: {
-    color: IVORY,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-  },
   backFab: {
     position: "absolute",
     left: 12,
