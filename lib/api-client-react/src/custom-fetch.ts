@@ -171,6 +171,13 @@ function buildErrorMessage(response: Response, data: unknown): string {
 
   if (typeof data === "string") {
     const text = data.trim();
+    // HTML body (not JSON) means we hit an edge/proxy page rather than the API
+    // — e.g. the "Run this app…" placeholder served while the backend is
+    // restarting or briefly unreachable. Dumping raw markup is useless to the
+    // user, so surface a friendly, actionable message instead.
+    if (text.startsWith("<")) {
+      return `${prefix}: The server is temporarily unavailable. Please try again in a moment.`;
+    }
     return text ? `${prefix}: ${truncate(text)}` : prefix;
   }
 
