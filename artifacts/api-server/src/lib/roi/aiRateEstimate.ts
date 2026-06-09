@@ -141,6 +141,8 @@ export function buildUserPrompt(
   const yachtType = yacht.yacht_type || "yacht";
   const length = Number(yacht.length_meters) || 0;
   const year = yacht.year_built ?? "unknown";
+  const brand = (yacht.brand as string | null) ?? null;
+  const model = (yacht.model as string | null) ?? null;
   const lengthStr = length > 0 ? `${length.toFixed(1)} meters` : "unknown";
   const charterType =
     req.charter_type ??
@@ -149,15 +151,35 @@ export function buildUserPrompt(
       : length >= 15
         ? "crewed"
         : "bareboat");
+
+  // Build brand/model line only when available — AI uses it to find
+  // brand-specific comparables instead of generic size-only matches.
+  const brandLine =
+    brand || model
+      ? `BRAND / MODEL: ${[brand, model].filter(Boolean).join(" ")}\n`
+      : "";
+
+  // Year-based recency note helps AI weight newer comparables correctly.
+  const yearNote =
+    typeof year === "number" && year >= 2015
+      ? `This is a relatively modern yacht (${year}); prioritise comparables built ${year - 4}–${year + 4}.`
+      : typeof year === "number"
+        ? `Built ${year}; comparables within ±5 years preferred.`
+        : "";
+
   return `Find the current market charter rate for this yacht:
 
 TYPE: ${yachtType}
-LENGTH: ${lengthStr}
+${brandLine}LENGTH: ${lengthStr}
 YEAR BUILT: ${year}
 REGION: ${REGION_LABEL[req.region]}
 SEASON: ${req.season} season
 RATE PERIOD: per ${req.rate_period}
 CHARTER TYPE: ${charterType}
+
+${yearNote}
+
+IMPORTANT: Search specifically for "${[brand, model].filter(Boolean).join(" ") || `${yachtType} ${lengthStr}`}" charter listings first. Brand matters — premium builders (Azimut Grande, Sunseeker, Pershing, Ferretti, Benetti, Princess, Sanlorenzo) command significantly higher rates than generic comparables of the same length. Do NOT average in bareboat or budget listings.
 
 Search for comparable yachts currently listed for charter in ${REGION_LABEL[req.region]}.
 Return the average market rate as a single number in EUR per ${req.rate_period} for ${req.season} season.
