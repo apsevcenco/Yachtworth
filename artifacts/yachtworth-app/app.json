@@ -5,32 +5,26 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-
     "scheme": "yachtworth-app",
     "userInterfaceStyle": "automatic",
-
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
-
-
       "resizeMode": "contain",
       "backgroundColor": "#0B1E3F"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.apsevcenco.yachtworthapp"
     },
-    "android": {},
+    "android": {
+      "package": "com.apsevcenco.yachtworthapp"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://replit.com/"
-        }
-      ],
+      "expo-router",
       "expo-font",
       "expo-web-browser"
     ],
@@ -38,11 +32,15 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "apsevcenco",
     "extra": {
       "eas": {
         "projectId": "69d588b6-04f5-4b2e-a254-035e2bc60f82"
       }
     },
-    "owner": "apsevcenco"
+    "updates": {
+      "url": "https://u.expo.dev/69d588b6-04f5-4b2e-a254-035e2bc60f82"
+    },
+    "runtimeVersion": "exposdk:54.0.0"
   }
 }
