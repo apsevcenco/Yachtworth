@@ -12,6 +12,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
+
       "resizeMode": "contain",
       "backgroundColor": "#0B1E3F"
     },
