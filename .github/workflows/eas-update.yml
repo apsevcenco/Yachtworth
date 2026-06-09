@@ -25,9 +25,9 @@ jobs:
         with:
           version: 9
 
-      - name: Install dependencies
-        run:  pnpm install --no-frozen-lockfile --ignore-scripts
-
+      - name: Install app dependencies
+        working-directory: artifacts/yachtworth-app
+        run: pnpm install --no-frozen-lockfile
       - name: EAS Update
         uses: expo/expo-github-action@v8
         with:
