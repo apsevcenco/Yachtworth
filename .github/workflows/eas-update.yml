@@ -25,9 +25,10 @@ jobs:
         with:
           version: 9
 
-      - name: Install app dependencies
+      - name: Install dependencies
         working-directory: artifacts/yachtworth-app
         run: pnpm install --no-frozen-lockfile
+
       - name: EAS Update
         uses: expo/expo-github-action@v8
         with:
@@ -36,4 +37,4 @@ jobs:
 
       - name: Publish update
         working-directory: artifacts/yachtworth-app
-        run: eas update --auto
+        run: eas update --branch main --message "Update from GitHub Actions"
