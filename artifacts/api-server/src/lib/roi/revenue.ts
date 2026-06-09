@@ -447,6 +447,41 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
   const crew = yacht.crew ? `${yacht.crew} crew` : "crew unknown";
   const lengthStr = L > 0 ? `${L.toFixed(1)}m (${lengthFt}ft)` : "length unknown";
 
+  // ── Brand/model search instruction ──────────────────────────────
+  const brand = (yacht.brand as string | null) ?? null;
+  const model = (yacht.model as string | null) ?? null;
+  const brandModel = [brand, model].filter(Boolean).join(" ");
+
+  const PREMIUM_LINES: Record<string, string> = {
+    "Azimut Grande":
+      "Azimut Grande line (26M/27M/30M/32M/35M) — premium tier, DO NOT mix with Azimut Fly or standard Azimut series",
+    "Sunseeker Predator": "Sunseeker Predator — sport tier",
+    "Sunseeker Manhattan": "Sunseeker Manhattan — flybridge tier",
+    "Princess Y": "Princess Y-class — ultra-premium tier",
+    "Sanlorenzo SL": "Sanlorenzo SL/SD — premium tier",
+    Benetti: "Benetti — premium/superyacht tier",
+    Pershing: "Pershing — sport superyacht tier",
+    MCY: "Monte Carlo Yachts — premium tier",
+    "Custom Line": "Ferretti Custom Line — custom superyacht tier",
+  };
+
+  const lineKey = Object.keys(PREMIUM_LINES).find((k) =>
+    brandModel.toLowerCase().includes(k.toLowerCase()),
+  );
+  const lineNote = lineKey
+    ? `CRITICAL: This is a ${PREMIUM_LINES[lineKey]}. Search ONLY for same product line comparables. Never use standard or budget models of the same builder or length.`
+    : brand
+      ? `Search specifically for "${brandModel}" charter listings. Brand and model line matter — do not substitute with other builders or product lines of similar length.`
+      : "";
+
+  const yearNote = yacht.year_built
+    ? `Prioritise comparables built ${yacht.year_built - 4}–${yacht.year_built + 4}. Each year newer adds ~3–5% to rate.`
+    : "";
+
+  const commercialNote = yacht.commercial_registration
+    ? ""
+    : "This yacht is NOT commercially registered. Apply a 15–20% discount vs commercially registered comparables when setting the rate.";
+
   // New-model regions (Caribbean, Middle East): units (weeks or days) are
   // fixed by the owner table; AI estimates only the rate. Legacy regions keep
   // the Mediterranean fixed-weeks / free-estimate behaviour.
@@ -500,6 +535,10 @@ YACHT
 - Home port: ${yacht.marina_location || "not specified"}
 - Configuration: ${yacht.configuration || "not specified"}
 - Commercial registration: ${yacht.commercial_registration ? "YES" : "NO"}
+
+${lineNote}
+${yearNote}
+${commercialNote}
 
 CHARTER SCENARIO
 - Region: ${REGION_LABEL[region] || region}
