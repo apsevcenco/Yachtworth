@@ -1,0 +1,90 @@
+const REGION_MODELS: Record<string, RegionModel> = {
+  mediterranean: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak:     { units: { conservative: 3, realistic: 6, optimistic: 9  }, mult: 1.0  },
+        shoulder: { units: { conservative: 2, realistic: 3, optimistic: 5  }, mult: 0.85 },
+      },
+      seasonMap: MED_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak:     { units: { conservative: 25, realistic: 38, optimistic: 55 }, mult: 1.0  },
+        shoulder: { units: { conservative: 10, realistic: 20, optimistic: 32 }, mult: 0.85 },
+      },
+      seasonMap: MED_SEASON_MAP,
+    },
+  },
+  caribbean: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak:     { units: { conservative: 4, realistic: 7, optimistic: 10 }, mult: 1.0  },
+        shoulder: { units: { conservative: 1, realistic: 2, optimistic: 3  }, mult: 0.80 },
+      },
+      seasonMap: CARIB_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak:     { units: { conservative: 25, realistic: 45, optimistic: 65 }, mult: 1.0  },
+        shoulder: { units: { conservative: 5,  realistic: 12, optimistic: 20 }, mult: 0.80 },
+      },
+      seasonMap: CARIB_SEASON_MAP,
+    },
+  },
+  middle_east: {
+    bases: ["daily"],
+    dailyDivisor: 6,
+    daily: {
+      subSeasons: {
+        high: { units: { conservative: 40, realistic: 65, optimistic: 90  }, mult: 1.0  },
+        low:  { units: { conservative: 5,  realistic: 15, optimistic: 25  }, mult: 0.70 },
+      },
+      seasonMap: {
+        high: ["high"],
+        low:  ["low"],
+        mixed: ["high", "low"],
+        shoulder: [],
+      },
+    },
+  },
+  northern_europe: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak:     { units: { conservative: 2, realistic: 4, optimistic: 6 }, mult: 1.0  },
+        shoulder: { units: { conservative: 1, realistic: 2, optimistic: 3 }, mult: 0.75 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak:     { units: { conservative: 12, realistic: 25, optimistic: 38 }, mult: 1.0  },
+        shoulder: { units: { conservative: 5,  realistic: 12, optimistic: 20 }, mult: 0.75 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+  },
+  asia_pacific_me: {
+    bases: ["weekly", "daily"],
+    dailyDivisor: 6,
+    weekly: {
+      subSeasons: {
+        peak:     { units: { conservative: 3, realistic: 6, optimistic: 9 }, mult: 1.0  },
+        shoulder: { units: { conservative: 1, realistic: 2, optimistic: 3 }, mult: 0.80 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+    daily: {
+      subSeasons: {
+        peak:     { units: { conservative: 20, realistic: 40, optimistic: 60 }, mult: 1.0  },
+        shoulder: { units: { conservative: 5,  realistic: 10, optimistic: 18 }, mult: 0.80 },
+      },
+      seasonMap: PEAK_SHOULDER_SEASON_MAP,
+    },
+  },
+};

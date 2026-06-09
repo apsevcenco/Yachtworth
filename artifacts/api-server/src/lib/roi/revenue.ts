@@ -67,13 +67,9 @@ const REGION_SEASON_WEEKS: Record<
   // This legacy entry is kept inert as documentation of the original week counts
   // — REGION_MODELS takes priority in every code path, so it is never read.
   mediterranean: {
-    // High season (Jun–Aug): 13 weeks available
-    high: { conservative: 4, realistic: 7, optimistic: 10 },
-    // Shoulder season (May, Sep–Oct): 13 weeks available
-    shoulder: { conservative: 2, realistic: 4, optimistic: 6 },
-    // Full year (high + shoulder); low season excluded as effectively dead
-    mixed: { conservative: 6, realistic: 11, optimistic: 16 },
-    // Low season (Nov–Apr): no realistic charter demand in the Med
+    high: { conservative: 3, realistic: 6, optimistic: 9 },
+    shoulder: { conservative: 2, realistic: 3, optimistic: 5 },
+    mixed: { conservative: 5, realistic: 9, optimistic: 14 },
     low: { conservative: 0, realistic: 0, optimistic: 0 },
   },
 };
@@ -172,15 +168,15 @@ const REGION_MODELS: Record<string, RegionModel> = {
     dailyDivisor: 6,
     weekly: {
       subSeasons: {
-        peak: { units: { conservative: 4, realistic: 7, optimistic: 10 }, mult: 1.0 },
-        shoulder: { units: { conservative: 2, realistic: 4, optimistic: 6 }, mult: 1.0 },
+        peak: { units: { conservative: 3, realistic: 6, optimistic: 9 }, mult: 1.0 },
+        shoulder: { units: { conservative: 2, realistic: 3, optimistic: 5 }, mult: 0.85 },
       },
       seasonMap: MED_SEASON_MAP,
     },
     daily: {
       subSeasons: {
-        peak: { units: { conservative: 28, realistic: 50, optimistic: 75 }, mult: 1.0 },
-        shoulder: { units: { conservative: 14, realistic: 28, optimistic: 45 }, mult: 0.85 },
+        peak: { units: { conservative: 25, realistic: 38, optimistic: 55 }, mult: 1.0 },
+        shoulder: { units: { conservative: 10, realistic: 20, optimistic: 32 }, mult: 0.85 },
       },
       seasonMap: MED_SEASON_MAP,
     },
@@ -190,28 +186,26 @@ const REGION_MODELS: Record<string, RegionModel> = {
     dailyDivisor: 6,
     weekly: {
       subSeasons: {
-        peak: { units: { conservative: 5, realistic: 10, optimistic: 14 }, mult: 1.0 },
-        shoulder: { units: { conservative: 2, realistic: 3, optimistic: 5 }, mult: 0.8 },
+        peak: { units: { conservative: 4, realistic: 7, optimistic: 10 }, mult: 1.0 },
+        shoulder: { units: { conservative: 1, realistic: 2, optimistic: 3 }, mult: 0.8 },
       },
       seasonMap: CARIB_SEASON_MAP,
     },
     daily: {
       subSeasons: {
-        peak: { units: { conservative: 30, realistic: 60, optimistic: 90 }, mult: 1.0 },
-        shoulder: { units: { conservative: 5, realistic: 15, optimistic: 25 }, mult: 0.8 },
+        peak: { units: { conservative: 25, realistic: 45, optimistic: 65 }, mult: 1.0 },
+        shoulder: { units: { conservative: 5, realistic: 12, optimistic: 20 }, mult: 0.8 },
       },
       seasonMap: CARIB_SEASON_MAP,
     },
   },
-  // Dubai / Middle East — DAILY only. High (Oct–Apr) + low (May–Sep); no
-  // shoulder. Low season discounted 25% (mult 0.75). "mixed" = full-year all.
   middle_east: {
     bases: ["daily"],
     dailyDivisor: 6,
     daily: {
       subSeasons: {
-        high: { units: { conservative: 56, realistic: 84, optimistic: 133 }, mult: 1.0 },
-        low: { units: { conservative: 10, realistic: 25, optimistic: 50 }, mult: 0.75 },
+        high: { units: { conservative: 40, realistic: 65, optimistic: 90 }, mult: 1.0 },
+        low: { units: { conservative: 5, realistic: 15, optimistic: 25 }, mult: 0.7 },
       },
       seasonMap: {
         high: ["high"],
@@ -221,48 +215,38 @@ const REGION_MODELS: Record<string, RegionModel> = {
       },
     },
   },
-  // Northern Europe (UK, Baltic, Norway) — weekly + daily. Short summer:
-  // peak (Jul–Aug) + shoulder (May–Jun, Sep); no winter charter (low → 0).
-  // Shoulder discounted 30% (mult 0.70). The booked units below already
-  // reflect the -15% weather deduction applied to available days, so no
-  // further deduction is applied here.
   northern_europe: {
     bases: ["weekly", "daily"],
     dailyDivisor: 6,
     weekly: {
       subSeasons: {
-        peak: { units: { conservative: 3, realistic: 5, optimistic: 7 }, mult: 1.0 },
-        shoulder: { units: { conservative: 1, realistic: 3, optimistic: 5 }, mult: 0.7 },
+        peak: { units: { conservative: 2, realistic: 4, optimistic: 6 }, mult: 1.0 },
+        shoulder: { units: { conservative: 1, realistic: 2, optimistic: 3 }, mult: 0.75 },
       },
       seasonMap: PEAK_SHOULDER_SEASON_MAP,
     },
     daily: {
       subSeasons: {
-        peak: { units: { conservative: 15, realistic: 28, optimistic: 42 }, mult: 1.0 },
-        shoulder: { units: { conservative: 5, realistic: 15, optimistic: 25 }, mult: 0.7 },
+        peak: { units: { conservative: 12, realistic: 25, optimistic: 38 }, mult: 1.0 },
+        shoulder: { units: { conservative: 5, realistic: 12, optimistic: 20 }, mult: 0.75 },
       },
       seasonMap: PEAK_SHOULDER_SEASON_MAP,
     },
   },
-  // Southeast Asia (Phuket / Bali / Langkawi) — weekly + daily. Main window
-  // Nov–Apr: peak (Dec–Mar) + shoulder (Nov, Apr); off-season monsoon is
-  // dead (low → 0). Shoulder discounted 25% (mult 0.75). The booked units
-  // below already reflect the -10% weather deduction applied to available
-  // days, so no further deduction is applied here.
   asia_pacific_me: {
     bases: ["weekly", "daily"],
     dailyDivisor: 6,
     weekly: {
       subSeasons: {
-        peak: { units: { conservative: 4, realistic: 8, optimistic: 12 }, mult: 1.0 },
-        shoulder: { units: { conservative: 2, realistic: 3, optimistic: 5 }, mult: 0.75 },
+        peak: { units: { conservative: 3, realistic: 6, optimistic: 9 }, mult: 1.0 },
+        shoulder: { units: { conservative: 1, realistic: 2, optimistic: 3 }, mult: 0.8 },
       },
       seasonMap: PEAK_SHOULDER_SEASON_MAP,
     },
     daily: {
       subSeasons: {
-        peak: { units: { conservative: 25, realistic: 55, optimistic: 85 }, mult: 1.0 },
-        shoulder: { units: { conservative: 5, realistic: 12, optimistic: 20 }, mult: 0.75 },
+        peak: { units: { conservative: 20, realistic: 40, optimistic: 60 }, mult: 1.0 },
+        shoulder: { units: { conservative: 5, realistic: 10, optimistic: 18 }, mult: 0.8 },
       },
       seasonMap: PEAK_SHOULDER_SEASON_MAP,
     },
