@@ -11,3 +11,4 @@
 - [ROI engine quirks](roi-engine.md) — loan repayment ignores financing_type (null loan_* for cash); blank expense lines omitted not estimated; engine reads monthly_crew_eur not crew_breakdown.
 - [Owner-run migration column fallback](owner-run-migration-column-fallback.md) — reads selecting a newly-added column must catch PostgREST 42703 and retry without it; migrations lag the deploy.
 - [OpenAI helper timeouts](ai-call-timeouts.md) — bare fetch in aiResponses/aiChat has no timeout; a hung web_search blocks until the 120s proxy cutoff → HTTP 502. AbortController + fall back to heuristic.
+- [Expo dev workflow won't start](expo-dev-workflow.md) — use EXPO_OFFLINE=1 (not CI=1, which kills hot reload) to skip the blocking Expo login prompt; CI=true pnpm install to fix missing deps + no-TTY abort.
