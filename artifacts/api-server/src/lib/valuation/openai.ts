@@ -52,7 +52,7 @@ async function fetchWithTimeout(
 
 export async function aiChat(
   messages: { role: string; content: string }[],
-  model = "gpt-5-mini",
+  model = "gpt-4o-mini",
   timeoutMs = AI_CHAT_TIMEOUT_MS,
 ): Promise<string> {
   const apiKey = getApiKey();
@@ -80,7 +80,7 @@ export async function aiChat(
 
 export async function aiResponses(
   input: string,
-  model = "gpt-5-mini",
+  model = "gpt-4o-mini",
   tools?: unknown[],
   timeoutMs = AI_RESPONSES_TIMEOUT_MS,
   maxToolCalls?: number,

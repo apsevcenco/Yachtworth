@@ -261,7 +261,7 @@ export async function estimateCharterRate(
 
   let raw = "";
   try {
-    raw = await aiResponses(fullInput, "gpt-5-mini", [
+    raw = await aiResponses(fullInput, "gpt-4o-mini", [
       { type: "web_search_preview" },
     ]);
   } catch {
@@ -271,7 +271,7 @@ export async function estimateCharterRate(
           { role: "system", content: CHARTER_RATE_SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
-        "gpt-5-mini",
+        "gpt-4o-mini",
       );
     } catch {
       return {

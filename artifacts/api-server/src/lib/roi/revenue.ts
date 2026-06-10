@@ -3,6 +3,7 @@ import {
   extractJson,
   cleanReasoning,
 } from "../valuation/openai";
+import { logger } from "./logger";
 import type { YachtRow } from "./types";
 import { findMarketRate, lengthBand, type MarketRateRow } from "./rates";
 
@@ -700,19 +701,21 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     // the deterministic heuristic.
     raw = await aiResponses(
       prompt,
-      "gpt-5-mini",
+      "gpt-4o-mini",
       [{ type: "web_search_preview", search_context_size: "low" }],
       undefined,
       5,
     );
     webSearchUsed = true;
-  } catch {
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err.message : String(err) }, "aiResponses web search failed");
     return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
   let parsed: Record<string, unknown>;
   try {
     parsed = extractJson(raw) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err.message : String(err), raw: raw.slice(0, 200) }, "aiResponses JSON parse failed");
     return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
 

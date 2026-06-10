@@ -393,7 +393,7 @@ export async function runValuation(
   let result: Record<string, unknown>;
   let usedFallback = false;
   try {
-    const raw = await aiResponses(prompt, "gpt-5-mini", [
+    const raw = await aiResponses(prompt, "gpt-4o-mini", [
       { type: "web_search_preview" },
     ]);
     if (!raw) throw new Error("Empty response");
