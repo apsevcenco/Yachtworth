@@ -14,12 +14,6 @@ import type {
   ProposalYachtSnapshot,
 } from "./proposalTypes";
 
-/**
- * Backend Document Generation Engine client (additive — independent from the
- * client-side "Legacy" `exportProposalPdf`). Calls `POST /api/documents/generate`
- * and downloads the returned PDF/DOCX file.
- */
-
 export type DocumentFormat = "pdf" | "docx";
 
 type BackendTemplate = "minimal" | "classic" | "premium";
@@ -94,8 +88,6 @@ function buildRequestBody(
       confidential: Array.isArray(settings.sections)
         ? settings.sections.includes("watermark_confidential")
         : false,
-      // Proposal V2 (adaptive PDF engine) is opt-in. Enable it ONLY for the
-      // Professional PDF export. DOCX must stay on the legacy backend path.
       ...(format === "pdf" ? { engine: "adaptive" as const } : {}),
     },
   };
@@ -111,11 +103,6 @@ function fileNameFor(yacht: ProposalYachtSnapshot, format: DocumentFormat): stri
   return `${base}_proposal.${format}`;
 }
 
-/**
- * Shared transport: POST a request body to the backend document engine and
- * present the returned binary (share sheet on native, download on web).
- * Identical behaviour for every document type — only the request body differs.
- */
 async function downloadDocument(
   body: unknown,
   format: DocumentFormat,
@@ -184,10 +171,6 @@ async function downloadDocument(
   }
 }
 
-/**
- * Generate a professional proposal document on the backend and present it
- * (share sheet on native, download on web).
- */
 export async function exportProposalDocument(input: {
   yacht: ProposalYachtSnapshot;
   equipment: ProposalEquipmentItem[];
@@ -202,9 +185,8 @@ export async function exportProposalDocument(input: {
   );
 }
 
-// ─── valuation report (backend adaptive engine) ──────────────────────────────
+// ─── valuation report ────────────────────────────────────────────────────────
 
-/** Cover/spec header carried from the valuation wizard (already humanized). */
 export type ValuationHeader = {
   yachtType?: string | null;
   builder?: string | null;
@@ -216,11 +198,6 @@ export type ValuationHeader = {
 const M_PER_FT = 0.3048;
 const CONFIDENCE_PCT: Record<string, number> = { high: 85, medium: 60, low: 30 };
 
-/**
- * Parse an AI comparable price string into a plain EUR number. Abbreviated
- * ("€1.2M") or non-numeric ("POA") prices can't be digit-stripped safely, so we
- * return null and let the caller keep the original string as a note instead.
- */
 function parseEuro(s: string | null | undefined): number | null {
   if (!s) return null;
   const str = String(s);
@@ -231,7 +208,6 @@ function parseEuro(s: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Parse a comparable length string to metres (mirrors `formatComparableLength`). */
 function parseLengthMeters(s: string | null | undefined): number | null {
   if (!s) return null;
   const raw = String(s).trim();
@@ -327,7 +303,6 @@ function buildValuationBody(
       estimatedValueLow: result.range_low_eur,
       estimatedValueMid: result.estimated_price_eur,
       estimatedValueHigh: result.range_high_eur,
-      // Pricing scenarios — mirror the Market Estimate screen exactly.
       openMarketValue: result.estimated_price_eur,
       discreetSaleValue: result.distressed_price_eur ?? null,
       quickSaleValue: result.quick_sale_price_eur ?? null,
@@ -350,11 +325,6 @@ function buildValuationBody(
   };
 }
 
-/**
- * Generate a professional valuation report on the backend (adaptive PDF engine)
- * and present it. Replaces the on-device `exportEstimatePdf` as the primary
- * "Export PDF report" action on the valuation result screen.
- */
 export async function exportValuationDocument(input: {
   result: Valuation;
   header?: ValuationHeader;
@@ -371,9 +341,8 @@ export async function exportValuationDocument(input: {
   await downloadDocument(buildValuationBody(result, header, "pdf"), "pdf", `${base}_valuation.pdf`);
 }
 
-// ─── charter ROI report (backend adaptive engine) ────────────────────────────
+// ─── charter ROI report ──────────────────────────────────────────────────────
 
-/** Cover/spec header carried from the ROI flow (already humanized). */
 export type RoiHeader = {
   yachtName?: string | null;
   builder?: string | null;
@@ -433,6 +402,16 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
         location: c.location ?? null,
         weekly_rate_eur: c.weekly_rate_eur ?? null,
       })),
+      exitScenario: result.exit_scenario ? {
+        purchase_price_eur: result.exit_scenario.purchase_price_eur,
+        charter_income_5y_eur: result.exit_scenario.charter_income_5y_eur,
+        vessel_value_at_sale_eur: result.exit_scenario.vessel_value_at_sale_eur,
+        total_return_eur: result.exit_scenario.total_return_eur,
+        exit_result_eur: result.exit_scenario.exit_result_eur,
+        exit_result_pct: result.exit_scenario.exit_result_pct,
+        total_loan_paid_eur: result.exit_scenario.total_loan_paid_eur ?? null,
+        exit_result_after_loan_eur: result.exit_scenario.exit_result_after_loan_eur ?? null,
+      } : null,
       legalDisclaimer: result.legal_disclaimer ?? null,
     },
     exportSettings: {
@@ -444,11 +423,6 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
   };
 }
 
-/**
- * Generate a professional Charter ROI report on the backend (adaptive PDF
- * engine) and present it. Primary "Export PDF report" action on the ROI result
- * screen.
- */
 export async function exportRoiDocument(input: {
   result: RoiCalculation;
   header?: RoiHeader;
