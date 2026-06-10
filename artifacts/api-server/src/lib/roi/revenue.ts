@@ -532,7 +532,7 @@ CHARTER SCENARIO
 INSTRUCTIONS
 1. Search the open web for current charter listings of comparable yachts
    in the specified region (Boatbookings, CharterWorld, YachtCharterFleet,
-   Boatsetter, broker sites). Aim for 3 truly comparable yachts.
+   Boatsetter, broker sites). Aim for 5 truly comparable yachts.
 2. Determine a realistic weekly rate range (low–high) in EUR. If listings
    are in USD/GBP, convert at current FX.
 3. ${weeksInstruction}
@@ -752,7 +752,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   const marketRating =
     mr === "A" || mr === "B" || mr === "C" || mr === "D" ? mr : null;
   const compsRaw = Array.isArray(parsed["comparables"]) ? parsed["comparables"] : [];
-  const comparables = compsRaw.slice(0, 3).map((c) => {
+  const comparables = compsRaw.slice(0, 5).map((c) => {
     const o = (c ?? {}) as Record<string, unknown>;
     return {
       name: typeof o["name"] === "string" ? (o["name"] as string) : "Comparable",
