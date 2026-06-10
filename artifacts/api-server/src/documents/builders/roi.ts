@@ -50,13 +50,6 @@ function confidencePct(v: string | null | undefined): number | null {
   }
 }
 
-function truncateText(s: string, max: number): string {
-  const t = s.replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  const cut = t.slice(0, max);
-  const sp = cut.lastIndexOf(" ");
-  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,.;:–—-]+$/, "") + "…";
-}
 
 function titleCase(s: string): string {
   return s
@@ -362,7 +355,7 @@ export function buildRoiModel(input: {
       generatedAt: date,
       disclaimer:
         typeof reportData.legalDisclaimer === "string" && reportData.legalDisclaimer.trim()
-          ? truncateText(reportData.legalDisclaimer, 300)
+          ? reportData.legalDisclaimer.trim()
           : "Indicative · not certified · valid 30 days from issue.",
     },
     theme,
