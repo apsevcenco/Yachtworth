@@ -3,7 +3,7 @@ import {
   extractJson,
   cleanReasoning,
 } from "../valuation/openai";
-import { logger } from "./logger";
+import { logger } from "../logger";
 import type { YachtRow } from "./types";
 import { findMarketRate, lengthBand, type MarketRateRow } from "./rates";
 
