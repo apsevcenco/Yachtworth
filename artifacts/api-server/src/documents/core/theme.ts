@@ -93,6 +93,8 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
     padding: 4mm 0 14mm;
   }
   .page:last-child { page-break-after: auto; }
+  .page-flow { page-break-after: always; position: relative; min-height: 261mm; padding: 4mm 0 14mm; }
+  .page-flow:last-child { page-break-after: auto; }
   .cover-page { padding: 0; min-height: 0; }
   .block { break-inside: avoid; page-break-inside: avoid; }
   .block + .block { margin-top: 24px; }

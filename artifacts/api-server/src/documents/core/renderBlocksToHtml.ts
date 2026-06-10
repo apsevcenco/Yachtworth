@@ -51,7 +51,7 @@ export function renderBlocksToHtml(input: {
     .map((p) =>
       p.standalone
         ? `<section class="page cover-page">${p.blocks.map((b) => b.html).join("")}</section>`
-        : `<section class="page">${p.blocks
+        : `<section class="${p.blocks.some((b) => b.splittable) ? "page-flow" : "page"}">${p.blocks
             .map(
               (b) =>
                 `<div class="${b.splittable ? "block-flow" : "block"}">${b.html}</div>`,
