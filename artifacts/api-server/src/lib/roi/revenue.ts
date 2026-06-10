@@ -21,6 +21,8 @@ export interface ComputedRevenue {
     location?: string | null;
     weekly_rate_eur?: number | null;
     source_url?: string | null;
+    year_built?: number | null;
+    length_meters?: number | null;
   }[];
   reasoning: string;
   confidence: "high" | "medium" | "low";
@@ -531,14 +533,19 @@ CHARTER SCENARIO
 - ${occHint}
 
 INSTRUCTIONS
-1. Search the open web for current charter listings of comparable yachts
-   in the specified region (Boatbookings, CharterWorld, YachtCharterFleet,
-   Boatsetter, broker sites). Aim for 5 truly comparable yachts.
-2. Determine a realistic weekly rate range (low–high) in EUR. If listings
+1. PASS 1 — exact model search: search the open web for current charter listings
+   of the same brand + model line in the specified region (Boatbookings,
+   CharterWorld, YachtCharterFleet, Boatsetter, broker sites).
+2. PASS 2 — if Pass 1 yields fewer than 5 listings, expand to similar yachts:
+   same length ±2m, same brand family OR direct competitors (e.g. for Azimut:
+   Sunseeker, Princess, Ferretti, Sanlorenzo; for Benetti: Feadship, Heesen,
+   Lurssen). Do NOT mix tiers — premium stays premium, sport stays sport.
+3. Aim for 5 truly comparable yachts total across both passes.
+4. Determine a realistic weekly rate range (low–high) in EUR. If listings
    are in USD/GBP, convert at current FX.
-3. ${weeksInstruction}
+5. ${weeksInstruction}
 ${rateLine}
-5. Output STRICT JSON, no prose around it:
+7. Output STRICT JSON, no prose around it:
 
 {
   "daily_rate_eur": <integer>,
@@ -549,9 +556,9 @@ ${rateLine}
   "occupancy_pct": <integer, 0–100>,
   "market_rating": "A" | "B" | "C" | "D",
   "comparables": [
-    { "name": "...", "location": "...", "weekly_rate_eur": <int>, "source_url": "..." }
+    { "name": "...", "location": "...", "weekly_rate_eur": <int>, "source_url": "...", "year_built": <int|null>, "length_meters": <number|null> }
   ],
-  "reasoning": "2 sentences max — what drove the rate and weeks."
+  "reasoning": "3-4 sentences — explain the rate, which comparable sources were used (Pass 1 vs Pass 2), and any adjustments made for registration, age, or season."
 }
 
 Use realistic numbers backed by your search. Do NOT invent listings.`;
@@ -764,6 +771,10 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
         typeof o["weekly_rate_eur"] === "number" ? (o["weekly_rate_eur"] as number) : null,
       source_url:
         typeof o["source_url"] === "string" ? (o["source_url"] as string) : null,
+      year_built:
+        typeof o["year_built"] === "number" ? (o["year_built"] as number) : null,
+      length_meters:
+        typeof o["length_meters"] === "number" ? (o["length_meters"] as number) : null,
     };
   });
   const reasoning = cleanReasoning(parsed["reasoning"] || "");
