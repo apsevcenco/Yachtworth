@@ -186,6 +186,8 @@ export interface ValuationReportData {
   completenessFilled?: number | null;
   completenessTotal?: number | null;
   /** Server-injected legal disclaimer (rendered verbatim when present). */
+  /** Exit scenario — sale after 5 years (present only when purchase price entered). */
+  exitScenario?: RoiExitScenarioData | null;
   legalDisclaimer?: string | null;
 }
 
