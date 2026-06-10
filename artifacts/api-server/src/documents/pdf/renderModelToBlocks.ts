@@ -466,7 +466,7 @@ function renderNode(node: ContentNode): DocBlock[] {
         estimatedHeight: h,
         html: leafHtml(node),
       };
-      if (h > 180) block.splittable = true;
+      if (h > 100) block.splittable = true;
       return [block];
     }
     default: {
