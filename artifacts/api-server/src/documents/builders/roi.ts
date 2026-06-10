@@ -241,7 +241,7 @@ export function buildRoiModel(input: {
       kind: "paragraph",
       heading: L.methodology,
       panel: true,
-      text: truncateText(reportData.methodology, 700),
+      text: reportData.methodology.trim(),
     });
   }
 
@@ -333,7 +333,7 @@ export function buildRoiModel(input: {
       kind: "paragraph",
       heading: L.analysis,
       panel: true,
-      text: truncateText(reportData.reasoning, 700),
+      text: reportData.reasoning.trim(),
     };
     if (!detailStarted) analysis.breakBefore = true;
     body.push(analysis);
