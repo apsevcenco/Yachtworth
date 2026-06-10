@@ -1,11 +1,5 @@
 /**
  * Charter ROI report content builder: report inputs → DocumentModel.
- *
- * Renderer-independent half of the ROI report. Maps yacht specs + ROI result +
- * export settings into the semantic model. It does NOT escape (the renderers do)
- * and emits no HTML — so the same model can drive both the PDF and (future) the
- * DOCX renderer. Mirrors the structure of the valuation builder; builders never
- * import each other, so shared helpers are duplicated locally on purpose.
  */
 import type {
   DocumentTemplate,
@@ -25,8 +19,6 @@ import type {
   TableCell,
 } from "../model/types";
 
-// ─── currency ────────────────────────────────────────────────────────────────
-
 const CURRENCY_SYMBOLS: Record<string, string> = {
   EUR: "€",
   USD: "$",
@@ -36,7 +28,6 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   CAD: "C$",
 };
 
-/** Money formatter that supports negative figures (net profit can be a loss). */
 function moneyOf(currency: string | null | undefined): (v: unknown) => string {
   const code = (currency ?? "EUR").toString().toUpperCase().trim();
   const sym = CURRENCY_SYMBOLS[code];
@@ -45,7 +36,6 @@ function moneyOf(currency: string | null | undefined): (v: unknown) => string {
     if (n == null) return "";
     const neg = n < 0;
     const amount = Math.round(Math.abs(n)).toLocaleString("en-US");
-    // `code` is raw here; the renderer escapes the cell text it lands in.
     const body = sym ? `${sym}${amount}` : `${amount} ${code}`;
     return neg ? `−${body}` : body;
   };
@@ -53,21 +43,13 @@ function moneyOf(currency: string | null | undefined): (v: unknown) => string {
 
 function confidencePct(v: string | null | undefined): number | null {
   switch ((v ?? "").toString().toLowerCase()) {
-    case "high":
-      return 85;
-    case "medium":
-      return 60;
-    case "low":
-      return 30;
-    default:
-      return null;
+    case "high": return 85;
+    case "medium": return 60;
+    case "low": return 30;
+    default: return null;
   }
 }
 
-/**
- * Collapse whitespace and hard-cap body copy on a word boundary so long
- * AI-written methodology / reasoning blocks stay within the page budget.
- */
 function truncateText(s: string, max: number): string {
   const t = s.replace(/\s+/g, " ").trim();
   if (t.length <= max) return t;
@@ -84,8 +66,6 @@ function titleCase(s: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// ─── labels (English — the ROI flow is English-only today) ──────────────────
-
 const L = {
   report: "CHARTER ROI REPORT",
   scenario: "Charter ROI Scenario",
@@ -101,14 +81,13 @@ const L = {
   expenseBreakdown: "Expense Breakdown",
   projection: "Cumulative Cash · 5 Years",
   depreciation: "Yacht Value · 5-Year Depreciation",
+  exitScenario: "5-Year Exit Scenario",
   comparables: "Comparable Charter Listings",
   analysis: "Analysis",
   recommendations: "Recommendations",
   none: "—",
   perWeek: "/wk",
 };
-
-// ─── row helpers ─────────────────────────────────────────────────────────────
 
 function expenseRows(
   items: RoiExpenseLine[],
@@ -159,8 +138,6 @@ function comparableRows(
   });
 }
 
-// ─── main ───────────────────────────────────────────────────────────────────
-
 export function buildRoiModel(input: {
   yacht: YachtProfile;
   reportData: RoiReportData;
@@ -192,7 +169,6 @@ export function buildRoiModel(input: {
   const paybackDisplay =
     payback != null ? (payback >= 999 ? L.none : `${payback.toFixed(1)} yr`) : L.none;
 
-  // ── cover ──
   const photos = photoList(yacht);
   const subtitle = [yacht.builder, yacht.model, reportData.regionLabel]
     .filter((x) => x != null && x !== "")
@@ -214,10 +190,8 @@ export function buildRoiModel(input: {
   if (subtitle) cover.subtitle = subtitle;
   if (net != null) cover.price = money(net);
 
-  // ── body ──
   const body: ContentNode[] = [];
 
-  // ROI result — headline net profit + revenue/expense cards + confidence bar.
   const metrics: ContentNode = {
     kind: "metrics",
     heading: L.result,
@@ -237,7 +211,6 @@ export function buildRoiModel(input: {
   if (capParts.length) metrics.caption = capParts.join("  ·  ");
   body.push(metrics);
 
-  // Key figures — paired grid (only push present values).
   const figures: { label: string; value: string }[] = [];
   if (roiPct != null) figures.push({ label: L.roi, value: roiDisplay });
   if (payback != null) figures.push({ label: L.payback, value: paybackDisplay });
@@ -263,7 +236,6 @@ export function buildRoiModel(input: {
     });
   }
 
-  // Methodology (panel) — capped for density.
   if (reportData.methodology && reportData.methodology.trim()) {
     body.push({
       kind: "paragraph",
@@ -273,9 +245,6 @@ export function buildRoiModel(input: {
     });
   }
 
-  // ── Detail group → fresh page ──
-  // One intentional break starts the detail group on a new page so the layout is
-  // deterministic; the packer flows the rest.
   let detailStarted = false;
   const expenseList = Array.isArray(reportData.expenses) ? reportData.expenses : [];
   if (expenseList.length) {
@@ -315,6 +284,38 @@ export function buildRoiModel(input: {
     detailStarted = true;
   }
 
+  // Exit scenario — sale after 5 years.
+  const exit = reportData.exitScenario;
+  if (exit) {
+    const exitFigures: { label: string; value: string }[] = [];
+    if (exit.purchase_price_eur != null)
+      exitFigures.push({ label: "Purchase price", value: money(exit.purchase_price_eur) });
+    if (exit.charter_income_5y_eur != null)
+      exitFigures.push({ label: "Charter income (5yr)", value: money(exit.charter_income_5y_eur) });
+    if (exit.vessel_value_at_sale_eur != null)
+      exitFigures.push({ label: "Vessel value at sale", value: money(exit.vessel_value_at_sale_eur) });
+    if (exit.total_return_eur != null)
+      exitFigures.push({ label: "Total return", value: money(exit.total_return_eur) });
+    if (exit.exit_result_eur != null)
+      exitFigures.push({ label: "Exit result", value: money(exit.exit_result_eur) });
+    if (exit.exit_result_pct != null)
+      exitFigures.push({ label: "Exit ROI", value: `${exit.exit_result_pct.toFixed(1)}%` });
+    if (exit.total_loan_paid_eur != null)
+      exitFigures.push({ label: "Total loan paid", value: money(exit.total_loan_paid_eur) });
+    if (exit.exit_result_after_loan_eur != null)
+      exitFigures.push({ label: "Exit result after loan", value: money(exit.exit_result_after_loan_eur) });
+    if (exitFigures.length) {
+      body.push({
+        kind: "keyValue",
+        heading: L.exitScenario,
+        rows: exitFigures,
+        layout: "pairs",
+        emptyText: L.none,
+      });
+      detailStarted = true;
+    }
+  }
+
   const comparables = Array.isArray(reportData.comparables) ? reportData.comparables : [];
   if (comparables.length) {
     body.push({
@@ -327,7 +328,6 @@ export function buildRoiModel(input: {
     detailStarted = true;
   }
 
-  // Analysis (panel).
   if (reportData.reasoning && reportData.reasoning.trim()) {
     const analysis: ContentNode = {
       kind: "paragraph",
@@ -340,7 +340,6 @@ export function buildRoiModel(input: {
     detailStarted = true;
   }
 
-  // Recommendations — bullet list rendered as a paragraph (no list node).
   const recs = Array.isArray(reportData.recommendations)
     ? reportData.recommendations.filter((r) => r != null && String(r).trim())
     : [];

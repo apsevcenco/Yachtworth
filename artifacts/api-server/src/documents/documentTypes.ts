@@ -13,14 +13,7 @@
 export type DocumentType = "proposal" | "valuation_report" | "roi_report";
 export type DocumentFormat = "pdf" | "docx";
 
-/**
- * Rendering engine for PDF output.
- *   - "legacy"   = existing section-per-page templates (default).
- *   - "adaptive" = new block-based layout (currently valuation_report PDF only).
- */
 export type DocumentEngine = "legacy" | "adaptive";
-
-/** Backend template set. `dark` from the legacy client maps to `premium`. */
 export type DocumentTemplate = "minimal" | "classic" | "premium";
 
 export type ProposalLanguage =
@@ -124,26 +117,17 @@ export interface BrokerInfo {
 export interface ExportSettings {
   template?: DocumentTemplate;
   language?: ProposalLanguage;
-  /** Optional list of section ids to include; empty/undefined = all default sections. */
   sections?: string[];
   confidential?: boolean;
-  /** Branding overrides (optional; defaults to Yachtworth navy/gold). */
   brand_name?: string | null;
   accent_color?: string | null;
-  /** Alias for brand_name accepted by the valuation report input. */
   branding?: string | null;
-  /** Contact block printed on valuation reports. */
   brokerInfo?: BrokerInfo | null;
-  /**
-   * Opt-in rendering engine. Missing/unknown → "legacy". Only the
-   * valuation_report PDF path honours "adaptive" today.
-   */
   engine?: DocumentEngine;
 }
 
 // ─── valuation report ──────────────────────────────────────────────────────────
 
-/** A single market comparable used to support the valuation. */
 export interface ComparableYacht {
   name?: string | null;
   builder?: string | null;
@@ -157,21 +141,17 @@ export interface ComparableYacht {
   notes?: string | null;
 }
 
-/** A factor that influences the valuation (condition, refit, hours, market, …). */
 export interface ValuationFactor {
   factor?: string | null;
-  /** Free-text or one of positive/negative/neutral — rendered as a colour-coded chip. */
   impact?: string | null;
   weight?: number | null;
   notes?: string | null;
 }
 
-/** Valuation-report-specific content (NOT yacht specs). */
 export interface ValuationReportData {
   estimatedValueLow?: number | null;
   estimatedValueMid?: number | null;
   estimatedValueHigh?: number | null;
-  /** Pricing scenarios (mirror the Market Estimate screen). */
   openMarketValue?: number | null;
   discreetSaleValue?: number | null;
   quickSaleValue?: number | null;
@@ -179,37 +159,42 @@ export interface ValuationReportData {
   comparableYachts?: ComparableYacht[];
   valuationFactors?: ValuationFactor[];
   marketNotes?: string | null;
-  /** 0–100 (or 0–1, auto-scaled). */
   confidenceScore?: number | null;
-  /** Data-quality completeness (0–100) + filled/total field counts. */
   completenessScore?: number | null;
   completenessFilled?: number | null;
   completenessTotal?: number | null;
-  /** Server-injected legal disclaimer (rendered verbatim when present). */
   legalDisclaimer?: string | null;
 }
 
 // ─── charter ROI report ─────────────────────────────────────────────────────
 
-/** A single expense line in the ROI breakdown. */
 export interface RoiExpenseLine {
   category?: string | null;
   amount_eur?: number | null;
-  /** Optional formula/derivation shown as a muted sub-line. */
   formula?: string | null;
 }
 
-/** A point on a yearly curve (projection or depreciation). */
 export interface RoiYearlyPoint {
   year_offset?: number | null;
   value_eur?: number | null;
 }
 
-/** A comparable charter listing used to support the rate. */
 export interface RoiComparableLine {
   name?: string | null;
   location?: string | null;
   weekly_rate_eur?: number | null;
+}
+
+/** Exit scenario — sale after 5 years. Present only when purchase price was entered. */
+export interface RoiExitScenarioData {
+  purchase_price_eur?: number | null;
+  charter_income_5y_eur?: number | null;
+  vessel_value_at_sale_eur?: number | null;
+  total_return_eur?: number | null;
+  exit_result_eur?: number | null;
+  exit_result_pct?: number | null;
+  total_loan_paid_eur?: number | null;
+  exit_result_after_loan_eur?: number | null;
 }
 
 /** Charter-ROI-specific content (NOT yacht specs). */
@@ -227,7 +212,6 @@ export interface RoiReportData {
   marketRating?: string | null;
   riskScore?: number | null;
   currency?: string | null;
-  /** high | medium | low */
   confidence?: string | null;
   regionLabel?: string | null;
   methodology?: string | null;
@@ -237,7 +221,8 @@ export interface RoiReportData {
   projection5y?: RoiYearlyPoint[] | null;
   depreciationCurve?: RoiYearlyPoint[] | null;
   comparables?: RoiComparableLine[] | null;
-  /** Server-injected legal disclaimer (rendered verbatim when present). */
+  /** Exit scenario — sale after 5 years (present only when purchase price entered). */
+  exitScenario?: RoiExitScenarioData | null;
   legalDisclaimer?: string | null;
 }
 
@@ -260,7 +245,6 @@ export const PDF_CONTENT_TYPE = "application/pdf";
 export const DOCX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-/** Normalise any incoming template value (incl. legacy `dark`) to the backend set. */
 export function normalizeTemplate(t: unknown): DocumentTemplate {
   if (t === "classic") return "classic";
   if (t === "premium" || t === "dark") return "premium";
