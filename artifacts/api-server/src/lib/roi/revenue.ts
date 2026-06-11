@@ -450,6 +450,10 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
     Pershing: "Pershing — sport superyacht tier",
     MCY: "Monte Carlo Yachts — premium tier",
     "Custom Line": "Ferretti Custom Line — custom superyacht tier",
+    Prestige: "Prestige flybridge series (420/460/520/590/630/680/750) — mid-to-upper tier, DO NOT substitute with Jeanneau, Bavaria, or entry-level brands of the same length",
+    Fairline: "Fairline Squadron/Targa — British mid-to-upper tier, search specifically for Fairline listings rather than generic length substitutes",
+    Galeon: "Galeon flybridge series — mid tier, search specifically for Galeon rather than length-based substitutes",
+    Absolute: "Absolute Navetta/Fly series — Italian mid tier, search specifically for Absolute listings",
   };
 
   const lineKey = Object.keys(PREMIUM_LINES).find((k) =>
