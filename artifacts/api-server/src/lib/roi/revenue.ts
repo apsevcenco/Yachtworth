@@ -521,7 +521,7 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
   }
 
   const strictLengthBand = L > 0
-    ? `STRICT LENGTH FILTER: Only include comparables between ${(L - 4).toFixed(1)}m and ${(L + 4).toFixed(1)}m. Reject any yacht outside this range — do NOT include smaller models even from the same brand. Aim for at least 4 comparables within this length band.`
+    ? `STRICT LENGTH FILTER: Only include comparables between ${(L - 3).toFixed(1)}m and ${(L + 3).toFixed(1)}m. Reject any yacht outside this range — do NOT include smaller models even from the same brand.`
     : "";
 
   return `You are a charter market analyst. Estimate the realistic gross
@@ -552,11 +552,9 @@ INSTRUCTIONS
    same length ±2m, same brand family OR direct competitors (e.g. for Azimut:
    Sunseeker, Princess, Ferretti, Sanlorenzo; for Benetti: Feadship, Heesen,
    Lurssen). Do NOT mix tiers — premium stays premium, sport stays sport.
-3. Aim for 5 truly comparable yachts total across both passes, minimum 4.
-   Determine a realistic weekly rate range (low–high) in EUR. If listings
-   are in USD/GBP, convert at current FX. If fewer than 4 results are found
-   in the target region, expand search to other Mediterranean/Caribbean bases
-   for the same model line.
+3. Aim for 5 truly comparable yachts total across both passes. Determine a
+   realistic weekly rate range (low–high) in EUR. If listings are in USD/GBP,
+   convert at current FX.
 ${rateLine}
 5. ${weeksInstruction}
 6. Output STRICT JSON, no prose around it:
