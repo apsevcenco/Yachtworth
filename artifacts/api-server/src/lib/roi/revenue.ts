@@ -718,6 +718,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
       5,
     );
     webSearchUsed = true;
+    console.log("[ROI DEBUG] raw AI response:", raw.slice(0, 1000));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err: msg }, "aiResponses web search failed");
