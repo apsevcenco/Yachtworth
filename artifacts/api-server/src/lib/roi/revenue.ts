@@ -718,7 +718,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
       5,
     );
     webSearchUsed = true;
-    console.log("[ROI DEBUG] raw AI response:", raw.slice(0, 1000));
+    console.log("[ROI DEBUG] raw AI response:", raw.slice(0, 1500));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err: msg }, "aiResponses web search failed");
@@ -735,6 +735,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
 
+  console.log("[ROI DEBUG] parsed:", JSON.stringify({ daily_rate_eur: parsed["daily_rate_eur"], weekly_rate_eur: parsed["weekly_rate_eur"], comparables_count: Array.isArray(parsed["comparables"]) ? parsed["comparables"].length : 0 }));
   const num = (k: string, fb = 0): number => {
     const v = parsed[k];
     const n = typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : NaN;
