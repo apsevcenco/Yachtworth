@@ -413,6 +413,7 @@ export async function calculateRoi(
   // ── 1. Revenue ────────────────────────────────────────────────────
   let revenue: ComputedRevenue;
   let dualBreakdown: RoiDualRegionBreakdown | null = null;
+  let repositioningWasEstimated = false;
   if (input.pricing_mode === "ai") {
     // Region 1 — identical to the single-region path (season "mixed" = its own
     // charter window). NEVER changed by the dual-region feature.
@@ -458,7 +459,6 @@ export async function calculateRoi(
       ]);
       revenue = combineRevenue(rev1, rev2);
       let reposition: number;
-      let repositioningWasEstimated = false;
       if (
         input.repositioning_cost_eur != null &&
         input.repositioning_cost_eur > 0
