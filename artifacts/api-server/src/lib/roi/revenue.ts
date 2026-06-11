@@ -752,6 +752,29 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   let weekly = rawWeekly;
   if (!weekly && daily) weekly = daily * 7;
   if (!daily && weekly) daily = weekly / 7;
+
+  // Rate recovery from comparables: if the main rate is still implausibly low
+  // but comparables have real rates, derive the base rate from their median.
+  // This handles cases where gpt-4o-mini returns 0 or near-zero for the main
+  // rate but found real listings (comparables weekly_rate_eur are already
+  // scaled by the guard above).
+  const compsForRecovery = Array.isArray(parsed["comparables"])
+    ? (parsed["comparables"] as Record<string, unknown>[])
+    : [];
+  const compRates = compsForRecovery
+    .map((c) => {
+      let r = typeof c["weekly_rate_eur"] === "number" ? (c["weekly_rate_eur"] as number) : 0;
+      if (r > 0 && r < 500) r = r * 1000;
+      return r;
+    })
+    .filter((r) => r >= 5000);
+  if ((weekly < 1000 || daily < 200) && compRates.length > 0) {
+    compRates.sort((a, b) => a - b);
+    const median = compRates[Math.floor(compRates.length / 2)]!;
+    weekly = median;
+    daily = Math.round(median / 6);
+    console.log("[ROI DEBUG] rate recovered from comparables median:", median);
+  }
   const dailyLow = num("daily_rate_low_eur") || null;
   const dailyHigh = num("daily_rate_high_eur") || null;
   let weeks = num("expected_charter_weeks");
