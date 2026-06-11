@@ -244,7 +244,6 @@ export function buildRoiModel(input: {
     body.push({
       kind: "table",
       heading: L.expenseBreakdown,
-      breakBefore: true,
       columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
       rows: expenseRows(expenseList, money),
     });
@@ -256,7 +255,6 @@ export function buildRoiModel(input: {
     body.push({
       kind: "table",
       heading: L.projection,
-      ...(detailStarted ? {} : { breakBefore: true }),
       columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
       rows: yearlyRows(projection, money),
     });
@@ -270,7 +268,6 @@ export function buildRoiModel(input: {
     body.push({
       kind: "table",
       heading: L.depreciation,
-      ...(detailStarted ? {} : { breakBefore: true }),
       columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
       rows: yearlyRows(depreciation, money),
     });
@@ -314,7 +311,6 @@ export function buildRoiModel(input: {
     body.push({
       kind: "table",
       heading: L.comparables,
-      ...(detailStarted ? {} : { breakBefore: true }),
       columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
       rows: comparableRows(comparables, money),
     });
@@ -328,7 +324,6 @@ export function buildRoiModel(input: {
       panel: true,
       text: reportData.reasoning.trim(),
     };
-    if (!detailStarted) analysis.breakBefore = true;
     body.push(analysis);
     detailStarted = true;
   }

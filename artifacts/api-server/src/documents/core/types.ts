@@ -72,4 +72,4 @@ export const A4_CONTENT_HEIGHT_MM = 265;
  * so that heuristic height estimates (which are approximate) plus inter-block
  * margins never overflow a physical page into a near-empty extra page.
  */
-export const PACK_BUDGET_MM = 240;
+export const PACK_BUDGET_MM = 255;
