@@ -553,7 +553,7 @@ export async function calculateRoi(
 
   // ── 5. Projections + breakdowns ───────────────────────────────────
   const todayValue = purchase > 0 ? purchase : capital;
-  const depreciation = depreciationCurve(todayValue, 5);
+  const depreciation = depreciationCurve(todayValue, 5, yacht.year_built ?? null);
   const projection = roiProjection5y(net, 5);
   const revByMonth = monthlySeasonal(revenue.annual_gross_eur);
 

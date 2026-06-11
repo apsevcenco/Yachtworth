@@ -1,22 +1,38 @@
 /**
  * Yacht depreciation curve (5y forward from "today value").
- * Empirical luxury-yacht pattern: year 1 ~−5%, then ~−3.5%/yr.
- * Reference value = purchase_price_eur scaled to today (rough).
+ * Age-aware rates based on broker-aggregated data (Yatco, IYC, Fraser):
+ *   age 0–1 yr  : −10%/yr  (new yacht, steepest drop)
+ *   age 2–5 yrs : −7%/yr
+ *   age 6–14 yrs: −3.5%/yr (curve flattens)
+ *   age 15+ yrs : −2%/yr   (vintage/classic plateau)
+ *
+ * If yearBuilt is unknown, falls back to flat −5%/yr (legacy behaviour).
  */
 export function depreciationCurve(
   todayValueEur: number,
   yearsAhead = 5,
+  yearBuilt?: number | null,
 ): { year_offset: number; value_eur: number }[] {
+  const currentYear = new Date().getFullYear();
+  const ageNow = yearBuilt ? currentYear - yearBuilt : null;
+
+  function rateForAge(age: number): number {
+    if (age <= 1) return 0.10;
+    if (age <= 5) return 0.07;
+    if (age <= 14) return 0.035;
+    return 0.02;
+  }
+
   const out: { year_offset: number; value_eur: number }[] = [];
   let v = todayValueEur;
-  for (let y = 0; y <= yearsAhead; y++) {
-    if (y === 0) {
-      out.push({ year_offset: 0, value_eur: Math.round(v) });
-    } else {
-      const rate = y === 1 ? 0.05 : 0.035;
-      v = v * (1 - rate);
-      out.push({ year_offset: y, value_eur: Math.round(v) });
-    }
+  out.push({ year_offset: 0, value_eur: Math.round(v) });
+
+  for (let y = 1; y <= yearsAhead; y++) {
+    const rate = ageNow != null
+      ? rateForAge(ageNow + y)
+      : (y === 1 ? 0.05 : 0.035); // legacy fallback
+    v = v * (1 - rate);
+    out.push({ year_offset: y, value_eur: Math.round(v) });
   }
   return out;
 }
