@@ -740,8 +740,13 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     const n = typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : NaN;
     return isFinite(n) ? n : fb;
   };
-  const rawDaily = num("daily_rate_eur");
-  const rawWeekly = num("weekly_rate_eur");
+  let rawDaily = num("daily_rate_eur");
+  let rawWeekly = num("weekly_rate_eur");
+  // Sanity check: gpt-4o-mini sometimes returns rates in "thousands" (e.g. 20
+  // instead of 20000). A weekly rate below 500 for any charter yacht is
+  // implausible — scale up by 1000 to recover the real value.
+  if (rawWeekly != null && rawWeekly > 0 && rawWeekly < 500) rawWeekly = rawWeekly * 1000;
+  if (rawDaily != null && rawDaily > 0 && rawDaily < 100) rawDaily = rawDaily * 1000;
   let daily = rawDaily;
   let weekly = rawWeekly;
   if (!weekly && daily) weekly = daily * 7;
@@ -776,8 +781,11 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     return {
       name: typeof o["name"] === "string" ? (o["name"] as string) : "Comparable",
       location: typeof o["location"] === "string" ? (o["location"] as string) : null,
-      weekly_rate_eur:
-        typeof o["weekly_rate_eur"] === "number" ? (o["weekly_rate_eur"] as number) : null,
+      weekly_rate_eur: (() => {
+        const r = typeof o["weekly_rate_eur"] === "number" ? (o["weekly_rate_eur"] as number) : null;
+        if (r != null && r > 0 && r < 500) return r * 1000;
+        return r;
+      })(),
       source_url:
         typeof o["source_url"] === "string" ? (o["source_url"] as string) : null,
       year_built:
