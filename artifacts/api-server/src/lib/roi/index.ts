@@ -22,6 +22,32 @@ export const ROI_DISCLAIMER =
   "highly variable. Consult a licensed yacht-management firm and tax " +
   "advisor before making investment decisions. Projection valid for 30 days.";
 
+/**
+ * Default annual repositioning cost between two regions when the user leaves
+ * the field blank. Keyed on a canonical pair: two region keys joined by "|",
+ * sorted alphabetically so order doesn't matter.
+ *
+ * Round-trip estimates (outbound + return) for a ~20m motor yacht:
+ * fuel + delivery crew + canal/port fees, both legs combined.
+ */
+const REPOSITION_DEFAULTS: Record<string, number> = {
+  "caribbean|mediterranean":   25000,
+  "mediterranean|middle_east": 14000,
+  "mediterranean|northern_europe": 11000,
+  "asia_pacific_me|mediterranean": 32000,
+  "caribbean|middle_east":     42000,
+  "caribbean|northern_europe": 23000,
+  "asia_pacific_me|caribbean": 48000,
+  "middle_east|northern_europe": 18000,
+  "asia_pacific_me|northern_europe": 37000,
+  "asia_pacific_me|middle_east": 16000,
+};
+
+function defaultRepositioningCost(r1: string, r2: string): number {
+  const key = [r1, r2].sort().join("|");
+  return REPOSITION_DEFAULTS[key] ?? 15000;
+}
+
 export interface RoiInput {
   yacht_id: string;
   region: string;
@@ -431,11 +457,17 @@ export async function calculateRoi(
         })(),
       ]);
       revenue = combineRevenue(rev1, rev2);
-      const reposition =
+      let reposition: number;
+      let repositioningWasEstimated = false;
+      if (
         input.repositioning_cost_eur != null &&
         input.repositioning_cost_eur > 0
-          ? Math.round(input.repositioning_cost_eur)
-          : 0;
+      ) {
+        reposition = Math.round(input.repositioning_cost_eur);
+      } else {
+        reposition = defaultRepositioningCost(input.region, region2);
+        repositioningWasEstimated = true;
+      }
       const income1 = Math.round(rev1.annual_gross_eur);
       const income2 = Math.round(rev2.annual_gross_eur);
       dualBreakdown = {
@@ -503,7 +535,7 @@ export async function calculateRoi(
     allLines.push({
       category: "Repositioning (annual, both ways)",
       amount_eur: dualBreakdown.repositioning_cost_eur,
-      formula: "Dual-region transit between the two charter areas",
+      formula: `Dual-region transit between the two charter areas${repositioningWasEstimated ? " (regional estimate — enter actual cost to override)" : ""}`,
     });
   }
   const totalExpenses = allLines.reduce((s, l) => s + l.amount_eur, 0);
