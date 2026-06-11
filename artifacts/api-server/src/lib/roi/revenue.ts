@@ -540,12 +540,12 @@ INSTRUCTIONS
    same length ±2m, same brand family OR direct competitors (e.g. for Azimut:
    Sunseeker, Princess, Ferretti, Sanlorenzo; for Benetti: Feadship, Heesen,
    Lurssen). Do NOT mix tiers — premium stays premium, sport stays sport.
-3. Aim for 5 truly comparable yachts total across both passes.
-4. Determine a realistic weekly rate range (low–high) in EUR. If listings
-   are in USD/GBP, convert at current FX.
-5. ${weeksInstruction}
+3. Aim for 5 truly comparable yachts total across both passes. Determine a
+   realistic weekly rate range (low–high) in EUR. If listings are in USD/GBP,
+   convert at current FX.
 ${rateLine}
-7. Output STRICT JSON, no prose around it:
+5. ${weeksInstruction}
+6. Output STRICT JSON, no prose around it:
 
 {
   "daily_rate_eur": <integer>,
@@ -561,7 +561,7 @@ ${rateLine}
   "reasoning": "3-4 sentences — explain the rate, which comparable sources were used (Pass 1 vs Pass 2), and any adjustments made for registration, age, or season."
 }
 
-Use realistic numbers backed by your search. Do NOT invent listings.`;
+Use realistic numbers backed by your search. Do NOT invent listings. Only include yachts with confirmed live rates from actual search results. If fewer than 5 real listings exist, return only those found — never fabricate names, rates or locations to reach 5.`;
 }
 
 const REGION_RATE_MULT: Record<string, number> = {
