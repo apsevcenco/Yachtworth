@@ -459,11 +459,14 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
   const lineKey = Object.keys(PREMIUM_LINES).find((k) =>
     brandModel.toLowerCase().includes(k.toLowerCase()),
   );
+  const lengthNote = L > 0
+    ? `The yacht is ${L.toFixed(1)}m (${lengthFt}ft). Search for comparables within ±3m (±10ft) of this length.`
+    : "";
   const lineNote = lineKey
-    ? `CRITICAL: This is a ${PREMIUM_LINES[lineKey]}. Search ONLY for same product line comparables. Never use standard or budget models of the same builder or length.`
+    ? `CRITICAL: This is a ${PREMIUM_LINES[lineKey]}. Search ONLY for same product line comparables within ±3m of ${L.toFixed(1)}m. Never use yachts shorter than ${Math.round(L - 4)}m or longer than ${Math.round(L + 4)}m. Never use standard or budget models of the same builder.`
     : brand
-      ? `Search specifically for "${brandModel}" charter listings. Brand and model line matter — do not substitute with other builders or product lines of similar length.`
-      : "";
+      ? `Search specifically for "${brandModel}" charter listings. ${lengthNote} Brand and model line matter — do not substitute with other builders or product lines of similar length.`
+      : lengthNote;
 
   const yearNote = yacht.year_built
     ? `Prioritise comparables built ${yacht.year_built - 4}–${yacht.year_built + 4}. Each year newer adds ~3–5% to rate.`
@@ -743,11 +746,12 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   };
   let rawDaily = num("daily_rate_eur");
   let rawWeekly = num("weekly_rate_eur");
-  // Sanity check: gpt-4o-mini sometimes returns rates in "thousands" (e.g. 20
-  // instead of 20000). A weekly rate below 500 for any charter yacht is
-  // implausible — scale up by 1000 to recover the real value.
-  if (rawWeekly != null && rawWeekly > 0 && rawWeekly < 500) rawWeekly = rawWeekly * 1000;
-  if (rawDaily != null && rawDaily > 0 && rawDaily < 100) rawDaily = rawDaily * 1000;
+  // For yachts over 18m the minimum plausible weekly rate is ~3000; under 18m ~1500.
+  // gpt-4o-mini sometimes truncates to "thousands" notation.
+  const minPlausibleWeekly = L >= 18 ? 3000 : 1500;
+  const minPlausibleDaily = L >= 18 ? 500 : 250;
+  if (rawWeekly != null && rawWeekly > 0 && rawWeekly < minPlausibleWeekly) rawWeekly = rawWeekly * 1000;
+  if (rawDaily != null && rawDaily > 0 && rawDaily < minPlausibleDaily) rawDaily = rawDaily * 1000;
   let daily = rawDaily;
   let weekly = rawWeekly;
   if (!weekly && daily) weekly = daily * 7;
