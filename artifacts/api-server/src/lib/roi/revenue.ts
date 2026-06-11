@@ -715,14 +715,18 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     );
     webSearchUsed = true;
   } catch (err) {
-    logger.error({ err: err instanceof Error ? err.message : String(err) }, "aiResponses web search failed");
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err: msg }, "aiResponses web search failed");
+    console.error("[ROI] aiResponses web search failed:", msg);
     return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
   let parsed: Record<string, unknown>;
   try {
     parsed = extractJson(raw) as Record<string, unknown>;
   } catch (err) {
-    logger.error({ err: err instanceof Error ? err.message : String(err), raw: raw.slice(0, 200) }, "aiResponses JSON parse failed");
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err: msg, raw: raw.slice(0, 200) }, "aiResponses JSON parse failed");
+    console.error("[ROI] aiResponses JSON parse failed:", msg, "| raw preview:", raw.slice(0, 200));
     return heuristicAiFallback(args, "Live market search unavailable; heuristic fallback used.");
   }
 
