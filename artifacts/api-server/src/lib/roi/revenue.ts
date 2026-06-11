@@ -781,13 +781,21 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
         typeof o["length_meters"] === "number" ? (o["length_meters"] as number) : null,
     };
   });
+  const seenNames = new Set<string>();
+  const deduped = comparables.filter((c) => {
+    const key = c.name.toLowerCase().trim();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
+
   const reasoning = cleanReasoning(parsed["reasoning"] || "");
 
   // Zero-rate guard: a valid market result must have a positive rate AND at least
   // one comparable. A non-positive rate or empty comparable list means the model
   // had no real data — reject it and use the heuristic so €0 never enters the ROI
   // calc (which would otherwise multiply fixed table weeks by €0 → €0 income).
-  if (daily <= 0 || weekly <= 0 || comparables.length === 0) {
+  if (daily <= 0 || weekly <= 0 || deduped.length === 0) {
     return heuristicAiFallback(
       args,
       "Live market search unavailable; heuristic fallback used.",
@@ -817,7 +825,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
         daily_rate_high_eur: rm.dailyHigh,
         occupancy_pct: rm.occupancyPct,
         market_rating: marketRating,
-        comparables,
+        comparables: deduped,
         reasoning: reasoning || "Estimated from comparable listings in the region.",
         confidence: webSearchUsed ? "high" : "medium",
         ai_used: true,
