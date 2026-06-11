@@ -62,6 +62,14 @@ export async function generateDocument(
     }
     const reportData = (req.reportData ?? {}) as RoiReportData;
     const fileBase = safeFileBase(yacht?.name ?? "charter_roi", "charter_roi");
+    // Validate photo URLs before building — same as proposal path.
+    if (yacht) {
+      const rawPhotos = photoList(yacht);
+      if (rawPhotos.length) {
+        const { valid } = await validateImageUrls(rawPhotos);
+        yacht = { ...yacht, cover_photo_url: valid[0] ?? null, photo_urls: valid };
+      }
+    }
     const html = renderModelToPdfHtml(
       buildRoiModel({ yacht, reportData, settings, template }),
     );
