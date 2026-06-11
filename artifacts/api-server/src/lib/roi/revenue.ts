@@ -520,8 +520,13 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
    range: 8–18 weeks for owner-operated, 14–24 for commercially managed.`;
   }
 
+  const strictLengthBand = L > 0
+    ? `STRICT LENGTH FILTER: Only include comparables between ${(L - 3).toFixed(1)}m and ${(L + 3).toFixed(1)}m. Reject any yacht outside this range — do NOT include smaller models even from the same brand.`
+    : "";
+
   return `You are a charter market analyst. Estimate the realistic gross
 charter revenue for the yacht below over one full year.
+${strictLengthBand}
 
 YACHT
 - ${yachtLabel}, ${type}, ${year}
