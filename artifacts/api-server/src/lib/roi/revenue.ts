@@ -748,8 +748,9 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
   let rawWeekly = num("weekly_rate_eur");
   // For yachts over 18m the minimum plausible weekly rate is ~3000; under 18m ~1500.
   // gpt-4o-mini sometimes truncates to "thousands" notation.
-  const minPlausibleWeekly = L >= 18 ? 3000 : 1500;
-  const minPlausibleDaily = L >= 18 ? 500 : 250;
+  const yachtLengthM = Number(args.yacht.length_meters) || 0;
+  const minPlausibleWeekly = yachtLengthM >= 18 ? 3000 : 1500;
+  const minPlausibleDaily = yachtLengthM >= 18 ? 500 : 250;
   if (rawWeekly != null && rawWeekly > 0 && rawWeekly < minPlausibleWeekly) rawWeekly = rawWeekly * 1000;
   if (rawDaily != null && rawDaily > 0 && rawDaily < minPlausibleDaily) rawDaily = rawDaily * 1000;
   let daily = rawDaily;
