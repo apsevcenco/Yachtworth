@@ -720,7 +720,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     // the deterministic heuristic.
     raw = await aiResponses(
       prompt,
-      "gpt-4o-mini",
+      "gpt-4o",
       [{ type: "web_search_preview", search_context_size: "low" }],
       undefined,
       5,
