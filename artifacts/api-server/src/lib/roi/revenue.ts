@@ -527,6 +527,7 @@ function buildAiPrompt({ yacht, region, season, occupancyTarget, targetWeeksOver
   return `You are a charter market analyst. Estimate the realistic gross
 charter revenue for the yacht below over one full year.
 ${strictLengthBand}
+CRITICAL: Search ONLY for CREWED charter listings (captain + crew included). Do NOT use bareboat rates — they are 40-60% lower and will produce wrong results. All comparable rates must be crewed weekly rates in EUR.
 
 YACHT
 - ${yachtLabel}, ${type}, ${year}
@@ -545,9 +546,9 @@ CHARTER SCENARIO
 - ${occHint}
 
 INSTRUCTIONS
-1. PASS 1 — exact model search: search the open web for current charter listings
+1. PASS 1 — exact model search: search the open web for current CREWED charter listings
    of the same brand + model line in the specified region (Boatbookings,
-   CharterWorld, YachtCharterFleet, Boatsetter, broker sites).
+   CharterWorld, YachtCharterFleet, broker sites). Only crewed rates — skip bareboat listings.
 2. PASS 2 — if Pass 1 yields fewer than 5 listings, expand to similar yachts:
    same length ±2m, same brand family OR direct competitors (e.g. for Azimut:
    Sunseeker, Princess, Ferretti, Sanlorenzo; for Benetti: Feadship, Heesen,
