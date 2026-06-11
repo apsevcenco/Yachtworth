@@ -66,8 +66,10 @@ export async function generateDocument(
     let yachtForRoi = yacht;
     if (yachtForRoi) {
       const rawPhotos = photoList(yachtForRoi);
+      console.log("[PDF ROI] raw photos:", rawPhotos);
       if (rawPhotos.length) {
-        const { valid } = await validateImageUrls(rawPhotos);
+        const { valid, rejected } = await validateImageUrls(rawPhotos);
+        console.log("[PDF ROI] valid:", valid, "rejected:", rejected);
         yachtForRoi = { ...yachtForRoi, cover_photo_url: valid[0] ?? null, photo_urls: valid };
       }
     }
