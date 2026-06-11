@@ -144,7 +144,9 @@ export function extractJson(raw: string): Record<string, unknown> {
     else if (ch === "}") {
       depth--;
       if (depth === 0) {
-        const jsonStr = cleaned.slice(start, i + 1).replace(/(\d)_(\d)/g, "$1$2");
+        const jsonStr = cleaned.slice(start, i + 1)
+          .replace(/(\d)_(\d)/g, "$1$2")
+          .replace(/(\d),(\d{3})/g, "$1$2");
         return JSON.parse(jsonStr);
       }
     }
