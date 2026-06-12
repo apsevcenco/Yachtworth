@@ -181,8 +181,10 @@ export interface RoiYearlyPoint {
 
 export interface RoiComparableLine {
   name?: string | null;
+  model?: string | null;
   location?: string | null;
   weekly_rate_eur?: number | null;
+  year_built?: number | null;
 }
 
 /** Exit scenario — sale after 5 years. Present only when purchase price was entered. */

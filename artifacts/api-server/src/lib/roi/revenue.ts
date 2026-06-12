@@ -18,6 +18,7 @@ export interface ComputedRevenue {
   market_rating: "A" | "B" | "C" | "D" | null;
   comparables: {
     name: string;
+    model?: string | null;
     location?: string | null;
     weekly_rate_eur?: number | null;
     source_url?: string | null;
@@ -569,7 +570,7 @@ ${rateLine}
   "occupancy_pct": <integer, 0–100>,
   "market_rating": "A" | "B" | "C" | "D",
   "comparables": [
-    { "name": "...", "location": "...", "weekly_rate_eur": <int>, "source_url": "...", "year_built": <int|null>, "length_meters": <number|null> }
+    { "name": "...", "model": "builder + model line (e.g. Azimut Grande 27M)", "location": "...", "weekly_rate_eur": <int>, "source_url": "...", "year_built": <int|null>, "length_meters": <number|null> }
   ],
   "reasoning": "3-4 sentences — explain the rate, which comparable sources were used (Pass 1 vs Pass 2), and any adjustments made for registration, age, or season."
 }
@@ -812,6 +813,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     const o = (c ?? {}) as Record<string, unknown>;
     return {
       name: typeof o["name"] === "string" ? (o["name"] as string) : "Comparable",
+      model: typeof o["model"] === "string" ? (o["model"] as string) : null,
       location: typeof o["location"] === "string" ? (o["location"] as string) : null,
       weekly_rate_eur: (() => {
         const r = typeof o["weekly_rate_eur"] === "number" ? (o["weekly_rate_eur"] as number) : null;

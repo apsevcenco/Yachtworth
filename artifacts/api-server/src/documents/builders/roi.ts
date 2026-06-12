@@ -119,8 +119,14 @@ function comparableRows(
   money: (v: unknown) => string,
 ): TableCell[][] {
   return items.map((c) => {
-    const nameCell: TableCell = { text: c.name ? String(c.name) : L.none };
-    if (c.location) nameCell.sub = String(c.location);
+    const modelAndName = [c.model, c.name].filter(Boolean).join(" · ");
+    const locationAndYear = [c.location, c.year_built ? String(c.year_built) : null]
+      .filter(Boolean)
+      .join(" · ");
+    const nameCell: TableCell = {
+      text: modelAndName || (c.name ? String(c.name) : L.none),
+      sub: locationAndYear || undefined,
+    };
     const rate = num(c.weekly_rate_eur);
     const rateCell: TableCell = {
       text: rate != null ? `${money(rate)}${L.perWeek}` : L.none,
