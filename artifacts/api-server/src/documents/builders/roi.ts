@@ -143,6 +143,7 @@ function comparableRows(
     const nameCell: TableCell = {
       text: modelAndName || (c.name ? String(c.name) : L.none),
       sub: locationAndYear || undefined,
+      source: sourceHost(c.source_url),
     };
     const rate = num(c.weekly_rate_eur);
     const rateCell: TableCell = {
@@ -152,6 +153,15 @@ function comparableRows(
     };
     return [nameCell, rateCell];
   });
+}
+
+function sourceHost(sourceUrl: string | null | undefined): string | undefined {
+  if (!sourceUrl) return undefined;
+  try {
+    return new URL(sourceUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
 }
 
 export function buildRoiModel(input: {

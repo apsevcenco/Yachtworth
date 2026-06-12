@@ -54,9 +54,18 @@ function comparableTitle(c: NonNullable<RoiCalculation["comparables"]>[number]):
 }
 
 function comparableMeta(c: NonNullable<RoiCalculation["comparables"]>[number]): string {
-  return [c.location, c.year_built ? String(c.year_built) : null]
+  return [c.location, c.year_built ? String(c.year_built) : null, sourceHost(c.source_url)]
     .filter(Boolean)
     .join(" · ");
+}
+
+function sourceHost(sourceUrl: string | null | undefined): string | null {
+  if (!sourceUrl) return null;
+  try {
+    return new URL(sourceUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
 
 export default function RoiResultScreen() {

@@ -30,6 +30,28 @@ export interface ComputedRevenue {
   ai_used: boolean;
 }
 
+type RevenueComparable = ComputedRevenue["comparables"][number];
+
+function normaliseComparableKeyPart(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function dedupeRevenueComparables<T extends RevenueComparable>(
+  comparables: T[],
+): T[] {
+  const seen = new Set<string>();
+  return comparables.filter((c) => {
+    const source = normaliseComparableKeyPart(c.source_url);
+    const name = normaliseComparableKeyPart(c.name);
+    const model = normaliseComparableKeyPart(c.model);
+    const key = source || [model, name].filter(Boolean).join("|") || name;
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const REGION_LABEL: Record<string, string> = {
   mediterranean: "Mediterranean (France, Italy, Croatia, Greece, Spain)",
   caribbean: "Caribbean (BVI, St Martin, Bahamas)",
@@ -832,13 +854,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
         typeof o["length_meters"] === "number" ? (o["length_meters"] as number) : null,
     };
   });
-  const seenNames = new Set<string>();
-  const deduped = comparables.filter((c) => {
-    const key = c.name.toLowerCase().trim();
-    if (seenNames.has(key)) return false;
-    seenNames.add(key);
-    return true;
-  });
+  const deduped = dedupeRevenueComparables(comparables);
 
   const reasoning = cleanReasoning(parsed["reasoning"] || "");
 
@@ -893,7 +909,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
     daily_rate_high_eur: dailyHigh != null ? Math.round(dailyHigh) : null,
     occupancy_pct: occupancyPct,
     market_rating: marketRating,
-    comparables,
+    comparables: deduped,
     reasoning: reasoning || "Estimated from comparable listings in the region.",
     confidence: webSearchUsed ? "high" : "medium",
     ai_used: true,

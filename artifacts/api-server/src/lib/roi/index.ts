@@ -10,6 +10,7 @@ import {
   computeManualRevenue,
   computeAiRevenue,
   describeRevenueMethod,
+  dedupeRevenueComparables,
   charterBasis,
   type ComputedRevenue,
 } from "./revenue";
@@ -369,7 +370,7 @@ function combineRevenue(a: ComputedRevenue, b: ComputedRevenue): ComputedRevenue
     daily_rate_high_eur: highs.length ? Math.max(...highs) : null,
     occupancy_pct: Math.min(100, a.occupancy_pct + b.occupancy_pct),
     market_rating: a.market_rating ?? b.market_rating,
-    comparables: [...a.comparables, ...b.comparables].slice(0, 10),
+    comparables: dedupeRevenueComparables([...a.comparables, ...b.comparables]).slice(0, 10),
     reasoning: `Region 1 — ${a.reasoning} Region 2 — ${b.reasoning}`,
     confidence: worseConfidence(a.confidence, b.confidence),
     ai_used: a.ai_used || b.ai_used,

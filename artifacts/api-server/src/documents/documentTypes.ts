@@ -185,6 +185,7 @@ export interface RoiComparableLine {
   location?: string | null;
   weekly_rate_eur?: number | null;
   year_built?: number | null;
+  source_url?: string | null;
 }
 
 /** Exit scenario — sale after 5 years. Present only when purchase price was entered. */
