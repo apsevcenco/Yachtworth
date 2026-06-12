@@ -114,6 +114,27 @@ function yearlyRows(
   });
 }
 
+function methodologyBlocks(text: string): ContentNode[] {
+  const trimmed = text.trim();
+  const secondSection = trimmed.search(/\n2\.\s/);
+  if (secondSection <= 0) {
+    return [{ kind: "paragraph", heading: L.methodology, panel: true, text: trimmed }];
+  }
+  return [
+    {
+      kind: "paragraph",
+      heading: L.methodology,
+      panel: true,
+      text: trimmed.slice(0, secondSection).trim(),
+    },
+    {
+      kind: "paragraph",
+      panel: true,
+      text: trimmed.slice(secondSection).trim(),
+    },
+  ];
+}
+
 function comparableRows(
   items: RoiComparableLine[],
   money: (v: unknown) => string,
@@ -236,12 +257,7 @@ export function buildRoiModel(input: {
   }
 
   if (reportData.methodology && reportData.methodology.trim()) {
-    body.push({
-      kind: "paragraph",
-      heading: L.methodology,
-      panel: true,
-      text: reportData.methodology.trim(),
-    });
+    body.push(...methodologyBlocks(reportData.methodology));
   }
 
   let detailStarted = false;
