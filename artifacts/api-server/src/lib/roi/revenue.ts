@@ -44,7 +44,8 @@ export function dedupeRevenueComparables<T extends RevenueComparable>(
     const source = normaliseComparableKeyPart(c.source_url);
     const name = normaliseComparableKeyPart(c.name);
     const model = normaliseComparableKeyPart(c.model);
-    const key = source || [model, name].filter(Boolean).join("|") || name;
+    const yachtKey = [model, name].filter(Boolean).join("|") || name;
+    const key = yachtKey || source;
     if (!key) return true;
     if (seen.has(key)) return false;
     seen.add(key);
