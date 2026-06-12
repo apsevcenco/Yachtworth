@@ -118,6 +118,7 @@ function comparableRows(
   items: RoiComparableLine[],
   money: (v: unknown) => string,
 ): TableCell[][] {
+  console.log("[PDF] comparables[0]:", JSON.stringify(items[0]));
   return items.map((c) => {
     const modelAndName = [c.model, c.name].filter(Boolean).join(" · ");
     const locationAndYear = [c.location, c.year_built ? String(c.year_built) : null]
