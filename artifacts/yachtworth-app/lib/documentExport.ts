@@ -405,8 +405,10 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
       })),
       comparables: (result.comparables ?? []).map((c) => ({
         name: c.name,
+        model: c.model ?? null,
         location: c.location ?? null,
         weekly_rate_eur: c.weekly_rate_eur ?? null,
+        year_built: c.year_built ?? null,
       })),
       exitScenario: result.exit_scenario ? {
         purchase_price_eur: result.exit_scenario.purchase_price_eur,
