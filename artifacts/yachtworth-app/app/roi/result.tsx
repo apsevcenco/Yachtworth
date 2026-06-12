@@ -49,6 +49,16 @@ function signedEur(n: number): string {
   return (n < 0 ? "− € " : "+ € ") + abs.toLocaleString("en-US");
 }
 
+function comparableTitle(c: NonNullable<RoiCalculation["comparables"]>[number]): string {
+  return [c.model, c.name].filter(Boolean).join(" · ") || c.name;
+}
+
+function comparableMeta(c: NonNullable<RoiCalculation["comparables"]>[number]): string {
+  return [c.location, c.year_built ? String(c.year_built) : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default function RoiResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -376,8 +386,10 @@ export default function RoiResultScreen() {
             {data.comparables.map((c, i) => (
               <View key={i} style={styles.expRow}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.expCat}>{c.name}</Text>
-                  {c.location ? <Text style={styles.expFormula}>{c.location}</Text> : null}
+                  <Text style={styles.expCat}>{comparableTitle(c)}</Text>
+                  {comparableMeta(c) ? (
+                    <Text style={styles.expFormula}>{comparableMeta(c)}</Text>
+                  ) : null}
                 </View>
                 {c.weekly_rate_eur != null ? (
                   <Text style={styles.expAmount}>{eur(c.weekly_rate_eur)}/wk</Text>
