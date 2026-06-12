@@ -328,6 +328,63 @@ function buildMethodology(args: {
   return lines.join("\n");
 }
 
+function comparableRateRange(
+  comparables: ComputedRevenue["comparables"],
+): { low: number; high: number } | null {
+  const rates = comparables
+    .map((c) => c.weekly_rate_eur)
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+  if (!rates.length) return null;
+  return { low: Math.min(...rates), high: Math.max(...rates) };
+}
+
+function buildAnalysis(args: {
+  input: RoiInput;
+  yacht: YachtRow;
+  revenue: ComputedRevenue;
+  totalExpenses: number;
+  net: number;
+  roiPct: number;
+  payback: number;
+  dual: RoiDualRegionBreakdown | null;
+}): string {
+  if (args.input.pricing_mode !== "ai") {
+    return (
+      `This scenario uses the owner-entered charter rate and booking volume, producing annual charter revenue of €${money(args.revenue.annual_gross_eur)}. ` +
+      `After annual expenses of €${money(args.totalExpenses)}, the projected net result is €${money(args.net)} and ROI is ${args.roiPct.toFixed(1)}%.`
+    );
+  }
+
+  const range = comparableRateRange(args.revenue.comparables);
+  const compText = range
+    ? `Comparable weekly charter rates in this cohort range from €${money(range.low)} to €${money(range.high)}. `
+    : "Comparable charter listings were used to estimate the market rate. ";
+  const registrationText = args.yacht.commercial_registration
+    ? "The yacht is marked as commercially registered, so no leisure-registration discount is applied. "
+    : "Because the yacht is not marked as commercially registered, the market rate is treated conservatively versus fully commercial charter comparables. ";
+
+  if (args.dual) {
+    const d = args.dual;
+    const repositioningText =
+      d.repositioning_cost_eur > 0
+        ? `, including €${money(d.repositioning_cost_eur)} repositioning,`
+        : ",";
+    return (
+      compText +
+      registrationText +
+      `The dual-region scenario combines ${regionName(d.region_1.region)} income of €${money(d.region_1.income_eur)} with ${regionName(d.region_2.region)} income of €${money(d.region_2.income_eur)}, for total charter revenue of €${money(args.revenue.annual_gross_eur)}. ` +
+      `After annual expenses of €${money(args.totalExpenses)}${repositioningText} projected net profit is €${money(args.net)}, ROI is ${args.roiPct.toFixed(1)}%, and payback is ${args.payback >= 999 || args.net <= 0 ? "not reached" : `${args.payback.toFixed(1)} years`}.`
+    );
+  }
+
+  return (
+    compText +
+    registrationText +
+    `The fixed regional booking model gives ${Math.round(args.revenue.expected_charter_weeks * 10) / 10} charter weeks and total charter revenue of €${money(args.revenue.annual_gross_eur)}. ` +
+    `After annual expenses of €${money(args.totalExpenses)}, projected net profit is €${money(args.net)}, ROI is ${args.roiPct.toFixed(1)}%, and payback is ${args.payback >= 999 || args.net <= 0 ? "not reached" : `${args.payback.toFixed(1)} years`}.`
+  );
+}
+
 const CONFIDENCE_RANK: Record<"high" | "medium" | "low", number> = {
   high: 3,
   medium: 2,
@@ -640,7 +697,16 @@ export async function calculateRoi(
     depreciation_curve: depreciation,
     roi_projection_5y: projection,
     comparables: revenue.comparables,
-    reasoning: revenue.reasoning,
+    reasoning: buildAnalysis({
+      input,
+      yacht,
+      revenue,
+      totalExpenses,
+      net,
+      roiPct,
+      payback,
+      dual: dualBreakdown,
+    }),
     methodology,
     recommendations: recommendations({
       netEur: net,
