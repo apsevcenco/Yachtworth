@@ -116,23 +116,19 @@ function yearlyRows(
 
 function methodologyBlocks(text: string): ContentNode[] {
   const trimmed = text.trim();
-  const secondSection = trimmed.search(/\n2\.\s/);
-  if (secondSection <= 0) {
+  const sections = trimmed
+    .split(/\n(?=\d+\.\s)/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sections.length <= 1) {
     return [{ kind: "paragraph", heading: L.methodology, panel: true, text: trimmed }];
   }
-  return [
-    {
-      kind: "paragraph",
-      heading: L.methodology,
-      panel: true,
-      text: trimmed.slice(0, secondSection).trim(),
-    },
-    {
-      kind: "paragraph",
-      panel: true,
-      text: trimmed.slice(secondSection).trim(),
-    },
-  ];
+  return sections.map((section, idx) => ({
+    kind: "paragraph",
+    ...(idx === 0 ? { heading: L.methodology } : {}),
+    panel: true,
+    text: section,
+  }));
 }
 
 function comparableRows(
