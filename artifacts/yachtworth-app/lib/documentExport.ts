@@ -348,6 +348,9 @@ export type RoiHeader = {
   builder?: string | null;
   model?: string | null;
   regionLabel?: string | null;
+  cover_photo_url?: string | null;
+  photo_url?: string | null;
+  photo_urls?: string[] | null;
 };
 
 function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
@@ -364,6 +367,9 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
       name,
       builder: header?.builder ?? null,
       model: header?.model ?? null,
+      cover_photo_url: header?.cover_photo_url ?? null,
+      photo_url: header?.photo_url ?? null,
+      photo_urls: header?.photo_urls ?? null,
     },
     reportData: {
       annualRevenueEur: result.annual_revenue_eur,

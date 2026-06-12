@@ -478,12 +478,21 @@ export default function RoiCalculateScreen() {
         const v = headerSnap?.[k];
         return typeof v === "string" && v.trim() ? v : null;
       };
+      const headerStrArr = (k: string): string[] | null => {
+        const v = headerSnap?.[k];
+        if (!Array.isArray(v)) return null;
+        const arr = v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+        return arr.length ? arr : null;
+      };
       const header = {
         yachtName: headerStr("name"),
         builder: headerStr("brand") ?? headerStr("builder"),
         model: headerStr("model"),
         regionLabel:
           REGION_OPTS.find((r) => r.v === region)?.l ?? null,
+        cover_photo_url: headerStr("cover_photo_url"),
+        photo_url: headerStr("photo_url"),
+        photo_urls: headerStrArr("photo_urls"),
       };
       router.replace({
         pathname: "/roi/result",
