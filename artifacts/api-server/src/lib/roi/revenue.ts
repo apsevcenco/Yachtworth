@@ -732,6 +732,7 @@ export async function computeAiRevenue(args: AiArgs): Promise<ComputedRevenue> {
       5,
     );
     webSearchUsed = true;
+    console.log("[ROI DEBUG] comparables raw:", raw.slice(raw.indexOf('"comparables"'), raw.indexOf('"comparables"') + 400));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err: msg }, "aiResponses web search failed");
