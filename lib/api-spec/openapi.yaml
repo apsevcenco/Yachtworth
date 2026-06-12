@@ -2347,6 +2347,10 @@ components:
       properties:
         name:
           type: string
+        model:
+          type: ["string", "null"]
+        year_built:
+          type: ["integer", "null"]
         location:
           type: ["string", "null"]
         weekly_rate_eur:

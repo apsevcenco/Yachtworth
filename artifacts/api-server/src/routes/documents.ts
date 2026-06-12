@@ -28,8 +28,6 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const body = isObject(req.body) ? req.body : {};
 
-    console.log("[documents/generate] methodology preview:", JSON.stringify((body["reportData"] as Record<string, unknown> | undefined)?.["methodology"]?.toString().slice(0, 200)));
-
     const documentType = body["documentType"];
     if (
       documentType !== "proposal" &&

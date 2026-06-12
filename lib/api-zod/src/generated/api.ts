@@ -1895,6 +1895,8 @@ export const CalculateRoiResponse = zod.object({
     .array(
       zod.object({
         name: zod.string(),
+        model: zod.string().nullish(),
+        year_built: zod.number().nullish(),
         location: zod.string().nullish(),
         weekly_rate_eur: zod.number().nullish(),
         source_url: zod.string().nullish(),
@@ -3241,6 +3243,8 @@ export const GetRoiCalculationResponse = zod.object({
       .array(
         zod.object({
           name: zod.string(),
+          model: zod.string().nullish(),
+          year_built: zod.number().nullish(),
           location: zod.string().nullish(),
           weekly_rate_eur: zod.number().nullish(),
           source_url: zod.string().nullish(),

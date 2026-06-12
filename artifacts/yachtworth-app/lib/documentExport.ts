@@ -359,7 +359,6 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
     [header?.builder, header?.model].filter(Boolean).join(" ") ||
     "Charter ROI Scenario";
 
-  console.log("[EXPORT] comparable[0]:", JSON.stringify(result.comparables?.[0]));
   return {
     documentType: "roi_report" as const,
     format: "pdf" as const,

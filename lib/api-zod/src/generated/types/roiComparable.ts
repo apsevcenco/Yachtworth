@@ -9,6 +9,10 @@
 export interface RoiComparable {
   name: string;
   /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  year_built?: number | null;
+  /** @nullable */
   location?: string | null;
   /** @nullable */
   weekly_rate_eur?: number | null;
