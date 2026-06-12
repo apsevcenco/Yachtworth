@@ -250,6 +250,7 @@ export function buildRoiModel(input: {
     body.push({
       kind: "table",
       heading: L.expenseBreakdown,
+      breakBefore: true,
       columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
       rows: expenseRows(expenseList, money),
     });
