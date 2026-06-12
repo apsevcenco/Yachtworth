@@ -554,9 +554,13 @@ INSTRUCTIONS
    same length ±2m, same brand family OR direct competitors (e.g. for Azimut:
    Sunseeker, Princess, Ferretti, Sanlorenzo; for Benetti: Feadship, Heesen,
    Lurssen). Do NOT mix tiers — premium stays premium, sport stays sport.
-3. Aim for 5 truly comparable yachts total across both passes. Determine a
-   realistic weekly rate range (low–high) in EUR. If listings are in USD/GBP,
-   convert at current FX.
+3. Aim for 5 truly comparable yachts total across both passes, minimum 4.
+   Determine a realistic weekly rate range (low–high) in EUR. If listings
+   are in USD/GBP, convert at current FX. If fewer than 4 results are found
+   in the target region, expand search to other bases for the same model line.
+   REQUIRED: Every comparable MUST include the "model" field with the full
+   builder + model name (e.g. "Azimut Grande 27M", "Sunseeker Predator 74").
+   Never leave "model" blank or null.
 ${rateLine}
 5. ${weeksInstruction}
 6. Output STRICT JSON, no prose around it:
