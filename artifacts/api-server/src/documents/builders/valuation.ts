@@ -434,39 +434,32 @@ export function buildValuationModel(input: {
   if (capParts.length) metrics.caption = capParts.join("  ·  ");
   body.push(metrics);
 
-  // ── Evidence group → page 2 ──
-  // ONE intentional break starts the evidence group on a fresh page, so the
-  // layout is deterministic: page 1 = Yacht Summary + Valuation Result, page 2 =
-  // Comparables + Factors + Market Notes + Disclaimer. Page-2 density is kept in
-  // budget by truncating the notes (≤450 chars) and disclaimer below.
+  // Evidence sections flow naturally after the valuation metrics. The adaptive
+  // paginator may split a long comparable table, but we avoid forced page breaks
+  // so page 1 after the cover does not end with a large empty area.
   const comparables = Array.isArray(reportData.comparableYachts) ? reportData.comparableYachts : [];
   const factors = Array.isArray(reportData.valuationFactors) ? reportData.valuationFactors : [];
-  let evidenceStarted = false;
   if (comparables.length) {
     body.push({
       kind: "table",
       heading: d["comparables"]!,
-      breakBefore: true,
       // Name column declared at its real rendered width (72%, since price = 28%)
       // so the paginator measures compact comparable rows accurately instead of
       // over-counting wrapped sub-lines at the 50% default.
       columns: [{ widthPct: 72 }, { align: "right", widthPct: 28 }],
       rows: comparableRows(comparables, d, money),
     });
-    evidenceStarted = true;
   }
   if (factors.length) {
     body.push({
       kind: "table",
       heading: d["factors"]!,
-      ...(evidenceStarted ? {} : { breakBefore: true }),
       columns: [{}, { align: "right", widthPct: 30 }],
       rows: factorRows(factors, d),
     });
-    evidenceStarted = true;
   }
 
-  // ── Closing group (Market Notes + Contact + Disclaimer) on page 2 ──
+  // ── Closing group (Market Notes + Contact + Disclaimer) ──
   // Market Notes capped at ~450 chars / 4 lines for density (full value stays in
   // the data — this only limits what the PDF prints).
   const notes: ContentNode = {
@@ -476,7 +469,6 @@ export function buildValuationModel(input: {
     text: reportData.marketNotes ? truncateText(reportData.marketNotes, 450) : "",
     emptyText: d["none"]!,
   };
-  if (!evidenceStarted) notes.breakBefore = true;
   body.push(notes);
 
   // Contact
