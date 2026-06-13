@@ -1553,6 +1553,10 @@ export const calculateRoiBodyOverridesOneAnnualClassificationEurMin = 0;
 
 export const calculateRoiBodyOverridesOneAnnualAntifoulingEurMin = 0;
 
+export const calculateRoiBodyOverridesOneEngineServiceEurMin = 0;
+
+export const calculateRoiBodyOverridesOneGeneratorServiceEurMin = 0;
+
 export const calculateRoiBodyOverridesOneAnnualRefitReserveEurMin = 0;
 
 export const calculateRoiBodyOverridesOneCharterCommissionPctMin = 0;
@@ -1796,6 +1800,16 @@ export const CalculateRoiBody = zod.object({
             .number()
             .min(calculateRoiBodyOverridesOneAnnualAntifoulingEurMin)
             .nullish(),
+          engine_service_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneEngineServiceEurMin)
+            .nullish()
+            .describe("Main engine(s) annual service."),
+          generator_service_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneGeneratorServiceEurMin)
+            .nullish()
+            .describe("Generator(s) annual service."),
           annual_refit_reserve_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneAnnualRefitReserveEurMin)

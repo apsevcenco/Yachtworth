@@ -68,6 +68,8 @@ export const ANNUAL_FIELDS = [
   { key: "annual_registration_eur", label: "Registration / flag", hint: "Annual flag-state fees" },
   { key: "annual_classification_eur", label: "Classification & survey", hint: "Class society, MCA, audits" },
   { key: "annual_antifouling_eur", label: "Antifouling & haul-out", hint: "Yearly bottom service" },
+  { key: "engine_service_eur", label: "Engine service", hint: "Main engine(s) annual service" },
+  { key: "generator_service_eur", label: "Generator service", hint: "Generator(s) annual service" },
   { key: "annual_refit_reserve_eur", label: "Refit reserve", hint: "Money set aside for major refit" },
 ] as const;
 
@@ -200,6 +202,8 @@ export interface FinancialsState {
   annual_registration_eur: string;
   annual_classification_eur: string;
   annual_antifouling_eur: string;
+  engine_service_eur: string;
+  generator_service_eur: string;
   annual_refit_reserve_eur: string;
   charter_commission_pct: string;
   financing_type: FinancingType | null;
@@ -221,6 +225,8 @@ export const EMPTY_FINANCIALS: FinancialsState = {
   annual_registration_eur: "",
   annual_classification_eur: "",
   annual_antifouling_eur: "",
+  engine_service_eur: "",
+  generator_service_eur: "",
   annual_refit_reserve_eur: "",
   charter_commission_pct: "",
   financing_type: null,
@@ -266,6 +272,8 @@ export function hydrateFinancialsFromYacht(
     annual_registration_eur: numStr(y.annual_registration_eur),
     annual_classification_eur: numStr(y.annual_classification_eur),
     annual_antifouling_eur: numStr(y.annual_antifouling_eur),
+    engine_service_eur: numStr(y.engine_service_eur),
+    generator_service_eur: numStr(y.generator_service_eur),
     annual_refit_reserve_eur: numStr(y.annual_refit_reserve_eur),
     charter_commission_pct: numStr(y.charter_commission_pct),
     financing_type:
@@ -293,6 +301,8 @@ export interface RoiOverrides {
   annual_registration_eur?: number;
   annual_classification_eur?: number;
   annual_antifouling_eur?: number;
+  engine_service_eur?: number;
+  generator_service_eur?: number;
   annual_refit_reserve_eur?: number;
   charter_commission_pct?: number;
   financing_type?: FinancingType;
@@ -328,6 +338,8 @@ export function buildRoiOverrides(state: FinancialsState): RoiOverrides | null {
     "annual_registration_eur",
     "annual_classification_eur",
     "annual_antifouling_eur",
+    "engine_service_eur",
+    "generator_service_eur",
     "annual_refit_reserve_eur",
     "charter_commission_pct",
   ];

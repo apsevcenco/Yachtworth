@@ -43,6 +43,8 @@ export interface YachtRow {
   annual_registration_eur?: number | string | null;
   annual_classification_eur?: number | string | null;
   annual_antifouling_eur?: number | string | null;
+  engine_service_eur?: number | string | null;
+  generator_service_eur?: number | string | null;
   annual_refit_reserve_eur?: number | string | null;
   charter_commission_pct?: number | null;
 }

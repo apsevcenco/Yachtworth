@@ -889,6 +889,16 @@ export interface RoiExpenseOverrides {
    * @minimum 0
    * @nullable
    */
+  engine_service_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  generator_service_eur?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
   annual_refit_reserve_eur?: number | null;
   /**
    * @minimum 0

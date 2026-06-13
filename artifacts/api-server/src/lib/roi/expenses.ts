@@ -193,6 +193,8 @@ export function buildExpenses(args: BuildExpensesArgs): {
       pickAnnual("Registration / flag", yacht.annual_registration_eur, defaults.registrationAnnual),
       pickAnnual("Classification & survey", yacht.annual_classification_eur, defaults.classificationAnnual),
       pickAnnual("Antifouling & haul-out", yacht.annual_antifouling_eur, defaults.antifoulingAnnual),
+      pickAnnual("Engine service", yacht.engine_service_eur, 0),
+      pickAnnual("Generator service", yacht.generator_service_eur, 0),
       pickAnnual("Refit reserve", yacht.annual_refit_reserve_eur, defaults.refitAnnual),
     ] as (ExpenseLine | null)[]
   ).filter((l): l is ExpenseLine => l !== null);

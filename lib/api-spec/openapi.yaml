@@ -2321,6 +2321,14 @@ components:
         annual_antifouling_eur:
           type: ["number", "null"]
           minimum: 0
+        engine_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Main engine(s) annual service.
+        generator_service_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Generator(s) annual service.
         annual_refit_reserve_eur:
           type: ["number", "null"]
           minimum: 0

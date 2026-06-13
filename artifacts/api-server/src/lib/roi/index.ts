@@ -678,6 +678,8 @@ export async function calculateRoi(
     yacht.monthly_fuel_eur,
     yacht.monthly_provisioning_eur,
     yacht.annual_insurance_eur,
+    yacht.engine_service_eur,
+    yacht.generator_service_eur,
     yacht.annual_refit_reserve_eur,
   ].some((v) => v != null);
 

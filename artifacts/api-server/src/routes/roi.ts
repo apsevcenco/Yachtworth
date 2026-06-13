@@ -50,6 +50,8 @@ const OVERRIDABLE_NUMERIC_KEYS = [
   "annual_registration_eur",
   "annual_classification_eur",
   "annual_antifouling_eur",
+  "engine_service_eur",
+  "generator_service_eur",
   "annual_refit_reserve_eur",
   "charter_commission_pct",
   "loan_amount_eur",
