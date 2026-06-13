@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useVideoPlayer, VideoView } from "expo-video";
 
 const INTRO_MS = 3600;
 const FADE_MS = 520;
@@ -24,11 +23,6 @@ export function LaunchIntro() {
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoTranslate = useRef(new Animated.Value(12)).current;
   const videoUri = useMemo(() => Image.resolveAssetSource(introVideo)?.uri, []);
-  const player = useVideoPlayer(introVideo, (p) => {
-    p.loop = false;
-    p.muted = true;
-    p.play();
-  });
 
   const close = () => {
     if (closing) return;
@@ -79,12 +73,7 @@ export function LaunchIntro() {
           style: styles.video as unknown as React.CSSProperties,
         })
       ) : (
-          <VideoView
-            player={player}
-            style={styles.video}
-            contentFit="cover"
-            nativeControls={false}
-          />
+        <View style={styles.fallback} />
       )}
       <View style={styles.scrim} />
       <Pressable accessibilityRole="button" accessibilityLabel="Skip intro" onPress={close} style={styles.content}>
