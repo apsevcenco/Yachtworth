@@ -20,6 +20,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { BrandHeader } from "@/components/BrandHeader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LaunchIntro } from "@/components/LaunchIntro";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -207,6 +208,7 @@ export default function RootLayout() {
                   <StatusBar style="light" />
                   <ClerkTokenBridge />
                   <RootLayoutNav />
+                  <LaunchIntro />
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </QueryClientProvider>
