@@ -208,6 +208,10 @@ export default function RoiCalculateScreen() {
   const [charterType2, setCharterType2] = useState<CharterType>("weekly");
   const [occ2, setOcc2] = useState<Occ>("realistic");
   const [reposition, setReposition] = useState("");
+  const [marinaRegion1Monthly, setMarinaRegion1Monthly] = useState("");
+  const [marinaRegion1Months, setMarinaRegion1Months] = useState(6);
+  const [marinaRegion2Monthly, setMarinaRegion2Monthly] = useState("");
+  const [marinaRegion2Months, setMarinaRegion2Months] = useState(6);
   const [rate, setRate] = useState("");
   const [units, setUnits] = useState("");
   const [highRate, setHighRate] = useState("");
@@ -264,6 +268,10 @@ export default function RoiCalculateScreen() {
       manual_high_charter_units?: number | null;
       manual_low_rate_eur?: number | null;
       manual_low_charter_units?: number | null;
+      marina_region_1_monthly_eur?: number | null;
+      marina_region_1_months?: number | null;
+      marina_region_2_monthly_eur?: number | null;
+      marina_region_2_months?: number | null;
     };
     if (REGION_OPTS.some((o) => o.v === inp.region)) {
       setRegion(inp.region as Region);
@@ -309,6 +317,18 @@ export default function RoiCalculateScreen() {
       }
       if (inp.repositioning_cost_eur != null) {
         setReposition(String(inp.repositioning_cost_eur));
+      }
+      if (inp.marina_region_1_monthly_eur != null) {
+        setMarinaRegion1Monthly(String(inp.marina_region_1_monthly_eur));
+      }
+      if (inp.marina_region_1_months != null) {
+        setMarinaRegion1Months(Math.max(1, Math.min(12, Math.round(inp.marina_region_1_months))));
+      }
+      if (inp.marina_region_2_monthly_eur != null) {
+        setMarinaRegion2Monthly(String(inp.marina_region_2_monthly_eur));
+      }
+      if (inp.marina_region_2_months != null) {
+        setMarinaRegion2Months(Math.max(1, Math.min(12, Math.round(inp.marina_region_2_months))));
       }
     }
     const ov = (inp.overrides ?? {}) as Record<string, unknown>;
@@ -475,8 +495,47 @@ export default function RoiCalculateScreen() {
         e.lowUnits = `Total max ${max} ${unitLabel}`;
       }
     }
+    if (dualRegion && pricingMode === "ai") {
+      const rows = [
+        {
+          key: "marinaRegion1",
+          rate: marinaRegion1Monthly,
+          months: marinaRegion1Months,
+        },
+        {
+          key: "marinaRegion2",
+          rate: marinaRegion2Monthly,
+          months: marinaRegion2Months,
+        },
+      ];
+      let marinaMonths = 0;
+      for (const row of rows) {
+        const hasRate = row.rate.trim() !== "";
+        if (!hasRate) continue;
+        if (!DEC_RE.test(row.rate)) e[`${row.key}Monthly`] = "Invalid amount";
+        else if (parseNum(row.rate)! < 0) e[`${row.key}Monthly`] = "Must be >= 0";
+        if (row.months < 1 || row.months > 12) e[`${row.key}Months`] = "1-12";
+        marinaMonths += row.months;
+      }
+      if (marinaMonths > 12) {
+        e.marinaRegion2Months = "Total max 12 months";
+      }
+    }
     return e;
-  }, [highRate, highUnits, isManual, lowRate, lowUnits, pricingMode, unitLabel]);
+  }, [
+    dualRegion,
+    highRate,
+    highUnits,
+    isManual,
+    lowRate,
+    lowUnits,
+    marinaRegion1Monthly,
+    marinaRegion1Months,
+    marinaRegion2Monthly,
+    marinaRegion2Months,
+    pricingMode,
+    unitLabel,
+  ]);
 
   const onSubmit = async () => {
     if (!yachtId && !snapshot) return;
@@ -523,6 +582,10 @@ export default function RoiCalculateScreen() {
             charter_type_2: regionCharter2 ? charterType2 : null,
             occupancy_target_2: occ2,
             repositioning_cost_eur: parseNum(reposition),
+            marina_region_1_monthly_eur: parseNum(marinaRegion1Monthly),
+            marina_region_1_months: marinaRegion1Monthly.trim() ? marinaRegion1Months : null,
+            marina_region_2_monthly_eur: parseNum(marinaRegion2Monthly),
+            marina_region_2_months: marinaRegion2Monthly.trim() ? marinaRegion2Months : null,
           }
         : {};
       const result = await mutation.mutateAsync({
@@ -923,6 +986,38 @@ export default function RoiCalculateScreen() {
                   </Section>
 
                   <Section
+                    label="DUAL-REGION MARINA COSTS"
+                    sublabel="Use separate mooring rates when the yacht stays in different marinas across the year. These replace the single Mooring / berth line when filled."
+                  >
+                    <MarinaRegionEditor
+                      title="Region 1 marina"
+                      regionLabel={REGION_OPTS.find((o) => o.v === region)?.l ?? region}
+                      monthly={marinaRegion1Monthly}
+                      months={marinaRegion1Months}
+                      onMonthly={setMarinaRegion1Monthly}
+                      onMonths={setMarinaRegion1Months}
+                      error={
+                        showErrors
+                          ? errors.marinaRegion1Monthly ?? errors.marinaRegion1Months
+                          : undefined
+                      }
+                    />
+                    <MarinaRegionEditor
+                      title="Region 2 marina"
+                      regionLabel={REGION_OPTS.find((o) => o.v === region2)?.l ?? region2}
+                      monthly={marinaRegion2Monthly}
+                      months={marinaRegion2Months}
+                      onMonthly={setMarinaRegion2Monthly}
+                      onMonths={setMarinaRegion2Months}
+                      error={
+                        showErrors
+                          ? errors.marinaRegion2Monthly ?? errors.marinaRegion2Months
+                          : undefined
+                      }
+                    />
+                  </Section>
+
+                  <Section
                     label="ANNUAL REPOSITIONING COST"
                     sublabel="Total cost of moving the yacht between the two regions (both ways combined). Added as an annual expense line."
                   >
@@ -1237,6 +1332,88 @@ function Field({
       ) : hint ? (
         <Text style={styles.fieldHint}>{hint}</Text>
       ) : null}
+    </View>
+  );
+}
+
+function MonthStepper({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const dec = () => {
+    const next = Math.max(1, value - 1);
+    if (next !== value) {
+      onChange(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  const inc = () => {
+    const next = Math.min(12, value + 1);
+    if (next !== value) {
+      onChange(next);
+      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    }
+  };
+  return (
+    <View style={styles.crewStepper}>
+      <Pressable
+        onPress={dec}
+        hitSlop={6}
+        style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+      >
+        <Feather name="minus" size={14} color={GOLD} />
+      </Pressable>
+      <View style={styles.crewMonthsBox}>
+        <Text style={styles.crewMonthsValue}>{value}</Text>
+        <Text style={styles.crewMonthsLabel}>mo / yr</Text>
+      </View>
+      <Pressable
+        onPress={inc}
+        hitSlop={6}
+        style={({ pressed }) => [styles.crewStepBtn, { opacity: pressed ? 0.6 : 1 }]}
+      >
+        <Feather name="plus" size={14} color={GOLD} />
+      </Pressable>
+    </View>
+  );
+}
+
+function MarinaRegionEditor({
+  title,
+  regionLabel,
+  monthly,
+  months,
+  onMonthly,
+  onMonths,
+  error,
+}: {
+  title: string;
+  regionLabel: string;
+  monthly: string;
+  months: number;
+  onMonthly: (v: string) => void;
+  onMonths: (n: number) => void;
+  error?: string;
+}) {
+  return (
+    <View style={styles.marinaRow}>
+      <View style={styles.marinaHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.marinaTitle}>{title}</Text>
+          <Text style={styles.marinaRegion}>{regionLabel}</Text>
+        </View>
+        <MonthStepper value={months} onChange={onMonths} />
+      </View>
+      <MoneyInput
+        value={monthly}
+        onChangeText={onMonthly}
+        suffix="€ / mo"
+        placeholder="12000"
+      />
+      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
   );
 }
@@ -1603,6 +1780,29 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 12,
     letterSpacing: 0.5,
+  },
+  marinaRow: {
+    paddingVertical: 12,
+    borderBottomColor: DIVIDER,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  marinaHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  marinaTitle: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  marinaRegion: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 2,
   },
   // Crew breakdown
   crewRow: {

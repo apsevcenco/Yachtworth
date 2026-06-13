@@ -1530,6 +1530,16 @@ export const calculateRoiBodyTargetWeeksMax = 52;
 
 export const calculateRoiBodyRepositioningCostEurMin = 0;
 
+export const calculateRoiBodyMarinaRegion1MonthlyEurMin = 0;
+
+export const calculateRoiBodyMarinaRegion1MonthsMin = 1;
+export const calculateRoiBodyMarinaRegion1MonthsMax = 12;
+
+export const calculateRoiBodyMarinaRegion2MonthlyEurMin = 0;
+
+export const calculateRoiBodyMarinaRegion2MonthsMin = 1;
+export const calculateRoiBodyMarinaRegion2MonthsMax = 12;
+
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
@@ -1746,6 +1756,28 @@ export const CalculateRoiBody = zod.object({
     .describe(
       "AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
     ),
+  marina_region_1_monthly_eur: zod
+    .number()
+    .min(calculateRoiBodyMarinaRegion1MonthlyEurMin)
+    .nullish()
+    .describe("AI dual-region only. Monthly mooring rate for region 1."),
+  marina_region_1_months: zod
+    .number()
+    .min(calculateRoiBodyMarinaRegion1MonthsMin)
+    .max(calculateRoiBodyMarinaRegion1MonthsMax)
+    .nullish()
+    .describe("AI dual-region only. Months per year in the region 1 marina."),
+  marina_region_2_monthly_eur: zod
+    .number()
+    .min(calculateRoiBodyMarinaRegion2MonthlyEurMin)
+    .nullish()
+    .describe("AI dual-region only. Monthly mooring rate for region 2."),
+  marina_region_2_months: zod
+    .number()
+    .min(calculateRoiBodyMarinaRegion2MonthsMin)
+    .max(calculateRoiBodyMarinaRegion2MonthsMax)
+    .nullish()
+    .describe("AI dual-region only. Months per year in the region 2 marina."),
   overrides: zod
     .union([
       zod
@@ -2865,6 +2897,16 @@ export const getRoiCalculationResponseInputTargetWeeksMax = 52;
 
 export const getRoiCalculationResponseInputRepositioningCostEurMin = 0;
 
+export const getRoiCalculationResponseInputMarinaRegion1MonthlyEurMin = 0;
+
+export const getRoiCalculationResponseInputMarinaRegion1MonthsMin = 1;
+export const getRoiCalculationResponseInputMarinaRegion1MonthsMax = 12;
+
+export const getRoiCalculationResponseInputMarinaRegion2MonthlyEurMin = 0;
+
+export const getRoiCalculationResponseInputMarinaRegion2MonthsMin = 1;
+export const getRoiCalculationResponseInputMarinaRegion2MonthsMax = 12;
+
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthsPerYearMax = 12;
@@ -3121,6 +3163,28 @@ export const GetRoiCalculationResponse = zod.object({
       .describe(
         "AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
       ),
+    marina_region_1_monthly_eur: zod
+      .number()
+      .min(getRoiCalculationResponseInputMarinaRegion1MonthlyEurMin)
+      .nullish()
+      .describe("AI dual-region only. Monthly mooring rate for region 1."),
+    marina_region_1_months: zod
+      .number()
+      .min(getRoiCalculationResponseInputMarinaRegion1MonthsMin)
+      .max(getRoiCalculationResponseInputMarinaRegion1MonthsMax)
+      .nullish()
+      .describe("AI dual-region only. Months per year in the region 1 marina."),
+    marina_region_2_monthly_eur: zod
+      .number()
+      .min(getRoiCalculationResponseInputMarinaRegion2MonthlyEurMin)
+      .nullish()
+      .describe("AI dual-region only. Monthly mooring rate for region 2."),
+    marina_region_2_months: zod
+      .number()
+      .min(getRoiCalculationResponseInputMarinaRegion2MonthsMin)
+      .max(getRoiCalculationResponseInputMarinaRegion2MonthsMax)
+      .nullish()
+      .describe("AI dual-region only. Months per year in the region 2 marina."),
     overrides: zod
       .union([
         zod

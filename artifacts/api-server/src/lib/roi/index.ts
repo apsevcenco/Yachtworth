@@ -72,6 +72,10 @@ export interface RoiInput {
   charter_type_2?: string | null;
   occupancy_target_2?: string | null;
   repositioning_cost_eur?: number | null;
+  marina_region_1_monthly_eur?: number | null;
+  marina_region_1_months?: number | null;
+  marina_region_2_monthly_eur?: number | null;
+  marina_region_2_months?: number | null;
 }
 
 export interface RoiRegionIncome {
@@ -607,8 +611,38 @@ export async function calculateRoi(
   }
 
   // ── 2. Expenses ───────────────────────────────────────────────────
+  const dualMarinaLines: ExpenseLine[] = [];
+  if (dualBreakdown) {
+    const marinaRows = [
+      {
+        label: "Mooring / berth · Region 1",
+        region: input.region,
+        monthly: input.marina_region_1_monthly_eur,
+        months: input.marina_region_1_months,
+      },
+      {
+        label: "Mooring / berth · Region 2",
+        region: input.region_2,
+        monthly: input.marina_region_2_monthly_eur,
+        months: input.marina_region_2_months,
+      },
+    ];
+    for (const row of marinaRows) {
+      const monthly = Number(row.monthly);
+      const months = Number(row.months);
+      if (isFinite(monthly) && monthly > 0 && isFinite(months) && months > 0) {
+        const roundedMonths = Math.min(12, Math.max(1, Math.round(months)));
+        dualMarinaLines.push({
+          category: row.label,
+          amount_eur: Math.round(monthly * roundedMonths),
+          formula: `Owner-provided: €${Math.round(monthly)}/mo × ${roundedMonths} mo (${row.region})`,
+        });
+      }
+    }
+  }
+
   const exp = buildExpenses({
-    yacht,
+    yacht: dualMarinaLines.length > 0 ? { ...yacht, monthly_mooring_eur: null } : yacht,
     region: input.region,
     managementFeeOverridePct: input.management_fee_pct ?? null,
     annualGrossRevenueEur: revenue.annual_gross_eur,
@@ -631,6 +665,7 @@ export async function calculateRoi(
       }% for ${yacht.loan_term_years ?? 0}y`,
     });
   }
+  allLines.push(...dualMarinaLines);
   // Dual-region repositioning is an additional annual operating cost.
   if (dualBreakdown && dualBreakdown.repositioning_cost_eur > 0) {
     allLines.push({

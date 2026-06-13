@@ -2275,6 +2275,24 @@ components:
             AI dual-region only. Annual cost of repositioning the yacht between
             the two regions (both ways combined). Added as a single expense
             line. Ignored when region_2 is null.
+        marina_region_1_monthly_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: AI dual-region only. Monthly mooring rate for region 1.
+        marina_region_1_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
+          description: AI dual-region only. Months per year in the region 1 marina.
+        marina_region_2_monthly_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: AI dual-region only. Monthly mooring rate for region 2.
+        marina_region_2_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
+          description: AI dual-region only. Months per year in the region 2 marina.
         overrides:
           oneOf:
             - $ref: "#/components/schemas/RoiExpenseOverrides"

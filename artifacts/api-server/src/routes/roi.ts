@@ -160,6 +160,10 @@ router.post(
       manual_high_charter_units?: number | null;
       manual_low_rate_eur?: number | null;
       manual_low_charter_units?: number | null;
+      marina_region_1_monthly_eur?: number | null;
+      marina_region_1_months?: number | null;
+      marina_region_2_monthly_eur?: number | null;
+      marina_region_2_months?: number | null;
     };
 
     const hasYachtId = input.yacht_id != null && input.yacht_id !== "";
@@ -242,6 +246,37 @@ router.post(
         }
       }
     }
+    if (input.pricing_mode === "ai" && input.region_2) {
+      const marinaRows = [
+        {
+          rate: input.marina_region_1_monthly_eur,
+          months: input.marina_region_1_months,
+          label: "region 1 marina",
+        },
+        {
+          rate: input.marina_region_2_monthly_eur,
+          months: input.marina_region_2_months,
+          label: "region 2 marina",
+        },
+      ];
+      let marinaMonths = 0;
+      for (const row of marinaRows) {
+        if (row.rate == null && row.months == null) continue;
+        if (row.rate == null || row.rate < 0) {
+          res.status(400).json({ error: `${row.label} monthly rate is required` });
+          return;
+        }
+        if (row.months == null || row.months < 1 || row.months > 12) {
+          res.status(400).json({ error: `${row.label} months must be 1-12` });
+          return;
+        }
+        marinaMonths += row.months;
+      }
+      if (marinaMonths > 12) {
+        res.status(400).json({ error: "dual-region marina months cannot exceed 12 total" });
+        return;
+      }
+    }
 
     const sb = getSupabase();
     if (!sb) {
@@ -299,6 +334,10 @@ router.post(
         charter_type_2: input.charter_type_2 ?? null,
         occupancy_target_2: input.occupancy_target_2 ?? null,
         repositioning_cost_eur: input.repositioning_cost_eur ?? null,
+        marina_region_1_monthly_eur: input.marina_region_1_monthly_eur ?? null,
+        marina_region_1_months: input.marina_region_1_months ?? null,
+        marina_region_2_monthly_eur: input.marina_region_2_monthly_eur ?? null,
+        marina_region_2_months: input.marina_region_2_months ?? null,
       });
 
       // Persist. The row is the same whether or not migration 022 has added the

@@ -1005,6 +1005,32 @@ export interface RoiCalculationInput {
    * @nullable
    */
   repositioning_cost_eur?: number | null;
+  /**
+   * AI dual-region only. Monthly mooring rate for region 1.
+   * @minimum 0
+   * @nullable
+   */
+  marina_region_1_monthly_eur?: number | null;
+  /**
+   * AI dual-region only. Months per year in the region 1 marina.
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  marina_region_1_months?: number | null;
+  /**
+   * AI dual-region only. Monthly mooring rate for region 2.
+   * @minimum 0
+   * @nullable
+   */
+  marina_region_2_monthly_eur?: number | null;
+  /**
+   * AI dual-region only. Months per year in the region 2 marina.
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  marina_region_2_months?: number | null;
   /** Per-calculation crew/expense/financing overrides. Applied on top of the saved yacht for THIS calculation only and never written back to the yacht profile. A null field falls back to the saved yacht value; if that is also empty the engine omits the line (maintenance, management fee and broker commission always use a default). Choosing financing_type "cash" clears any inherited loan figures for the calc. */
   overrides?: RoiExpenseOverrides | null;
 }
