@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import {
   getGetYachtQueryKey,
+  getListYachtsQueryKey,
   useCreateValuation,
   useGetYacht,
+  useListYachts,
   type Yacht,
 } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -206,6 +208,14 @@ function strField(s: string | null | undefined): string {
   return typeof s === "string" ? s : "";
 }
 
+function yachtText(y: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const v = y[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
 // Pre-fills a fresh metric form from a saved yacht profile. All numerics
 // stay in metric here — `convertFormUnits` runs immediately after to bring
 // the form to the user's persisted units in a single atomic step.
@@ -216,8 +226,8 @@ function prefillFromYacht(f: FormState, yacht: Yacht): FormState {
     ...f,
     units: "metric",
     type: YACHT_TYPES.has(yType) ? (yType as YachtType) : f.type,
-    builder: strField(y["builder"] as string | null | undefined),
-    model: strField(y["model"] as string | null | undefined),
+    builder: yachtText(y, ["brand", "builder", "manufacturer"]),
+    model: yachtText(y, ["model"]),
     year: y["year_built"] != null ? String(y["year_built"]) : "",
     length: numToField(y["length_meters"] as number | null | undefined),
     beam: numToField(y["beam_meters"] as number | null | undefined),
@@ -247,8 +257,36 @@ function prefillFromYacht(f: FormState, yacht: Yacht): FormState {
         ? String(y["berths"])
         : "",
     crew:
-      y["crew"] != null && Number(y["crew"]) > 0 ? String(y["crew"]) : "",
+      y["crew"] != null && Number(y["crew"]) > 0
+        ? String(y["crew"])
+        : y["crew_cabins"] != null && Number(y["crew_cabins"]) > 0
+          ? String(y["crew_cabins"])
+          : "",
   };
+}
+
+function yachtLabel(yacht: Yacht): string {
+  const y = yacht as unknown as Record<string, unknown>;
+  return (
+    yachtText(y, ["name"]) ||
+    [yachtText(y, ["brand", "builder", "manufacturer"]), yachtText(y, ["model"])]
+      .filter(Boolean)
+      .join(" ") ||
+    "Untitled yacht"
+  );
+}
+
+function yachtMeta(yacht: Yacht): string {
+  const y = yacht as unknown as Record<string, unknown>;
+  return [
+    yachtText(y, ["brand", "builder", "manufacturer"]),
+    typeof y["length_meters"] === "number"
+      ? `${(y["length_meters"] as number).toFixed(1)}m`
+      : null,
+    typeof y["year_built"] === "number" ? String(y["year_built"]) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 interface FormState {
@@ -322,8 +360,12 @@ export default function NewValuationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ yacht_id?: string }>();
-  const linkedYachtId =
+  const initialYachtId =
     typeof params.yacht_id === "string" && params.yacht_id ? params.yacht_id : null;
+  const [selectedYachtId, setSelectedYachtId] = useState<string | null>(
+    initialYachtId,
+  );
+  const linkedYachtId = selectedYachtId;
   const mutation = useCreateValuation();
   const { units: persistedUnits, setUnits: persistUnits, loaded: unitsLoaded } =
     useUnits();
@@ -338,24 +380,50 @@ export default function NewValuationScreen() {
   const linkedYacht = linkedYachtId ? yachtQuery.data ?? null : null;
   const yachtReady =
     !linkedYachtId || yachtQuery.isSuccess || yachtQuery.isError;
+  const yachtsQuery = useListYachts(undefined, {
+    query: {
+      queryKey: getListYachtsQueryKey(),
+      staleTime: 30_000,
+    },
+  });
+  const yachts = (yachtsQuery.data?.items ?? []).filter((y) => !y.is_archived);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [step, setStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
-  const initRef = useRef(false);
+  const hydratedYachtRef = useRef<string | null>(null);
+  const unitsInitRef = useRef(false);
 
   // First mount: prefill from the linked yacht (when present) in metric,
   // then convert to the user's persisted units in one atomic step. Waiting
   // for both `unitsLoaded` AND the yacht fetch prevents a double-conversion
   // and the 3.28× corruption the units spec is designed to prevent.
   useEffect(() => {
-    if (initRef.current) return;
-    if (!unitsLoaded || !yachtReady) return;
-    initRef.current = true;
+    if (!unitsLoaded) return;
+    if (!unitsInitRef.current && !linkedYachtId) {
+      unitsInitRef.current = true;
+      setForm((f) => convertFormUnits(f, persistedUnits));
+      return;
+    }
+    if (!linkedYachtId || !yachtReady || !linkedYacht) return;
+    if (hydratedYachtRef.current === linkedYachtId) return;
+    unitsInitRef.current = true;
+    hydratedYachtRef.current = linkedYachtId;
     setForm((f) => {
-      const prefilled = linkedYacht ? prefillFromYacht(f, linkedYacht) : f;
+      const prefilled = prefillFromYacht(f, linkedYacht);
       return convertFormUnits(prefilled, persistedUnits);
     });
-  }, [unitsLoaded, persistedUnits, yachtReady, linkedYacht]);
+  }, [unitsLoaded, persistedUnits, yachtReady, linkedYachtId, linkedYacht]);
+
+  const selectYacht = (yachtId: string | null) => {
+    if (Platform.OS !== "web") Haptics.selectionAsync();
+    setSelectedYachtId(yachtId);
+    if (yachtId == null) {
+      hydratedYachtRef.current = null;
+      if (linkedYachtId) {
+        setForm(convertFormUnits(INITIAL, persistedUnits));
+      }
+    }
+  };
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -676,7 +744,15 @@ export default function NewValuationScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {step === 0 && (
-            <Step1General form={form} update={update} errs={errs} />
+            <>
+              <SavedYachtSelector
+                yachts={yachts}
+                selectedYachtId={linkedYachtId}
+                loading={yachtsQuery.isLoading}
+                onSelect={selectYacht}
+              />
+              <Step1General form={form} update={update} errs={errs} />
+            </>
           )}
           {step === 1 && (
             <Step2Market form={form} update={update} errs={errs} />
@@ -760,6 +836,89 @@ interface StepProps {
   form: FormState;
   update: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   errs: Record<string, string>;
+}
+
+function SavedYachtSelector({
+  yachts,
+  selectedYachtId,
+  loading,
+  onSelect,
+}: {
+  yachts: Yacht[];
+  selectedYachtId: string | null;
+  loading: boolean;
+  onSelect: (yachtId: string | null) => void;
+}) {
+  if (loading) {
+    return (
+      <Section label="My Yachts">
+        <View style={styles.savedYachtLoading}>
+          <ActivityIndicator color={GOLD} size="small" />
+          <Text style={styles.savedYachtHint}>Loading saved yachts...</Text>
+        </View>
+      </Section>
+    );
+  }
+  if (yachts.length === 0) return null;
+
+  return (
+    <Section label="My Yachts">
+      <View style={styles.savedYachtList}>
+        {yachts.map((yacht) => {
+          const active = yacht.id === selectedYachtId;
+          return (
+            <Pressable
+              key={yacht.id}
+              onPress={() => onSelect(yacht.id)}
+              style={({ pressed }) => [
+                styles.savedYachtRow,
+                active && styles.savedYachtRowActive,
+                { opacity: pressed && !active ? 0.75 : 1 },
+              ]}
+            >
+              <View style={styles.savedYachtIcon}>
+                <Feather name="anchor" size={15} color={GOLD} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.savedYachtName} numberOfLines={1}>
+                  {yachtLabel(yacht)}
+                </Text>
+                <Text style={styles.savedYachtMeta} numberOfLines={1}>
+                  {yachtMeta(yacht) || "Saved yacht profile"}
+                </Text>
+              </View>
+              {active ? (
+                <Feather name="check" size={18} color={GOLD} />
+              ) : (
+                <Feather name="chevron-right" size={18} color={MUTED} />
+              )}
+            </Pressable>
+          );
+        })}
+        <Pressable
+          onPress={() => onSelect(null)}
+          style={({ pressed }) => [
+            styles.manualYachtRow,
+            !selectedYachtId && styles.manualYachtRowActive,
+            { opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Text
+            style={[
+              styles.manualYachtText,
+              !selectedYachtId && styles.manualYachtTextActive,
+            ]}
+          >
+            Manual entry
+          </Text>
+          {!selectedYachtId ? <Feather name="check" size={16} color={GOLD} /> : null}
+        </Pressable>
+      </View>
+      <Text style={styles.savedYachtHint}>
+        Choosing a saved yacht pre-fills this estimate only. My Yachts stays unchanged.
+      </Text>
+    </Section>
+  );
 }
 
 function Step1General({ form, update, errs }: StepProps) {
@@ -1395,6 +1554,85 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: "uppercase",
     marginBottom: 8,
+  },
+  savedYachtList: {
+    gap: 8,
+  },
+  savedYachtLoading: {
+    minHeight: 54,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: NAVY_ELEV,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  savedYachtRow: {
+    minHeight: 66,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: NAVY_ELEV,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+  },
+  savedYachtRowActive: {
+    borderColor: "rgba(201,169,97,0.75)",
+    backgroundColor: "rgba(201,169,97,0.12)",
+  },
+  savedYachtIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(201,169,97,0.12)",
+  },
+  savedYachtName: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  savedYachtMeta: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 3,
+  },
+  savedYachtHint: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+  },
+  manualYachtRow: {
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: "rgba(247,243,236,0.03)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 13,
+  },
+  manualYachtRowActive: {
+    borderColor: "rgba(201,169,97,0.65)",
+    backgroundColor: "rgba(201,169,97,0.08)",
+  },
+  manualYachtText: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+  },
+  manualYachtTextActive: {
+    color: GOLD,
   },
   row2: { flexDirection: "row", gap: 12 },
   pillsRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
