@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { exportRoiDocument, type RoiHeader } from "../../lib/documentExport";
-import { exportRoiPdf } from "../../lib/roiPdf";
 
 const REGION_LABELS: Record<string, string> = {
   mediterranean: "Mediterranean",
@@ -87,6 +86,29 @@ function sourceHost(sourceUrl: string | null | undefined): string | null {
   }
 }
 
+function sectionLines(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function assumptionLines(data: RoiCalculation): string[] {
+  const lines = sectionLines(data.methodology);
+  const picked = lines.filter(
+    (line) =>
+      line.includes("3.0% annual growth") ||
+      line.includes("depreciation curve") ||
+      line.includes("Repositioning between"),
+  );
+  const fallback = [
+    "Cumulative cash flow projects the year-1 net result forward at 3.0% annual growth.",
+    "Comparable listings show source domains; different-builder examples are marked as secondary comparables.",
+  ];
+  return picked.length ? picked : fallback;
+}
+
 export default function RoiResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -146,7 +168,6 @@ export default function RoiResultScreen() {
   }, [params.header, detailQuery.data]);
 
   const [exporting, setExporting] = useState(false);
-  const [exportingLegacy, setExportingLegacy] = useState(false);
 
   // Primary export: backend adaptive document engine (V2). Produces the
   // professionally laid-out, page-packed PDF.
@@ -162,22 +183,6 @@ export default function RoiResultScreen() {
       );
     } finally {
       setExporting(false);
-    }
-  };
-
-  // Secondary export: on-device generator (works offline / no backend).
-  const onExportLegacy = async () => {
-    if (!data || exportingLegacy) return;
-    setExportingLegacy(true);
-    try {
-      await exportRoiPdf(data);
-    } catch (err) {
-      Alert.alert(
-        "Couldn't export PDF",
-        err instanceof Error ? err.message : "Please try again.",
-      );
-    } finally {
-      setExportingLegacy(false);
     }
   };
 
@@ -245,6 +250,17 @@ export default function RoiResultScreen() {
           />
         </View>
 
+        <Card title="Assumptions & evidence">
+          {assumptionLines(data).map((line, i) => (
+            <EvidenceRow key={`${i}-${line}`} text={line.replace(/^•\s*/, "")} />
+          ))}
+          {data.comparables && data.comparables.length > 0 ? (
+            <EvidenceRow
+              text={`${data.comparables.length} comparable listing${data.comparables.length === 1 ? "" : "s"} with visible sources.`}
+            />
+          ) : null}
+        </Card>
+
         {/* DUAL-REGION INCOME BREAKDOWN */}
         {data.dual_region ? (
           <Card title="Dual-region charter income">
@@ -278,7 +294,7 @@ export default function RoiResultScreen() {
         {/* CALCULATION METHOD */}
         {data.methodology ? (
           <Card title="How this was calculated">
-            <Text style={styles.reasoning}>{data.methodology}</Text>
+            <ReadableText text={data.methodology} />
           </Card>
         ) : null}
 
@@ -402,8 +418,8 @@ export default function RoiResultScreen() {
             ) : null}
 
             <Text style={styles.exitNote}>
-              Based on 5% year-1 then 3.5%/yr depreciation. Actual sale price may
-              vary with market conditions.
+              Based on the same 5-year depreciation curve and cumulative cash-flow
+              projection used above. Actual sale price may vary with market conditions.
             </Text>
           </Card>
         ) : null}
@@ -471,23 +487,6 @@ export default function RoiResultScreen() {
         </Pressable>
 
         <Pressable
-          onPress={onExportLegacy}
-          disabled={exportingLegacy}
-          accessibilityRole="button"
-          accessibilityLabel="Export legacy PDF"
-          style={({ pressed }) => [
-            styles.legacyBtn,
-            { opacity: pressed || exportingLegacy ? 0.6 : 1 },
-          ]}
-        >
-          {exportingLegacy ? (
-            <ActivityIndicator color={MUTED} />
-          ) : (
-            <Text style={styles.legacyBtnText}>Export legacy PDF</Text>
-          )}
-        </Pressable>
-
-        <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.secondaryBtn,
@@ -538,6 +537,37 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
       {children}
+    </View>
+  );
+}
+
+function EvidenceRow({ text }: { text: string }) {
+  return (
+    <View style={styles.evidenceRow}>
+      <Feather name="check-circle" size={15} color={GOLD} style={styles.evidenceIcon} />
+      <Text style={styles.evidenceText}>{text}</Text>
+    </View>
+  );
+}
+
+function ReadableText({ text }: { text: string }) {
+  return (
+    <View style={styles.readableStack}>
+      {sectionLines(text).map((line, i) => {
+        const isHeading = /^\d+\.\s/.test(line);
+        const cleaned = line.replace(/^•\s*/, "");
+        return (
+          <View
+            key={`${i}-${line}`}
+            style={isHeading ? styles.readableHeadingRow : styles.readableRow}
+          >
+            {isHeading ? null : <View style={styles.readableDot} />}
+            <Text style={isHeading ? styles.readableHeading : styles.readableText}>
+              {isHeading ? line : cleaned}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -644,6 +674,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.6,
     marginBottom: 14,
+  },
+  evidenceRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    paddingVertical: 7,
+    borderBottomColor: DIVIDER,
+    borderBottomWidth: 1,
+  },
+  evidenceIcon: { marginTop: 2 },
+  evidenceText: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  readableStack: { gap: 8 },
+  readableHeadingRow: { marginTop: 4 },
+  readableHeading: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  readableRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  readableDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: GOLD,
+    marginTop: 8,
+  },
+  readableText: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
   },
   dualRegionBlock: { marginBottom: 2 },
   dualRegionHead: {
@@ -757,20 +830,6 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   primaryBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
-  legacyBtn: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    minHeight: 44,
-  },
-  legacyBtnText: {
-    color: MUTED,
-    fontFamily: "Inter_700Bold",
-    fontSize: 13,
-    textDecorationLine: "underline",
-  },
   secondaryBtn: {
     borderColor: GOLD,
     borderWidth: 1,
