@@ -221,6 +221,23 @@ function regionIncomeLine(label: string, ri: RoiRegionIncome): string {
   );
 }
 
+function depreciationRateForAge(age: number): number {
+  if (age <= 1) return 0.10;
+  if (age <= 5) return 0.07;
+  if (age <= 14) return 0.035;
+  return 0.02;
+}
+
+function depreciationAssumption(yearBuilt: number | null | undefined): string {
+  if (!yearBuilt) {
+    return "Yacht value uses the legacy depreciation fallback: 5% in year 1, then 3.5% per year when the build year is unknown.";
+  }
+  const currentYear = new Date().getFullYear();
+  const age = Math.max(0, currentYear - yearBuilt + 1);
+  const rate = depreciationRateForAge(age) * 100;
+  return `Yacht value uses an age-aware depreciation curve. For a ${yearBuilt} yacht, the current forecast starts in the ${age}-year age band at ${rate.toFixed(1)}% per year.`;
+}
+
 /**
  * Compose the full, system-generated "how this was calculated" explanation
  * for THIS specific projection: charter-income algorithm + expense handling +
@@ -240,6 +257,7 @@ function buildMethodology(args: {
   managementFeePct: number;
   ownerManagementFee: boolean;
   dual: RoiDualRegionBreakdown | null;
+  repositioningWasEstimated: boolean;
 }): string {
   const lines: string[] = [];
 
@@ -255,8 +273,11 @@ function buildMethodology(args: {
       `• Total gross charter income = €${money(d.region_1.income_eur)} + €${money(d.region_2.income_eur)} = €${money(d.total_gross_income_eur)}.`,
     );
     if (d.repositioning_cost_eur > 0) {
+      const basis = args.repositioningWasEstimated
+        ? "Yachtworth regional estimate because no custom repositioning cost was entered"
+        : "owner-provided repositioning cost";
       lines.push(
-        `• Repositioning between the two regions (both ways) = €${money(d.repositioning_cost_eur)}/yr, included in operating expenses below.`,
+        `• Repositioning between the two regions (both ways) = €${money(d.repositioning_cost_eur)}/yr, included in operating expenses below (${basis}).`,
       );
     }
   } else {
@@ -322,7 +343,10 @@ function buildMethodology(args: {
   lines.push("");
   lines.push("4. Depreciation & 5-year outlook");
   lines.push(
-    "• Yacht value is projected on a 5-year depreciation curve, and cumulative cash flow is projected over 5 years using the annual net above.",
+    "• Cumulative cash flow projects the year-1 net result forward at 3.0% annual growth.",
+  );
+  lines.push(
+    `• ${depreciationAssumption(args.yacht.year_built)}`,
   );
 
   return lines.join("\n");
@@ -671,6 +695,7 @@ export async function calculateRoi(
     managementFeePct: exp.managementFeePct,
     ownerManagementFee: yacht.monthly_management_fee_eur != null,
     dual: dualBreakdown,
+    repositioningWasEstimated,
   });
 
   return {

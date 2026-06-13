@@ -134,6 +134,7 @@ function methodologyBlocks(text: string): ContentNode[] {
 function comparableRows(
   items: RoiComparableLine[],
   money: (v: unknown) => string,
+  targetBuilder?: string | null,
 ): TableCell[][] {
   return items.map((c) => {
     const modelAndName = [c.model, c.name].filter(Boolean).join(" · ");
@@ -143,7 +144,7 @@ function comparableRows(
     const nameCell: TableCell = {
       text: modelAndName || (c.name ? String(c.name) : L.none),
       sub: locationAndYear || undefined,
-      source: sourceHost(c.source_url),
+      source: comparableSourceLine(c, targetBuilder),
     };
     const rate = num(c.weekly_rate_eur);
     const rateCell: TableCell = {
@@ -153,6 +154,28 @@ function comparableRows(
     };
     return [nameCell, rateCell];
   });
+}
+
+function comparableSourceLine(
+  comparable: RoiComparableLine,
+  targetBuilder?: string | null,
+): string | undefined {
+  const parts = [
+    isSecondaryComparable(comparable.model, targetBuilder) ? "Secondary comparable" : null,
+    sourceHost(comparable.source_url),
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : undefined;
+}
+
+function isSecondaryComparable(
+  comparableModel: string | null | undefined,
+  targetBuilder: string | null | undefined,
+): boolean {
+  if (!comparableModel || !targetBuilder) return false;
+  return !comparableModel
+    .trim()
+    .toLowerCase()
+    .startsWith(targetBuilder.trim().toLowerCase());
 }
 
 function sourceHost(sourceUrl: string | null | undefined): string | undefined {
@@ -340,7 +363,7 @@ export function buildRoiModel(input: {
       kind: "table",
       heading: L.comparables,
       columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
-      rows: comparableRows(comparables, money),
+      rows: comparableRows(comparables, money, yacht.builder),
     });
     detailStarted = true;
   }

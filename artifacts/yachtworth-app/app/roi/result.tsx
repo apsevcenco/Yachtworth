@@ -53,10 +53,29 @@ function comparableTitle(c: NonNullable<RoiCalculation["comparables"]>[number]):
   return [c.model, c.name].filter(Boolean).join(" · ") || c.name;
 }
 
-function comparableMeta(c: NonNullable<RoiCalculation["comparables"]>[number]): string {
-  return [c.location, c.year_built ? String(c.year_built) : null, sourceHost(c.source_url)]
+function comparableMeta(
+  c: NonNullable<RoiCalculation["comparables"]>[number],
+  targetBuilder?: string | null,
+): string {
+  return [
+    c.location,
+    c.year_built ? String(c.year_built) : null,
+    isSecondaryComparable(c.model, targetBuilder) ? "Secondary comparable" : null,
+    sourceHost(c.source_url),
+  ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function isSecondaryComparable(
+  comparableModel: string | null | undefined,
+  targetBuilder: string | null | undefined,
+): boolean {
+  if (!comparableModel || !targetBuilder) return false;
+  return !comparableModel
+    .trim()
+    .toLowerCase()
+    .startsWith(targetBuilder.trim().toLowerCase());
 }
 
 function sourceHost(sourceUrl: string | null | undefined): string | null {
@@ -396,8 +415,10 @@ export default function RoiResultScreen() {
               <View key={i} style={styles.expRow}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={styles.expCat}>{comparableTitle(c)}</Text>
-                  {comparableMeta(c) ? (
-                    <Text style={styles.expFormula}>{comparableMeta(c)}</Text>
+                  {comparableMeta(c, header?.builder) ? (
+                    <Text style={styles.expFormula}>
+                      {comparableMeta(c, header?.builder)}
+                    </Text>
                   ) : null}
                 </View>
                 {c.weekly_rate_eur != null ? (
