@@ -8,6 +8,7 @@ import {
 } from "./projection";
 import {
   computeManualRevenue,
+  computeManualSeasonalRevenue,
   computeAiRevenue,
   describeRevenueMethod,
   dedupeRevenueComparables,
@@ -57,6 +58,10 @@ export interface RoiInput {
   charter_type?: string | null;
   manual_rate_eur?: number | null;
   manual_charter_units?: number | null;
+  manual_high_rate_eur?: number | null;
+  manual_high_charter_units?: number | null;
+  manual_low_rate_eur?: number | null;
+  manual_low_charter_units?: number | null;
   management_fee_pct?: number | null;
   target_weeks?: number | null;
   // Dual-region (AI mode only, additive). When region_2 is set the engine
@@ -573,18 +578,32 @@ export async function calculateRoi(
       revenue = await rev1Promise;
     }
   } else {
-    const rate = Number(input.manual_rate_eur);
-    const units = Number(input.manual_charter_units);
-    if (!isFinite(rate) || rate <= 0 || !isFinite(units) || units <= 0) {
-      throw new Error(
-        "manual_rate_eur and manual_charter_units are required for manual pricing modes",
-      );
+    const highRate = Number(input.manual_high_rate_eur);
+    const highUnits = Number(input.manual_high_charter_units);
+    const lowRate = Number(input.manual_low_rate_eur);
+    const lowUnits = Number(input.manual_low_charter_units);
+    const hasSeasonalManual =
+      (isFinite(highRate) && highRate > 0 && isFinite(highUnits) && highUnits > 0) ||
+      (isFinite(lowRate) && lowRate > 0 && isFinite(lowUnits) && lowUnits > 0);
+    if (hasSeasonalManual) {
+      revenue = computeManualSeasonalRevenue(input.pricing_mode, [
+        { season: "high", rateEur: highRate, units: highUnits },
+        { season: "low", rateEur: lowRate, units: lowUnits },
+      ]);
+    } else {
+      const rate = Number(input.manual_rate_eur);
+      const units = Number(input.manual_charter_units);
+      if (!isFinite(rate) || rate <= 0 || !isFinite(units) || units <= 0) {
+        throw new Error(
+          "manual_rate_eur and manual_charter_units are required for manual pricing modes",
+        );
+      }
+      revenue = computeManualRevenue({
+        mode: input.pricing_mode,
+        rateEur: rate,
+        units,
+      });
     }
-    revenue = computeManualRevenue({
-      mode: input.pricing_mode,
-      rateEur: rate,
-      units,
-    });
   }
 
   // ── 2. Expenses ───────────────────────────────────────────────────

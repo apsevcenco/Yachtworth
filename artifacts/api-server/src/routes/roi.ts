@@ -155,7 +155,12 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const input = parsed.data;
+    const input = parsed.data as typeof parsed.data & {
+      manual_high_rate_eur?: number | null;
+      manual_high_charter_units?: number | null;
+      manual_low_rate_eur?: number | null;
+      manual_low_charter_units?: number | null;
+    };
 
     const hasYachtId = input.yacht_id != null && input.yacht_id !== "";
     const snapshot =
@@ -174,25 +179,67 @@ router.post(
       input.pricing_mode === "manual_daily" ||
       input.pricing_mode === "manual_weekly"
     ) {
-      const rate = input.manual_rate_eur;
-      const units = input.manual_charter_units;
-      if (rate == null || units == null) {
+      const maxUnits = input.pricing_mode === "manual_daily" ? 366 : 52;
+      const seasonal = [
+        {
+          rate: input.manual_high_rate_eur,
+          units: input.manual_high_charter_units,
+          label: "high season",
+        },
+        {
+          rate: input.manual_low_rate_eur,
+          units: input.manual_low_charter_units,
+          label: "low season",
+        },
+      ];
+      const filledSeasonal = seasonal.filter(
+        (s) => s.rate != null || s.units != null,
+      );
+      if (filledSeasonal.length > 0) {
+        let totalUnits = 0;
+        for (const s of filledSeasonal) {
+          if (s.rate == null || s.units == null) {
+            res.status(400).json({
+              error: `Both rate and booking count are required for ${s.label}`,
+            });
+            return;
+          }
+          if (!(s.rate > 0)) {
+            res.status(400).json({ error: `${s.label} rate must be > 0` });
+            return;
+          }
+          if (!(s.units > 0)) {
+            res.status(400).json({ error: `${s.label} bookings must be > 0` });
+            return;
+          }
+          totalUnits += s.units;
+        }
+        if (totalUnits > maxUnits) {
+          res.status(400).json({
+            error: `manual seasonal booking total must be between 1 and ${maxUnits} for ${input.pricing_mode}`,
+          });
+          return;
+        }
+      } else {
+        const rate = input.manual_rate_eur;
+        const units = input.manual_charter_units;
+        if (rate == null || units == null) {
         res.status(400).json({
           error:
             "manual_rate_eur and manual_charter_units are required for manual pricing modes",
         });
         return;
-      }
-      if (!(rate > 0)) {
-        res.status(400).json({ error: "manual_rate_eur must be > 0" });
-        return;
-      }
-      const maxUnits = input.pricing_mode === "manual_daily" ? 366 : 52;
-      if (!(units > 0) || units > maxUnits) {
-        res.status(400).json({
-          error: `manual_charter_units must be between 1 and ${maxUnits} for ${input.pricing_mode}`,
-        });
-        return;
+        }
+        if (!(rate > 0)) {
+          res.status(400).json({ error: "manual_rate_eur must be > 0" });
+          return;
+        }
+        if (!(units > 0) || units > maxUnits) {
+          res.status(400).json({
+            error: `manual_charter_units must be between 1 and ${maxUnits} for ${input.pricing_mode}`,
+          });
+          return;
+        }
       }
     }
 
@@ -241,6 +288,10 @@ router.post(
         charter_type: input.charter_type ?? null,
         manual_rate_eur: input.manual_rate_eur ?? null,
         manual_charter_units: input.manual_charter_units ?? null,
+        manual_high_rate_eur: input.manual_high_rate_eur ?? null,
+        manual_high_charter_units: input.manual_high_charter_units ?? null,
+        manual_low_rate_eur: input.manual_low_rate_eur ?? null,
+        manual_low_charter_units: input.manual_low_charter_units ?? null,
         management_fee_pct: input.management_fee_pct ?? null,
         target_weeks: input.target_weeks ?? null,
         region_2: input.region_2 ?? null,

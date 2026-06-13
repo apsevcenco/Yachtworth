@@ -210,6 +210,10 @@ export default function RoiCalculateScreen() {
   const [reposition, setReposition] = useState("");
   const [rate, setRate] = useState("");
   const [units, setUnits] = useState("");
+  const [highRate, setHighRate] = useState("");
+  const [highUnits, setHighUnits] = useState("");
+  const [lowRate, setLowRate] = useState("");
+  const [lowUnits, setLowUnits] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
@@ -255,7 +259,12 @@ export default function RoiCalculateScreen() {
     const d = editQ.data;
     if (!d) return;
     editHydratedRef.current = editId;
-    const inp = d.input;
+    const inp = d.input as typeof d.input & {
+      manual_high_rate_eur?: number | null;
+      manual_high_charter_units?: number | null;
+      manual_low_rate_eur?: number | null;
+      manual_low_charter_units?: number | null;
+    };
     if (REGION_OPTS.some((o) => o.v === inp.region)) {
       setRegion(inp.region as Region);
     }
@@ -266,8 +275,22 @@ export default function RoiCalculateScreen() {
     if (inp.charter_type === "weekly" || inp.charter_type === "daily") {
       setCharterType(inp.charter_type);
     }
-    if (inp.manual_rate_eur != null) setRate(String(inp.manual_rate_eur));
-    if (inp.manual_charter_units != null) setUnits(String(inp.manual_charter_units));
+    if (inp.manual_high_rate_eur != null) {
+      setHighRate(String(inp.manual_high_rate_eur));
+    } else if (inp.manual_rate_eur != null) {
+      setHighRate(String(inp.manual_rate_eur));
+      setRate(String(inp.manual_rate_eur));
+    }
+    if (inp.manual_high_charter_units != null) {
+      setHighUnits(String(inp.manual_high_charter_units));
+    } else if (inp.manual_charter_units != null) {
+      setHighUnits(String(inp.manual_charter_units));
+      setUnits(String(inp.manual_charter_units));
+    }
+    if (inp.manual_low_rate_eur != null) setLowRate(String(inp.manual_low_rate_eur));
+    if (inp.manual_low_charter_units != null) {
+      setLowUnits(String(inp.manual_low_charter_units));
+    }
     // Restore dual-region inputs when the saved request used a second region.
     if (inp.region_2 && REGION_OPTS.some((o) => o.v === inp.region_2)) {
       setDualRegion(true);
@@ -315,8 +338,9 @@ export default function RoiCalculateScreen() {
 
   const isManual = pricingMode !== "ai";
   const unitLabel = pricingMode === "manual_daily" ? "days" : "weeks";
-  const rateLabel = pricingMode === "manual_daily" ? "Rate per day (€)" : "Rate per week (€)";
-  const unitsLabel = pricingMode === "manual_daily" ? "Charter days per year" : "Charter weeks per year";
+  const rateSuffix = pricingMode === "manual_daily" ? "€ / day" : "€ / week";
+  const ratePlaceholder = pricingMode === "manual_daily" ? "5000" : "35000";
+  const unitPlaceholder = pricingMode === "manual_daily" ? "30" : "6";
 
   // AI-mode charter config for the selected region (charter-basis toggle).
   const regionCharter = REGION_CHARTER[region];
@@ -395,7 +419,7 @@ export default function RoiCalculateScreen() {
     };
   }, [yachtId, yachtQ.data, snapshot]);
 
-  const errors = useMemo(() => {
+  const legacyErrors = useMemo(() => {
     const e: Record<string, string> = {};
     if (isManual) {
       if (!rate) e.rate = "Required";
@@ -411,6 +435,48 @@ export default function RoiCalculateScreen() {
     }
     return e;
   }, [isManual, rate, units, pricingMode]);
+  void legacyErrors;
+
+  const errors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (isManual) {
+      const max = pricingMode === "manual_daily" ? 366 : 52;
+      const rows = [
+        { season: "high", rate: highRate, units: highUnits },
+        { season: "low", rate: lowRate, units: lowUnits },
+      ];
+      let completed = 0;
+      let totalUnits = 0;
+      for (const row of rows) {
+        const rateKey = `${row.season}Rate`;
+        const unitsKey = `${row.season}Units`;
+        const hasRate = row.rate.trim() !== "";
+        const hasUnits = row.units.trim() !== "";
+        if (!hasRate && !hasUnits) continue;
+        if (!hasRate) e[rateKey] = "Required";
+        else if (!DEC_RE.test(row.rate)) e[rateKey] = "Invalid amount";
+        else if (parseNum(row.rate)! <= 0) e[rateKey] = "Must be > 0";
+        if (!hasUnits) e[unitsKey] = "Required";
+        else if (!INT_RE.test(row.units)) e[unitsKey] = "Whole number";
+        else {
+          const n = parseInt10(row.units)!;
+          if (n <= 0) e[unitsKey] = "Must be > 0";
+          else {
+            totalUnits += n;
+            if (hasRate && DEC_RE.test(row.rate) && parseNum(row.rate)! > 0) {
+              completed += 1;
+            }
+          }
+        }
+      }
+      if (completed === 0) {
+        e.highRate = "Enter at least one season";
+      } else if (totalUnits > max) {
+        e.lowUnits = `Total max ${max} ${unitLabel}`;
+      }
+    }
+    return e;
+  }, [highRate, highUnits, isManual, lowRate, lowUnits, pricingMode, unitLabel]);
 
   const onSubmit = async () => {
     if (!yachtId && !snapshot) return;
@@ -427,6 +493,26 @@ export default function RoiCalculateScreen() {
       const pp = parseNum(purchasePrice);
       if (pp != null && pp >= 0) overrides.purchase_price_eur = pp;
       const hasOverrides = Object.keys(overrides).length > 0;
+      const manualRows = [
+        {
+          rate: parseNum(highRate),
+          units: parseInt10(highUnits),
+        },
+        {
+          rate: parseNum(lowRate),
+          units: parseInt10(lowUnits),
+        },
+      ].filter(
+        (row): row is { rate: number; units: number } =>
+          row.rate != null && row.rate > 0 && row.units != null && row.units > 0,
+      );
+      const manualUnits = manualRows.reduce((sum, row) => sum + row.units, 0);
+      const manualGross = manualRows.reduce(
+        (sum, row) => sum + row.rate * row.units,
+        0,
+      );
+      const manualAvgRate =
+        manualUnits > 0 ? Math.round(manualGross / manualUnits) : null;
       // Dual-region is additive and AI-only. When off (or in manual mode) these
       // keys are omitted entirely so the request stays byte-identical.
       const useDual = dualRegion && pricingMode === "ai";
@@ -448,8 +534,12 @@ export default function RoiCalculateScreen() {
           pricing_mode: pricingMode,
           charter_type:
             pricingMode === "ai" && regionCharter ? charterType : null,
-          manual_rate_eur: isManual ? parseNum(rate) : null,
-          manual_charter_units: isManual ? parseInt10(units) : null,
+          manual_rate_eur: isManual ? manualAvgRate : null,
+          manual_charter_units: isManual ? manualUnits || null : null,
+          manual_high_rate_eur: isManual ? parseNum(highRate) : null,
+          manual_high_charter_units: isManual ? parseInt10(highUnits) : null,
+          manual_low_rate_eur: isManual ? parseNum(lowRate) : null,
+          manual_low_charter_units: isManual ? parseInt10(lowUnits) : null,
           overrides: hasOverrides ? overrides : null,
           ...dualFields,
         } as never,
@@ -685,29 +775,57 @@ export default function RoiCalculateScreen() {
                         : !wantsDaily && period === "day"
                           ? Math.round(acceptedRate * 7)
                           : Math.round(acceptedRate);
-                    setRate(String(rateInWanted));
+                    setHighRate(String(rateInWanted));
                     setShowErrors(false);
                   }}
                 />
               ) : null}
-              <Field label={rateLabel} error={showErrors ? errors.rate : undefined}>
+              <Text style={styles.subLabel}>HIGH SEASON</Text>
+              <Field
+                label={pricingMode === "manual_daily" ? "High-season rate per day (€)" : "High-season rate per week (€)"}
+                error={showErrors ? errors.highRate : undefined}
+              >
                 <MoneyInput
-                  value={rate}
-                  onChangeText={setRate}
+                  value={highRate}
+                  onChangeText={setHighRate}
                   suffix={pricingMode === "manual_daily" ? "€ / day" : "€ / week"}
                   placeholder={pricingMode === "manual_daily" ? "5000" : "35000"}
                 />
               </Field>
               <Field
-                label={unitsLabel}
-                error={showErrors ? errors.units : undefined}
-                hint={`How many charter ${unitLabel} you expect to book this year.`}
+                label={`High-season charter ${unitLabel}`}
+                error={showErrors ? errors.highUnits : undefined}
+                hint={`How many high-season charter ${unitLabel} you expect to book this year.`}
               >
                 <MoneyInput
-                  value={units}
-                  onChangeText={setUnits}
+                  value={highUnits}
+                  onChangeText={setHighUnits}
                   suffix={unitLabel}
-                  placeholder={pricingMode === "manual_daily" ? "60" : "12"}
+                  placeholder={unitPlaceholder}
+                />
+              </Field>
+              <Text style={styles.subLabel}>LOW SEASON</Text>
+              <Field
+                label={pricingMode === "manual_daily" ? "Low-season rate per day (€)" : "Low-season rate per week (€)"}
+                error={showErrors ? errors.lowRate : undefined}
+              >
+                <MoneyInput
+                  value={lowRate}
+                  onChangeText={setLowRate}
+                  suffix={rateSuffix}
+                  placeholder={ratePlaceholder}
+                />
+              </Field>
+              <Field
+                label={`Low-season charter ${unitLabel}`}
+                error={showErrors ? errors.lowUnits : undefined}
+                hint={`How many low-season charter ${unitLabel} you expect to book this year.`}
+              >
+                <MoneyInput
+                  value={lowUnits}
+                  onChangeText={setLowUnits}
+                  suffix={unitLabel}
+                  placeholder={unitPlaceholder}
                 />
               </Field>
             </>

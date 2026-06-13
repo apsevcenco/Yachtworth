@@ -2196,6 +2196,24 @@ components:
           minimum: 0
           maximum: 366
           description: Number of charter days OR weeks per year, matching pricing_mode
+        manual_high_rate_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Optional high-season manual rate, per-day or per-week depending on pricing_mode
+        manual_high_charter_units:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 366
+          description: Optional high-season charter days OR weeks, matching pricing_mode
+        manual_low_rate_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Optional low-season manual rate, per-day or per-week depending on pricing_mode
+        manual_low_charter_units:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 366
+          description: Optional low-season charter days OR weeks, matching pricing_mode
         management_fee_pct:
           type: ["number", "null"]
           minimum: 0

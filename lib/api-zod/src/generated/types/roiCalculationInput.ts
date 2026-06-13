@@ -39,6 +39,32 @@ export interface RoiCalculationInput {
    */
   manual_charter_units?: number | null;
   /**
+   * Optional high-season manual rate, per-day or per-week depending on pricing_mode
+   * @minimum 0
+   * @nullable
+   */
+  manual_high_rate_eur?: number | null;
+  /**
+   * Optional high-season charter days OR weeks, matching pricing_mode
+   * @minimum 0
+   * @maximum 366
+   * @nullable
+   */
+  manual_high_charter_units?: number | null;
+  /**
+   * Optional low-season manual rate, per-day or per-week depending on pricing_mode
+   * @minimum 0
+   * @nullable
+   */
+  manual_low_rate_eur?: number | null;
+  /**
+   * Optional low-season charter days OR weeks, matching pricing_mode
+   * @minimum 0
+   * @maximum 366
+   * @nullable
+   */
+  manual_low_charter_units?: number | null;
+  /**
    * Optional management-fee percentage override. null = use the owner's manual monthly management fee on the yacht, or none if unset.
    * @minimum 0
    * @maximum 50

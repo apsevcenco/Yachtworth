@@ -1512,6 +1512,16 @@ export const calculateRoiBodyManualRateEurMin = 0;
 export const calculateRoiBodyManualCharterUnitsMin = 0;
 export const calculateRoiBodyManualCharterUnitsMax = 366;
 
+export const calculateRoiBodyManualHighRateEurMin = 0;
+
+export const calculateRoiBodyManualHighCharterUnitsMin = 0;
+export const calculateRoiBodyManualHighCharterUnitsMax = 366;
+
+export const calculateRoiBodyManualLowRateEurMin = 0;
+
+export const calculateRoiBodyManualLowCharterUnitsMin = 0;
+export const calculateRoiBodyManualLowCharterUnitsMax = 366;
+
 export const calculateRoiBodyManagementFeePctMin = 0;
 export const calculateRoiBodyManagementFeePctMax = 50;
 
@@ -1631,6 +1641,36 @@ export const CalculateRoiBody = zod.object({
     .nullish()
     .describe(
       "Number of charter days OR weeks per year, matching pricing_mode",
+    ),
+  manual_high_rate_eur: zod
+    .number()
+    .min(calculateRoiBodyManualHighRateEurMin)
+    .nullish()
+    .describe(
+      "Optional high-season manual rate, per-day or per-week depending on pricing_mode",
+    ),
+  manual_high_charter_units: zod
+    .number()
+    .min(calculateRoiBodyManualHighCharterUnitsMin)
+    .max(calculateRoiBodyManualHighCharterUnitsMax)
+    .nullish()
+    .describe(
+      "Optional high-season charter days OR weeks, matching pricing_mode",
+    ),
+  manual_low_rate_eur: zod
+    .number()
+    .min(calculateRoiBodyManualLowRateEurMin)
+    .nullish()
+    .describe(
+      "Optional low-season manual rate, per-day or per-week depending on pricing_mode",
+    ),
+  manual_low_charter_units: zod
+    .number()
+    .min(calculateRoiBodyManualLowCharterUnitsMin)
+    .max(calculateRoiBodyManualLowCharterUnitsMax)
+    .nullish()
+    .describe(
+      "Optional low-season charter days OR weeks, matching pricing_mode",
     ),
   management_fee_pct: zod
     .number()
@@ -2807,6 +2847,16 @@ export const getRoiCalculationResponseInputManualRateEurMin = 0;
 export const getRoiCalculationResponseInputManualCharterUnitsMin = 0;
 export const getRoiCalculationResponseInputManualCharterUnitsMax = 366;
 
+export const getRoiCalculationResponseInputManualHighRateEurMin = 0;
+
+export const getRoiCalculationResponseInputManualHighCharterUnitsMin = 0;
+export const getRoiCalculationResponseInputManualHighCharterUnitsMax = 366;
+
+export const getRoiCalculationResponseInputManualLowRateEurMin = 0;
+
+export const getRoiCalculationResponseInputManualLowCharterUnitsMin = 0;
+export const getRoiCalculationResponseInputManualLowCharterUnitsMax = 366;
+
 export const getRoiCalculationResponseInputManagementFeePctMin = 0;
 export const getRoiCalculationResponseInputManagementFeePctMax = 50;
 
@@ -2963,6 +3013,36 @@ export const GetRoiCalculationResponse = zod.object({
       .nullish()
       .describe(
         "Number of charter days OR weeks per year, matching pricing_mode",
+      ),
+    manual_high_rate_eur: zod
+      .number()
+      .min(getRoiCalculationResponseInputManualHighRateEurMin)
+      .nullish()
+      .describe(
+        "Optional high-season manual rate, per-day or per-week depending on pricing_mode",
+      ),
+    manual_high_charter_units: zod
+      .number()
+      .min(getRoiCalculationResponseInputManualHighCharterUnitsMin)
+      .max(getRoiCalculationResponseInputManualHighCharterUnitsMax)
+      .nullish()
+      .describe(
+        "Optional high-season charter days OR weeks, matching pricing_mode",
+      ),
+    manual_low_rate_eur: zod
+      .number()
+      .min(getRoiCalculationResponseInputManualLowRateEurMin)
+      .nullish()
+      .describe(
+        "Optional low-season manual rate, per-day or per-week depending on pricing_mode",
+      ),
+    manual_low_charter_units: zod
+      .number()
+      .min(getRoiCalculationResponseInputManualLowCharterUnitsMin)
+      .max(getRoiCalculationResponseInputManualLowCharterUnitsMax)
+      .nullish()
+      .describe(
+        "Optional low-season charter days OR weeks, matching pricing_mode",
       ),
     management_fee_pct: zod
       .number()

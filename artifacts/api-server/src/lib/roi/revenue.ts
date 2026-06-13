@@ -400,6 +400,12 @@ interface ManualArgs {
   units: number;
 }
 
+export interface ManualSeasonInput {
+  season: "high" | "low";
+  rateEur: number;
+  units: number;
+}
+
 export function computeManualRevenue({ mode, rateEur, units }: ManualArgs): ComputedRevenue {
   let dailyRate: number;
   let weeklyRate: number;
@@ -427,6 +433,54 @@ export function computeManualRevenue({ mode, rateEur, units }: ManualArgs): Comp
     comparables: [],
     reasoning:
       "User-supplied charter rate and bookings. No market analysis performed.",
+    confidence: "medium",
+    ai_used: false,
+  };
+}
+
+export function computeManualSeasonalRevenue(
+  mode: "manual_daily" | "manual_weekly",
+  seasons: ManualSeasonInput[],
+): ComputedRevenue {
+  const valid = seasons.filter((s) => s.rateEur > 0 && s.units > 0);
+  if (valid.length === 0) {
+    throw new Error(
+      "At least one manual high-season or low-season rate and booking count is required",
+    );
+  }
+  const gross = valid.reduce((sum, s) => sum + s.rateEur * s.units, 0);
+  const totalUnits = valid.reduce((sum, s) => sum + s.units, 0);
+  const weeks =
+    mode === "manual_daily"
+      ? totalUnits / 7
+      : totalUnits;
+  const avgUnitRate = gross / totalUnits;
+  const dailyRate = mode === "manual_daily" ? avgUnitRate : avgUnitRate / 7;
+  const weeklyRate = mode === "manual_daily" ? avgUnitRate * 7 : avgUnitRate;
+  const rateForSeason = (season: "high" | "low"): number | null => {
+    const row = valid.find((s) => s.season === season);
+    if (!row) return null;
+    return mode === "manual_daily" ? row.rateEur : row.rateEur / 7;
+  };
+  const occupancyPct = Math.max(0, Math.min(100, Math.round((weeks / 52) * 100)));
+  const details = valid
+    .map((s) => {
+      const label = s.season === "high" ? "high season" : "low season";
+      const unit = mode === "manual_daily" ? "days" : "weeks";
+      return `${label}: €${Math.round(s.rateEur).toLocaleString("en-US")} × ${s.units} ${unit}`;
+    })
+    .join("; ");
+  return {
+    annual_gross_eur: Math.round(gross),
+    daily_rate_eur: Math.round(dailyRate),
+    weekly_rate_eur: Math.round(weeklyRate),
+    expected_charter_weeks: Math.round(weeks * 10) / 10,
+    daily_rate_low_eur: rateForSeason("low") != null ? Math.round(rateForSeason("low")!) : null,
+    daily_rate_high_eur: rateForSeason("high") != null ? Math.round(rateForSeason("high")!) : null,
+    occupancy_pct: occupancyPct,
+    market_rating: null,
+    comparables: [],
+    reasoning: `User-supplied seasonal charter plan. No market analysis performed. ${details}.`,
     confidence: "medium",
     ai_used: false,
   };
