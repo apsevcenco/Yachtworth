@@ -193,6 +193,9 @@ export type ValuationHeader = {
   model?: string | null;
   yearBuilt?: number | null;
   lengthMeters?: number | null;
+  cover_photo_url?: string | null;
+  photo_url?: string | null;
+  photo_urls?: string[] | null;
 };
 
 const M_PER_FT = 0.3048;
@@ -300,6 +303,9 @@ function buildValuationBody(
       year_built: header?.yearBuilt ?? null,
       length_meters: header?.lengthMeters ?? null,
       vat_status: vat,
+      cover_photo_url: header?.cover_photo_url ?? null,
+      photo_url: header?.photo_url ?? null,
+      photo_urls: header?.photo_urls ?? null,
     },
     reportData: {
       estimatedValueLow: result.range_low_eur,

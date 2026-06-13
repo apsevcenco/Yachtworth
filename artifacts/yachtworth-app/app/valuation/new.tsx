@@ -289,6 +289,20 @@ function yachtMeta(yacht: Yacht): string {
     .join(" · ");
 }
 
+function yachtHeaderString(yacht: Yacht | null, key: string): string | null {
+  const y = yacht as unknown as Record<string, unknown> | null;
+  const value = y?.[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function yachtHeaderStringArray(yacht: Yacht | null, key: string): string[] | null {
+  const y = yacht as unknown as Record<string, unknown> | null;
+  const value = y?.[key];
+  if (!Array.isArray(value)) return null;
+  const arr = value.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+  return arr.length ? arr : null;
+}
+
 interface FormState {
   mode: Mode;
   units: Units;
@@ -653,6 +667,9 @@ export default function NewValuationScreen() {
                       return form.units === "metric" ? n : n * 0.3048;
                     })()
                   : null,
+                cover_photo_url: yachtHeaderString(linkedYacht, "cover_photo_url"),
+                photo_url: yachtHeaderString(linkedYacht, "photo_url"),
+                photo_urls: yachtHeaderStringArray(linkedYacht, "photo_urls"),
               }),
             },
           });

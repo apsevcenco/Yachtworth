@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import {
   getGetEstimateQueryKey,
+  getGetYachtQueryKey,
   useGetEstimate,
+  useGetYacht,
   type Valuation,
   type Comparable,
 } from "@workspace/api-client-react";
@@ -53,6 +55,18 @@ function sourceDomain(url: string | null | undefined): string | null {
   }
 }
 
+function recordString(record: Record<string, unknown> | null | undefined, key: string): string | null {
+  const value = record?.[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function recordStringArray(record: Record<string, unknown> | null | undefined, key: string): string[] | null {
+  const value = record?.[key];
+  if (!Array.isArray(value)) return null;
+  const arr = value.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+  return arr.length ? arr : null;
+}
+
 export default function ValuationResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -90,6 +104,19 @@ export default function ValuationResultScreen() {
     }
   }, [params.header]);
 
+  const historyYachtId =
+    !inlineHeader && typeof detailQuery.data?.request?.yacht_id === "string"
+      ? detailQuery.data.request.yacht_id
+      : null;
+  const historyYachtQuery = useGetYacht(historyYachtId ?? "", {
+    query: {
+      queryKey: historyYachtId
+        ? getGetYachtQueryKey(historyYachtId)
+        : ["valuation-result-yacht-disabled"],
+      enabled: Boolean(historyYachtId),
+    },
+  });
+
   const result: Valuation | null =
     inlineResult ?? (detailQuery.data?.result as Valuation | undefined) ?? null;
 
@@ -97,6 +124,7 @@ export default function ValuationResultScreen() {
     if (inlineHeader) return inlineHeader;
     const req = detailQuery.data?.request;
     if (!req) return undefined;
+    const yacht = historyYachtQuery.data as unknown as Record<string, unknown> | null | undefined;
     return {
       yachtType: req.type
         ? req.type
@@ -108,8 +136,11 @@ export default function ValuationResultScreen() {
       model: req.model ?? null,
       yearBuilt: req.year_built ?? null,
       lengthMeters: req.length_meters ?? null,
+      cover_photo_url: recordString(yacht, "cover_photo_url"),
+      photo_url: recordString(yacht, "photo_url"),
+      photo_urls: recordStringArray(yacht, "photo_urls"),
     };
-  }, [inlineHeader, detailQuery.data]);
+  }, [inlineHeader, detailQuery.data, historyYachtQuery.data]);
 
   if (!result) {
     if (params.id && (detailQuery.isLoading || detailQuery.isFetching)) {
