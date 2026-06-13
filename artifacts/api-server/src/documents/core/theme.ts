@@ -244,7 +244,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .single-img { width: 100%; object-fit: cover; display: block; border-radius: 3px; }
   /* callout */
   .callout { background: ${t.panelBg}; border-left: 3px solid ${t.accent}; padding: 10px 14px; border-radius: 3px; font-size: 10px; }
-  .callout.legal { font-style: italic; color: ${t.textMuted}; }
+  .callout.legal { font-style: italic; color: ${t.textMuted}; font-size: 9px; line-height: 1.35; padding: 8px 12px; }
   /* signature */
   .sig-img { max-width: 60%; max-height: 30mm; object-fit: contain; display: block; }
   .sig-line { border-top: 1px solid ${t.text}; width: 60%; margin-top: 22px; }

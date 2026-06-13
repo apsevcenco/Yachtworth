@@ -368,25 +368,67 @@ export function buildRoiModel(input: {
     detailStarted = true;
   }
 
-  if (reportData.reasoning && reportData.reasoning.trim()) {
-    const analysis: ContentNode = {
-      kind: "paragraph",
-      heading: L.analysis,
-      panel: true,
-      text: reportData.reasoning.trim(),
-    };
-    body.push(analysis);
-    detailStarted = true;
-  }
+  const analysisText =
+    typeof reportData.reasoning === "string" ? reportData.reasoning.trim() : "";
 
   const recs = Array.isArray(reportData.recommendations)
     ? reportData.recommendations.filter((r) => r != null && String(r).trim())
     : [];
-  if (recs.length) {
+  const recommendationsText = recs.map((r) => `• ${String(r).trim()}`).join("\n");
+
+  if (analysisText && recommendationsText) {
+    body.push({
+      kind: "columns",
+      columns: [
+        {
+          nodes: [
+            {
+              kind: "paragraph",
+              heading: L.analysis,
+              panel: true,
+              text: analysisText,
+            },
+          ],
+        },
+        {
+          nodes: [
+            {
+              kind: "paragraph",
+              heading: L.recommendations,
+              text: recommendationsText,
+            },
+          ],
+        },
+      ],
+    });
+    detailStarted = true;
+  } else if (analysisText) {
+    body.push({
+      kind: "paragraph",
+      heading: L.analysis,
+      panel: true,
+      text: analysisText,
+    });
+    detailStarted = true;
+  }
+
+  if (!analysisText && recommendationsText) {
     body.push({
       kind: "paragraph",
       heading: L.recommendations,
       text: recs.map((r) => `• ${String(r).trim()}`).join("\n"),
+    });
+  }
+
+  const disclaimer =
+    typeof reportData.legalDisclaimer === "string" && reportData.legalDisclaimer.trim()
+      ? reportData.legalDisclaimer.trim()
+      : "Indicative · not certified · valid 30 days from issue.";
+  if (disclaimer) {
+    body.push({
+      kind: "callout",
+      tone: "legal",
+      text: disclaimer,
     });
   }
 
@@ -399,10 +441,6 @@ export function buildRoiModel(input: {
       confidential: settings.confidential === true,
       watermarkText: L.report,
       generatedAt: date,
-      disclaimer:
-        typeof reportData.legalDisclaimer === "string" && reportData.legalDisclaimer.trim()
-          ? reportData.legalDisclaimer.trim()
-          : "Indicative · not certified · valid 30 days from issue.",
     },
     theme,
     cover,
