@@ -1,9 +1,8 @@
+import { VideoView, useVideoPlayer } from "expo-video";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
-  Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -22,7 +21,13 @@ export function LaunchIntro() {
   const opacity = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoTranslate = useRef(new Animated.Value(12)).current;
-  const videoUri = useMemo(() => Image.resolveAssetSource(introVideo)?.uri, []);
+  const source = useMemo(() => introVideo, []);
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = false;
+    p.muted = true;
+    p.volume = 0;
+    p.play();
+  });
 
   const close = () => {
     if (closing) return;
@@ -57,24 +62,30 @@ export function LaunchIntro() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const endSub = player.addListener("playToEnd", close);
+    const statusSub = player.addListener("statusChange", ({ status }) => {
+      if (status === "error") close();
+    });
+    return () => {
+      endSub.remove();
+      statusSub.remove();
+    };
+  }, [player, closing]);
+
   if (!visible) return null;
 
   return (
     <Animated.View pointerEvents="auto" style={[styles.overlay, { opacity }]}>
-      {Platform.OS === "web" && videoUri ? (
-        React.createElement("video", {
-          src: videoUri,
-          autoPlay: true,
-          muted: true,
-          playsInline: true,
-          preload: "auto",
-          onEnded: close,
-          onError: close,
-          style: styles.video as unknown as React.CSSProperties,
-        })
-      ) : (
-        <View style={styles.fallback} />
-      )}
+      <VideoView
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        playsInline
+        allowsFullscreen={false}
+        allowsPictureInPicture={false}
+        style={styles.video}
+      />
       <View style={styles.scrim} />
       <Pressable accessibilityRole="button" accessibilityLabel="Skip intro" onPress={close} style={styles.content}>
         <Animated.Image
