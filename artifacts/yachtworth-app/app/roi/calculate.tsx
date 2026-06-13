@@ -357,6 +357,7 @@ export default function RoiCalculateScreen() {
   const deleteMutation = useDeleteRoiCalculation();
 
   const isManual = pricingMode !== "ai";
+  const dualMarinaLocksMooring = dualRegion && pricingMode === "ai";
   const unitLabel = pricingMode === "manual_daily" ? "days" : "weeks";
   const rateSuffix = pricingMode === "manual_daily" ? "€ / day" : "€ / week";
   const ratePlaceholder = pricingMode === "manual_daily" ? "5000" : "35000";
@@ -1083,15 +1084,28 @@ export default function RoiCalculateScreen() {
               </Text>
 
               <Text style={styles.subLabel}>MONTHLY · € PER MONTH</Text>
-              {MONTHLY_FIELDS.map((f) => (
-                <Field key={f.key} label={f.label} hint={f.hint}>
-                  <MoneyInput
-                    value={fin[f.key]}
-                    onChangeText={(v) => updateFin(f.key, v)}
-                    suffix="€ / mo"
-                  />
-                </Field>
-              ))}
+              {MONTHLY_FIELDS.map((f) => {
+                const locked =
+                  dualMarinaLocksMooring && f.key === "monthly_mooring_eur";
+                return (
+                  <Field
+                    key={f.key}
+                    label={f.label}
+                    hint={
+                      locked
+                        ? "Locked while dual-region marina costs are used above."
+                        : f.hint
+                    }
+                  >
+                    <MoneyInput
+                      value={fin[f.key]}
+                      onChangeText={(v) => updateFin(f.key, v)}
+                      suffix="€ / mo"
+                      disabled={locked}
+                    />
+                  </Field>
+                );
+              })}
 
               <Text style={styles.subLabel}>ANNUAL · € PER YEAR</Text>
               {ANNUAL_FIELDS.map((f) => (
@@ -1527,21 +1541,25 @@ function MoneyInput({
   onChangeText,
   suffix,
   placeholder,
+  disabled,
 }: {
   value: string;
   onChangeText: (v: string) => void;
   suffix: string;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
-    <View style={styles.moneyWrap}>
+    <View style={[styles.moneyWrap, disabled && styles.moneyWrapDisabled]}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={MUTED}
         keyboardType="decimal-pad"
-        style={styles.moneyInput}
+        editable={!disabled}
+        selectTextOnFocus={!disabled}
+        style={[styles.moneyInput, disabled && styles.moneyInputDisabled]}
       />
       <Text style={styles.moneySuffix}>{suffix}</Text>
     </View>
@@ -1767,6 +1785,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingRight: 12,
   },
+  moneyWrapDisabled: {
+    opacity: 0.55,
+  },
   moneyInput: {
     flex: 1,
     paddingHorizontal: 14,
@@ -1774,6 +1795,9 @@ const styles = StyleSheet.create({
     color: IVORY,
     fontFamily: "Inter_500Medium",
     fontSize: 15,
+  },
+  moneyInputDisabled: {
+    color: MUTED,
   },
   moneySuffix: {
     color: MUTED,
