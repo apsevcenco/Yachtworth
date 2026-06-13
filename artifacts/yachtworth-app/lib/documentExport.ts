@@ -219,6 +219,7 @@ function parseLengthMeters(s: string | null | undefined): number | null {
 
 function mapComparables(list: Comparable[]) {
   return (list ?? []).map((c) => {
+    const sourceUrl = (c as Comparable & { source_url?: string | null }).source_url;
     const price = parseEuro(c.price);
     const notes = [
       c.condition ? String(c.condition) : null,
@@ -234,6 +235,7 @@ function mapComparables(list: Comparable[]) {
       length_meters: parseLengthMeters(c.length),
       price,
       currency: "EUR",
+      source: sourceUrl ?? null,
       notes: notes || null,
     };
   });
@@ -247,7 +249,7 @@ function buildValuationBody(
   const name =
     [header?.builder, header?.model].filter(Boolean).join(" ") ||
     header?.yachtType ||
-    "Yacht Valuation";
+    "Yacht Market Estimate";
 
   const vat =
     result.vat_status === "paid"

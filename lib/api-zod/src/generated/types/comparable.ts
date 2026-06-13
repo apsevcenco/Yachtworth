@@ -19,5 +19,7 @@ export interface Comparable {
   condition?: string | null;
   price: string;
   /** @nullable */
+  source_url?: string | null;
+  /** @nullable */
   note?: string | null;
 }

@@ -64,6 +64,7 @@ export interface ComparableItem {
   length?: string | null;
   condition?: string | null;
   price: string;
+  source_url?: string | null;
   note?: string | null;
 }
 
@@ -92,6 +93,13 @@ export interface ValuationResult {
   currency: "EUR";
   legal_disclaimer: string;
   id?: string | null;
+}
+
+interface EvidenceQuality {
+  total: number;
+  withPrice: number;
+  withSource: number;
+  unique: number;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -230,6 +238,100 @@ function modeNote(mode: ValuationMode): string {
     : "Assess purely on technical specifications — do not infer or assume any brand.";
 }
 
+function cleanSourceUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function comparableKey(c: ComparableItem): string {
+  return [
+    c.source_url ? c.source_url.toLowerCase() : "",
+    (c.builder ?? "").trim().toLowerCase(),
+    (c.model ?? "").trim().toLowerCase(),
+    c.year != null ? String(c.year) : "",
+    (c.length ?? "").trim().toLowerCase(),
+    c.price.trim().toLowerCase(),
+  ].join("|");
+}
+
+function dedupeComparables(items: ComparableItem[]): ComparableItem[] {
+  const seen = new Set<string>();
+  const out: ComparableItem[] = [];
+  for (const item of items) {
+    const key = comparableKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function evidenceQuality(items: ComparableItem[]): EvidenceQuality {
+  return {
+    total: items.length,
+    withPrice: items.filter((c) => parsePriceEur(c.price) != null).length,
+    withSource: items.filter((c) => Boolean(c.source_url)).length,
+    unique: dedupeComparables(items).length,
+  };
+}
+
+function formatMoney(n: number): string {
+  return `€${Math.round(n).toLocaleString("en-US")}`;
+}
+
+function buildSystemReasoning(args: {
+  b: ValuationRequest;
+  finalEur: number;
+  baselineEur: number;
+  confidence: "high" | "medium" | "low";
+  completeness: { score: number; filled: number; total: number };
+  quality: EvidenceQuality;
+  conditionAdjustmentPct: number;
+  sanityAdjusted: boolean;
+  sanityBandLabel: string | null;
+  usedFallback: boolean;
+}): string {
+  const subject = [
+    args.b.builder,
+    args.b.model,
+    args.b.year_built ? String(args.b.year_built) : null,
+    `${args.b.length_meters}m`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const evidence =
+    args.quality.total > 0
+      ? `${args.quality.withSource}/${args.quality.total} comparable listings include source URLs and ${args.quality.withPrice}/${args.quality.total} have parseable EUR asking prices`
+      : "no usable comparable listings were returned";
+  const notes: string[] = [];
+  if (args.conditionAdjustmentPct !== 0) {
+    notes.push(
+      `the system applied a ${args.conditionAdjustmentPct > 0 ? "+" : ""}${args.conditionAdjustmentPct}% condition adjustment from the Excellent-condition baseline ${formatMoney(args.baselineEur)}`,
+    );
+  }
+  if (args.sanityAdjusted) {
+    notes.push(
+      `the estimate was constrained to the market sanity band${args.sanityBandLabel ? ` (${args.sanityBandLabel})` : ""}`,
+    );
+  }
+  if (args.usedFallback) notes.push("live web search was unavailable, so confidence is capped low");
+  if (args.quality.withSource < 3) notes.push("source coverage is thin, so confidence is capped");
+  const second =
+    notes.length > 0
+      ? `${notes.join("; ")}.`
+      : "No additional system adjustment was required beyond the comparable-based open-market estimate.";
+  return `Based on ${args.completeness.score}% data completeness (${args.completeness.filled}/${args.completeness.total} fields), ${subject || "the target yacht"} is estimated at ${formatMoney(args.finalEur)} for an open-market listing equivalent in ${SALE_REGION_LABELS[args.b.sale_region]}; ${evidence}. ${second} Confidence: ${args.confidence}.`;
+}
+
 function buildPrompt(
   b: ValuationRequest,
   completenessScore: number,
@@ -309,6 +411,8 @@ The "Condition" field (New / Excellent / Good / Fair / Needs Refit / Project) in
 
 The downstream system applies separate, well-documented discounts off this number to derive Discreet Sale (≈ −20%) and Quick Sale (≈ −30%) tiers, so your job is just the open-market Excellent-condition headline.
 The price must reflect actual market evidence — not a theoretical estimate.
+
+For each comparable, include "source_url" with the direct listing page URL used to verify specs and asking price. Missing source_url lowers confidence.
 
 Return ONLY this JSON (absolutely no markdown, no text before or after):
 {
@@ -416,19 +520,22 @@ export async function runValuation(
     result = extractJson(fallback);
   }
 
-  const reasoning = cleanReasoning(result.reasoning);
   const rawComparables = Array.isArray(result.comparables)
     ? (result.comparables as Record<string, unknown>[])
     : [];
-  const comparables: ComparableItem[] = rawComparables.slice(0, 5).map((c) => ({
-    builder: typeof c.builder === "string" ? c.builder : null,
-    model: typeof c.model === "string" ? c.model : null,
-    year: typeof c.year === "number" ? c.year : null,
-    length: typeof c.length === "string" ? c.length : null,
-    condition: typeof c.condition === "string" ? c.condition : null,
-    price: typeof c.price === "string" ? c.price : "",
-    note: typeof c.note === "string" ? cleanReasoning(c.note) : null,
-  }));
+  const comparables: ComparableItem[] = dedupeComparables(
+    rawComparables.map((c) => ({
+      builder: typeof c.builder === "string" ? c.builder : null,
+      model: typeof c.model === "string" ? c.model : null,
+      year: typeof c.year === "number" ? c.year : null,
+      length: typeof c.length === "string" ? c.length : null,
+      condition: typeof c.condition === "string" ? c.condition : null,
+      price: typeof c.price === "string" ? c.price : "",
+      source_url: cleanSourceUrl(c.source_url ?? c.sourceUrl ?? c.url ?? c.source),
+      note: typeof c.note === "string" ? cleanReasoning(c.note) : null,
+    })),
+  ).slice(0, 5);
+  const quality = evidenceQuality(comparables);
 
   // Sanity check + clamp
   let aiPriceEur = parsePriceEur(result.estimated_price);
@@ -486,15 +593,34 @@ export async function runValuation(
   // is built from training data only — drop confidence to "low" per spec.
   if (usedFallback) cap("low");
 
+  // Evidence quality gates: high confidence requires source-backed, parseable,
+  // non-duplicate comparables. Thin evidence still returns a useful estimate,
+  // but the confidence label must tell the truth.
+  if (quality.total < 3 || quality.withPrice < 3 || quality.withSource < 2) cap("low");
+  else if (quality.withSource < 3 || quality.unique < 3) cap("medium");
+
   // Condition multiplier (deterministic, server-authoritative).
   // When condition is missing (typical bypass), use Excellent (1.00).
   const conditionMultiplier = conditionMultiplierFor(b.condition ?? null);
   const conditionAdjustmentPct = Math.round((conditionMultiplier - 1) * 100);
   const baselineEur = Math.round(aiPriceEur);
   const adjustedEur = aiPriceEur * conditionMultiplier;
+  const adjustedRounded = Math.round(adjustedEur);
+  const reasoning = buildSystemReasoning({
+    b,
+    finalEur: adjustedRounded,
+    baselineEur,
+    confidence,
+    completeness,
+    quality,
+    conditionAdjustmentPct,
+    sanityAdjusted,
+    sanityBandLabel,
+    usedFallback,
+  });
 
   return {
-    estimated_price_eur: Math.round(adjustedEur),
+    estimated_price_eur: adjustedRounded,
     distressed_price_eur: Math.round(adjustedEur * 0.8),
     quick_sale_price_eur: Math.round(adjustedEur * 0.7),
     range_low_eur: Math.round(adjustedEur * 0.9),

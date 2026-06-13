@@ -79,11 +79,11 @@ function truncateText(s: string, max: number): string {
 type Dict = Record<string, string>;
 const LABELS: Record<string, Dict> = {
   english: {
-    report: "VALUATION REPORT",
+    report: "MARKET ESTIMATE REPORT",
     yachtSummary: "Yacht Summary",
     accommodation: "Accommodation",
-    valuation: "Valuation Result",
-    estimatedValue: "Estimated Market Value",
+    valuation: "Market Estimate",
+    estimatedValue: "Indicative Market Estimate",
     openMarket: "Open Market",
     discreetSale: "Discreet Sale",
     quickSale: "Quick Sale",
@@ -92,7 +92,7 @@ const LABELS: Record<string, Dict> = {
     fieldsFilled: "fields filled",
     confidence: "Confidence",
     comparables: "Comparable Yachts",
-    factors: "Valuation Factors",
+    factors: "Estimate Factors",
     marketNotes: "Market Notes",
     contact: "Prepared By",
     confidential: "CONFIDENTIAL",

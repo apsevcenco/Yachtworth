@@ -1559,6 +1559,8 @@ components:
           type: ["string", "null"]
         price:
           type: string
+        source_url:
+          type: ["string", "null"]
         note:
           type: ["string", "null"]
     Valuation:

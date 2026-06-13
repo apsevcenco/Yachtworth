@@ -29,6 +29,8 @@ const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 
+type SourceComparable = Comparable & { source_url?: string | null };
+
 const CONFIDENCE_META: Record<
   string,
   { label: string; color: string; bg: string }
@@ -40,6 +42,15 @@ const CONFIDENCE_META: Record<
 
 function formatEur(n: number): string {
   return "€ " + Math.round(n).toLocaleString("en-US");
+}
+
+function sourceDomain(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 export default function ValuationResultScreen() {
@@ -346,7 +357,7 @@ function ComparableCard({
   c,
   units,
 }: {
-  c: Comparable;
+  c: SourceComparable;
   units: "metric" | "imperial";
 }) {
   const head = [c.builder, c.model].filter(Boolean).join(" ") || "Listing";
@@ -357,11 +368,13 @@ function ComparableCard({
   ]
     .filter(Boolean)
     .join(" · ");
+  const source = sourceDomain(c.source_url);
   return (
     <View style={styles.compCard}>
       <View style={{ flex: 1 }}>
         <Text style={styles.compHead}>{head}</Text>
         {meta ? <Text style={styles.compMeta}>{meta}</Text> : null}
+        {source ? <Text style={styles.compSource}>Source: {source}</Text> : null}
         {c.note ? <Text style={styles.compNote}>{c.note}</Text> : null}
       </View>
       <Text style={styles.compPrice}>{c.price}</Text>
@@ -529,6 +542,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     marginTop: 2,
+  },
+  compSource: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    marginTop: 5,
   },
   compNote: {
     color: "rgba(247,243,236,0.55)",
