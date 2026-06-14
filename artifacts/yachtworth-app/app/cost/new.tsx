@@ -1,14 +1,17 @@
 import { Feather } from "@expo/vector-icons";
 import {
   getGetYachtQueryKey,
+  getListYachtsQueryKey,
   useCalculateCostEstimate,
   useGetYacht,
+  useListYachts,
   type Yacht,
 } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -217,6 +220,38 @@ function moneyToStr(n: number | null | undefined): string {
   return String(Math.round(n));
 }
 
+function yachtText(yacht: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = yacht[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function yachtLabel(yacht: Yacht): string {
+  const y = yacht as unknown as Record<string, unknown>;
+  return (
+    yachtText(y, ["name"]) ||
+    [yachtText(y, ["brand", "builder", "manufacturer"]), yachtText(y, ["model"])]
+      .filter(Boolean)
+      .join(" ") ||
+    "Untitled yacht"
+  );
+}
+
+function yachtMeta(yacht: Yacht): string {
+  const y = yacht as unknown as Record<string, unknown>;
+  return [
+    yachtText(y, ["brand", "builder", "manufacturer"]),
+    typeof y["length_meters"] === "number"
+      ? `${(y["length_meters"] as number).toFixed(1)}m`
+      : null,
+    typeof y["year_built"] === "number" ? String(y["year_built"]) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 // Pre-fill basics, length, monthly + annual expenses, and crew breakdown
 // from the saved yacht profile (which holds the canonical metric values).
 // Only fills empty form fields — anything the user already typed wins.
@@ -344,8 +379,10 @@ function mergeYachtIntoCostForm(
 export default function CostNewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ yacht_id?: string }>();
-  const linkedYachtId =
+  const initialYachtId =
     typeof params.yacht_id === "string" && params.yacht_id ? params.yacht_id : null;
+  const [selectedYachtId, setSelectedYachtId] = useState<string | null>(initialYachtId);
+  const linkedYachtId = selectedYachtId;
   const insets = useSafeAreaInsets();
   const { units, loaded: unitsLoaded } = useUnits();
   // Snapshot units once AsyncStorage has resolved so a persisted "imperial"
@@ -376,15 +413,32 @@ export default function CostNewScreen() {
       enabled: !!linkedYachtId,
     },
   });
-  const prefillRef = useRef(false);
+  const yachtsQuery = useListYachts(undefined, {
+    query: {
+      queryKey: getListYachtsQueryKey(),
+      staleTime: 30_000,
+    },
+  });
+  const yachts = (yachtsQuery.data?.items ?? []).filter((y) => !y.is_archived);
+  const prefillRef = useRef<string | null>(null);
   React.useEffect(() => {
-    if (prefillRef.current) return;
     if (!linkedYachtId) return;
+    if (prefillRef.current === linkedYachtId) return;
     const y = yachtQuery.data;
     if (!y) return;
-    prefillRef.current = true;
+    prefillRef.current = linkedYachtId;
     setForm((f) => mergeYachtIntoCostForm(f, y, formUnits));
   }, [linkedYachtId, yachtQuery.data, formUnits]);
+
+  const selectYacht = (yachtId: string | null) => {
+    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    setSelectedYachtId(yachtId);
+    prefillRef.current = null;
+    preFilledRef.current = false;
+    if (yachtId == null) {
+      setForm(INITIAL);
+    }
+  };
 
   // Auto-pre-fill crew defaults when length & class first picked.
   const preFilledRef = useRef(false);
@@ -673,12 +727,20 @@ export default function CostNewScreen() {
           showsVerticalScrollIndicator={false}
         >
           {step === 0 && (
-            <Step1Basics
-              form={form}
-              update={update}
-              errors={showErrors ? errors : {}}
-              lengthUnitLabel={lengthUnitLabel}
-            />
+            <>
+              <SavedYachtSelector
+                yachts={yachts}
+                selectedYachtId={linkedYachtId}
+                loading={yachtsQuery.isLoading}
+                onSelect={selectYacht}
+              />
+              <Step1Basics
+                form={form}
+                update={update}
+                errors={showErrors ? errors : {}}
+                lengthUnitLabel={lengthUnitLabel}
+              />
+            </>
           )}
           {step === 1 && (
             <Step2Crew form={form} setForm={setForm} errors={showErrors ? errors : {}} />
@@ -725,6 +787,91 @@ export default function CostNewScreen() {
 // ──────────────────────────────────────────────────────────────────────────
 // Step 1 — Basics
 // ──────────────────────────────────────────────────────────────────────────
+function SavedYachtSelector({
+  yachts,
+  selectedYachtId,
+  loading,
+  onSelect,
+}: {
+  yachts: Yacht[];
+  selectedYachtId: string | null;
+  loading: boolean;
+  onSelect: (yachtId: string | null) => void;
+}) {
+  if (loading) {
+    return (
+      <View style={styles.savedYachtSection}>
+        <Text style={styles.sectionLabel}>MY YACHTS</Text>
+        <View style={styles.savedYachtLoading}>
+          <ActivityIndicator color={GOLD} size="small" />
+          <Text style={styles.savedYachtHint}>Loading saved yachts...</Text>
+        </View>
+      </View>
+    );
+  }
+  if (yachts.length === 0) return null;
+
+  return (
+    <View style={styles.savedYachtSection}>
+      <Text style={styles.sectionLabel}>MY YACHTS</Text>
+      <View style={styles.savedYachtList}>
+        {yachts.map((yacht) => {
+          const active = yacht.id === selectedYachtId;
+          return (
+            <Pressable
+              key={yacht.id}
+              onPress={() => onSelect(yacht.id)}
+              style={({ pressed }) => [
+                styles.savedYachtRow,
+                active && styles.savedYachtRowActive,
+                { opacity: pressed && !active ? 0.75 : 1 },
+              ]}
+            >
+              <View style={styles.savedYachtIcon}>
+                <Feather name="anchor" size={15} color={GOLD} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.savedYachtName} numberOfLines={1}>
+                  {yachtLabel(yacht)}
+                </Text>
+                <Text style={styles.savedYachtMeta} numberOfLines={1}>
+                  {yachtMeta(yacht) || "Saved yacht profile"}
+                </Text>
+              </View>
+              {active ? (
+                <Feather name="check" size={18} color={GOLD} />
+              ) : (
+                <Feather name="chevron-right" size={18} color={MUTED} />
+              )}
+            </Pressable>
+          );
+        })}
+        <Pressable
+          onPress={() => onSelect(null)}
+          style={({ pressed }) => [
+            styles.manualYachtRow,
+            !selectedYachtId && styles.manualYachtRowActive,
+            { opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Text
+            style={[
+              styles.manualYachtText,
+              !selectedYachtId && styles.manualYachtTextActive,
+            ]}
+          >
+            Manual entry
+          </Text>
+          {!selectedYachtId ? <Feather name="check" size={16} color={GOLD} /> : null}
+        </Pressable>
+      </View>
+      <Text style={styles.savedYachtHint}>
+        Choosing a saved yacht pre-fills this estimate only. My Yachts stays unchanged.
+      </Text>
+    </View>
+  );
+}
+
 function Step1Basics({
   form,
   update,
@@ -1302,6 +1449,82 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 12,
   },
+  savedYachtSection: { marginBottom: 18 },
+  savedYachtList: { gap: 8 },
+  savedYachtLoading: {
+    minHeight: 54,
+    borderRadius: 12,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    backgroundColor: NAVY_DEEP,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  savedYachtRow: {
+    minHeight: 66,
+    borderRadius: 12,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    backgroundColor: NAVY_DEEP,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  savedYachtRowActive: {
+    borderColor: "rgba(201,169,97,0.75)",
+    backgroundColor: "rgba(201,169,97,0.12)",
+  },
+  savedYachtIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(201,169,97,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  savedYachtName: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+  },
+  savedYachtMeta: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 3,
+  },
+  savedYachtHint: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 8,
+  },
+  manualYachtRow: {
+    minHeight: 44,
+    borderRadius: 12,
+    borderColor: DIVIDER,
+    borderWidth: 1,
+    backgroundColor: NAVY_DEEP,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 13,
+  },
+  manualYachtRowActive: {
+    borderColor: "rgba(201,169,97,0.65)",
+    backgroundColor: "rgba(201,169,97,0.08)",
+  },
+  manualYachtText: {
+    color: MUTED,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  manualYachtTextActive: { color: GOLD },
   field: { marginBottom: 18 },
   fieldLabel: {
     color: MUTED,
