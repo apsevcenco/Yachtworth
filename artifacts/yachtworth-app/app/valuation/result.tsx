@@ -31,7 +31,11 @@ const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 
-type SourceComparable = Comparable & { source_url?: string | null };
+type SourceComparable = Comparable & {
+  source_url?: string | null;
+  location?: string | null;
+  vat_status?: "paid" | "not_paid" | null;
+};
 
 const CONFIDENCE_META: Record<
   string,
@@ -395,6 +399,12 @@ function ComparableCard({
   const meta = [
     c.year ? String(c.year) : null,
     c.length ? formatComparableLength(c.length, units) : null,
+    c.location || null,
+    c.vat_status === "paid"
+      ? "VAT paid"
+      : c.vat_status === "not_paid"
+        ? "VAT not paid"
+        : null,
     c.condition || null,
   ]
     .filter(Boolean)

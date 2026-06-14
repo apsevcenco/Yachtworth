@@ -222,10 +222,20 @@ function parseLengthMeters(s: string | null | undefined): number | null {
 
 function mapComparables(list: Comparable[]) {
   return (list ?? []).map((c) => {
-    const sourceUrl = (c as Comparable & { source_url?: string | null }).source_url;
+    const enriched = c as Comparable & {
+      source_url?: string | null;
+      location?: string | null;
+      vat_status?: "paid" | "not_paid" | null;
+    };
+    const sourceUrl = enriched.source_url;
     const price = parseEuro(c.price);
     const notes = [
       c.condition ? String(c.condition) : null,
+      enriched.vat_status === "paid"
+        ? "VAT paid"
+        : enriched.vat_status === "not_paid"
+          ? "VAT not paid"
+          : null,
       c.note ? String(c.note) : null,
       price == null && c.price ? `Asking: ${c.price}` : null,
     ]
@@ -236,6 +246,7 @@ function mapComparables(list: Comparable[]) {
       model: c.model ?? null,
       year: c.year ?? null,
       length_meters: parseLengthMeters(c.length),
+      location: enriched.location ?? null,
       price,
       currency: "EUR",
       source: sourceUrl ?? null,

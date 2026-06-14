@@ -16,6 +16,10 @@ export interface Comparable {
   /** @nullable */
   length?: string | null;
   /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  vat_status?: "paid" | "not_paid" | null;
+  /** @nullable */
   condition?: string | null;
   price: string;
   /** @nullable */

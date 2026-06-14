@@ -146,6 +146,10 @@ export const CreateValuationResponse = zod.object({
       model: zod.string().nullish(),
       year: zod.number().nullish(),
       length: zod.string().nullish(),
+      location: zod.string().nullish(),
+      vat_status: zod
+        .union([zod.enum(["paid", "not_paid"]), zod.null()])
+        .optional(),
       condition: zod.string().nullish(),
       price: zod.string(),
       source_url: zod.string().nullish(),
@@ -353,6 +357,10 @@ export const GetEstimateResponse = zod.object({
         model: zod.string().nullish(),
         year: zod.number().nullish(),
         length: zod.string().nullish(),
+        location: zod.string().nullish(),
+        vat_status: zod
+          .union([zod.enum(["paid", "not_paid"]), zod.null()])
+          .optional(),
         condition: zod.string().nullish(),
         price: zod.string(),
         source_url: zod.string().nullish(),

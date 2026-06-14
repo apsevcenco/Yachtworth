@@ -62,6 +62,8 @@ export interface ComparableItem {
   model?: string | null;
   year?: number | null;
   length?: string | null;
+  location?: string | null;
+  vat_status?: VatStatus | null;
   condition?: string | null;
   price: string;
   source_url?: string | null;
@@ -100,6 +102,8 @@ interface EvidenceQuality {
   withPrice: number;
   withSource: number;
   unique: number;
+  accepted: number;
+  rejected: number;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -142,6 +146,76 @@ const REGION_GUIDANCE: Record<SaleRegion, string> = {
     "Restrict to AE/SA/QA/SG/HK/TH/AU/NZ/JP/CN listings. Volume is thin — if fewer than 5 strong comparables found, you may include up to 2 Mediterranean comparables and drop confidence to low.",
   global:
     "No regional restriction — note in reasoning which markets the comparables came from.",
+};
+
+const REGION_LOCATION_TERMS: Record<Exclude<SaleRegion, "global">, string[]> = {
+  mediterranean: [
+    "france",
+    "french",
+    "italy",
+    "italian",
+    "spain",
+    "spanish",
+    "monaco",
+    "greece",
+    "greek",
+    "croatia",
+    "croatian",
+    "turkey",
+    "turkiye",
+    "turkish",
+    "malta",
+    "marmaris",
+    "imperia",
+    "rome",
+    "cannes",
+    "antibes",
+    "monte carlo",
+    "bodrum",
+    "gocek",
+    "palma",
+    "mallorca",
+  ],
+  northern_europe: [
+    "uk",
+    "united kingdom",
+    "england",
+    "netherlands",
+    "dutch",
+    "germany",
+    "denmark",
+    "norway",
+    "sweden",
+    "finland",
+    "belgium",
+  ],
+  north_america_caribbean: [
+    "united states",
+    "usa",
+    "florida",
+    "california",
+    "canada",
+    "bahamas",
+    "bvi",
+    "usvi",
+    "cayman",
+    "antigua",
+    "caribbean",
+  ],
+  asia_pacific_me: [
+    "uae",
+    "dubai",
+    "abu dhabi",
+    "saudi",
+    "qatar",
+    "singapore",
+    "hong kong",
+    "thailand",
+    "australia",
+    "new zealand",
+    "japan",
+    "china",
+  ],
 };
 
 function specsBlock(b: ValuationRequest): string {
@@ -252,6 +326,54 @@ function cleanSourceUrl(value: unknown): string | null {
   }
 }
 
+function cleanVatStatus(value: unknown): VatStatus | null {
+  if (typeof value !== "string") return null;
+  const v = value.toLowerCase().trim().replace(/[\s-]+/g, "_");
+  if (["paid", "vat_paid", "tax_paid", "eu_vat_paid"].includes(v)) return "paid";
+  if (
+    [
+      "not_paid",
+      "vat_not_paid",
+      "tax_not_paid",
+      "unpaid",
+      "ex_vat",
+      "offshore",
+      "not_included",
+    ].includes(v)
+  )
+    return "not_paid";
+  return null;
+}
+
+function cleanString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function matchesRegion(location: string | null | undefined, region: SaleRegion): boolean {
+  if (region === "global") return true;
+  const loc = (location ?? "").toLowerCase();
+  if (!loc) return false;
+  return REGION_LOCATION_TERMS[region].some((term) => loc.includes(term));
+}
+
+function matchesVat(vat: VatStatus | null | undefined, target: VatStatus | null | undefined): boolean {
+  if (!target) return true;
+  return vat === target;
+}
+
+function filterComparableCohort(
+  items: ComparableItem[],
+  request: ValuationRequest,
+): { accepted: ComparableItem[]; rejected: number } {
+  const accepted = items.filter((c) => {
+    if (!c.source_url) return false;
+    if (!matchesRegion(c.location, request.sale_region)) return false;
+    if (!matchesVat(c.vat_status ?? null, request.vat_status ?? null)) return false;
+    return true;
+  });
+  return { accepted, rejected: items.length - accepted.length };
+}
+
 function comparableKey(c: ComparableItem): string {
   return [
     c.source_url ? c.source_url.toLowerCase() : "",
@@ -259,6 +381,8 @@ function comparableKey(c: ComparableItem): string {
     (c.model ?? "").trim().toLowerCase(),
     c.year != null ? String(c.year) : "",
     (c.length ?? "").trim().toLowerCase(),
+    (c.location ?? "").trim().toLowerCase(),
+    c.vat_status ?? "",
     c.price.trim().toLowerCase(),
   ].join("|");
 }
@@ -275,12 +399,14 @@ function dedupeComparables(items: ComparableItem[]): ComparableItem[] {
   return out;
 }
 
-function evidenceQuality(items: ComparableItem[]): EvidenceQuality {
+function evidenceQuality(items: ComparableItem[], rejected = 0): EvidenceQuality {
   return {
     total: items.length,
     withPrice: items.filter((c) => parsePriceEur(c.price) != null).length,
     withSource: items.filter((c) => Boolean(c.source_url)).length,
     unique: dedupeComparables(items).length,
+    accepted: items.length,
+    rejected,
   };
 }
 
@@ -324,7 +450,12 @@ function buildSystemReasoning(args: {
     );
   }
   if (args.usedFallback) notes.push("live web search was unavailable, so confidence is capped low");
-  if (args.quality.withSource < 3) notes.push("source coverage is thin, so confidence is capped");
+  if (args.quality.rejected > 0)
+    notes.push(
+      `${args.quality.rejected} comparable ${args.quality.rejected === 1 ? "row was" : "rows were"} excluded for missing source, region mismatch, or VAT-status mismatch`,
+    );
+  if (args.quality.withSource < 3)
+    notes.push("Source coverage is thin, so confidence is capped");
   const second =
     notes.length > 0
       ? `${notes.join("; ")}.`
@@ -413,6 +544,7 @@ The downstream system applies separate, well-documented discounts off this numbe
 The price must reflect actual market evidence — not a theoretical estimate.
 
 For each comparable, include "source_url" with the direct listing page URL used to verify specs and asking price. Missing source_url lowers confidence.
+For each comparable, include "location" as country/city text and "vat_status" as exactly "paid", "not_paid", or null. Comparables whose location or VAT status does not match the target cohort will be excluded by the system.
 
 Return ONLY this JSON (absolutely no markdown, no text before or after):
 {
@@ -425,6 +557,8 @@ Return ONLY this JSON (absolutely no markdown, no text before or after):
       "model": "Exact model/series from listing",
       "year": 2018,
       "length": "28.5m",
+      "location": "Italy",
+      "vat_status": "not_paid",
       "condition": "Good",
       "price": "€ 2,850,000",
       "note": "Specific spec differences vs target vessel — e.g. twin MTU 1800HP, recent 2022 refit, 5 cabins"
@@ -470,6 +604,8 @@ Return ONLY valid JSON, no markdown:
       "model": "Model/Series",
       "year": 2018,
       "length": "28m",
+      "location": "Italy",
+      "vat_status": "not_paid",
       "condition": "Good",
       "price": "€ 2,800,000",
       "note": "Key spec differences vs target vessel"
@@ -523,19 +659,23 @@ export async function runValuation(
   const rawComparables = Array.isArray(result.comparables)
     ? (result.comparables as Record<string, unknown>[])
     : [];
-  const comparables: ComparableItem[] = dedupeComparables(
+  const candidateComparables: ComparableItem[] = dedupeComparables(
     rawComparables.map((c) => ({
-      builder: typeof c.builder === "string" ? c.builder : null,
-      model: typeof c.model === "string" ? c.model : null,
+      builder: cleanString(c.builder),
+      model: cleanString(c.model),
       year: typeof c.year === "number" ? c.year : null,
-      length: typeof c.length === "string" ? c.length : null,
-      condition: typeof c.condition === "string" ? c.condition : null,
+      length: cleanString(c.length),
+      location: cleanString(c.location),
+      vat_status: cleanVatStatus(c.vat_status ?? c.vatStatus ?? c.tax_status ?? c.taxStatus),
+      condition: cleanString(c.condition),
       price: typeof c.price === "string" ? c.price : "",
       source_url: cleanSourceUrl(c.source_url ?? c.sourceUrl ?? c.url ?? c.source),
       note: typeof c.note === "string" ? cleanReasoning(c.note) : null,
     })),
-  ).slice(0, 5);
-  const quality = evidenceQuality(comparables);
+  );
+  const filtered = filterComparableCohort(candidateComparables, b);
+  const comparables = filtered.accepted.slice(0, 5);
+  const quality = evidenceQuality(comparables, filtered.rejected);
 
   // Sanity check + clamp
   let aiPriceEur = parsePriceEur(result.estimated_price);
@@ -596,8 +736,8 @@ export async function runValuation(
   // Evidence quality gates: high confidence requires source-backed, parseable,
   // non-duplicate comparables. Thin evidence still returns a useful estimate,
   // but the confidence label must tell the truth.
-  if (quality.total < 3 || quality.withPrice < 3 || quality.withSource < 2) cap("low");
-  else if (quality.withSource < 3 || quality.unique < 3) cap("medium");
+  if (quality.accepted < 3 || quality.withPrice < 3 || quality.withSource < 3) cap("low");
+  else if (quality.accepted < 5 || quality.unique < 5) cap("medium");
 
   // Condition multiplier (deterministic, server-authoritative).
   // When condition is missing (typical bypass), use Excellent (1.00).

@@ -1555,6 +1555,11 @@ components:
           type: ["integer", "null"]
         length:
           type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        vat_status:
+          type: ["string", "null"]
+          enum: [paid, not_paid, null]
         condition:
           type: ["string", "null"]
         price:
