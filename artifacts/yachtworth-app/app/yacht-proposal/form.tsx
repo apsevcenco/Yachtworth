@@ -198,9 +198,6 @@ export default function ProposalFormScreen() {
   const [delivery, setDelivery] = useState("");
   const [seaTrial, setSeaTrial] = useState("");
   const [mybaContract, setMybaContract] = useState(false);
-  const [overview, setOverview] = useState("");
-  const [highlights, setHighlights] = useState("");
-  const [notes, setNotes] = useState("");
   const [brokerName, setBrokerName] = useState("");
   const [brokerCompany, setBrokerCompany] = useState("");
   const [brokerEmail, setBrokerEmail] = useState("");
@@ -396,12 +393,6 @@ export default function ProposalFormScreen() {
       sea_trial: seaTrial.trim() || null,
       charter_area: charterArea.trim() || null,
       myba_contract: mybaContract,
-      overview: overview.trim() || null,
-      highlights: highlights
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-      notes: notes.trim() || null,
       broker_name: brokerName.trim() || null,
       broker_company: brokerCompany.trim() || null,
       broker_email: brokerEmail.trim() || null,
@@ -884,31 +875,6 @@ export default function ProposalFormScreen() {
             </Row2>
           </View>
         )}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Presentation</Text>
-          <Field
-            label="Overview"
-            value={overview}
-            onChange={setOverview}
-            multiline
-            placeholder="Short broker-style description. Leave blank to auto-generate from yacht specs."
-          />
-          <Field
-            label="Highlights"
-            value={highlights}
-            onChange={setHighlights}
-            multiline
-            placeholder={"One highlight per line\nExample: 4-cabin Grande layout\nZero-speed stabilizers\nVAT not paid offshore"}
-          />
-          <Field
-            label="Notes"
-            value={notes}
-            onChange={setNotes}
-            multiline
-            placeholder="Optional sales notes, condition notes, viewing instructions or exclusions."
-          />
-        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Commercial terms</Text>

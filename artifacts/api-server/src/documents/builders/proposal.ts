@@ -38,8 +38,6 @@ const LABELS: Record<string, Dict> = {
   english: {
     proposal: "VESSEL PROPOSAL",
     specifications: "Specifications",
-    overview: "Overview",
-    highlights: "Highlights",
     accommodation: "Accommodation",
     equipment: "Equipment & Inventory",
     photography: "Photography",
@@ -745,117 +743,6 @@ function charterValue(r: ProposalReportData, d: Dict): string {
   return `${v} ${d["perWeek"]}`;
 }
 
-function cleanText(s: unknown): string {
-  return String(s ?? "").replace(/\s+/g, " ").trim();
-}
-
-function autoOverview(yacht: YachtProfile, r: ProposalReportData): string {
-  const name = cleanText(yacht.name) || "This yacht";
-  const identity = [yacht.year_built, yacht.builder, yacht.model]
-    .map(cleanText)
-    .filter(Boolean)
-    .join(" ");
-  const length = num(yacht.length_meters) != null ? `${num(yacht.length_meters)} m` : "";
-  const type = yacht.yacht_type ? humanize(String(yacht.yacht_type)).toLowerCase() : "motor yacht";
-  const vessel = [length, identity].filter(Boolean).join(" ");
-  const accommodation =
-    yacht.cabins != null || yacht.guests != null
-      ? `The layout offers ${yacht.cabins != null ? `${yacht.cabins} cabins` : "guest accommodation"}${
-          yacht.guests != null ? ` for up to ${yacht.guests} guests` : ""
-        }.`
-      : "";
-  const location = yacht.home_port ? `She is presented from ${cleanText(yacht.home_port)}.` : "";
-  const commercial =
-    r.proposal_type === "charter"
-      ? "This proposal is prepared for charter consideration."
-      : r.proposal_type === "both"
-        ? "This proposal is prepared for sale and charter consideration."
-        : "This proposal is prepared for purchase consideration.";
-  return [
-    name,
-    vessel ? `is a ${vessel} ${type}.` : "is presented as a selected yacht opportunity.",
-    accommodation,
-    location,
-    commercial,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function hasEquipment(equipment: ProposalEquipmentItem[], keys: string[]): boolean {
-  const wanted = keys.map(normalizeKey);
-  return equipment.some((it) => {
-    const fields = [it.equipment_type, it.category, it.brand, it.model].map((v) =>
-      normalizeKey(String(v ?? "")),
-    );
-    return fields.some((f) => wanted.some((w) => f === w || f.includes(w)));
-  });
-}
-
-function autoHighlights(
-  yacht: YachtProfile,
-  equipment: ProposalEquipmentItem[],
-  r: ProposalReportData,
-): string[] {
-  const out: string[] = [];
-  const identity = [yacht.builder, yacht.model].map(cleanText).filter(Boolean).join(" ");
-  if (identity || yacht.year_built || num(yacht.length_meters) != null) {
-    out.push(
-      [yacht.year_built, num(yacht.length_meters) != null ? `${num(yacht.length_meters)} m` : "", identity]
-        .map(cleanText)
-        .filter(Boolean)
-        .join(" "),
-    );
-  }
-  if (yacht.cabins != null || yacht.guests != null) {
-    out.push(
-      [
-        yacht.cabins != null ? `${yacht.cabins} guest cabins` : "",
-        yacht.guests != null ? `up to ${yacht.guests} guests` : "",
-      ]
-        .filter(Boolean)
-        .join(" / "),
-    );
-  }
-  if (yacht.engine_count || yacht.engine_maker || yacht.total_hp) {
-    out.push(
-      [
-        yacht.engine_count ? `${yacht.engine_count} engines` : "",
-        yacht.engine_maker,
-        yacht.total_hp ? `${yacht.total_hp} total HP` : "",
-      ]
-        .map(cleanText)
-        .filter(Boolean)
-        .join(" / "),
-    );
-  }
-  if (hasEquipment(equipment, ["stabilizers", "zero_speed_stabilizers"])) {
-    out.push("Stabilizers listed in inventory");
-  }
-  if (hasEquipment(equipment, ["tender", "tenders"])) out.push("Tender equipment included");
-  if (hasEquipment(equipment, ["watermaker"])) out.push("Watermaker listed in inventory");
-  if (yacht.vat_status) out.push(vatLabel(yacht.vat_status));
-  if (r.proposal_type !== "charter" && (r.price_on_application || num(r.sale_price_eur) == null)) {
-    out.push("Price on application");
-  } else if (
-    r.proposal_type === "charter" &&
-    (r.charter_on_application ||
-      (num(r.charter_low_eur_week) == null && num(r.charter_high_eur_week) == null))
-  ) {
-    out.push("Charter rate on application");
-  }
-  return out.filter(Boolean).slice(0, 6);
-}
-
-function proposalHighlights(
-  yacht: YachtProfile,
-  equipment: ProposalEquipmentItem[],
-  r: ProposalReportData,
-): string[] {
-  const manual = Array.isArray(r.highlights) ? r.highlights.map(cleanText).filter(Boolean) : [];
-  return manual.length ? manual.slice(0, 8) : autoHighlights(yacht, equipment, r);
-}
-
 // ─── main ───────────────────────────────────────────────────────────────────
 
 export function buildProposalModel(input: {
@@ -924,24 +811,6 @@ export function buildProposalModel(input: {
   // ── body ──
   const body: ContentNode[] = [];
   const equip = Array.isArray(r.equipment) ? r.equipment : [];
-  const overviewText = cleanText(r.overview) || autoOverview(yacht, r);
-  const highlights = proposalHighlights(yacht, equip, r);
-
-  if (overviewText) {
-    body.push({
-      kind: "paragraph",
-      heading: d["overview"] ?? LABELS["english"]!.overview,
-      panel: true,
-      text: overviewText,
-    });
-  }
-  if (highlights.length) {
-    body.push({
-      kind: "card",
-      heading: d["highlights"] ?? LABELS["english"]!.highlights,
-      items: highlights.map((h) => ({ name: h })),
-    });
-  }
 
   // P2+ — Vessel body: Specifications → Accommodation → Equipment flow
   // continuously across pages, filling each one top-to-bottom. Nothing is kept
