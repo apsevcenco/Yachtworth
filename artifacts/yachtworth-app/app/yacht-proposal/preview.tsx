@@ -17,7 +17,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { exportProposalPdf } from "../../lib/proposalPdf";
 import type {
   ProposalEquipmentItem,
   ProposalSettings,
@@ -106,21 +105,10 @@ export default function ProposalPreviewScreen() {
       ? params.saved_id
       : null;
 
-  const [busy, setBusy] = useState<null | "legacy" | "pro" | "docx">(null);
+  const [busy, setBusy] = useState<null | "pro" | "docx">(null);
   const [savedId, setSavedId] = useState<string | null>(initialSavedId);
   const saveM = useSaveProposal();
   const queryClient = useQueryClient();
-
-  const onExportLegacy = async () => {
-    setBusy("legacy");
-    try {
-      await exportProposalPdf({ yacht, equipment, settings });
-    } catch (e) {
-      Alert.alert("Could not export PDF", String(e));
-    } finally {
-      setBusy(null);
-    }
-  };
 
   const onExportProfessional = async () => {
     setBusy("pro");
@@ -266,26 +254,6 @@ export default function ProposalPreviewScreen() {
         </Pressable>
 
         <Pressable
-          onPress={onExportLegacy}
-          disabled={busy !== null}
-          style={({ pressed }) => [
-            styles.tertiaryBtn,
-            { opacity: pressed || busy === "legacy" ? 0.7 : 1 },
-          ]}
-        >
-          {busy === "legacy" ? (
-            <ActivityIndicator color={MUTED} />
-          ) : (
-            <>
-              <Feather name="download" size={16} color={MUTED} />
-              <Text style={styles.tertiaryBtnText}>Export Legacy PDF</Text>
-            </>
-          )}
-        </Pressable>
-
-        <View style={styles.spacer16} />
-
-        <Pressable
           onPress={onSave}
           disabled={saveM.isPending || !!savedId}
           style={({ pressed }) => [
@@ -323,8 +291,7 @@ export default function ProposalPreviewScreen() {
 
         <Text style={styles.disclaimer}>
           Professional PDF and Word are generated on Yachtworth servers and
-          returned to your device — they are not stored. Legacy PDF is generated
-          fully on your device. Saving keeps your settings + yacht snapshot so
+          returned to your device — they are not stored. Saving keeps your settings + yacht snapshot so
           you can re-export anytime.
         </Text>
       </ScrollView>
@@ -496,7 +463,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tertiaryBtnText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 13 },
-  spacer16: { height: 16 },
   disclaimer: {
     color: FAINT,
     fontFamily: "Inter_400Regular",

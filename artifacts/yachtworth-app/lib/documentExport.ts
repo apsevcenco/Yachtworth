@@ -74,6 +74,8 @@ function buildRequestBody(
       sea_trial: settings.sea_trial ?? null,
       charter_area: settings.charter_area ?? null,
       myba_contract: settings.myba_contract ?? null,
+      overview: settings.overview ?? null,
+      highlights: settings.highlights ?? null,
       notes: settings.notes ?? null,
       broker_name: settings.broker_name ?? null,
       broker_company: settings.broker_company ?? null,

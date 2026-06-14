@@ -194,6 +194,13 @@ export default function ProposalFormScreen() {
   const [charterHigh, setCharterHigh] = useState("");
   const [charterApa, setCharterApa] = useState("");
   const [charterVat, setCharterVat] = useState("");
+  const [charterArea, setCharterArea] = useState("");
+  const [delivery, setDelivery] = useState("");
+  const [seaTrial, setSeaTrial] = useState("");
+  const [mybaContract, setMybaContract] = useState(false);
+  const [overview, setOverview] = useState("");
+  const [highlights, setHighlights] = useState("");
+  const [notes, setNotes] = useState("");
   const [brokerName, setBrokerName] = useState("");
   const [brokerCompany, setBrokerCompany] = useState("");
   const [brokerEmail, setBrokerEmail] = useState("");
@@ -385,6 +392,16 @@ export default function ProposalFormScreen() {
       charter_high_eur_week: toNum(charterHigh),
       charter_apa_pct: toNum(charterApa),
       charter_vat_pct: toNum(charterVat),
+      delivery: delivery.trim() || null,
+      sea_trial: seaTrial.trim() || null,
+      charter_area: charterArea.trim() || null,
+      myba_contract: mybaContract,
+      overview: overview.trim() || null,
+      highlights: highlights
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+      notes: notes.trim() || null,
       broker_name: brokerName.trim() || null,
       broker_company: brokerCompany.trim() || null,
       broker_email: brokerEmail.trim() || null,
@@ -869,6 +886,69 @@ export default function ProposalFormScreen() {
         )}
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Presentation</Text>
+          <Field
+            label="Overview"
+            value={overview}
+            onChange={setOverview}
+            multiline
+            placeholder="Short broker-style description. Leave blank to auto-generate from yacht specs."
+          />
+          <Field
+            label="Highlights"
+            value={highlights}
+            onChange={setHighlights}
+            multiline
+            placeholder={"One highlight per line\nExample: 4-cabin Grande layout\nZero-speed stabilizers\nVAT not paid offshore"}
+          />
+          <Field
+            label="Notes"
+            value={notes}
+            onChange={setNotes}
+            multiline
+            placeholder="Optional sales notes, condition notes, viewing instructions or exclusions."
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Commercial terms</Text>
+          <Field
+            label="Delivery / location"
+            value={delivery}
+            onChange={setDelivery}
+            placeholder="e.g. Available for delivery in Antibes"
+          />
+          <Field
+            label="Sea trial"
+            value={seaTrial}
+            onChange={setSeaTrial}
+            placeholder="e.g. By appointment after accepted offer"
+          />
+          {showCharter ? (
+            <Field
+              label="Charter area"
+              value={charterArea}
+              onChange={setCharterArea}
+              placeholder="e.g. West Mediterranean"
+            />
+          ) : null}
+          <Pressable
+            onPress={() => setMybaContract((v) => !v)}
+            style={styles.toggleRowCompact}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                mybaContract && { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.16)" },
+              ]}
+            >
+              {mybaContract && <Feather name="check" size={14} color={GOLD} />}
+            </View>
+            <Text style={styles.toggleText}>MYBA standard contract</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact (broker)</Text>
           <Field label="Name" value={brokerName} onChange={setBrokerName} />
           <Field
@@ -1166,6 +1246,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
     marginBottom: 14,
+  },
+  toggleRowCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   checkbox: {
     width: 22,

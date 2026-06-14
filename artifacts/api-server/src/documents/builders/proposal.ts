@@ -38,6 +38,8 @@ const LABELS: Record<string, Dict> = {
   english: {
     proposal: "VESSEL PROPOSAL",
     specifications: "Specifications",
+    overview: "Overview",
+    highlights: "Highlights",
     accommodation: "Accommodation",
     equipment: "Equipment & Inventory",
     photography: "Photography",
@@ -275,12 +277,46 @@ function accomRows(y: YachtProfile): { label: string; value: string }[] {
 
 /** "bow_thruster" → "Bow Thruster". Applied only to enum-ish fields (category,
  *  equipment_type) — never to brand/model which carry their own casing. */
+function normalizeKey(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const LABEL_OVERRIDES: Record<string, string> = {
+  ac: "A/C",
+  ac_central: "A/C Central",
+  air_conditioning: "Air Conditioning",
+  ais: "AIS",
+  bbq: "BBQ",
+  epirb: "EPIRB",
+  gps: "GPS",
+  radar: "Radar",
+  sup_board: "SUP Board",
+  sup_boards: "SUP Boards",
+  tv: "TV",
+  vhf: "VHF",
+  vhf_radio: "VHF Radio",
+  wi_fi: "Wi-Fi",
+  wifi: "Wi-Fi",
+};
+
 function humanize(s: string): string {
+  const key = normalizeKey(s);
+  if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key]!;
   return s
     .replace(/_/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\b(Ais|Epirb|Gps|Sup|Tv|Vhf|Wifi|Usb)\b/g, (m) => {
+      if (m === "Wifi") return "Wi-Fi";
+      return m.toUpperCase();
+    })
+    .replace(/\bAc\b/g, "A/C");
 }
 
 /** Human-readable VAT status. Enum values must map explicitly — humanize alone
@@ -709,6 +745,117 @@ function charterValue(r: ProposalReportData, d: Dict): string {
   return `${v} ${d["perWeek"]}`;
 }
 
+function cleanText(s: unknown): string {
+  return String(s ?? "").replace(/\s+/g, " ").trim();
+}
+
+function autoOverview(yacht: YachtProfile, r: ProposalReportData): string {
+  const name = cleanText(yacht.name) || "This yacht";
+  const identity = [yacht.year_built, yacht.builder, yacht.model]
+    .map(cleanText)
+    .filter(Boolean)
+    .join(" ");
+  const length = num(yacht.length_meters) != null ? `${num(yacht.length_meters)} m` : "";
+  const type = yacht.yacht_type ? humanize(String(yacht.yacht_type)).toLowerCase() : "motor yacht";
+  const vessel = [length, identity].filter(Boolean).join(" ");
+  const accommodation =
+    yacht.cabins != null || yacht.guests != null
+      ? `The layout offers ${yacht.cabins != null ? `${yacht.cabins} cabins` : "guest accommodation"}${
+          yacht.guests != null ? ` for up to ${yacht.guests} guests` : ""
+        }.`
+      : "";
+  const location = yacht.home_port ? `She is presented from ${cleanText(yacht.home_port)}.` : "";
+  const commercial =
+    r.proposal_type === "charter"
+      ? "This proposal is prepared for charter consideration."
+      : r.proposal_type === "both"
+        ? "This proposal is prepared for sale and charter consideration."
+        : "This proposal is prepared for purchase consideration.";
+  return [
+    name,
+    vessel ? `is a ${vessel} ${type}.` : "is presented as a selected yacht opportunity.",
+    accommodation,
+    location,
+    commercial,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function hasEquipment(equipment: ProposalEquipmentItem[], keys: string[]): boolean {
+  const wanted = keys.map(normalizeKey);
+  return equipment.some((it) => {
+    const fields = [it.equipment_type, it.category, it.brand, it.model].map((v) =>
+      normalizeKey(String(v ?? "")),
+    );
+    return fields.some((f) => wanted.some((w) => f === w || f.includes(w)));
+  });
+}
+
+function autoHighlights(
+  yacht: YachtProfile,
+  equipment: ProposalEquipmentItem[],
+  r: ProposalReportData,
+): string[] {
+  const out: string[] = [];
+  const identity = [yacht.builder, yacht.model].map(cleanText).filter(Boolean).join(" ");
+  if (identity || yacht.year_built || num(yacht.length_meters) != null) {
+    out.push(
+      [yacht.year_built, num(yacht.length_meters) != null ? `${num(yacht.length_meters)} m` : "", identity]
+        .map(cleanText)
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+  if (yacht.cabins != null || yacht.guests != null) {
+    out.push(
+      [
+        yacht.cabins != null ? `${yacht.cabins} guest cabins` : "",
+        yacht.guests != null ? `up to ${yacht.guests} guests` : "",
+      ]
+        .filter(Boolean)
+        .join(" / "),
+    );
+  }
+  if (yacht.engine_count || yacht.engine_maker || yacht.total_hp) {
+    out.push(
+      [
+        yacht.engine_count ? `${yacht.engine_count} engines` : "",
+        yacht.engine_maker,
+        yacht.total_hp ? `${yacht.total_hp} total HP` : "",
+      ]
+        .map(cleanText)
+        .filter(Boolean)
+        .join(" / "),
+    );
+  }
+  if (hasEquipment(equipment, ["stabilizers", "zero_speed_stabilizers"])) {
+    out.push("Stabilizers listed in inventory");
+  }
+  if (hasEquipment(equipment, ["tender", "tenders"])) out.push("Tender equipment included");
+  if (hasEquipment(equipment, ["watermaker"])) out.push("Watermaker listed in inventory");
+  if (yacht.vat_status) out.push(vatLabel(yacht.vat_status));
+  if (r.proposal_type !== "charter" && (r.price_on_application || num(r.sale_price_eur) == null)) {
+    out.push("Price on application");
+  } else if (
+    r.proposal_type === "charter" &&
+    (r.charter_on_application ||
+      (num(r.charter_low_eur_week) == null && num(r.charter_high_eur_week) == null))
+  ) {
+    out.push("Charter rate on application");
+  }
+  return out.filter(Boolean).slice(0, 6);
+}
+
+function proposalHighlights(
+  yacht: YachtProfile,
+  equipment: ProposalEquipmentItem[],
+  r: ProposalReportData,
+): string[] {
+  const manual = Array.isArray(r.highlights) ? r.highlights.map(cleanText).filter(Boolean) : [];
+  return manual.length ? manual.slice(0, 8) : autoHighlights(yacht, equipment, r);
+}
+
 // ─── main ───────────────────────────────────────────────────────────────────
 
 export function buildProposalModel(input: {
@@ -776,13 +923,31 @@ export function buildProposalModel(input: {
 
   // ── body ──
   const body: ContentNode[] = [];
+  const equip = Array.isArray(r.equipment) ? r.equipment : [];
+  const overviewText = cleanText(r.overview) || autoOverview(yacht, r);
+  const highlights = proposalHighlights(yacht, equip, r);
+
+  if (overviewText) {
+    body.push({
+      kind: "paragraph",
+      heading: d["overview"] ?? LABELS["english"]!.overview,
+      panel: true,
+      text: overviewText,
+    });
+  }
+  if (highlights.length) {
+    body.push({
+      kind: "card",
+      heading: d["highlights"] ?? LABELS["english"]!.highlights,
+      items: highlights.map((h) => ({ name: h })),
+    });
+  }
 
   // P2+ — Vessel body: Specifications → Accommodation → Equipment flow
   // continuously across pages, filling each one top-to-bottom. Nothing is kept
   // together: spec groups and accommodation break across pages, and equipment
   // categories split at the item boundary when only part fits the remaining
   // column space (see `flowVesselBody`).
-  const equip = Array.isArray(r.equipment) ? r.equipment : [];
   body.push(...flowVesselBody(yacht, accomRows(yacht), equip, d));
 
   // P4 — Photography (validated photos only; editorial hero + grid that fills).
@@ -797,6 +962,9 @@ export function buildProposalModel(input: {
   }
 
   const metaRows: { label: string; value: string }[] = [];
+  if (yacht.vat_status) metaRows.push({ label: d["vat"]!, value: vatLabel(yacht.vat_status) });
+  if (yacht.home_port) metaRows.push({ label: "Location", value: String(yacht.home_port) });
+  if (yacht.flag) metaRows.push({ label: "Flag", value: String(yacht.flag) });
   if (showCharter) {
     const terms: string[] = [];
     if (num(r.charter_apa_pct) != null) terms.push(`APA ${num(r.charter_apa_pct)}%`);
@@ -808,7 +976,7 @@ export function buildProposalModel(input: {
   if (r.sea_trial) metaRows.push({ label: d["seaTrial"]!, value: String(r.sea_trial) });
   if (r.myba_contract) metaRows.push({ label: d["contract"]!, value: d["mybaStandard"]! });
   if (metaRows.length) {
-    pricingChildren.push({ kind: "keyValue", rows: metaRows });
+    pricingChildren.push({ kind: "keyValue", heading: d["commercial"]!, rows: metaRows });
   }
 
   if (r.notes) {

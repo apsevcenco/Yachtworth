@@ -97,6 +97,8 @@ export interface ProposalReportData {
   sea_trial?: string | null;
   charter_area?: string | null;
   myba_contract?: boolean | null;
+  overview?: string | null;
+  highlights?: string[] | null;
   notes?: string | null;
   broker_name?: string | null;
   broker_company?: string | null;
