@@ -615,8 +615,8 @@ export default function NewValuationScreen() {
           bypass_required: form.bypass_required,
           type: form.type!,
           configuration: form.configuration || null,
-          builder: form.builder.trim() || null,
-          model: form.model.trim() || null,
+          builder: form.mode === "builder" ? form.builder.trim() || null : null,
+          model: form.mode === "builder" ? form.model.trim() || null : null,
           year_built: parseInt(form.year, 10),
           refit_year: form.refit ? parseInt(form.refit, 10) || null : null,
           condition: form.condition,
@@ -657,8 +657,8 @@ export default function NewValuationScreen() {
                       .map((w) => w[0]?.toUpperCase() + w.slice(1))
                       .join(" ")
                   : null,
-                builder: form.builder?.trim() || null,
-                model: form.model?.trim() || null,
+                builder: form.mode === "builder" ? form.builder?.trim() || null : null,
+                model: form.mode === "builder" ? form.model?.trim() || null : null,
                 yearBuilt: form.year ? parseInt(form.year, 10) : null,
                 lengthMeters: form.length
                   ? (() => {
@@ -978,7 +978,11 @@ function Step1General({ form, update, errs }: StepProps) {
             active={form.mode === "specs"}
             label="Specs Only"
             sub="Custom build / unknown brand"
-            onPress={() => update("mode", "specs")}
+            onPress={() => {
+              update("mode", "specs");
+              update("builder", "");
+              update("model", "");
+            }}
           />
         </View>
       </Section>

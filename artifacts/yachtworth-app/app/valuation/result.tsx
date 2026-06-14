@@ -136,8 +136,8 @@ export default function ValuationResultScreen() {
             .map((w: string) => w[0]?.toUpperCase() + w.slice(1))
             .join(" ")
         : null,
-      builder: req.builder ?? null,
-      model: req.model ?? null,
+      builder: req.mode === "builder" ? req.builder ?? null : null,
+      model: req.mode === "builder" ? req.model ?? null : null,
       yearBuilt: req.year_built ?? null,
       lengthMeters: req.length_meters ?? null,
       cover_photo_url: recordString(yacht, "cover_photo_url"),

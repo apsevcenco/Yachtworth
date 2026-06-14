@@ -468,8 +468,8 @@ function buildSystemReasoning(args: {
   usedFallback: boolean;
 }): string {
   const subject = [
-    args.b.builder,
-    args.b.model,
+    args.b.mode === "builder" ? args.b.builder : null,
+    args.b.mode === "builder" ? args.b.model : null,
     args.b.year_built ? String(args.b.year_built) : null,
     `${args.b.length_meters}m`,
   ]
@@ -522,11 +522,16 @@ function buildPrompt(
     completenessTotal,
   );
   const note = modeNote(b.mode);
+  const specsOnlyNote =
+    b.mode === "specs"
+      ? "SPECS-ONLY MODE: do not use, infer, or anchor to any builder/model from a linked yacht profile, cover title, file name, or previous report. Search for mixed-builder comparables by yacht type, configuration, year, length, engines and accommodation only."
+      : "";
 
   return `You are a professional yacht market analyst with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to produce an INDICATIVE MARKET ESTIMATE. This is NOT a certified appraisal or valuation. Use web search iteratively — refine your queries as you learn more about this vessel's segment, and verify data on actual listing pages before using it.
 
 TARGET VESSEL SPECIFICATIONS:
 ${specs}
+${specsOnlyNote}
 ${completeness}${region}${vat}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
