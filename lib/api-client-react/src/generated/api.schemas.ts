@@ -1343,14 +1343,14 @@ export interface CrewPositionInput {
    */
   monthly_salary_eur?: number | null;
   /**
-   * Only meaningful for stewardess/deckhand
+   * Number of crew in this role.
    * @minimum 1
    * @maximum 4
    * @nullable
    */
   quantity?: number | null;
   /**
-   * Months of employment per year. Only honored for stewardess/deckhand (seasonal). All other positions are treated as 12.
+   * Months of employment per year.
    * @minimum 1
    * @maximum 12
    * @nullable
@@ -1364,6 +1364,12 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   mooring_eur?: number | null;
+  /**
+   * Marina utilities and local services not included in berth.
+   * @minimum 0
+   * @nullable
+   */
+  utilities_eur?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -1380,10 +1386,22 @@ export interface CostMonthlyExpenses {
    */
   communications_eur?: number | null;
   /**
+   * Monthly yacht management fee.
+   * @minimum 0
+   * @nullable
+   */
+  management_fee_eur?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   maintenance_eur?: number | null;
+  /**
+   * Monthly miscellaneous / contingency allowance.
+   * @minimum 0
+   * @nullable
+   */
+  misc_eur?: number | null;
 }
 
 export interface CostAnnualExpenses {
@@ -1402,6 +1420,18 @@ export interface CostAnnualExpenses {
    * @nullable
    */
   classification_eur?: number | null;
+  /**
+   * Commercial coding, charter compliance and related certificates.
+   * @minimum 0
+   * @nullable
+   */
+  commercial_compliance_eur?: number | null;
+  /**
+   * Accounting, legal and administration costs.
+   * @minimum 0
+   * @nullable
+   */
+  admin_accounting_eur?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -1460,6 +1490,12 @@ export interface CostAnnualExpenses {
    * @nullable
    */
   watermaker_service_eur?: number | null;
+  /**
+   * Crew travel, uniforms, training and certificates.
+   * @minimum 0
+   * @nullable
+   */
+  crew_travel_training_eur?: number | null;
 }
 
 export interface CostFinancingInput {
@@ -1523,6 +1559,13 @@ export interface CostEstimateInput {
    * @nullable
    */
   broker_commission_pct?: number | null;
+  /**
+   * Payroll/social-security uplift applied to enabled crew salary lines and shown per role.
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  social_security_pct?: number | null;
   financing: CostFinancingInput;
 }
 
@@ -1565,6 +1608,8 @@ export interface CostEstimateResult {
   yacht_class: YachtType;
   length_meters: number;
   year_built: number;
+  region?: string;
+  usage_type?: string;
 }
 
 export interface CostEstimate {

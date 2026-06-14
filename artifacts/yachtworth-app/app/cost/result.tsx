@@ -4,7 +4,7 @@ import {
   useGetCostEstimate,
 } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { exportCostDocument } from "../../lib/documentExport";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -55,6 +56,8 @@ interface CostResult {
   yacht_class: string;
   length_meters: number;
   year_built: number;
+  region?: string | null;
+  usage_type?: string | null;
 }
 interface CostEstimateEnvelope {
   id: string | null;
@@ -69,6 +72,15 @@ const CLASS_LABEL: Record<string, string> = {
   superyacht: "Superyacht",
 };
 
+const REGION_LABEL: Record<string, string> = {
+  mediterranean: "Mediterranean",
+  northern_europe: "Northern Europe",
+  caribbean: "Caribbean",
+  asia_pacific: "Asia-Pacific",
+  middle_east: "Middle East",
+  global: "Global / Other",
+};
+
 function fmtEur(n: number): string {
   return `€${Math.round(n).toLocaleString("en-US")}`;
 }
@@ -77,6 +89,7 @@ export default function CostResultScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ data?: string; id?: string }>();
+  const [exporting, setExporting] = useState(false);
 
   const inlineEnvelope = useMemo<CostEstimateEnvelope | null>(() => {
     if (!params.data) return null;
@@ -141,6 +154,21 @@ export default function CostResultScreen() {
 
   const r = envelope.result;
   const lenLabel = `${r.length_meters.toFixed(1)} m`;
+  const exportPdf = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportCostDocument({
+        result: r,
+        header: {
+          regionLabel: r.region ? REGION_LABEL[r.region] ?? r.region : null,
+          usageType: r.usage_type ?? null,
+        },
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
@@ -233,10 +261,23 @@ export default function CostResultScreen() {
         )}
 
         <Pressable
+          onPress={exportPdf}
+          disabled={exporting}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { opacity: pressed || exporting ? 0.7 : 1, marginTop: 24 },
+          ]}
+        >
+          <Text style={styles.primaryBtnText}>
+            {exporting ? "Preparing PDF..." : "Export PDF report"}
+          </Text>
+        </Pressable>
+
+        <Pressable
           onPress={() => router.replace("/cost/new")}
           style={({ pressed }) => [
             styles.primaryBtn,
-            { opacity: pressed ? 0.85 : 1, marginTop: 24 },
+            { opacity: pressed ? 0.85 : 1, marginTop: 12 },
           ]}
         >
           <Text style={styles.primaryBtnText}>New cost estimate</Text>

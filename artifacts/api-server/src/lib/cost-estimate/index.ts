@@ -108,21 +108,13 @@ const CREW_LABEL_BY_KEY: Record<string, string> = Object.fromEntries(
 
 // ---------- Calculator ----------
 
-// Spec rule: only stewardess and deckhand are seasonal — they may have
-// quantity > 1 AND months_per_year < 12. All other positions are full-time
-// year-round (12 months) and locked to quantity = 1, regardless of what
-// the client sends.
-const SEASONAL_ALLOWED = new Set(["stewardess", "deckhand"]);
-
 function effectiveQuantity(p: CrewPositionInput): number {
-  if (!SEASONAL_ALLOWED.has(p.position)) return 1;
   const raw = Math.floor(Number(p.quantity ?? 1));
   if (!isFinite(raw) || raw < 1) return 1;
   return Math.min(4, raw);
 }
 
 function effectiveMonths(p: CrewPositionInput): number {
-  if (!SEASONAL_ALLOWED.has(p.position)) return 12;
   const raw = Math.floor(Number(p.months_per_year ?? 12));
   if (!isFinite(raw) || raw < 1) return 12;
   return Math.min(12, raw);
@@ -152,6 +144,9 @@ export function computeCostEstimate(
   // ---- Crew ----
   const crewLines: CostBreakdownEntry[] = [];
   let crewTotal = 0;
+  const socialSecurityPct = clampPct(input.social_security_pct ?? 0);
+  const socialSecurityLines: CostBreakdownEntry[] = [];
+  let socialSecurityTotal = 0;
   for (const pos of input.crew ?? []) {
     const annual = crewAnnualForPosition(pos);
     if (annual <= 0) continue;
@@ -165,7 +160,20 @@ export function computeCostEstimate(
       formula: `€${salary.toLocaleString("en-US")}/mo × ${months}${qty > 1 ? ` × ${qty}` : ""}`,
     });
     crewTotal += annual;
+    if (socialSecurityPct > 0) {
+      const social = Math.round(annual * (socialSecurityPct / 100));
+      if (social > 0) {
+        socialSecurityLines.push({
+          category: `Social security · ${qty > 1 ? `${label} × ${qty}` : label}`,
+          amount_eur: social,
+          formula: `${socialSecurityPct}% × €${annual.toLocaleString("en-US")}`,
+        });
+        socialSecurityTotal += social;
+      }
+    }
   }
+  crewLines.push(...socialSecurityLines);
+  crewTotal += socialSecurityTotal;
 
   // ---- Monthly operating expenses ----
   const monthly = input.monthly_expenses;
@@ -183,9 +191,12 @@ export function computeCostEstimate(
     operationsTotal += annual;
   };
   pushMonthly("Mooring / berth", monthly.mooring_eur);
+  pushMonthly("Marina utilities", monthly.utilities_eur);
   pushMonthly("Fuel", monthly.fuel_eur);
   pushMonthly("Provisioning", monthly.provisioning_eur);
   pushMonthly("Communications", monthly.communications_eur);
+  pushMonthly("Yacht management fee", monthly.management_fee_eur);
+  pushMonthly("Miscellaneous / contingency", monthly.misc_eur);
 
   // ---- Annual maintenance & technical ----
   const annual = input.annual_expenses;
@@ -219,6 +230,8 @@ export function computeCostEstimate(
   pushAnnual("Insurance (hull + P&I)", annual.insurance_eur);
   pushAnnual("Registration / flag", annual.registration_eur);
   pushAnnual("Classification & survey", annual.classification_eur);
+  pushAnnual("Commercial coding / charter compliance", annual.commercial_compliance_eur);
+  pushAnnual("Accounting / legal / administration", annual.admin_accounting_eur);
   pushAnnual("Antifouling & haul-out", annual.antifouling_eur);
   pushAnnual("Engine service", annual.engine_service_eur);
   pushAnnual("Generator service", annual.generator_service_eur);
@@ -228,6 +241,7 @@ export function computeCostEstimate(
   pushAnnual("Hull paint / polish", annual.hull_paint_eur);
   pushAnnual("Rigging inspection", annual.rigging_service_eur);
   pushAnnual("Watermaker service", annual.watermaker_service_eur);
+  pushAnnual("Crew travel / uniforms / training", annual.crew_travel_training_eur);
   pushAnnual("Refit reserve", annual.refit_reserve_eur);
 
   // ---- Financing ----
@@ -300,10 +314,18 @@ export function computeCostEstimate(
     yacht_class: input.yacht_class,
     length_meters: lengthM,
     year_built: year,
+    region: input.region,
+    usage_type: input.usage_type,
     yacht_name: input.yacht_name ?? null,
     builder: input.builder ?? null,
     model: input.model ?? null,
   };
+}
+
+function clampPct(value: number | null | undefined): number {
+  const n = Number(value ?? 0);
+  if (!isFinite(n) || n <= 0) return 0;
+  return Math.min(100, Math.round(n * 100) / 100);
 }
 
 // Rough weekly charter rate by length / region for break-even hint only.

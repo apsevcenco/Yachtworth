@@ -16,14 +16,14 @@ export interface CrewPositionInput {
    */
   monthly_salary_eur?: number | null;
   /**
-   * Only meaningful for stewardess/deckhand
+   * Number of crew in this role.
    * @minimum 1
    * @maximum 4
    * @nullable
    */
   quantity?: number | null;
   /**
-   * Months of employment per year. Only honored for stewardess/deckhand (seasonal). All other positions are treated as 12.
+   * Months of employment per year.
    * @minimum 1
    * @maximum 12
    * @nullable

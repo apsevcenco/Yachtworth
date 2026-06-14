@@ -70,8 +70,8 @@ const USAGE_OPTIONS: { value: Usage; label: string; sub: string }[] = [
 
 const STEP_TITLES = ["Basics", "Crew", "Expenses", "Financing"];
 
-// Crew positions — only stewardess/deckhand can have quantity > 1
-// (server enforces this; UI matches).
+// Crew positions. Months are editable for every role; quantity is exposed only
+// for roles that are commonly staffed with more than one person.
 interface CrewDef {
   key: string;
   label: string;
@@ -87,28 +87,33 @@ const CREW: CrewDef[] = [
   { key: "stewardess", label: "Stewardess", defaultSalary: 2000, allowQty: true, defaultEnabled: () => false },
   { key: "deckhand", label: "Deckhand", defaultSalary: 1800, allowQty: true, defaultEnabled: () => false },
   { key: "bosun", label: "Bosun", defaultSalary: 2200, allowQty: false, defaultEnabled: () => false },
-  { key: "security", label: "Security", defaultSalary: 2500, allowQty: false, defaultEnabled: () => false },
+  { key: "security", label: "Security (optional)", defaultSalary: 2500, allowQty: false, defaultEnabled: () => false },
 ];
 
 interface CrewRow {
   enabled: boolean;
   salary: string;
   qty: number;
-  months: number; // only honored server-side for stewardess/deckhand
+  months: number;
 }
 
 const MONTHLY_FIELDS = [
   { key: "mooring_eur", label: "Mooring / berth" },
-  { key: "fuel_eur", label: "Fuel" },
-  { key: "provisioning_eur", label: "Provisioning" },
+  { key: "utilities_eur", label: "Marina utilities / local services" },
+  { key: "fuel_eur", label: "Fuel (usage-based)" },
+  { key: "provisioning_eur", label: "Provisioning (owner-paid)" },
   { key: "communications_eur", label: "Communications" },
+  { key: "management_fee_eur", label: "Yacht management fee" },
   { key: "maintenance_eur", label: "Routine maintenance" },
+  { key: "misc_eur", label: "Miscellaneous / contingency" },
 ] as const;
 
 const ANNUAL_FIELDS = [
   { key: "insurance_eur", label: "Insurance (hull + P&I)" },
   { key: "registration_eur", label: "Registration / flag" },
   { key: "classification_eur", label: "Classification & survey" },
+  { key: "commercial_compliance_eur", label: "Commercial coding / charter compliance" },
+  { key: "admin_accounting_eur", label: "Accounting / legal / administration" },
   { key: "antifouling_eur", label: "Antifouling & haul-out" },
   { key: "engine_service_eur", label: "Engine service" },
   { key: "generator_service_eur", label: "Generator service" },
@@ -118,6 +123,7 @@ const ANNUAL_FIELDS = [
   { key: "hull_paint_eur", label: "Hull paint / polish" },
   { key: "rigging_service_eur", label: "Rigging inspection" },
   { key: "watermaker_service_eur", label: "Watermaker service" },
+  { key: "crew_travel_training_eur", label: "Crew travel / uniforms / training" },
   { key: "refit_reserve_eur", label: "Refit reserve" },
 ] as const;
 
@@ -136,6 +142,7 @@ interface FormState {
   crew: Record<string, CrewRow>;
   monthly: Record<MonthlyKey, string>;
   annual: Record<AnnualKey, string>;
+  social_security_pct: string;
   broker_commission_pct: string;
   financing_type: FinType | null;
   loan_amount_eur: string;
@@ -159,12 +166,17 @@ const INITIAL: FormState = {
   crew: INITIAL_CREW,
   monthly: {
     mooring_eur: "",
+    utilities_eur: "",
     fuel_eur: "",
     provisioning_eur: "",
     communications_eur: "",
+    management_fee_eur: "",
     maintenance_eur: "",
+    misc_eur: "",
   },
   annual: {
+    commercial_compliance_eur: "",
+    admin_accounting_eur: "",
     engine_service_eur: "",
     generator_service_eur: "",
     electronics_service_eur: "",
@@ -173,12 +185,14 @@ const INITIAL: FormState = {
     hull_paint_eur: "",
     rigging_service_eur: "",
     watermaker_service_eur: "",
+    crew_travel_training_eur: "",
     insurance_eur: "",
     registration_eur: "",
     classification_eur: "",
     antifouling_eur: "",
     refit_reserve_eur: "",
   },
+  social_security_pct: "",
   broker_commission_pct: "",
   financing_type: null,
   loan_amount_eur: "",
@@ -280,14 +294,18 @@ function mergeYachtIntoCostForm(
     crew: nextCrew,
     monthly: {
       mooring_eur: f.monthly.mooring_eur || monthlyFromYacht("monthly_mooring_eur"),
+      utilities_eur: f.monthly.utilities_eur,
       fuel_eur: f.monthly.fuel_eur || monthlyFromYacht("monthly_fuel_eur"),
       provisioning_eur:
         f.monthly.provisioning_eur || monthlyFromYacht("monthly_provisioning_eur"),
       communications_eur:
         f.monthly.communications_eur ||
         monthlyFromYacht("monthly_communications_eur"),
+      management_fee_eur:
+        f.monthly.management_fee_eur || monthlyFromYacht("monthly_management_fee_eur"),
       maintenance_eur:
         f.monthly.maintenance_eur || monthlyFromYacht("monthly_maintenance_eur"),
+      misc_eur: f.monthly.misc_eur || monthlyFromYacht("monthly_misc_eur"),
     },
     annual: {
       ...f.annual,
@@ -297,11 +315,14 @@ function mergeYachtIntoCostForm(
         f.annual.registration_eur || monthlyFromYacht("annual_registration_eur"),
       classification_eur:
         f.annual.classification_eur || monthlyFromYacht("annual_classification_eur"),
+      commercial_compliance_eur: f.annual.commercial_compliance_eur,
+      admin_accounting_eur: f.annual.admin_accounting_eur,
       antifouling_eur:
         f.annual.antifouling_eur || monthlyFromYacht("annual_antifouling_eur"),
       refit_reserve_eur:
         f.annual.refit_reserve_eur || monthlyFromYacht("annual_refit_reserve_eur"),
     },
+    social_security_pct: f.social_security_pct,
     broker_commission_pct:
       f.broker_commission_pct ||
       moneyToStr(y["charter_commission_pct"] as number | null | undefined),
@@ -454,6 +475,13 @@ export default function CostNewScreen() {
         if (n < 0 || n > 100) e.broker = "0–100 %";
       }
     }
+    if (form.social_security_pct) {
+      if (!DEC_RE.test(form.social_security_pct)) e.social_security = "Invalid";
+      else {
+        const n = parseNum(form.social_security_pct)!;
+        if (n < 0 || n > 100) e.social_security = "0–100 %";
+      }
+    }
     // Step 3 — Financing
     if (!form.financing_type) e.financing_type = "Pick one";
     if (form.financing_type === "loan") {
@@ -478,7 +506,7 @@ export default function CostNewScreen() {
   const stepHasError = useMemo(() => {
     return [
       ["yacht_class", "region", "usage_type", "length", "year_built"],
-      ["crew"],
+      ["crew", "social_security"],
       [
         ...MONTHLY_FIELDS.map((f) => `m_${f.key}`),
         ...ANNUAL_FIELDS.map((f) => `a_${f.key}`),
@@ -533,20 +561,25 @@ export default function CostNewScreen() {
           enabled: row.enabled,
           monthly_salary_eur: row.enabled ? num(row.salary) : null,
           quantity: c.allowQty ? row.qty : 1,
-          months_per_year: c.allowQty ? row.months : 12,
+          months_per_year: row.months,
         };
       }),
       monthly_expenses: {
         mooring_eur: num(form.monthly.mooring_eur),
+        utilities_eur: num(form.monthly.utilities_eur),
         fuel_eur: num(form.monthly.fuel_eur),
         provisioning_eur: num(form.monthly.provisioning_eur),
         communications_eur: num(form.monthly.communications_eur),
+        management_fee_eur: num(form.monthly.management_fee_eur),
         maintenance_eur: num(form.monthly.maintenance_eur),
+        misc_eur: num(form.monthly.misc_eur),
       },
       annual_expenses: {
         insurance_eur: num(form.annual.insurance_eur),
         registration_eur: num(form.annual.registration_eur),
         classification_eur: num(form.annual.classification_eur),
+        commercial_compliance_eur: num(form.annual.commercial_compliance_eur),
+        admin_accounting_eur: num(form.annual.admin_accounting_eur),
         antifouling_eur: num(form.annual.antifouling_eur),
         engine_service_eur: num(form.annual.engine_service_eur),
         generator_service_eur: num(form.annual.generator_service_eur),
@@ -556,8 +589,10 @@ export default function CostNewScreen() {
         hull_paint_eur: num(form.annual.hull_paint_eur),
         rigging_service_eur: num(form.annual.rigging_service_eur),
         watermaker_service_eur: num(form.annual.watermaker_service_eur),
+        crew_travel_training_eur: num(form.annual.crew_travel_training_eur),
         refit_reserve_eur: num(form.annual.refit_reserve_eur),
       },
+      social_security_pct: num(form.social_security_pct),
       broker_commission_pct: num(form.broker_commission_pct),
       financing: {
         type: form.financing_type!,
@@ -841,11 +876,13 @@ function Step2Crew({
       const s = parseNum(r.salary);
       if (s == null || s <= 0) continue;
       const qty = c.allowQty ? Math.max(1, r.qty) : 1;
-      const months = c.allowQty ? Math.min(12, Math.max(1, r.months)) : 12;
+      const months = Math.min(12, Math.max(1, r.months));
       sum += s * months * qty;
     }
+    const social = parseNum(form.social_security_pct);
+    if (social != null && social > 0) sum += sum * (Math.min(100, social) / 100);
     return sum;
-  }, [form.crew]);
+  }, [form.crew, form.social_security_pct]);
 
   return (
     <View>
@@ -923,7 +960,7 @@ function Step2Crew({
                 )}
               </View>
             )}
-            {row.enabled && c.allowQty && (
+            {row.enabled && (
               <View style={styles.crewControlsRow}>
                 <Text style={styles.monthsLabel}>Months / year</Text>
                 <View style={styles.qtyStepper}>
@@ -953,6 +990,21 @@ function Step2Crew({
 
       {errors.crew ? <Text style={styles.fieldError}>{errors.crew}</Text> : null}
 
+      <Field
+        label="Social security / payroll uplift"
+        error={errors.social_security}
+        hint="Applied to each enabled crew role and shown as separate lines in the result."
+      >
+        <MoneyInput
+          value={form.social_security_pct}
+          onChangeText={(v) =>
+            setForm((s) => ({ ...s, social_security_pct: v }))
+          }
+          suffix="%"
+          placeholder="0"
+        />
+      </Field>
+
       <View style={styles.totalCard}>
         <Text style={styles.totalLabel}>ANNUAL CREW TOTAL</Text>
         <Text style={styles.totalValue}>
@@ -981,6 +1033,13 @@ function Step3Expenses({
     setForm((f) => ({ ...f, annual: { ...f.annual, [k]: v } }));
 
   const showCommission = form.usage_type === "mixed" || form.usage_type === "charter_focused";
+  const annualFields = ANNUAL_FIELDS.filter((f) => {
+    if (f.key === "rigging_service_eur") {
+      return form.yacht_class === "sailing_yacht" || form.yacht_class === "catamaran";
+    }
+    if (f.key === "commercial_compliance_eur") return showCommission;
+    return true;
+  });
 
   return (
     <View>
@@ -1000,7 +1059,7 @@ function Step3Expenses({
       ))}
 
       <SectionLabel text="ANNUAL · € PER YEAR" />
-      {ANNUAL_FIELDS.map((f) => (
+      {annualFields.map((f) => (
         <Field key={f.key} label={f.label} error={errors[`a_${f.key}`]}>
           <MoneyInput
             value={form.annual[f.key]}

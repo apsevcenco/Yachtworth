@@ -10,7 +10,7 @@
  * Expo client-side ("Legacy") proposal PDF generator.
  */
 
-export type DocumentType = "proposal" | "valuation_report" | "roi_report";
+export type DocumentType = "proposal" | "valuation_report" | "roi_report" | "cost_report";
 export type DocumentFormat = "pdf" | "docx";
 
 export type DocumentEngine = "legacy" | "adaptive";
@@ -229,12 +229,47 @@ export interface RoiReportData {
   legalDisclaimer?: string | null;
 }
 
+// ─── annual ownership cost report ────────────────────────────────────────────
+
+export interface CostBreakdownLine {
+  category?: string | null;
+  amount_eur?: number | null;
+  formula?: string | null;
+}
+
+export interface CostCategoryLine {
+  category?: string | null;
+  amount_eur?: number | null;
+  color_hint?: string | null;
+}
+
+/** Annual-cost-specific content (NOT yacht specs). */
+export interface CostReportData {
+  totalAnnualEur?: number | null;
+  costPerDayEur?: number | null;
+  costPerWeekEur?: number | null;
+  crewTotalEur?: number | null;
+  operationsTotalEur?: number | null;
+  maintenanceTotalEur?: number | null;
+  financingTotalEur?: number | null;
+  crewBreakdown?: CostBreakdownLine[] | null;
+  operationsBreakdown?: CostBreakdownLine[] | null;
+  maintenanceBreakdown?: CostBreakdownLine[] | null;
+  financingBreakdown?: CostBreakdownLine[] | null;
+  categorySummary?: CostCategoryLine[] | null;
+  charterBreakEvenWeeks?: number | null;
+  currency?: string | null;
+  usageType?: string | null;
+  regionLabel?: string | null;
+  legalDisclaimer?: string | null;
+}
+
 export interface GenerateDocumentRequest {
   documentType: DocumentType;
   format: DocumentFormat;
   template?: DocumentTemplate;
   yachtProfile: YachtProfile;
-  reportData?: ProposalReportData | ValuationReportData | RoiReportData;
+  reportData?: ProposalReportData | ValuationReportData | RoiReportData | CostReportData;
   exportSettings?: ExportSettings;
 }
 

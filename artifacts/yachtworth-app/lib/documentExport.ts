@@ -466,3 +466,114 @@ export async function exportRoiDocument(input: {
       .slice(0, 60) || "charter_roi";
   await downloadDocument(buildRoiBody(result, header), "pdf", `${base}_charter_roi.pdf`);
 }
+
+// ─── annual ownership cost report ────────────────────────────────────────────
+
+type CostBreakdownEntry = {
+  category: string;
+  amount_eur: number;
+  formula?: string | null;
+};
+
+type CostCategorySummary = {
+  category: string;
+  amount_eur: number;
+  color_hint?: string | null;
+};
+
+export type CostDocumentResult = {
+  total_annual_eur: number;
+  cost_per_day_eur: number;
+  cost_per_week_eur: number;
+  crew_total_eur: number;
+  operations_total_eur: number;
+  maintenance_total_eur: number;
+  financing_total_eur: number;
+  crew_breakdown: CostBreakdownEntry[];
+  operations_breakdown: CostBreakdownEntry[];
+  maintenance_breakdown: CostBreakdownEntry[];
+  financing_breakdown: CostBreakdownEntry[];
+  category_summary: CostCategorySummary[];
+  charter_break_even_weeks: number | null;
+  currency: string;
+  legal_disclaimer: string;
+  yacht_name?: string | null;
+  builder?: string | null;
+  model?: string | null;
+  yacht_class: string;
+  length_meters: number;
+  year_built: number;
+};
+
+export type CostHeader = {
+  regionLabel?: string | null;
+  usageType?: string | null;
+  cover_photo_url?: string | null;
+  photo_url?: string | null;
+  photo_urls?: string[] | null;
+};
+
+function buildCostBody(result: CostDocumentResult, header: CostHeader | undefined) {
+  const name =
+    result.yacht_name?.trim() ||
+    [result.builder, result.model].filter(Boolean).join(" ") ||
+    "Annual Cost Estimate";
+
+  return {
+    documentType: "cost_report" as const,
+    format: "pdf" as const,
+    template: "premium" as const,
+    yachtProfile: {
+      name,
+      builder: result.builder ?? null,
+      model: result.model ?? null,
+      yacht_type: result.yacht_class ?? null,
+      year_built: result.year_built ?? null,
+      length_meters: result.length_meters ?? null,
+      cover_photo_url: header?.cover_photo_url ?? null,
+      photo_url: header?.photo_url ?? null,
+      photo_urls: header?.photo_urls ?? null,
+    },
+    reportData: {
+      totalAnnualEur: result.total_annual_eur,
+      costPerDayEur: result.cost_per_day_eur,
+      costPerWeekEur: result.cost_per_week_eur,
+      crewTotalEur: result.crew_total_eur,
+      operationsTotalEur: result.operations_total_eur,
+      maintenanceTotalEur: result.maintenance_total_eur,
+      financingTotalEur: result.financing_total_eur,
+      crewBreakdown: result.crew_breakdown ?? [],
+      operationsBreakdown: result.operations_breakdown ?? [],
+      maintenanceBreakdown: result.maintenance_breakdown ?? [],
+      financingBreakdown: result.financing_breakdown ?? [],
+      categorySummary: result.category_summary ?? [],
+      charterBreakEvenWeeks: result.charter_break_even_weeks ?? null,
+      currency: result.currency ?? "EUR",
+      usageType: header?.usageType ?? null,
+      regionLabel: header?.regionLabel ?? null,
+      legalDisclaimer: result.legal_disclaimer ?? null,
+    },
+    exportSettings: {
+      template: "premium" as const,
+      language: "english" as const,
+      branding: "Yachtworth",
+      engine: "adaptive" as const,
+    },
+  };
+}
+
+export async function exportCostDocument(input: {
+  result: CostDocumentResult;
+  header?: CostHeader;
+}): Promise<void> {
+  const { result, header } = input;
+  const base =
+    (result.yacht_name?.trim() ||
+      [result.builder, result.model].filter(Boolean).join("_") ||
+      "annual_cost")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60) || "annual_cost";
+  await downloadDocument(buildCostBody(result, header), "pdf", `${base}_annual_cost.pdf`);
+}

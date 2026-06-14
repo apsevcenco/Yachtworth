@@ -2244,19 +2244,29 @@ export const calculateCostEstimateBodyCrewItemMonthsPerYearMax = 12;
 
 export const calculateCostEstimateBodyMonthlyExpensesMooringEurMin = 0;
 
+export const calculateCostEstimateBodyMonthlyExpensesUtilitiesEurMin = 0;
+
 export const calculateCostEstimateBodyMonthlyExpensesFuelEurMin = 0;
 
 export const calculateCostEstimateBodyMonthlyExpensesProvisioningEurMin = 0;
 
 export const calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin = 0;
 
+export const calculateCostEstimateBodyMonthlyExpensesManagementFeeEurMin = 0;
+
 export const calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesMiscEurMin = 0;
 
 export const calculateCostEstimateBodyAnnualExpensesInsuranceEurMin = 0;
 
 export const calculateCostEstimateBodyAnnualExpensesRegistrationEurMin = 0;
 
 export const calculateCostEstimateBodyAnnualExpensesClassificationEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesCommercialComplianceEurMin = 0;
+
+export const calculateCostEstimateBodyAnnualExpensesAdminAccountingEurMin = 0;
 
 export const calculateCostEstimateBodyAnnualExpensesAntifoulingEurMin = 0;
 
@@ -2278,8 +2288,13 @@ export const calculateCostEstimateBodyAnnualExpensesRiggingServiceEurMin = 0;
 
 export const calculateCostEstimateBodyAnnualExpensesWatermakerServiceEurMin = 0;
 
+export const calculateCostEstimateBodyAnnualExpensesCrewTravelTrainingEurMin = 0;
+
 export const calculateCostEstimateBodyBrokerCommissionPctMin = 0;
 export const calculateCostEstimateBodyBrokerCommissionPctMax = 100;
+
+export const calculateCostEstimateBodySocialSecurityPctMin = 0;
+export const calculateCostEstimateBodySocialSecurityPctMax = 100;
 
 export const calculateCostEstimateBodyFinancingLoanAmountEurMin = 0;
 
@@ -2344,15 +2359,13 @@ export const CalculateCostEstimateBody = zod.object({
         .min(1)
         .max(calculateCostEstimateBodyCrewItemQuantityMax)
         .nullish()
-        .describe("Only meaningful for stewardess\/deckhand"),
+        .describe("Number of crew in this role."),
       months_per_year: zod
         .number()
         .min(1)
         .max(calculateCostEstimateBodyCrewItemMonthsPerYearMax)
         .nullish()
-        .describe(
-          "Months of employment per year. Only honored for stewardess\/deckhand (seasonal). All other positions are treated as 12.",
-        ),
+        .describe("Months of employment per year."),
     }),
   ),
   monthly_expenses: zod.object({
@@ -2360,6 +2373,11 @@ export const CalculateCostEstimateBody = zod.object({
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMooringEurMin)
       .nullish(),
+    utilities_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesUtilitiesEurMin)
+      .nullish()
+      .describe("Marina utilities and local services not included in berth."),
     fuel_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesFuelEurMin)
@@ -2372,10 +2390,20 @@ export const CalculateCostEstimateBody = zod.object({
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin)
       .nullish(),
+    management_fee_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesManagementFeeEurMin)
+      .nullish()
+      .describe("Monthly yacht management fee."),
     maintenance_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin)
       .nullish(),
+    misc_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyMonthlyExpensesMiscEurMin)
+      .nullish()
+      .describe("Monthly miscellaneous \/ contingency allowance."),
   }),
   annual_expenses: zod.object({
     insurance_eur: zod
@@ -2390,6 +2418,18 @@ export const CalculateCostEstimateBody = zod.object({
       .number()
       .min(calculateCostEstimateBodyAnnualExpensesClassificationEurMin)
       .nullish(),
+    commercial_compliance_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesCommercialComplianceEurMin)
+      .nullish()
+      .describe(
+        "Commercial coding, charter compliance and related certificates.",
+      ),
+    admin_accounting_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesAdminAccountingEurMin)
+      .nullish()
+      .describe("Accounting, legal and administration costs."),
     antifouling_eur: zod
       .number()
       .min(calculateCostEstimateBodyAnnualExpensesAntifoulingEurMin)
@@ -2442,12 +2482,25 @@ export const CalculateCostEstimateBody = zod.object({
       .min(calculateCostEstimateBodyAnnualExpensesWatermakerServiceEurMin)
       .nullish()
       .describe("Watermaker membrane replacement & service"),
+    crew_travel_training_eur: zod
+      .number()
+      .min(calculateCostEstimateBodyAnnualExpensesCrewTravelTrainingEurMin)
+      .nullish()
+      .describe("Crew travel, uniforms, training and certificates."),
   }),
   broker_commission_pct: zod
     .number()
     .min(calculateCostEstimateBodyBrokerCommissionPctMin)
     .max(calculateCostEstimateBodyBrokerCommissionPctMax)
     .nullish(),
+  social_security_pct: zod
+    .number()
+    .min(calculateCostEstimateBodySocialSecurityPctMin)
+    .max(calculateCostEstimateBodySocialSecurityPctMax)
+    .nullish()
+    .describe(
+      "Payroll\/social-security uplift applied to enabled crew salary lines and shown per role.",
+    ),
   financing: zod.object({
     type: zod.enum(["cash", "loan"]),
     loan_amount_eur: zod
@@ -2527,6 +2580,8 @@ export const CalculateCostEstimateResponse = zod.object({
     ]),
     length_meters: zod.number(),
     year_built: zod.number(),
+    region: zod.string().optional(),
+    usage_type: zod.string().optional(),
   }),
 });
 
@@ -2582,19 +2637,29 @@ export const getCostEstimateResponseInputCrewItemMonthsPerYearMax = 12;
 
 export const getCostEstimateResponseInputMonthlyExpensesMooringEurMin = 0;
 
+export const getCostEstimateResponseInputMonthlyExpensesUtilitiesEurMin = 0;
+
 export const getCostEstimateResponseInputMonthlyExpensesFuelEurMin = 0;
 
 export const getCostEstimateResponseInputMonthlyExpensesProvisioningEurMin = 0;
 
 export const getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin = 0;
 
+export const getCostEstimateResponseInputMonthlyExpensesManagementFeeEurMin = 0;
+
 export const getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesMiscEurMin = 0;
 
 export const getCostEstimateResponseInputAnnualExpensesInsuranceEurMin = 0;
 
 export const getCostEstimateResponseInputAnnualExpensesRegistrationEurMin = 0;
 
 export const getCostEstimateResponseInputAnnualExpensesClassificationEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesCommercialComplianceEurMin = 0;
+
+export const getCostEstimateResponseInputAnnualExpensesAdminAccountingEurMin = 0;
 
 export const getCostEstimateResponseInputAnnualExpensesAntifoulingEurMin = 0;
 
@@ -2616,8 +2681,13 @@ export const getCostEstimateResponseInputAnnualExpensesRiggingServiceEurMin = 0;
 
 export const getCostEstimateResponseInputAnnualExpensesWatermakerServiceEurMin = 0;
 
+export const getCostEstimateResponseInputAnnualExpensesCrewTravelTrainingEurMin = 0;
+
 export const getCostEstimateResponseInputBrokerCommissionPctMin = 0;
 export const getCostEstimateResponseInputBrokerCommissionPctMax = 100;
+
+export const getCostEstimateResponseInputSocialSecurityPctMin = 0;
+export const getCostEstimateResponseInputSocialSecurityPctMax = 100;
 
 export const getCostEstimateResponseInputFinancingLoanAmountEurMin = 0;
 
@@ -2686,15 +2756,13 @@ export const GetCostEstimateResponse = zod.object({
           .min(1)
           .max(getCostEstimateResponseInputCrewItemQuantityMax)
           .nullish()
-          .describe("Only meaningful for stewardess\/deckhand"),
+          .describe("Number of crew in this role."),
         months_per_year: zod
           .number()
           .min(1)
           .max(getCostEstimateResponseInputCrewItemMonthsPerYearMax)
           .nullish()
-          .describe(
-            "Months of employment per year. Only honored for stewardess\/deckhand (seasonal). All other positions are treated as 12.",
-          ),
+          .describe("Months of employment per year."),
       }),
     ),
     monthly_expenses: zod.object({
@@ -2702,6 +2770,11 @@ export const GetCostEstimateResponse = zod.object({
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMooringEurMin)
         .nullish(),
+      utilities_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesUtilitiesEurMin)
+        .nullish()
+        .describe("Marina utilities and local services not included in berth."),
       fuel_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesFuelEurMin)
@@ -2714,10 +2787,20 @@ export const GetCostEstimateResponse = zod.object({
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin)
         .nullish(),
+      management_fee_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesManagementFeeEurMin)
+        .nullish()
+        .describe("Monthly yacht management fee."),
       maintenance_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin)
         .nullish(),
+      misc_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputMonthlyExpensesMiscEurMin)
+        .nullish()
+        .describe("Monthly miscellaneous \/ contingency allowance."),
     }),
     annual_expenses: zod.object({
       insurance_eur: zod
@@ -2732,6 +2815,18 @@ export const GetCostEstimateResponse = zod.object({
         .number()
         .min(getCostEstimateResponseInputAnnualExpensesClassificationEurMin)
         .nullish(),
+      commercial_compliance_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesCommercialComplianceEurMin)
+        .nullish()
+        .describe(
+          "Commercial coding, charter compliance and related certificates.",
+        ),
+      admin_accounting_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesAdminAccountingEurMin)
+        .nullish()
+        .describe("Accounting, legal and administration costs."),
       antifouling_eur: zod
         .number()
         .min(getCostEstimateResponseInputAnnualExpensesAntifoulingEurMin)
@@ -2786,12 +2881,25 @@ export const GetCostEstimateResponse = zod.object({
         .min(getCostEstimateResponseInputAnnualExpensesWatermakerServiceEurMin)
         .nullish()
         .describe("Watermaker membrane replacement & service"),
+      crew_travel_training_eur: zod
+        .number()
+        .min(getCostEstimateResponseInputAnnualExpensesCrewTravelTrainingEurMin)
+        .nullish()
+        .describe("Crew travel, uniforms, training and certificates."),
     }),
     broker_commission_pct: zod
       .number()
       .min(getCostEstimateResponseInputBrokerCommissionPctMin)
       .max(getCostEstimateResponseInputBrokerCommissionPctMax)
       .nullish(),
+    social_security_pct: zod
+      .number()
+      .min(getCostEstimateResponseInputSocialSecurityPctMin)
+      .max(getCostEstimateResponseInputSocialSecurityPctMax)
+      .nullish()
+      .describe(
+        "Payroll\/social-security uplift applied to enabled crew salary lines and shown per role.",
+      ),
     financing: zod.object({
       type: zod.enum(["cash", "loan"]),
       loan_amount_eur: zod
@@ -2867,6 +2975,8 @@ export const GetCostEstimateResponse = zod.object({
     ]),
     length_meters: zod.number(),
     year_built: zod.number(),
+    region: zod.string().optional(),
+    usage_type: zod.string().optional(),
   }),
 });
 

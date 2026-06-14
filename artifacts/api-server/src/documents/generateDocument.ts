@@ -1,4 +1,5 @@
 import { buildProposalModel } from "./builders/proposal";
+import { buildCostModel } from "./builders/cost";
 import { buildRoiModel } from "./builders/roi";
 import { buildValuationModel } from "./builders/valuation";
 import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
@@ -14,6 +15,7 @@ import {
   normalizeTemplate,
   type GenerateDocumentRequest,
   type GeneratedDocument,
+  type CostReportData,
   type ProposalReportData,
   type RoiReportData,
   type ValuationReportData,
@@ -42,7 +44,8 @@ export async function generateDocument(
   if (
     req.documentType !== "proposal" &&
     req.documentType !== "valuation_report" &&
-    req.documentType !== "roi_report"
+    req.documentType !== "roi_report" &&
+    req.documentType !== "cost_report"
   ) {
     throw Object.assign(new Error(`Unsupported documentType: ${req.documentType}`), {
       statusCode: 501,
@@ -52,6 +55,34 @@ export async function generateDocument(
   const yacht = req.yachtProfile;
   const settings = req.exportSettings ?? {};
   const template = normalizeTemplate(req.template ?? settings.template);
+
+  if (req.documentType === "cost_report") {
+    // Annual cost is adaptive-engine PDF only.
+    if (req.format === "docx") {
+      throw Object.assign(new Error("DOCX is not supported for cost_report."), {
+        statusCode: 501,
+      });
+    }
+    const reportData = (req.reportData ?? {}) as CostReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "annual_cost", "annual_cost");
+    let yachtForCost = yacht;
+    if (yachtForCost) {
+      const rawPhotos = photoList(yachtForCost);
+      if (rawPhotos.length) {
+        const { valid } = await validateImageUrls(rawPhotos);
+        yachtForCost = { ...yachtForCost, cover_photo_url: valid[0] ?? null, photo_urls: valid };
+      }
+    }
+    const html = renderModelToPdfHtml(
+      buildCostModel({ yacht: yachtForCost, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_annual_cost.pdf`,
+    };
+  }
 
   if (req.documentType === "roi_report") {
     // Charter ROI is adaptive-engine (block-based) PDF only.

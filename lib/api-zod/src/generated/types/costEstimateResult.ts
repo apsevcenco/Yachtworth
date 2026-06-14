@@ -35,4 +35,6 @@ export interface CostEstimateResult {
   yacht_class: YachtType;
   length_meters: number;
   year_built: number;
+  region?: string;
+  usage_type?: string;
 }

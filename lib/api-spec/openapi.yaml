@@ -1483,6 +1483,10 @@ components:
           description: Model/range (required when mode=builder unless bypass)
         year_built:
           type: integer
+        region:
+          type: string
+        usage_type:
+          type: string
           minimum: 1940
           maximum: 2100
         refit_year:
@@ -2814,18 +2818,22 @@ components:
           type: ["integer", "null"]
           minimum: 1
           maximum: 4
-          description: Only meaningful for stewardess/deckhand
+          description: Number of crew in this role.
         months_per_year:
           type: ["integer", "null"]
           minimum: 1
           maximum: 12
-          description: Months of employment per year. Only honored for stewardess/deckhand (seasonal). All other positions are treated as 12.
+          description: Months of employment per year.
     CostMonthlyExpenses:
       type: object
       properties:
         mooring_eur:
           type: ["number", "null"]
           minimum: 0
+        utilities_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Marina utilities and local services not included in berth.
         fuel_eur:
           type: ["number", "null"]
           minimum: 0
@@ -2835,9 +2843,17 @@ components:
         communications_eur:
           type: ["number", "null"]
           minimum: 0
+        management_fee_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Monthly yacht management fee.
         maintenance_eur:
           type: ["number", "null"]
           minimum: 0
+        misc_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Monthly miscellaneous / contingency allowance.
     CostAnnualExpenses:
       type: object
       properties:
@@ -2850,6 +2866,14 @@ components:
         classification_eur:
           type: ["number", "null"]
           minimum: 0
+        commercial_compliance_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Commercial coding, charter compliance and related certificates.
+        admin_accounting_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Accounting, legal and administration costs.
         antifouling_eur:
           type: ["number", "null"]
           minimum: 0
@@ -2889,6 +2913,10 @@ components:
           type: ["number", "null"]
           minimum: 0
           description: Watermaker membrane replacement & service
+        crew_travel_training_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Crew travel, uniforms, training and certificates.
     CostFinancingInput:
       type: object
       required: [type]
@@ -2956,6 +2984,11 @@ components:
           type: ["number", "null"]
           minimum: 0
           maximum: 100
+        social_security_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+          description: Payroll/social-security uplift applied to enabled crew salary lines and shown per role.
         financing:
           $ref: "#/components/schemas/CostFinancingInput"
     CostBreakdownEntry:

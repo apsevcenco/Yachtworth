@@ -53,5 +53,12 @@ export interface CostEstimateInput {
    * @nullable
    */
   broker_commission_pct?: number | null;
+  /**
+   * Payroll/social-security uplift applied to enabled crew salary lines and shown per role.
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  social_security_pct?: number | null;
   financing: CostFinancingInput;
 }

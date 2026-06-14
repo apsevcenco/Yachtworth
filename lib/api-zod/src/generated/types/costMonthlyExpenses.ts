@@ -10,8 +10,14 @@ export interface CostMonthlyExpenses {
   /**
    * @minimum 0
    * @nullable
-   */
+  */
   mooring_eur?: number | null;
+  /**
+   * Marina utilities and local services not included in berth.
+   * @minimum 0
+   * @nullable
+   */
+  utilities_eur?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -25,11 +31,23 @@ export interface CostMonthlyExpenses {
   /**
    * @minimum 0
    * @nullable
-   */
+  */
   communications_eur?: number | null;
+  /**
+   * Monthly yacht management fee.
+   * @minimum 0
+   * @nullable
+   */
+  management_fee_eur?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   maintenance_eur?: number | null;
+  /**
+   * Monthly miscellaneous / contingency allowance.
+   * @minimum 0
+   * @nullable
+   */
+  misc_eur?: number | null;
 }

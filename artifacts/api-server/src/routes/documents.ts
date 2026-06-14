@@ -32,13 +32,14 @@ router.post(
     if (
       documentType !== "proposal" &&
       documentType !== "valuation_report" &&
-      documentType !== "roi_report"
+      documentType !== "roi_report" &&
+      documentType !== "cost_report"
     ) {
       res
         .status(documentType ? 501 : 400)
         .json({
           error:
-            "Unsupported or missing documentType (only 'proposal', 'valuation_report' or 'roi_report').",
+            "Unsupported or missing documentType (only 'proposal', 'valuation_report', 'roi_report' or 'cost_report').",
         });
       return;
     }
