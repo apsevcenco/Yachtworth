@@ -2,10 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import {
   getGetCharterQueryKey,
+  getListChartersQueryKey,
   getListYachtsQueryKey,
   useCreateCharter,
   useDeleteCharter,
   useGetCharter,
+  useListCharters,
   useListYachts,
   useUpdateCharter,
   type Charter,
@@ -75,6 +77,21 @@ const STATUS_OPTIONS: { value: CharterStatus; label: string; color: string }[] =
     { value: "blocked", label: "Blocked", color: RED },
     { value: "cancelled", label: "Cancelled", color: DARK_GREY },
   ];
+
+const BLOCKING_STATUSES = new Set<CharterStatus>([
+  "confirmed",
+  "tentative",
+  "maintenance",
+  "blocked",
+]);
+
+function blocksCalendar(status: CharterStatus): boolean {
+  return BLOCKING_STATUSES.has(status);
+}
+
+function statusLabel(status: CharterStatus): string {
+  return STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status;
+}
 
 const CONTRACT_OPTIONS: { value: ContractStatus; label: string }[] = [
   { value: "not_signed", label: "Not signed" },
@@ -402,6 +419,10 @@ const dateOrNull = (s: string): string | null => {
   return v;
 };
 
+function dateRangeLabel(start: string, end: string): string {
+  return start === end ? start : `${start} to ${end}`;
+}
+
 function toInput(f: FormState): CharterInput {
   const clientName = f.client_name.trim().replace(/\s+/g, " ");
   return {
@@ -591,6 +612,27 @@ export default function CharterFormScreen() {
     return initial;
   });
 
+  const conflictParams = useMemo(
+    () => ({
+      yacht_id: form.yacht_id,
+      start: form.start_date,
+      end: form.end_date,
+    }),
+    [form.yacht_id, form.start_date, form.end_date],
+  );
+  const conflictsQ = useListCharters(conflictParams, {
+    query: {
+      queryKey: getListChartersQueryKey(conflictParams),
+      enabled:
+        Boolean(isSignedIn) &&
+        Boolean(form.yacht_id) &&
+        Boolean(dateOrNull(form.start_date)) &&
+        Boolean(dateOrNull(form.end_date)) &&
+        blocksCalendar(form.status),
+      staleTime: 10_000,
+    },
+  });
+
   const [hydrated, setHydrated] = useState(!editId);
   useEffect(() => {
     if (editId && charterQ.data && !hydrated) {
@@ -646,6 +688,15 @@ export default function CharterFormScreen() {
   >(null);
 
   const calc = useMemo(() => calcCharter(toCalcInput(form)), [form]);
+  const conflictingCharters = useMemo(() => {
+    if (!blocksCalendar(form.status)) return [];
+    if (!dateOrNull(form.start_date) || !dateOrNull(form.end_date)) return [];
+    return (conflictsQ.data?.items ?? []).filter((c) => {
+      if (editId && c.id === editId) return false;
+      if (!blocksCalendar(c.status)) return false;
+      return c.start_date <= form.end_date && c.end_date >= form.start_date;
+    });
+  }, [conflictsQ.data?.items, editId, form.end_date, form.start_date, form.status]);
 
   const createM = useCreateCharter();
   const updateM = useUpdateCharter();
@@ -727,6 +778,14 @@ export default function CharterFormScreen() {
       Alert.alert(
         "Client name required",
         "Please enter the client name to save this charter.",
+      );
+      return;
+    }
+    if (conflictingCharters.length > 0) {
+      const first = conflictingCharters[0]!;
+      Alert.alert(
+        "Yacht already booked",
+        `${statusLabel(first.status)} from ${dateRangeLabel(first.start_date, first.end_date)} conflicts with these dates. Choose another date range or edit the existing booking first.`,
       );
       return;
     }
@@ -1081,6 +1140,19 @@ export default function CharterFormScreen() {
               Pick valid dates to see duration
             </Text>
           )}
+          {conflictingCharters.length > 0 ? (
+            <View style={styles.conflictBox}>
+              <Feather name="alert-triangle" size={15} color={RED} />
+              <Text style={styles.conflictText}>
+                {statusLabel(conflictingCharters[0]!.status)} already exists from{" "}
+                {dateRangeLabel(
+                  conflictingCharters[0]!.start_date,
+                  conflictingCharters[0]!.end_date,
+                )}
+                . Change dates or edit that booking.
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.row2}>
             <View style={{ flex: 1 }}>
@@ -2904,6 +2976,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: -4,
     marginBottom: 8,
+  },
+  conflictBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: RED + "66",
+    backgroundColor: RED + "14",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    marginBottom: 10,
+  },
+  conflictText: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    lineHeight: 17,
   },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
   statusPill: {

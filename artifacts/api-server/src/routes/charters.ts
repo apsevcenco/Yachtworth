@@ -17,10 +17,60 @@ function isIsoDate(v: unknown): v is string {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 }
 
+function isValidDateRange(start: string, end: string): boolean {
+  return isIsoDate(start) && isIsoDate(end) && start <= end;
+}
+
 function normalizeClientName(name: string | null | undefined): string | null {
   if (!name) return null;
   const trimmed = name.trim().replace(/\s+/g, " ");
   return trimmed.length > 0 ? trimmed : null;
+}
+
+const BLOCKING_CHARTER_STATUSES = [
+  "confirmed",
+  "tentative",
+  "maintenance",
+  "blocked",
+] as const;
+
+function charterBlocksCalendar(status: unknown): boolean {
+  return (
+    typeof status === "string" &&
+    BLOCKING_CHARTER_STATUSES.includes(
+      status as (typeof BLOCKING_CHARTER_STATUSES)[number],
+    )
+  );
+}
+
+async function findConflictingCharter(
+  sb: NonNullable<ReturnType<typeof getSupabase>>,
+  userId: string,
+  payload: {
+    yacht_id: string;
+    status?: string | null;
+    start_date: string;
+    end_date: string;
+  },
+  ignoreId?: string,
+): Promise<{ id: string; status: string; start_date: string; end_date: string } | null> {
+  if (!charterBlocksCalendar(payload.status ?? "confirmed")) return null;
+  let q = sb
+    .from(CHARTERS_TABLE)
+    .select("id, status, start_date, end_date")
+    .eq("clerk_user_id", userId)
+    .eq("yacht_id", payload.yacht_id)
+    .in("status", [...BLOCKING_CHARTER_STATUSES])
+    .lte("start_date", payload.end_date)
+    .gte("end_date", payload.start_date)
+    .limit(1);
+  if (ignoreId) q = q.neq("id", ignoreId);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  const first = (data ?? [])[0] as
+    | { id: string; status: string; start_date: string; end_date: string }
+    | undefined;
+  return first ?? null;
 }
 
 // Charter columns that are NOT NULL with a numeric DB default. Clients may
@@ -163,9 +213,35 @@ router.post(
       res.status(400).json({ error: "Invalid yacht_id" });
       return;
     }
+    if (!isValidDateRange(parsed.data.start_date, parsed.data.end_date)) {
+      res.status(400).json({ error: "Invalid charter date range" });
+      return;
+    }
     // Verify yacht ownership (no IDOR)
     if (!(await assertYachtOwned(sb, req.userId!, parsed.data.yacht_id))) {
       res.status(404).json({ error: "Yacht not found" });
+      return;
+    }
+    try {
+      const conflict = await findConflictingCharter(sb, req.userId!, {
+        yacht_id: parsed.data.yacht_id,
+        status: parsed.data.status,
+        start_date: parsed.data.start_date,
+        end_date: parsed.data.end_date,
+      });
+      if (conflict) {
+        res.status(409).json({
+          error: `Date conflict with ${conflict.status} charter from ${conflict.start_date} to ${conflict.end_date}`,
+          conflict,
+        });
+        return;
+      }
+    } catch (err) {
+      req.log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "Charter conflict check failed",
+      );
+      res.status(500).json({ error: "Could not check charter availability" });
       return;
     }
     const insertPayload = normalizeCharterPayload({
@@ -258,6 +334,37 @@ router.patch(
       !(await assertYachtOwned(sb, req.userId!, parsed.data.yacht_id))
     ) {
       res.status(404).json({ error: "Yacht not found" });
+      return;
+    }
+    if (!isValidDateRange(parsed.data.start_date, parsed.data.end_date)) {
+      res.status(400).json({ error: "Invalid charter date range" });
+      return;
+    }
+    try {
+      const conflict = await findConflictingCharter(
+        sb,
+        req.userId!,
+        {
+          yacht_id: parsed.data.yacht_id,
+          status: parsed.data.status,
+          start_date: parsed.data.start_date,
+          end_date: parsed.data.end_date,
+        },
+        req.params["id"],
+      );
+      if (conflict) {
+        res.status(409).json({
+          error: `Date conflict with ${conflict.status} charter from ${conflict.start_date} to ${conflict.end_date}`,
+          conflict,
+        });
+        return;
+      }
+    } catch (err) {
+      req.log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "Charter conflict check failed",
+      );
+      res.status(500).json({ error: "Could not check charter availability" });
       return;
     }
     const updatePayload = normalizeCharterPayload({
