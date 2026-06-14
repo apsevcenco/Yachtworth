@@ -103,6 +103,7 @@ interface EvidenceQuality {
   withSource: number;
   unique: number;
   accepted: number;
+  strictAccepted: number;
   rejected: number;
 }
 
@@ -364,14 +365,53 @@ function matchesVat(vat: VatStatus | null | undefined, target: VatStatus | null 
 function filterComparableCohort(
   items: ComparableItem[],
   request: ValuationRequest,
-): { accepted: ComparableItem[]; rejected: number } {
-  const accepted = items.filter((c) => {
+): { accepted: ComparableItem[]; rejected: number; strictAccepted: number } {
+  const strict = items.filter((c) => {
     if (!c.source_url) return false;
     if (!matchesRegion(c.location, request.sale_region)) return false;
     if (!matchesVat(c.vat_status ?? null, request.vat_status ?? null)) return false;
     return true;
   });
-  return { accepted, rejected: items.length - accepted.length };
+  const accepted = [...strict];
+  if (accepted.length < 3) {
+    const seen = new Set(accepted.map(comparableKey));
+    for (const c of items) {
+      if (accepted.length >= 5) break;
+      if (seen.has(comparableKey(c))) continue;
+      if (!c.source_url) continue;
+      if (parsePriceEur(c.price) == null) continue;
+      accepted.push({
+        ...c,
+        note: [
+          c.note,
+          "Evidence retained as a near-match because the strict region/VAT cohort was thin.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      seen.add(comparableKey(c));
+    }
+  }
+  if (accepted.length === 0) {
+    const seen = new Set<string>();
+    for (const c of items) {
+      if (accepted.length >= 5) break;
+      if (parsePriceEur(c.price) == null) continue;
+      const key = comparableKey(c);
+      if (seen.has(key)) continue;
+      accepted.push({
+        ...c,
+        note: [
+          c.note,
+          "Unverified example retained because the AI did not return source-backed comparables.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      seen.add(key);
+    }
+  }
+  return { accepted, rejected: items.length - strict.length, strictAccepted: strict.length };
 }
 
 function comparableKey(c: ComparableItem): string {
@@ -399,13 +439,14 @@ function dedupeComparables(items: ComparableItem[]): ComparableItem[] {
   return out;
 }
 
-function evidenceQuality(items: ComparableItem[], rejected = 0): EvidenceQuality {
+function evidenceQuality(items: ComparableItem[], rejected = 0, strictAccepted = items.length): EvidenceQuality {
   return {
     total: items.length,
     withPrice: items.filter((c) => parsePriceEur(c.price) != null).length,
     withSource: items.filter((c) => Boolean(c.source_url)).length,
     unique: dedupeComparables(items).length,
     accepted: items.length,
+    strictAccepted,
     rejected,
   };
 }
@@ -454,6 +495,8 @@ function buildSystemReasoning(args: {
     notes.push(
       `${args.quality.rejected} comparable ${args.quality.rejected === 1 ? "row was" : "rows were"} excluded for missing source, region mismatch, or VAT-status mismatch`,
     );
+  if (args.quality.strictAccepted < args.quality.accepted)
+    notes.push("Near-match evidence was retained because the strict region/VAT cohort was thin");
   if (args.quality.withSource < 3)
     notes.push("Source coverage is thin, so confidence is capped");
   const second =
@@ -675,7 +718,7 @@ export async function runValuation(
   );
   const filtered = filterComparableCohort(candidateComparables, b);
   const comparables = filtered.accepted.slice(0, 5);
-  const quality = evidenceQuality(comparables, filtered.rejected);
+  const quality = evidenceQuality(comparables, filtered.rejected, filtered.strictAccepted);
 
   // Sanity check + clamp
   let aiPriceEur = parsePriceEur(result.estimated_price);
@@ -736,7 +779,13 @@ export async function runValuation(
   // Evidence quality gates: high confidence requires source-backed, parseable,
   // non-duplicate comparables. Thin evidence still returns a useful estimate,
   // but the confidence label must tell the truth.
-  if (quality.accepted < 3 || quality.withPrice < 3 || quality.withSource < 3) cap("low");
+  if (
+    quality.strictAccepted < 3 ||
+    quality.accepted < 3 ||
+    quality.withPrice < 3 ||
+    quality.withSource < 3
+  )
+    cap("low");
   else if (quality.accepted < 5 || quality.unique < 5) cap("medium");
 
   // Condition multiplier (deterministic, server-authoritative).
