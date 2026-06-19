@@ -12,7 +12,7 @@ import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -83,10 +83,16 @@ function MissingConfigScreen() {
   );
 }
 
-function ClerkTokenBridge() {
+function AuthReadyGate({ children }: { children: React.ReactNode }) {
   const { getToken, isLoaded } = useAuth();
+  const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      setIsReady(false);
+      return;
+    }
+
     setAuthTokenGetter(async () => {
       try {
         return await getToken();
@@ -94,9 +100,16 @@ function ClerkTokenBridge() {
         return null;
       }
     });
-    return () => setAuthTokenGetter(null);
+
+    setIsReady(true);
+
+    return () => {
+      setIsReady(false);
+      setAuthTokenGetter(null);
+    };
   }, [getToken, isLoaded]);
-  return null;
+
+  return isReady ? <>{children}</> : null;
 }
 
 function RootLayoutNav() {
@@ -253,20 +266,21 @@ export default function RootLayout() {
       proxyUrl={proxyUrl}
     >
       <ClerkLoaded>
-        <SafeAreaProvider>
-          <ErrorBoundary>
-            <QueryClientProvider client={queryClient}>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <StatusBar style="light" />
-                  <ClerkTokenBridge />
-                  <RootLayoutNav />
-                  {disableIntro ? null : <LaunchIntro />}
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </QueryClientProvider>
-          </ErrorBoundary>
-        </SafeAreaProvider>
+        <AuthReadyGate>
+          <SafeAreaProvider>
+            <ErrorBoundary>
+              <QueryClientProvider client={queryClient}>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <KeyboardProvider>
+                    <StatusBar style="light" />
+                    <RootLayoutNav />
+                    {disableIntro ? null : <LaunchIntro />}
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </QueryClientProvider>
+            </ErrorBoundary>
+          </SafeAreaProvider>
+        </AuthReadyGate>
       </ClerkLoaded>
     </ClerkProvider>
   );
