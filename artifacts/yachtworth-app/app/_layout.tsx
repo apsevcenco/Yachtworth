@@ -26,7 +26,12 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+const FALLBACK_CLERK_PUBLISHABLE_KEY =
+  "pk_test_Y2hlZXJmdWwtaGVyb24tNzYuY2xlcmsuYWNjb3VudHMuZGV2JA";
+const FALLBACK_API_DOMAIN = "https://yachtworth.onrender.com";
+
+const publishableKey =
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? FALLBACK_CLERK_PUBLISHABLE_KEY;
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 const disableIntro = process.env.EXPO_PUBLIC_DISABLE_INTRO === "1";
 
@@ -37,7 +42,7 @@ function normalizeApiBaseUrl(value: string | undefined): string | null {
   return `https://${raw}`;
 }
 
-const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
+const apiDomain = process.env.EXPO_PUBLIC_DOMAIN ?? FALLBACK_API_DOMAIN;
 setBaseUrl(normalizeApiBaseUrl(apiDomain));
 
 function MissingConfigScreen() {
@@ -99,122 +104,122 @@ function RootLayoutNav() {
   const showBrandHeader = !pathname.startsWith("/sign-");
   return (
     <View style={{ flex: 1 }}>
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="(auth)"
-        options={{ headerShown: false, presentation: "modal" }}
-      />
-      <Stack.Screen
-        name="valuation/new"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="valuation/result"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="roi/yacht-form"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="roi/calculate"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="roi/result"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="cost/new"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="cost/result"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="charter"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="charter-planner"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="charter-form"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="client-detail"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="history"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="settings"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="my-yacht/edit"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="my-yacht/[id]"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="listing/index"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="listing/form"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="listing/result"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="listing/my-listings"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="yacht-proposal/index"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="yacht-proposal/form"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="yacht-proposal/preview"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="yacht-proposal/my-proposals"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="survey/index"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="survey/new"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="survey/[id]/index"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="survey/[id]/section/[n]"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-    </Stack>
-    {showBrandHeader ? <BrandHeader /> : null}
+      <Stack screenOptions={{ headerBackTitle: "Back" }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(auth)"
+          options={{ headerShown: false, presentation: "modal" }}
+        />
+        <Stack.Screen
+          name="valuation/new"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="valuation/result"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="roi/yacht-form"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="roi/calculate"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="roi/result"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="cost/new"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="cost/result"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="charter"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="charter-planner"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="charter-form"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="client-detail"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="history"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="my-yacht/edit"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="my-yacht/[id]"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="listing/index"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="listing/form"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="listing/result"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="listing/my-listings"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="yacht-proposal/index"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="yacht-proposal/form"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="yacht-proposal/preview"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="yacht-proposal/my-proposals"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="survey/index"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="survey/new"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="survey/[id]/index"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="survey/[id]/section/[n]"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+      </Stack>
+      {showBrandHeader ? <BrandHeader /> : null}
     </View>
   );
 }
