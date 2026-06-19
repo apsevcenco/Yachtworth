@@ -38,6 +38,7 @@ const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 const child = spawn(command, args, {
   stdio: 'inherit',
+  shell: process.platform === 'win32',
   env: {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: stripProtocol(apiDomain),
