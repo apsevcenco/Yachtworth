@@ -10,23 +10,37 @@ const CLIENT_COLUMNS =
 
 type CharterAggRow = {
   client_name: string | null;
+  status?: string | null;
   start_date: string;
+  end_date: string;
   charter_rate: number | null;
   charter_rate_type: string;
   vat_applicable: boolean;
   vat_percent: number;
-  start_date_iso?: never;
-  end_date: string;
 };
+
+function daysInclusive(start: string, end: string): number {
+  const mS = /^(\d{4})-(\d{2})-(\d{2})/.exec(start);
+  const mE = /^(\d{4})-(\d{2})-(\d{2})/.exec(end);
+  if (!mS || !mE) return 0;
+  const s = Date.UTC(+mS[1]!, +mS[2]! - 1, +mS[3]!);
+  const e = Date.UTC(+mE[1]!, +mE[2]! - 1, +mE[3]!);
+  if (e < s) return 0;
+  return Math.round((e - s) / 86400000) + 1;
+}
+
+function countsAsRevenue(c: CharterAggRow): boolean {
+  return c.status !== "cancelled" && c.status !== "blocked" && c.status !== "maintenance";
+}
 
 function computeGrossRevenue(c: CharterAggRow): number {
   if (c.charter_rate == null) return 0;
+  const days = daysInclusive(c.start_date, c.end_date);
   if (c.charter_rate_type === "per_day") {
-    const start = new Date(c.start_date);
-    const end = new Date(c.end_date);
-    const days =
-      Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000)) + 1;
     return c.charter_rate * days;
+  }
+  if (c.charter_rate_type === "per_week") {
+    return c.charter_rate * (days / 7);
   }
   return c.charter_rate;
 }
@@ -52,7 +66,7 @@ router.get(
         sb
           .from(CHARTERS_TABLE)
           .select(
-            "client_name, start_date, end_date, charter_rate, charter_rate_type, vat_applicable, vat_percent",
+            "client_name, status, start_date, end_date, charter_rate, charter_rate_type, vat_applicable, vat_percent",
           )
           .eq("clerk_user_id", req.userId!)
           .not("client_name", "is", null)
@@ -72,7 +86,7 @@ router.get(
       if (!key) continue;
       const agg = byName.get(key) ?? { count: 0, revenue: 0, last: null };
       agg.count += 1;
-      agg.revenue += computeGrossRevenue(ch);
+      if (countsAsRevenue(ch)) agg.revenue += computeGrossRevenue(ch);
       if (!agg.last || ch.start_date > agg.last) agg.last = ch.start_date;
       byName.set(key, agg);
     }
@@ -120,9 +134,7 @@ router.get(
     }
     const { data: charters, error: chErr } = await sb
       .from(CHARTERS_TABLE)
-      .select(
-        "id, yacht_id, clerk_user_id, created_at, updated_at, status, client_name, client_email, client_phone, start_date, end_date, departure_port, return_port, engine_hours_before, engine_hours_after, fuel_liters, fuel_price_per_liter, captain_name, captain_day_rate, stewardess_count, stewardess_day_rate, extra_crew_cost, extra_crew_note, charter_rate_type, charter_rate, deposit_amount, deposit_date, deposit_received, final_payment_amount, final_payment_date, final_payment_received, vat_applicable, vat_percent, port_fees, provisioning, cleaning, other_expenses, other_expenses_note, notes",
-      )
+      .select("*")
       .eq("clerk_user_id", req.userId!)
       .eq("client_name", client.name)
       .order("start_date", { ascending: false })
@@ -136,7 +148,7 @@ router.get(
     let revenue = 0;
     let last: string | null = null;
     for (const ch of list) {
-      revenue += computeGrossRevenue(ch);
+      if (countsAsRevenue(ch)) revenue += computeGrossRevenue(ch);
       if (!last || ch.start_date > last) last = ch.start_date;
     }
     res.json({

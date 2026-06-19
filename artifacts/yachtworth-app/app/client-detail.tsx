@@ -85,16 +85,65 @@ function fmtRange(start: string, end: string): string {
   }
 }
 
+function daysInclusive(start: string, end: string): number {
+  const mS = /^(\d{4})-(\d{2})-(\d{2})/.exec(start);
+  const mE = /^(\d{4})-(\d{2})-(\d{2})/.exec(end);
+  if (!mS || !mE) return 0;
+  const s = Date.UTC(+mS[1]!, +mS[2]! - 1, +mS[3]!);
+  const e = Date.UTC(+mE[1]!, +mE[2]! - 1, +mE[3]!);
+  if (e < s) return 0;
+  return Math.round((e - s) / 86400000) + 1;
+}
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function daysUntil(dateIso: string | null | undefined): number | null {
+  if (!dateIso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso);
+  if (!m) return null;
+  const due = Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due - today) / 86400000);
+}
+
 function grossOf(c: Charter): number {
   if (c.charter_rate == null) return 0;
+  const days = daysInclusive(c.start_date, c.end_date);
   if (c.charter_rate_type === "per_day") {
-    const cs = new Date(c.start_date);
-    const ce = new Date(c.end_date);
-    const days =
-      Math.max(0, Math.round((ce.getTime() - cs.getTime()) / 86400000)) + 1;
     return c.charter_rate * days;
   }
+  if (c.charter_rate_type === "per_week") return c.charter_rate * (days / 7);
   return c.charter_rate;
+}
+
+function dealStage(c: Charter): { label: string; color: string } {
+  if (c.status === "cancelled") return { label: "Cancelled", color: STATUS_COLORS.cancelled };
+  if (c.status === "blocked") return { label: "Blocked", color: STATUS_COLORS.blocked };
+  if (c.status === "maintenance") return { label: "Maintenance", color: STATUS_COLORS.maintenance };
+  if (c.status === "tentative") return { label: "Option", color: STATUS_COLORS.tentative };
+  if (c.contract_status === "sent") return { label: "Contract sent", color: STATUS_COLORS.tentative };
+  if (c.contract_status !== "signed") return { label: "Contract pending", color: STATUS_COLORS.tentative };
+  if (c.deposit_amount && !c.deposit_received) return { label: "Deposit due", color: RED };
+  if (c.final_payment_amount && !c.final_payment_received) return { label: "Final due", color: RED };
+  if (c.end_date < todayIso()) return { label: "Completed", color: "#7BD389" };
+  return { label: "Ready", color: "#7BD389" };
+}
+
+function paymentStatus(c: Charter): string | null {
+  const depositDue = c.deposit_amount != null && c.deposit_amount > 0 && !c.deposit_received;
+  const finalDue = c.final_payment_amount != null && c.final_payment_amount > 0 && !c.final_payment_received;
+  const dueDate = depositDue ? c.deposit_date : finalDue ? c.final_payment_date : null;
+  if (!depositDue && !finalDue) return null;
+  const delta = daysUntil(dueDate);
+  const kind = depositDue ? "Deposit" : "Final payment";
+  if (delta != null && delta < 0) return `${kind} overdue`;
+  if (delta === 0) return `${kind} due today`;
+  if (delta != null) return `${kind} due in ${delta} days`;
+  return `${kind} unpaid`;
 }
 
 export default function ClientDetailScreen() {
@@ -270,6 +319,8 @@ export default function ClientDetailScreen() {
             const color = STATUS_COLORS[c.status] ?? MUTED;
             const label = STATUS_LABELS[c.status] ?? c.status;
             const gross = grossOf(c);
+            const stage = dealStage(c);
+            const payment = paymentStatus(c);
             return (
               <Pressable
                 key={c.id}
@@ -303,9 +354,18 @@ export default function ClientDetailScreen() {
                   <Text style={styles.charterMeta}>
                     {c.charter_rate_type === "per_day"
                       ? "Per day"
+                      : c.charter_rate_type === "per_week"
+                        ? "Per week"
                       : "Fixed price"}
                   </Text>
                   <Text style={styles.charterGross}>{fmtMoney(gross)}</Text>
+                </View>
+                <View style={styles.stageRow}>
+                  <View style={[styles.stageDot, { backgroundColor: stage.color }]} />
+                  <Text style={[styles.stageText, { color: stage.color }]}>
+                    {stage.label}
+                  </Text>
+                  {payment ? <Text style={styles.paymentText}> · {payment}</Text> : null}
                 </View>
                 {c.departure_port || c.return_port ? (
                   <Text style={styles.charterRoute} numberOfLines={1}>
@@ -511,6 +571,26 @@ const styles = StyleSheet.create({
     color: GOLD,
     fontFamily: "Gilroy-ExtraBold",
     fontSize: 16,
+  },
+  stageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 7,
+  },
+  stageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  stageText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  paymentText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
   charterRoute: {
     color: MUTED,

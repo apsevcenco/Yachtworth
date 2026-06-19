@@ -82,6 +82,56 @@ function fmtRange(start: string, end: string): string {
   }
 }
 
+function daysUntil(dateIso: string | null | undefined): number | null {
+  if (!dateIso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso);
+  if (!m) return null;
+  const due = Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due - today) / 86400000);
+}
+
+function dealStage(c: Charter): { label: string; color: string } {
+  if (c.status === "cancelled") return { label: "Cancelled", color: STATUS_COLORS.blocked };
+  if (c.status === "blocked") return { label: "Blocked", color: STATUS_COLORS.blocked };
+  if (c.status === "maintenance") return { label: "Maintenance", color: STATUS_COLORS.maintenance };
+  if (c.status === "tentative") return { label: "Option", color: STATUS_COLORS.option };
+  if (c.contract_status === "sent") return { label: "Contract sent", color: STATUS_COLORS.option };
+  if (c.contract_status !== "signed") return { label: "Contract pending", color: STATUS_COLORS.option };
+  if (c.deposit_amount && !c.deposit_received) return { label: "Deposit due", color: STATUS_COLORS.blocked };
+  if (c.final_payment_amount && !c.final_payment_received) return { label: "Final due", color: STATUS_COLORS.blocked };
+  const today = todayIso();
+  if (c.end_date < today) return { label: "Completed", color: STATUS_COLORS.available };
+  return { label: "Ready", color: STATUS_COLORS.available };
+}
+
+function paymentAlertFor(c: Charter): { label: string; color: string; sort: number } | null {
+  if (c.status === "cancelled" || c.status === "blocked" || c.status === "maintenance") return null;
+  const depositDue = c.deposit_amount != null && c.deposit_amount > 0 && !c.deposit_received;
+  const finalDue = c.final_payment_amount != null && c.final_payment_amount > 0 && !c.final_payment_received;
+  const dueDate = depositDue ? c.deposit_date : finalDue ? c.final_payment_date : null;
+  if (!depositDue && !finalDue) return null;
+  const delta = daysUntil(dueDate);
+  const kind = depositDue ? "Deposit" : "Final";
+  const amount = depositDue ? c.deposit_amount : c.final_payment_amount;
+  const amountText = amount != null ? ` ${fmtMoneyShort(amount)}` : "";
+  if (delta != null && delta < 0) {
+    return { label: `${kind}${amountText} overdue`, color: STATUS_COLORS.blocked, sort: delta };
+  }
+  if (delta === 0) return { label: `${kind}${amountText} due today`, color: STATUS_COLORS.blocked, sort: 0 };
+  if (delta != null) return { label: `${kind}${amountText} due in ${delta}d`, color: GOLD, sort: delta };
+  return { label: `${kind}${amountText} unpaid`, color: GOLD, sort: 999 };
+}
+
+function nextPaymentAlert(charters: Charter[]): { label: string; color: string } | null {
+  const alerts = charters
+    .map(paymentAlertFor)
+    .filter((x): x is { label: string; color: string; sort: number } => Boolean(x))
+    .sort((a, b) => a.sort - b.sort);
+  return alerts[0] ?? null;
+}
+
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -415,6 +465,7 @@ function FleetTab({
         const next = nextCharterFor(list);
         const thisMonth = chartersThisMonthCount(list);
         const booked = bookedDaysThisMonth(list);
+        const payment = nextPaymentAlert(list);
         const now = new Date();
         const totalDays = daysInMonth(now.getFullYear(), now.getMonth());
         const pct = Math.round((booked / totalDays) * 100);
@@ -478,7 +529,9 @@ function FleetTab({
               label="Next charter"
               value={
                 <Text style={styles.rowValue}>
-                  {next ? fmtRange(next.start_date, next.end_date) : "None scheduled"}
+                  {next
+                    ? `${fmtRange(next.start_date, next.end_date)} · ${dealStage(next).label}`
+                    : "None scheduled"}
                 </Text>
               }
             />
@@ -487,6 +540,14 @@ function FleetTab({
               value={
                 <Text style={styles.rowValue}>
                   {thisMonth} charter{thisMonth === 1 ? "" : "s"} · {pct}% booked
+                </Text>
+              }
+            />
+            <Row
+              label="Next payment"
+              value={
+                <Text style={[styles.rowValue, payment && { color: payment.color }]}>
+                  {payment ? payment.label : "All clear"}
                 </Text>
               }
             />
