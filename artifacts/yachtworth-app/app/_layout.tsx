@@ -13,7 +13,7 @@ import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -28,6 +28,7 @@ const queryClient = new QueryClient();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
+const disableIntro = process.env.EXPO_PUBLIC_DISABLE_INTRO === "1";
 
 function normalizeApiBaseUrl(value: string | undefined): string | null {
   const raw = value?.trim().replace(/\/+$/, "");
@@ -38,6 +39,44 @@ function normalizeApiBaseUrl(value: string | undefined): string | null {
 
 const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
 setBaseUrl(normalizeApiBaseUrl(apiDomain));
+
+function MissingConfigScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "#0B1E3F",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <Text
+        style={{
+          color: "#C9A961",
+          fontFamily: "Inter_700Bold",
+          fontSize: 18,
+          marginBottom: 10,
+          textAlign: "center",
+        }}
+      >
+        Yachtworth configuration missing
+      </Text>
+      <Text
+        style={{
+          color: "rgba(247,243,236,0.78)",
+          fontFamily: "Inter_400Regular",
+          fontSize: 14,
+          lineHeight: 21,
+          textAlign: "center",
+        }}
+      >
+        Set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY before starting Expo, then restart
+        Metro with cache cleared.
+      </Text>
+    </View>
+  );
+}
 
 function ClerkTokenBridge() {
   const { getToken, isLoaded } = useAuth();
@@ -198,6 +237,10 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) return null;
 
+  if (!publishableKey) {
+    return <MissingConfigScreen />;
+  }
+
   return (
     <ClerkProvider
       publishableKey={publishableKey}
@@ -213,7 +256,7 @@ export default function RootLayout() {
                   <StatusBar style="light" />
                   <ClerkTokenBridge />
                   <RootLayoutNav />
-                  <LaunchIntro />
+                  {disableIntro ? null : <LaunchIntro />}
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </QueryClientProvider>
