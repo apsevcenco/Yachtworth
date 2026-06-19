@@ -29,10 +29,15 @@ const queryClient = new QueryClient();
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 
-const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
-if (apiDomain) {
-  setBaseUrl(`https://${apiDomain}`);
+function normalizeApiBaseUrl(value: string | undefined): string | null {
+  const raw = value?.trim().replace(/\/+$/, "");
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
 }
+
+const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
+setBaseUrl(normalizeApiBaseUrl(apiDomain));
 
 function ClerkTokenBridge() {
   const { getToken, isLoaded } = useAuth();

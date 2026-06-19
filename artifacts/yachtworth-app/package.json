@@ -5,6 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "EXPO_OFFLINE=1 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=$CLERK_PUBLISHABLE_KEY EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
+    "dev:render": "node scripts/dev-render.cjs",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -63,12 +64,13 @@
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@react-native-community/datetimepicker": "8.4.4",
     "expo-clipboard": "~8.0.8",
+    "expo-dev-client": "~6.0.21",
     "expo-file-system": "~19.0.22",
     "expo-image-manipulator": "^56.0.15",
     "expo-print": "~15.0.8",
     "expo-sharing": "~14.0.8",
-    "react-native-signature-canvas": "^5.0.2",
     "expo-updates": "~29.0.18",
+    "react-native-signature-canvas": "^5.0.2",
     "react-native-webview": "^13.16.1"
   }
 }
