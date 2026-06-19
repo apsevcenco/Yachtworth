@@ -31,7 +31,7 @@ if (!clerkKey.trim()) {
   process.exit(1);
 }
 
-const extraArgs = process.argv.slice(2);
+const extraArgs = process.argv.slice(2).filter((arg) => arg !== '--');
 const hasModeArg = extraArgs.some((arg) => ['--tunnel', '--lan', '--localhost'].includes(arg));
 const args = ['exec', 'expo', 'start', ...(hasModeArg ? [] : ['--tunnel']), ...extraArgs];
 const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
