@@ -11,9 +11,13 @@ declare global {
   }
 }
 
-// Backend Clerk only needs the secret key to verify session JWTs.
-// Publishable key is a frontend concern.
-const hasClerkKeys = Boolean(process.env["CLERK_SECRET_KEY"]);
+const clerkSecretKey = process.env["CLERK_SECRET_KEY"];
+const clerkPublishableKey =
+  process.env["CLERK_PUBLISHABLE_KEY"] ??
+  process.env["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"] ??
+  "pk_test_Y2hlZXJmdWwtaGVyb24tNzYuY2xlcmsuYWNjb3VudHMuZGV2JA";
+
+const hasClerkKeys = Boolean(clerkSecretKey && clerkPublishableKey);
 
 if (!hasClerkKeys) {
   logger.warn(
@@ -22,7 +26,10 @@ if (!hasClerkKeys) {
 }
 
 const inner: RequestHandler = hasClerkKeys
-  ? clerkMiddleware()
+  ? clerkMiddleware({
+      publishableKey: clerkPublishableKey,
+      secretKey: clerkSecretKey,
+    })
   : (_req, _res, next) => next();
 
 /**
