@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth, useUser } from "@clerk/expo";
+import { getBaseUrl } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Image,
   Platform,
   Pressable,
@@ -32,7 +34,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const router = useRouter();
-  const { isSignedIn, signOut } = useAuth();
+  const { getToken, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
 
   const displayName =
@@ -42,6 +44,37 @@ export default function ProfileScreen() {
     "Guest";
   const email = user?.primaryEmailAddress?.emailAddress;
   const planLabel = "Free plan · 1 estimate / month";
+
+  const runConnectionCheck = async () => {
+    try {
+      const token = await getToken();
+      const baseUrl = getBaseUrl();
+      if (!baseUrl) {
+        Alert.alert("Connection check", "API base URL is not configured.");
+        return;
+      }
+
+      const response = await fetch(`${baseUrl}/api/debug/auth-status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const body = await response.text();
+
+      Alert.alert(
+        "Connection check",
+        [
+          `Status: ${response.status}`,
+          `Signed in: ${isSignedIn ? "yes" : "no"}`,
+          `Token present: ${token ? "yes" : "no"}`,
+          body,
+        ].join("\n"),
+      );
+    } catch (error) {
+      Alert.alert(
+        "Connection check failed",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -133,6 +166,13 @@ export default function ProfileScreen() {
               icon="file"
               label="My proposals"
               onPress={() => router.push("/yacht-proposal/my-proposals")}
+            />
+          )}
+          {isSignedIn && (
+            <Row
+              icon="wifi"
+              label="Connection check"
+              onPress={runConnectionCheck}
             />
           )}
           <Row
