@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { createHash } from "node:crypto";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { softClerkAuth } from "../middlewares/clerkAuth";
 import {
@@ -30,6 +31,10 @@ function decodeJwtPayload(token: string | undefined): Record<string, unknown> | 
   }
 }
 
+function hashValue(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 16);
+}
+
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
@@ -41,6 +46,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
   const visibleItems: Record<string, number | null> = {};
   const serverFilteredCounts: Record<string, number | null> = {};
   const totalCounts: Record<string, number | null> = {};
+  const ownerHashes: Record<string, string[]> = {};
   const countErrors: Record<string, string> = {};
   const supabaseUrl = process.env["SUPABASE_URL"];
   const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -80,10 +86,17 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       const { data: rows, error: rowsError } = await sb
         .from(table)
         .select("id, clerk_user_id")
-        .ilike("clerk_user_id", req.userId)
         .limit(100);
       serverFilteredCounts[key] = rows?.length ?? null;
       visibleItems[key] = serverFilteredCounts[key];
+      ownerHashes[key] = Array.from(
+        new Set(
+          (rows ?? [])
+            .map((row) => row.clerk_user_id)
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => hashValue(value)),
+        ),
+      );
       if (rowsError) countErrors[`${key}Rows`] = rowsError.message;
     }
   }
@@ -97,6 +110,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       userIdHex: req.userId
         ? Buffer.from(req.userId, "utf8").toString("hex")
         : null,
+      userIdHash: req.userId ? hashValue(req.userId) : null,
     },
     config: {
       clerkSecretConfigured: Boolean(process.env["CLERK_SECRET_KEY"]),
@@ -112,6 +126,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
     visibleItems,
     serverFilteredCounts,
     totalCounts,
+    ownerHashes,
     countErrors,
   });
 });
