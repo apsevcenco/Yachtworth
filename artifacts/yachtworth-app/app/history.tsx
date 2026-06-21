@@ -15,8 +15,8 @@ import {
   type RoiCalculationListItem,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -136,6 +136,23 @@ export default function HistoryScreen() {
       staleTime: 30_000,
     },
   });
+  const refetchEstimates = estimatesQ.refetch;
+  const refetchCost = costQ.refetch;
+  const refetchRoi = roiQ.refetch;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSignedIn) return;
+      void queryClient.invalidateQueries({ queryKey: getListEstimatesQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getListCostEstimatesQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: getListRoiCalculationsQueryKey(),
+      });
+      if (tab === "estimates") void refetchEstimates();
+      if (tab === "cost") void refetchCost();
+      if (tab === "roi") void refetchRoi();
+    }, [isSignedIn, queryClient, refetchCost, refetchEstimates, refetchRoi, tab]),
+  );
 
   const deleteEstimate = useDeleteEstimate({
     mutation: {

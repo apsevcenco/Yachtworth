@@ -448,7 +448,7 @@ router.get(
     let { data, error } = await sb
       .from(ROI_CALCULATIONS_TABLE)
       .select("id, yacht_id, yacht_snapshot, created_at, input, result")
-      .eq("clerk_user_id", req.userId!)
+      .ilike("clerk_user_id", req.userId!)
       .eq("id", req.params["id"])
       .maybeSingle();
     // Graceful degradation: migration 022 (yacht_snapshot column) may not be
@@ -458,7 +458,7 @@ router.get(
       ({ data, error } = await sb
         .from(ROI_CALCULATIONS_TABLE)
         .select("id, yacht_id, created_at, input, result")
-        .eq("clerk_user_id", req.userId!)
+        .ilike("clerk_user_id", req.userId!)
         .eq("id", req.params["id"])
         .maybeSingle());
     }
@@ -492,7 +492,7 @@ router.delete(
     const { error, count } = await sb
       .from(ROI_CALCULATIONS_TABLE)
       .delete({ count: "exact" })
-      .eq("clerk_user_id", req.userId!)
+      .ilike("clerk_user_id", req.userId!)
       .eq("id", req.params["id"]);
     if (error) {
       req.log.error({ err: error.message }, "Delete ROI calculation failed");

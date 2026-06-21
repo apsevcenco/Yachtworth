@@ -56,7 +56,7 @@ router.get(
     const { data, error } = await sb
       .from(ESTIMATES_TABLE)
       .select("id, created_at, request, result")
-      .eq("clerk_user_id", req.userId!)
+      .ilike("clerk_user_id", req.userId!)
       .eq("id", req.params["id"])
       .maybeSingle();
     if (error) {
@@ -89,7 +89,7 @@ router.delete(
     const { error, count } = await sb
       .from(ESTIMATES_TABLE)
       .delete({ count: "exact" })
-      .eq("clerk_user_id", req.userId!)
+      .ilike("clerk_user_id", req.userId!)
       .eq("id", req.params["id"]);
     if (error) {
       req.log.error({ err: error.message }, "Delete estimate failed");
