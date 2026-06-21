@@ -423,8 +423,9 @@ router.get(
       res.status(500).json({ error: error.message });
       return;
     }
+    const userIdKey = req.userId!.toLowerCase();
     const items = (data ?? [])
-      .filter((row) => row.clerk_user_id === req.userId)
+      .filter((row) => row.clerk_user_id.toLowerCase() === userIdKey)
       .filter((row) => typeof yachtId !== "string" || row.yacht_id === yachtId)
       .slice(0, 50)
       .map(({ clerk_user_id: _clerkUserId, ...row }) => row);

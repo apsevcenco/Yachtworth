@@ -85,8 +85,9 @@ router.get(
       res.status(500).json({ error: error.message });
       return;
     }
+    const userIdKey = req.userId!.toLowerCase();
     const items = (data ?? [])
-      .filter((row) => row.clerk_user_id === req.userId)
+      .filter((row) => row.clerk_user_id.toLowerCase() === userIdKey)
       .filter((row) => includeArchived || !row.is_archived)
       .slice(0, 50);
     res.json({ items });

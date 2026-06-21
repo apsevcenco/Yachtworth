@@ -81,8 +81,10 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
         .from(table)
         .select("id, clerk_user_id")
         .limit(100);
+      const userIdKey = req.userId.toLowerCase();
       serverFilteredCounts[key] =
-        rows?.filter((row) => row.clerk_user_id === req.userId).length ?? null;
+        rows?.filter((row) => row.clerk_user_id.toLowerCase() === userIdKey).length ??
+        null;
       visibleItems[key] = serverFilteredCounts[key];
       if (rowsError) countErrors[`${key}Rows`] = rowsError.message;
     }
