@@ -19,6 +19,17 @@ router.get("/healthz", (_req, res) => {
 router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
   const sb = getSupabase();
   const counts: Record<string, number | null> = {};
+  const countErrors: Record<string, string> = {};
+  const supabaseUrl = process.env["SUPABASE_URL"];
+  let supabaseHost: string | null = null;
+
+  if (supabaseUrl) {
+    try {
+      supabaseHost = new URL(supabaseUrl).host;
+    } catch {
+      supabaseHost = "invalid-url";
+    }
+  }
 
   if (sb && req.userId) {
     for (const [key, table] of Object.entries({
@@ -27,11 +38,12 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       roi: ROI_CALCULATIONS_TABLE,
       cost: COST_ESTIMATES_TABLE,
     })) {
-      const { count } = await sb
+      const { count, error } = await sb
         .from(table)
         .select("id", { count: "exact", head: true })
         .eq("clerk_user_id", req.userId);
       counts[key] = count ?? null;
+      if (error) countErrors[key] = error.message;
     }
   }
 
@@ -45,8 +57,10 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
     config: {
       clerkSecretConfigured: Boolean(process.env["CLERK_SECRET_KEY"]),
       supabaseConfigured: Boolean(sb),
+      supabaseHost,
     },
     counts,
+    countErrors,
   });
 });
 
