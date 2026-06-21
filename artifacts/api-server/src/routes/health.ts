@@ -11,6 +11,25 @@ import {
 
 const router: IRouter = Router();
 
+function decodeJwtPayload(token: string | undefined): Record<string, unknown> | null {
+  if (!token || token.startsWith("sb_")) return null;
+  const [, payload] = token.split(".");
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      "=",
+    );
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return null;
+  }
+}
+
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
@@ -21,6 +40,8 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
   const counts: Record<string, number | null> = {};
   const countErrors: Record<string, string> = {};
   const supabaseUrl = process.env["SUPABASE_URL"];
+  const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const serviceKeyPayload = decodeJwtPayload(serviceKey);
   let supabaseHost: string | null = null;
 
   if (supabaseUrl) {
@@ -58,6 +79,11 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       clerkSecretConfigured: Boolean(process.env["CLERK_SECRET_KEY"]),
       supabaseConfigured: Boolean(sb),
       supabaseHost,
+      supabaseKeyKind: serviceKey?.startsWith("sb_") ? "supabase-secret" : "jwt",
+      supabaseKeyRole:
+        typeof serviceKeyPayload?.["role"] === "string"
+          ? serviceKeyPayload["role"]
+          : null,
     },
     counts,
     countErrors,
