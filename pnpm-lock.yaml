@@ -165,6 +165,9 @@ importers:
       '@clerk/express':
         specifier: ^2.1.15
         version: 2.1.15(express@5.2.1)
+      '@puppeteer/browsers':
+        specifier: 3.0.4
+        version: 3.0.4
       '@supabase/supabase-js':
         specifier: ^2.105.4
         version: 2.105.4

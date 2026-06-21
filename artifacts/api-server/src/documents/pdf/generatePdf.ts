@@ -1,4 +1,12 @@
 import { existsSync } from "node:fs";
+import {
+  Browser as PuppeteerBrowser,
+  BrowserTag,
+  computeExecutablePath,
+  detectBrowserPlatform,
+  install,
+  resolveBuildId,
+} from "@puppeteer/browsers";
 import puppeteer, { type Browser } from "puppeteer-core";
 import { logger } from "../../lib/logger";
 
@@ -10,8 +18,45 @@ import { logger } from "../../lib/logger";
  *   2. REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE (provided in the Replit dev env)
  *   3. CHROME_BIN / GOOGLE_CHROME_BIN   (common on PaaS images)
  *   4. Standard Linux Chrome/Chromium locations used by many Render images
+ *   5. Downloaded Chrome for Testing cache in /tmp (Render-safe fallback)
  */
-function resolveExecutablePath(): string {
+let downloadedExecutablePath: Promise<string> | null = null;
+
+async function resolveDownloadedExecutablePath(): Promise<string> {
+  const cacheDir =
+    process.env["PUPPETEER_CACHE_DIR"]?.trim() || "/tmp/yachtworth-chrome";
+  const platform = detectBrowserPlatform();
+  if (!platform) {
+    throw new Error("Could not detect browser platform for Chromium download.");
+  }
+  const buildId = await resolveBuildId(
+    PuppeteerBrowser.CHROME,
+    platform,
+    BrowserTag.STABLE,
+  );
+  const executablePath = computeExecutablePath({
+    cacheDir,
+    browser: PuppeteerBrowser.CHROME,
+    platform,
+    buildId,
+  });
+  if (existsSync(executablePath)) return executablePath;
+
+  logger.warn(
+    { cacheDir, platform, buildId },
+    "No system Chromium found; downloading Chrome for Testing",
+  );
+  const installed = await install({
+    cacheDir,
+    browser: PuppeteerBrowser.CHROME,
+    platform,
+    buildId,
+    unpack: true,
+  });
+  return installed.executablePath;
+}
+
+async function resolveExecutablePath(): Promise<string> {
   const envCandidates = [
     process.env["PUPPETEER_EXECUTABLE_PATH"],
     process.env["REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE"],
@@ -30,14 +75,13 @@ function resolveExecutablePath(): string {
   for (const c of pathCandidates) {
     if (existsSync(c)) return c;
   }
-  throw new Error(
-    "No Chromium executable found. Install Chrome/Chromium on the server image or set PUPPETEER_EXECUTABLE_PATH to a valid Chrome/Chromium binary.",
-  );
+  downloadedExecutablePath ??= resolveDownloadedExecutablePath();
+  return downloadedExecutablePath;
 }
 
 /** Render an HTML string to an A4 PDF Buffer via headless Chromium. */
 export async function renderPdf(html: string): Promise<Buffer> {
-  const executablePath = resolveExecutablePath();
+  const executablePath = await resolveExecutablePath();
   let browser: Browser | null = null;
   try {
     browser = await puppeteer.launch({

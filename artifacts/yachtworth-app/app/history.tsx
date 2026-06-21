@@ -4,6 +4,9 @@ import {
   getListCostEstimatesQueryKey,
   getListEstimatesQueryKey,
   getListRoiCalculationsQueryKey,
+  listCostEstimates,
+  listEstimates,
+  listRoiCalculations,
   useDeleteCostEstimate,
   useDeleteEstimate,
   useDeleteRoiCalculation,
@@ -43,6 +46,14 @@ const POSITIVE = "#7BD389";
 const NEGATIVE = "#FF8A8A";
 
 type Tab = "estimates" | "cost" | "roi";
+
+type HistoryItemsByTab = {
+  estimates: EstimateListItem[] | null;
+  cost: CostEstimateListItem[] | null;
+  roi: RoiCalculationListItem[] | null;
+};
+
+type HistoryErrorsByTab = Record<Tab, Error | null>;
 
 const TYPE_LABELS: Record<string, string> = {
   motor_yacht: "Motor Yacht",
@@ -97,6 +108,17 @@ export default function HistoryScreen() {
   const { isSignedIn, isLoaded } = useAuth();
   const { units } = useUnits();
   const [tab, setTab] = useState<Tab>("estimates");
+  const [directItems, setDirectItems] = useState<HistoryItemsByTab>({
+    estimates: null,
+    cost: null,
+    roi: null,
+  });
+  const [directErrors, setDirectErrors] = useState<HistoryErrorsByTab>({
+    estimates: null,
+    cost: null,
+    roi: null,
+  });
+  const [directLoading, setDirectLoading] = useState<Tab | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const markPending = (id: string) =>
     setPendingIds((prev) => {
@@ -140,6 +162,30 @@ export default function HistoryScreen() {
   const refetchCost = costQ.refetch;
   const refetchRoi = roiQ.refetch;
 
+  const loadDirectTab = useCallback(async (target: Tab) => {
+    setDirectLoading(target);
+    setDirectErrors((prev) => ({ ...prev, [target]: null }));
+    try {
+      if (target === "estimates") {
+        const data = await listEstimates();
+        setDirectItems((prev) => ({ ...prev, estimates: data.items ?? [] }));
+      } else if (target === "cost") {
+        const data = await listCostEstimates();
+        setDirectItems((prev) => ({ ...prev, cost: data.items ?? [] }));
+      } else {
+        const data = await listRoiCalculations();
+        setDirectItems((prev) => ({ ...prev, roi: data.items ?? [] }));
+      }
+    } catch (err) {
+      setDirectErrors((prev) => ({
+        ...prev,
+        [target]: err instanceof Error ? err : new Error(String(err)),
+      }));
+    } finally {
+      setDirectLoading((prev) => (prev === target ? null : prev));
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       if (!isSignedIn) return;
@@ -151,7 +197,16 @@ export default function HistoryScreen() {
       if (tab === "estimates") void refetchEstimates();
       if (tab === "cost") void refetchCost();
       if (tab === "roi") void refetchRoi();
-    }, [isSignedIn, queryClient, refetchCost, refetchEstimates, refetchRoi, tab]),
+      void loadDirectTab(tab);
+    }, [
+      isSignedIn,
+      loadDirectTab,
+      queryClient,
+      refetchCost,
+      refetchEstimates,
+      refetchRoi,
+      tab,
+    ]),
   );
 
   const deleteEstimate = useDeleteEstimate({
@@ -195,10 +250,16 @@ export default function HistoryScreen() {
 
   const activeQ = tab === "estimates" ? estimatesQ : tab === "cost" ? costQ : roiQ;
   const items = useMemo(() => {
+    const direct = directItems[tab];
+    if (direct) return direct;
     if (tab === "estimates") return estimatesQ.data?.items ?? [];
     if (tab === "cost") return costQ.data?.items ?? [];
     return roiQ.data?.items ?? [];
-  }, [tab, estimatesQ.data, costQ.data, roiQ.data]);
+  }, [tab, directItems, estimatesQ.data, costQ.data, roiQ.data]);
+  const activeDirectError = directErrors[tab];
+  const activeError = activeDirectError ?? (activeQ.isError ? activeQ.error : null);
+  const activeLoading =
+    directItems[tab] == null && (activeQ.isLoading || directLoading === tab);
 
   const emptyConfig = {
     estimates: {
@@ -271,7 +332,7 @@ export default function HistoryScreen() {
         })}
       </View>
 
-      {!isLoaded || (isSignedIn && activeQ.isLoading) ? (
+      {!isLoaded || (isSignedIn && activeLoading) ? (
         <View style={styles.center}>
           <ActivityIndicator color={GOLD} />
         </View>
@@ -293,14 +354,14 @@ export default function HistoryScreen() {
             <Text style={styles.ctaText}>Sign in</Text>
           </Pressable>
         </View>
-      ) : activeQ.isError ? (
+      ) : activeError && items.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>
             <Feather name="alert-circle" size={26} color={GOLD} />
           </View>
           <Text style={styles.emptyTitle}>Couldn't load history</Text>
           <Text style={styles.emptyText}>
-            {activeQ.error instanceof Error ? activeQ.error.message : "Something went wrong."}
+            {activeError.message}
           </Text>
           <Pressable
             onPress={() => activeQ.refetch()}
