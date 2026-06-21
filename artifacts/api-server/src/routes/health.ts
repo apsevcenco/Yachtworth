@@ -38,6 +38,7 @@ router.get("/healthz", (_req, res) => {
 router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
   const sb = getSupabase();
   const counts: Record<string, number | null> = {};
+  const totalCounts: Record<string, number | null> = {};
   const countErrors: Record<string, string> = {};
   const supabaseUrl = process.env["SUPABASE_URL"];
   const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -52,13 +53,21 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
     }
   }
 
-  if (sb && req.userId) {
+  if (sb) {
     for (const [key, table] of Object.entries({
       yachts: YACHTS_TABLE,
       estimates: ESTIMATES_TABLE,
       roi: ROI_CALCULATIONS_TABLE,
       cost: COST_ESTIMATES_TABLE,
     })) {
+      const { count: totalCount, error: totalError } = await sb
+        .from(table)
+        .select("id", { count: "exact", head: true });
+      totalCounts[key] = totalCount ?? null;
+      if (totalError) countErrors[`${key}Total`] = totalError.message;
+
+      if (!req.userId) continue;
+
       const { count, error } = await sb
         .from(table)
         .select("id", { count: "exact", head: true })
@@ -74,6 +83,9 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       hasAuthorizationHeader: Boolean(req.headers.authorization),
       userIdPresent: Boolean(req.userId),
       userId: req.userId ?? null,
+      userIdHex: req.userId
+        ? Buffer.from(req.userId, "utf8").toString("hex")
+        : null,
     },
     config: {
       clerkSecretConfigured: Boolean(process.env["CLERK_SECRET_KEY"]),
@@ -86,6 +98,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
           : null,
     },
     counts,
+    totalCounts,
     countErrors,
   });
 });
