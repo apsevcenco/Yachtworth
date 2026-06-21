@@ -26,21 +26,19 @@ router.get(
     const { data, error } = await sb
       .from(ESTIMATES_TABLE)
       .select(
-        "id, clerk_user_id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
+        "id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
       )
+      .ilike("clerk_user_id", req.userId!)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(50);
     if (error) {
       req.log.error({ err: error.message }, "List estimates failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    const userIdKey = req.userId!.toLowerCase();
     const items = (data ?? [])
-      .filter((row) => row.clerk_user_id.toLowerCase() === userIdKey)
       .filter((row) => !yachtId || row.yacht_id === yachtId)
-      .slice(0, 50)
-      .map(({ clerk_user_id: _clerkUserId, ...row }) => row);
+      .slice(0, 50);
     res.json({ items });
   },
 );

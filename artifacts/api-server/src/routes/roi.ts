@@ -414,21 +414,19 @@ router.get(
     const { data, error } = await sb
       .from(ROI_CALCULATIONS_TABLE)
       .select(
-        "id, clerk_user_id, yacht_id, created_at, region, annual_revenue_eur, annual_expenses_eur, net_profit_eur, roi_pct, payback_years",
+        "id, yacht_id, created_at, region, annual_revenue_eur, annual_expenses_eur, net_profit_eur, roi_pct, payback_years",
       )
+      .ilike("clerk_user_id", req.userId!)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(50);
     if (error) {
       req.log.error({ err: error.message }, "List ROI calculations failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    const userIdKey = req.userId!.toLowerCase();
     const items = (data ?? [])
-      .filter((row) => row.clerk_user_id.toLowerCase() === userIdKey)
       .filter((row) => typeof yachtId !== "string" || row.yacht_id === yachtId)
-      .slice(0, 50)
-      .map(({ clerk_user_id: _clerkUserId, ...row }) => row);
+      .slice(0, 50);
     res.json({ items });
   },
 );

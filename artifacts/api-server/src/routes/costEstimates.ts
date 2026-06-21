@@ -99,20 +99,18 @@ router.get(
     }
     const { data, error } = await sb
       .from(COST_ESTIMATES_TABLE)
-      .select(`clerk_user_id, ${LIST_COLUMNS}`)
+      .select(LIST_COLUMNS)
+      .ilike("clerk_user_id", req.userId!)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(50);
     if (error) {
       req.log.error({ err: error.message }, "List cost estimates failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    const userIdKey = req.userId!.toLowerCase();
     const items = (data ?? [])
-      .filter((row) => row.clerk_user_id.toLowerCase() === userIdKey)
       .filter((row) => !yachtId || row.yacht_id === yachtId)
-      .slice(0, 50)
-      .map(({ clerk_user_id: _clerkUserId, ...row }) => row);
+      .slice(0, 50);
     res.json({ items });
   },
 );

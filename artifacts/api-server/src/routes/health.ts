@@ -73,18 +73,16 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       const { count, error } = await sb
         .from(table)
         .select("id", { count: "exact", head: true })
-        .eq("clerk_user_id", req.userId);
+        .ilike("clerk_user_id", req.userId);
       counts[key] = count ?? null;
       if (error) countErrors[key] = error.message;
 
       const { data: rows, error: rowsError } = await sb
         .from(table)
         .select("id, clerk_user_id")
+        .ilike("clerk_user_id", req.userId)
         .limit(100);
-      const userIdKey = req.userId.toLowerCase();
-      serverFilteredCounts[key] =
-        rows?.filter((row) => row.clerk_user_id.toLowerCase() === userIdKey).length ??
-        null;
+      serverFilteredCounts[key] = rows?.length ?? null;
       visibleItems[key] = serverFilteredCounts[key];
       if (rowsError) countErrors[`${key}Rows`] = rowsError.message;
     }

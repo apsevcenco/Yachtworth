@@ -78,16 +78,15 @@ router.get(
     const { data, error } = await sb
       .from(YACHTS_TABLE)
       .select(YACHT_COLUMNS)
+      .ilike("clerk_user_id", req.userId!)
       .order("updated_at", { ascending: false })
-      .limit(500);
+      .limit(50);
     if (error) {
       req.log.error({ err: error.message }, "List yachts failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    const userIdKey = req.userId!.toLowerCase();
     const items = (data ?? [])
-      .filter((row) => row.clerk_user_id.toLowerCase() === userIdKey)
       .filter((row) => includeArchived || !row.is_archived)
       .slice(0, 50);
     res.json({ items });
