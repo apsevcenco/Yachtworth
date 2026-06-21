@@ -39,6 +39,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
   const sb = getSupabase();
   const counts: Record<string, number | null> = {};
   const visibleItems: Record<string, number | null> = {};
+  const serverFilteredCounts: Record<string, number | null> = {};
   const totalCounts: Record<string, number | null> = {};
   const countErrors: Record<string, string> = {};
   const supabaseUrl = process.env["SUPABASE_URL"];
@@ -78,10 +79,11 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
 
       const { data: rows, error: rowsError } = await sb
         .from(table)
-        .select("id")
-        .eq("clerk_user_id", req.userId)
+        .select("id, clerk_user_id")
         .limit(100);
-      visibleItems[key] = rows?.length ?? null;
+      serverFilteredCounts[key] =
+        rows?.filter((row) => row.clerk_user_id === req.userId).length ?? null;
+      visibleItems[key] = serverFilteredCounts[key];
       if (rowsError) countErrors[`${key}Rows`] = rowsError.message;
     }
   }
@@ -108,6 +110,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
     },
     counts,
     visibleItems,
+    serverFilteredCounts,
     totalCounts,
     countErrors,
   });
