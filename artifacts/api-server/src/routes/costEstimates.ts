@@ -89,27 +89,30 @@ router.get(
       res.status(503).json({ error: "Storage not configured" });
       return;
     }
-    let query = sb
-      .from(COST_ESTIMATES_TABLE)
-      .select(LIST_COLUMNS)
-      .eq("clerk_user_id", req.userId!);
     const yachtIdQ = req.query["yacht_id"];
-    if (typeof yachtIdQ === "string" && yachtIdQ) {
+    const yachtId = typeof yachtIdQ === "string" && yachtIdQ ? yachtIdQ : null;
+    if (yachtId) {
       if (!isUuid(yachtIdQ)) {
         res.status(400).json({ error: "Invalid yacht_id" });
         return;
       }
-      query = query.eq("yacht_id", yachtIdQ);
     }
-    const { data, error } = await query
+    const { data, error } = await sb
+      .from(COST_ESTIMATES_TABLE)
+      .select(`clerk_user_id, ${LIST_COLUMNS}`)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(500);
     if (error) {
       req.log.error({ err: error.message }, "List cost estimates failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ items: data ?? [] });
+    const items = (data ?? [])
+      .filter((row) => row.clerk_user_id === req.userId)
+      .filter((row) => !yachtId || row.yacht_id === yachtId)
+      .slice(0, 50)
+      .map(({ clerk_user_id: _clerkUserId, ...row }) => row);
+    res.json({ items });
   },
 );
 

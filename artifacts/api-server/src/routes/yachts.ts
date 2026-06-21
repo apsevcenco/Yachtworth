@@ -75,22 +75,21 @@ router.get(
     // Default list hides archived yachts. Pass `?include_archived=1` to see all.
     const ia = req.query["include_archived"];
     const includeArchived = ia === "1" || ia === "true";
-    let query = sb
+    const { data, error } = await sb
       .from(YACHTS_TABLE)
       .select(YACHT_COLUMNS)
-      .eq("clerk_user_id", req.userId!);
-    if (!includeArchived) {
-      query = query.eq("is_archived", false);
-    }
-    const { data, error } = await query
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(500);
     if (error) {
       req.log.error({ err: error.message }, "List yachts failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ items: data ?? [] });
+    const items = (data ?? [])
+      .filter((row) => row.clerk_user_id === req.userId)
+      .filter((row) => includeArchived || !row.is_archived)
+      .slice(0, 50);
+    res.json({ items });
   },
 );
 

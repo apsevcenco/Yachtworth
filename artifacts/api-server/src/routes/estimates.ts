@@ -15,29 +15,32 @@ router.get(
       res.status(503).json({ error: "History storage not configured" });
       return;
     }
-    let query = sb
-      .from(ESTIMATES_TABLE)
-      .select(
-        "id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
-      )
-      .eq("clerk_user_id", req.userId!);
     const yachtIdQ = req.query["yacht_id"];
-    if (typeof yachtIdQ === "string" && yachtIdQ) {
+    const yachtId = typeof yachtIdQ === "string" && yachtIdQ ? yachtIdQ : null;
+    if (yachtId) {
       if (!isUuid(yachtIdQ)) {
         res.status(400).json({ error: "Invalid yacht_id" });
         return;
       }
-      query = query.eq("yacht_id", yachtIdQ);
     }
-    const { data, error } = await query
+    const { data, error } = await sb
+      .from(ESTIMATES_TABLE)
+      .select(
+        "id, clerk_user_id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
+      )
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(500);
     if (error) {
       req.log.error({ err: error.message }, "List estimates failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ items: data ?? [] });
+    const items = (data ?? [])
+      .filter((row) => row.clerk_user_id === req.userId)
+      .filter((row) => !yachtId || row.yacht_id === yachtId)
+      .slice(0, 50)
+      .map(({ clerk_user_id: _clerkUserId, ...row }) => row);
+    res.json({ items });
   },
 );
 
