@@ -27,7 +27,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 const FALLBACK_CLERK_PUBLISHABLE_KEY =
-  "pk_test_Y2hlZXJmdWwtaGVyb24tNzYuY2xlcmsuYWNjb3VudHMuZGV2JA";
+  "pk_test_cmVzdGVkLXJhbS04MC5jbGVyay5hY2NvdW50cy5kZXYk";
 const FALLBACK_API_DOMAIN = "https://yachtworth.onrender.com";
 
 const publishableKey =

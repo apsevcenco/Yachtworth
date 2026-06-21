@@ -15,7 +15,7 @@ const clerkSecretKey = process.env["CLERK_SECRET_KEY"];
 const clerkPublishableKey =
   process.env["CLERK_PUBLISHABLE_KEY"] ??
   process.env["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"] ??
-  "pk_test_Y2hlZXJmdWwtaGVyb24tNzYuY2xlcmsuYWNjb3VudHMuZGV2JA";
+  "pk_test_cmVzdGVkLXJhbS04MC5jbGVyay5hY2NvdW50cy5kZXYk";
 
 const hasClerkKeys = Boolean(clerkSecretKey && clerkPublishableKey);
 
