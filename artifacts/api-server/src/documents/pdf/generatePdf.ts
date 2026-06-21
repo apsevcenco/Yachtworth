@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import puppeteer, { type Browser } from "puppeteer-core";
 import { logger } from "../../lib/logger";
 
@@ -8,19 +9,29 @@ import { logger } from "../../lib/logger";
  *   1. PUPPETEER_EXECUTABLE_PATH        (explicit override — set this on Render)
  *   2. REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE (provided in the Replit dev env)
  *   3. CHROME_BIN / GOOGLE_CHROME_BIN   (common on PaaS images)
+ *   4. Standard Linux Chrome/Chromium locations used by many Render images
  */
 function resolveExecutablePath(): string {
-  const candidates = [
+  const envCandidates = [
     process.env["PUPPETEER_EXECUTABLE_PATH"],
     process.env["REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE"],
     process.env["CHROME_BIN"],
     process.env["GOOGLE_CHROME_BIN"],
   ];
-  for (const c of candidates) {
+  for (const c of envCandidates) {
     if (c && c.trim()) return c.trim();
   }
+  const pathCandidates = [
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+  ];
+  for (const c of pathCandidates) {
+    if (existsSync(c)) return c;
+  }
   throw new Error(
-    "No Chromium executable found. Set PUPPETEER_EXECUTABLE_PATH to a Chrome/Chromium binary.",
+    "No Chromium executable found. Install Chrome/Chromium on the server image or set PUPPETEER_EXECUTABLE_PATH to a valid Chrome/Chromium binary.",
   );
 }
 
