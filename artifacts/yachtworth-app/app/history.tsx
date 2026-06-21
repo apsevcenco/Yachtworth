@@ -116,6 +116,7 @@ export default function HistoryScreen() {
     query: {
       queryKey: getListEstimatesQueryKey(),
       enabled: Boolean(isSignedIn) && tab === "estimates",
+      refetchOnMount: "always",
       staleTime: 30_000,
     },
   });
@@ -123,6 +124,7 @@ export default function HistoryScreen() {
     query: {
       queryKey: getListCostEstimatesQueryKey(),
       enabled: Boolean(isSignedIn) && tab === "cost",
+      refetchOnMount: "always",
       staleTime: 30_000,
     },
   });
@@ -130,6 +132,7 @@ export default function HistoryScreen() {
     query: {
       queryKey: getListRoiCalculationsQueryKey(),
       enabled: Boolean(isSignedIn) && tab === "roi",
+      refetchOnMount: "always",
       staleTime: 30_000,
     },
   });

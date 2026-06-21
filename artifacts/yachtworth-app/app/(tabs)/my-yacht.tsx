@@ -46,6 +46,7 @@ export default function MyYachtScreen() {
     query: {
       queryKey: getListYachtsQueryKey(params),
       enabled: Boolean(isSignedIn),
+      refetchOnMount: "always",
       staleTime: 30_000,
     },
   });
