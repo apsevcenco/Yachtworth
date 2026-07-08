@@ -15,10 +15,9 @@ import { logger } from "../../lib/logger";
  *
  * Order:
  *   1. PUPPETEER_EXECUTABLE_PATH        (explicit override — set this on Render)
- *   2. REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE (provided in the Replit dev env)
- *   3. CHROME_BIN / GOOGLE_CHROME_BIN   (common on PaaS images)
- *   4. Standard Linux Chrome/Chromium locations used by many Render images
- *   5. Downloaded Chrome for Testing cache in /tmp (Render-safe fallback)
+ *   2. CHROME_BIN / GOOGLE_CHROME_BIN   (common on PaaS images)
+ *   3. Standard Linux Chrome/Chromium locations used by many Render images
+ *   4. Downloaded Chrome for Testing cache in /tmp (Render-safe fallback)
  */
 let downloadedExecutablePath: Promise<string> | null = null;
 
@@ -59,7 +58,6 @@ async function resolveDownloadedExecutablePath(): Promise<string> {
 async function resolveExecutablePath(): Promise<string> {
   const envCandidates = [
     process.env["PUPPETEER_EXECUTABLE_PATH"],
-    process.env["REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE"],
     process.env["CHROME_BIN"],
     process.env["GOOGLE_CHROME_BIN"],
   ];
