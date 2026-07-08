@@ -3,8 +3,8 @@
  *
  * This is the renderer-independent half of the valuation report. It maps yacht
  * specs + valuation data + export settings into the semantic model. It does NOT
- * escape (the renderers do) and emits no HTML — so the same model can drive both
- * the PDF and (P1) the DOCX renderer.
+ * escape text and emits no HTML; the PDF renderer handles that at the render
+ * boundary.
  */
 import type {
   ComparableYacht,

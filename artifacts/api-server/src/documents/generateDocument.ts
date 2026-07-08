@@ -2,15 +2,11 @@ import { buildProposalModel } from "./builders/proposal";
 import { buildCostModel } from "./builders/cost";
 import { buildRoiModel } from "./builders/roi";
 import { buildValuationModel } from "./builders/valuation";
-import { renderProposalDocx, renderValuationDocx } from "./docx/generateDocx";
 import { renderPdf } from "./pdf/generatePdf";
 import { renderModelToPdfHtml } from "./pdf/renderModelToPdfHtml";
-import { buildProposalHtml } from "./pdf/templates/proposalTemplate";
-import { buildValuationHtml } from "./pdf/templates/valuationTemplate";
 import { photoList, validateImageUrls } from "./core/util";
 import { logger } from "../lib/logger";
 import {
-  DOCX_CONTENT_TYPE,
   PDF_CONTENT_TYPE,
   normalizeTemplate,
   type GenerateDocumentRequest,
@@ -31,13 +27,6 @@ function safeFileBase(name: string, fallback: string): string {
   return base || fallback;
 }
 
-/**
- * Universal document dispatcher. Supports `documentType: "proposal"` and
- * `documentType: "valuation_report"`, each in both `pdf` and `docx` formats.
- * Designed so future tools (ownership cost, charter ROI, charter planner,
- * survey reports) can plug in their own templates without touching the
- * transport/route layer.
- */
 export async function generateDocument(
   req: GenerateDocumentRequest,
 ): Promise<GeneratedDocument> {
@@ -57,12 +46,6 @@ export async function generateDocument(
   const template = normalizeTemplate(req.template ?? settings.template);
 
   if (req.documentType === "cost_report") {
-    // Annual cost is adaptive-engine PDF only.
-    if (req.format === "docx") {
-      throw Object.assign(new Error("DOCX is not supported for cost_report."), {
-        statusCode: 501,
-      });
-    }
     const reportData = (req.reportData ?? {}) as CostReportData;
     const fileBase = safeFileBase(yacht?.name ?? "annual_cost", "annual_cost");
     let yachtForCost = yacht;
@@ -85,15 +68,8 @@ export async function generateDocument(
   }
 
   if (req.documentType === "roi_report") {
-    // Charter ROI is adaptive-engine (block-based) PDF only.
-    if (req.format === "docx") {
-      throw Object.assign(new Error("DOCX is not supported for roi_report."), {
-        statusCode: 501,
-      });
-    }
     const reportData = (req.reportData ?? {}) as RoiReportData;
     const fileBase = safeFileBase(yacht?.name ?? "charter_roi", "charter_roi");
-    // Validate photo URLs before building — same as proposal path.
     let yachtForRoi = yacht;
     if (yachtForRoi) {
       const rawPhotos = photoList(yachtForRoi);
@@ -116,22 +92,9 @@ export async function generateDocument(
   if (req.documentType === "valuation_report") {
     const reportData = (req.reportData ?? {}) as ValuationReportData;
     const fileBase = safeFileBase(yacht?.name ?? "valuation", "valuation");
-
-    if (req.format === "docx") {
-      const buffer = await renderValuationDocx({ yacht, reportData, settings });
-      return {
-        buffer,
-        contentType: DOCX_CONTENT_TYPE,
-        fileName: `${fileBase}_valuation.docx`,
-      };
-    }
-
-    // Opt-in adaptive engine (PDF only): semantic model → blocks → packed pages.
-    // Default stays legacy.
-    const html =
-      settings.engine === "adaptive"
-        ? renderModelToPdfHtml(buildValuationModel({ yacht, reportData, settings, template }))
-        : buildValuationHtml({ yacht, reportData, settings, template });
+    const html = renderModelToPdfHtml(
+      buildValuationModel({ yacht, reportData, settings, template }),
+    );
     const buffer = await renderPdf(html);
     return {
       buffer,
@@ -140,41 +103,21 @@ export async function generateDocument(
     };
   }
 
-  // documentType === "proposal"
   const reportData = (req.reportData ?? {}) as ProposalReportData;
   const fileBase = safeFileBase(yacht?.name ?? "proposal", "proposal");
-
-  if (req.format === "docx") {
-    const buffer = await renderProposalDocx({ yacht, reportData, settings });
-    return {
-      buffer,
-      contentType: DOCX_CONTENT_TYPE,
-      fileName: `${fileBase}_proposal.docx`,
-    };
-  }
-
-  // Opt-in adaptive engine (PDF only): semantic model → blocks → packed pages.
-  // Default stays legacy.
-  let html: string;
-  if (settings.engine === "adaptive") {
-    // Probe photos up front so broken/unreachable URLs never reach the PDF as
-    // broken-image icons; rejected URLs are excluded and logged.
-    const candidatePhotos = yacht ? photoList(yacht) : [];
-    const { valid, rejected } = candidatePhotos.length
-      ? await validateImageUrls(candidatePhotos)
-      : { valid: [], rejected: [] };
-    if (rejected.length) {
-      logger.warn(
-        { documentType: "proposal", rejected, validCount: valid.length },
-        "proposal adaptive export: excluded unreachable/non-image photos",
-      );
-    }
-    html = renderModelToPdfHtml(
-      buildProposalModel({ yacht, reportData, settings, template, photos: valid }),
+  const candidatePhotos = yacht ? photoList(yacht) : [];
+  const { valid, rejected } = candidatePhotos.length
+    ? await validateImageUrls(candidatePhotos)
+    : { valid: [], rejected: [] };
+  if (rejected.length) {
+    logger.warn(
+      { documentType: "proposal", rejected, validCount: valid.length },
+      "proposal adaptive export: excluded unreachable/non-image photos",
     );
-  } else {
-    html = buildProposalHtml({ yacht, reportData, settings, template });
   }
+  const html = renderModelToPdfHtml(
+    buildProposalModel({ yacht, reportData, settings, template, photos: valid }),
+  );
   const buffer = await renderPdf(html);
   return {
     buffer,

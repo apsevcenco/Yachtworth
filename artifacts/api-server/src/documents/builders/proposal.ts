@@ -3,12 +3,11 @@
  *
  * Renderer-independent half of the proposal document (mirrors builders/valuation).
  * Maps yacht specs + proposal data + export settings into the semantic model.
- * It does NOT escape (renderers do) and emits no HTML, so the same model can
- * drive both the PDF renderer and (P1) the DOCX renderer.
+ * It does NOT escape text and emits no HTML; the PDF renderer handles that at
+ * the render boundary.
  *
- * Per the engine's "duplicate, don't refactor" rule, the label dict + helpers are
- * kept local instead of importing the legacy template — the legacy proposal
- * template stays byte-identical.
+ * Per the engine's "duplicate, don't refactor" rule, the label dict + helpers
+ * are kept local.
  */
 import type {
   DocumentTemplate,

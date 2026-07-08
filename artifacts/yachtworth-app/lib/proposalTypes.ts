@@ -1,7 +1,5 @@
 // ─── SHARED PROPOSAL TYPES ───────────────────────────────────────────────────
-// Extracted from proposalPdf.ts so the backend document-engine client
-// (documentExport.ts) and the proposal screens can import these types without
-// pulling in the on-device legacy PDF generator.
+// Shared proposal types for the document engine and proposal screens.
 
 export type ProposalTemplate = "minimal" | "dark" | "classic";
 export type ProposalLanguage = "english" | "french" | "italian" | "spanish" | "german" | "russian";

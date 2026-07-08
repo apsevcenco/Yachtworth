@@ -21,7 +21,6 @@
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
-    "docx": "^9.7.1",
     "drizzle-orm": "catalog:",
     "express": "^5",
     "multer": "^2.1.1",

@@ -14,7 +14,7 @@ import type {
   ProposalYachtSnapshot,
 } from "./proposalTypes";
 
-export type DocumentFormat = "pdf" | "docx";
+export type DocumentFormat = "pdf";
 
 type BackendTemplate = "minimal" | "classic" | "premium";
 
@@ -88,7 +88,7 @@ function buildRequestBody(
       confidential: Array.isArray(settings.sections)
         ? settings.sections.includes("watermark_confidential")
         : false,
-      ...(format === "pdf" ? { engine: "adaptive" as const } : {}),
+      engine: "adaptive" as const,
     },
   };
 }
@@ -112,10 +112,7 @@ async function downloadDocument(
   const url = `${base}/api/documents/generate`;
   const token = await getAuthToken();
 
-  const mime =
-    format === "pdf"
-      ? "application/pdf"
-      : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const mime = "application/pdf";
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -166,7 +163,7 @@ async function downloadDocument(
     await Sharing.shareAsync(fileUri, {
       mimeType: mime,
       dialogTitle: fileName,
-      UTI: format === "pdf" ? "com.adobe.pdf" : "org.openxmlformats.wordprocessingml.document",
+      UTI: "com.adobe.pdf",
     });
   }
 }
@@ -339,7 +336,7 @@ function buildValuationBody(
       template: "premium" as const,
       language: "english" as const,
       branding: "Yachtworth",
-      ...(format === "pdf" ? { engine: "adaptive" as const } : {}),
+      engine: "adaptive" as const,
     },
   };
 }

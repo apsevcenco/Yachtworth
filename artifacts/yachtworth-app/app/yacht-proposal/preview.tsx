@@ -105,7 +105,7 @@ export default function ProposalPreviewScreen() {
       ? params.saved_id
       : null;
 
-  const [busy, setBusy] = useState<null | "pro" | "docx">(null);
+  const [busy, setBusy] = useState<null | "pro">(null);
   const [savedId, setSavedId] = useState<string | null>(initialSavedId);
   const saveM = useSaveProposal();
   const queryClient = useQueryClient();
@@ -116,17 +116,6 @@ export default function ProposalPreviewScreen() {
       await exportProposalDocument({ yacht, equipment, settings, format: "pdf" });
     } catch (e) {
       Alert.alert("Could not export Professional PDF", String(e));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const onExportWord = async () => {
-    setBusy("docx");
-    try {
-      await exportProposalDocument({ yacht, equipment, settings, format: "docx" });
-    } catch (e) {
-      Alert.alert("Could not export Word", String(e));
     } finally {
       setBusy(null);
     }
@@ -236,24 +225,6 @@ export default function ProposalPreviewScreen() {
         </Pressable>
 
         <Pressable
-          onPress={onExportWord}
-          disabled={busy !== null}
-          style={({ pressed }) => [
-            styles.secondaryBtn,
-            { opacity: pressed || busy === "docx" ? 0.8 : 1 },
-          ]}
-        >
-          {busy === "docx" ? (
-            <ActivityIndicator color={GOLD} />
-          ) : (
-            <>
-              <Feather name="file-text" size={18} color={GOLD} />
-              <Text style={styles.secondaryBtnText}>Export Word (DOCX)</Text>
-            </>
-          )}
-        </Pressable>
-
-        <Pressable
           onPress={onSave}
           disabled={saveM.isPending || !!savedId}
           style={({ pressed }) => [
@@ -290,7 +261,7 @@ export default function ProposalPreviewScreen() {
         </Pressable>
 
         <Text style={styles.disclaimer}>
-          Professional PDF and Word are generated on Yachtworth servers and
+          Professional PDF is generated on Yachtworth servers and
           returned to your device — they are not stored. Saving keeps your settings + yacht snapshot so
           you can re-export anytime.
         </Text>

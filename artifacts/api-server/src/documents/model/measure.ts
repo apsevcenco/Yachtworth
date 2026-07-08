@@ -6,7 +6,7 @@
  * not leave obvious empty space. Values are calibrated against real Chromium
  * output and may be tuned per node type.
  *
- * Used only by the PDF renderer. DOCX reflows natively and ignores these.
+ * Used by the PDF renderer to keep page packing deterministic.
  */
 import type { ContentNode, TableCell, TableColumn } from "./types";
 

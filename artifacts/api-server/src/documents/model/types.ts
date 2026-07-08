@@ -1,15 +1,14 @@
 /**
  * Semantic, renderer-independent document model for the Adaptive Document Engine.
  *
- * This is the single source a document is described in. Both the PDF renderer
- * (`pdf/renderModelToBlocks` → paginate → HTML → puppeteer) and the future DOCX
- * renderer consume this same tree, so a document is authored once and rendered
- * to either medium.
+ * This is the single source a document is described in. The PDF renderer
+ * (`pdf/renderModelToBlocks` -> paginate -> HTML -> puppeteer) consumes this
+ * tree, so a document is authored once and rendered consistently.
  *
  * Rules:
  *  - Nodes are SEMANTIC, never HTML. No `<div>` strings live here.
- *  - All text is RAW / un-escaped. Each renderer escapes for its own medium
- *    (HTML-escape for PDF, native text for DOCX). Builders must NOT pre-escape.
+ *  - All text is RAW / un-escaped. The renderer escapes text at the boundary.
+ *    Builders must NOT pre-escape.
  *  - The node set is deliberately wide enough to express every planned document
  *    type — including a professional multi-page survey report (findings tables,
  *    galleries, sea-trial tables, signature, legal callouts).

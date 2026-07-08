@@ -45,8 +45,8 @@ router.post(
     }
 
     const format = body["format"];
-    if (format !== "pdf" && format !== "docx") {
-      res.status(400).json({ error: "format must be 'pdf' or 'docx'." });
+    if (format !== "pdf") {
+      res.status(400).json({ error: "format must be 'pdf'." });
       return;
     }
 

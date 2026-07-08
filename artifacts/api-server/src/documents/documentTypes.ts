@@ -6,14 +6,14 @@
  *   - reportData     = tool-specific content (for proposals: equipment + pricing + broker)
  *   - exportSettings = template, language, branding, output format
  *
- * The engine is intentionally additive and independent from the existing
- * Expo client-side ("Legacy") proposal PDF generator.
+ * The engine is intentionally additive and independent from older
+ * Expo client-side PDF generators.
  */
 
 export type DocumentType = "proposal" | "valuation_report" | "roi_report" | "cost_report";
-export type DocumentFormat = "pdf" | "docx";
+export type DocumentFormat = "pdf";
 
-export type DocumentEngine = "legacy" | "adaptive";
+export type DocumentEngine = "adaptive";
 export type DocumentTemplate = "minimal" | "classic" | "premium";
 
 export type ProposalLanguage =
@@ -280,8 +280,6 @@ export interface GeneratedDocument {
 }
 
 export const PDF_CONTENT_TYPE = "application/pdf";
-export const DOCX_CONTENT_TYPE =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export function normalizeTemplate(t: unknown): DocumentTemplate {
   if (t === "classic") return "classic";
