@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import path from "node:path";
 import {
   Browser as PuppeteerBrowser,
   BrowserTag,
@@ -17,13 +18,14 @@ import { logger } from "../../lib/logger";
  *   1. PUPPETEER_EXECUTABLE_PATH        (explicit override — set this on Render)
  *   2. CHROME_BIN / GOOGLE_CHROME_BIN   (common on PaaS images)
  *   3. Standard Linux Chrome/Chromium locations used by many Render images
- *   4. Downloaded Chrome for Testing cache in /tmp (Render-safe fallback)
+ *   4. Downloaded Chrome for Testing cache in .cache/yachtworth-chrome
  */
 let downloadedExecutablePath: Promise<string> | null = null;
 
 async function resolveDownloadedExecutablePath(): Promise<string> {
   const cacheDir =
-    process.env["PUPPETEER_CACHE_DIR"]?.trim() || "/tmp/yachtworth-chrome";
+    process.env["PUPPETEER_CACHE_DIR"]?.trim() ||
+    path.resolve(process.cwd(), ".cache", "yachtworth-chrome");
   const platform = detectBrowserPlatform();
   if (!platform) {
     throw new Error("Could not detect browser platform for Chromium download.");
