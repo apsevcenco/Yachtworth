@@ -20,7 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SECTION_TEMPLATES, sectionStatus } from "../../../lib/surveyTemplates";
-import { exportSurveyPdf } from "../../../lib/surveyPdf";
+import { exportSurveyDocument } from "../../../lib/documentExport";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -99,7 +99,7 @@ export default function SurveySectionsScreen() {
     if (!report) return;
     setExporting(true);
     try {
-      await exportSurveyPdf({
+      await exportSurveyDocument({
         report: {
           vessel_name: report.vessel_name,
           vessel_type: report.vessel_type,

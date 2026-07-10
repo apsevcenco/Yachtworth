@@ -24,7 +24,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { exportListingPdf } from "../../lib/listingPdf";
+import { exportListingDocument } from "../../lib/documentExport";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -197,7 +197,7 @@ export default function ListingResultScreen() {
   const onExport = async () => {
     setExporting(true);
     try {
-      await exportListingPdf({
+      await exportListingDocument({
         yachtName,
         builder: yachtPayload?.builder ?? null,
         model: yachtPayload?.model ?? null,
@@ -205,7 +205,11 @@ export default function ListingResultScreen() {
         lengthMeters: yachtPayload?.length_meters ?? null,
         yachtType: yachtPayload?.type ?? null,
         photoUrl: yachtPayload?.photo_url ?? null,
+        photoUrls: yachtPayload?.photo_urls ?? null,
         generatedText: text,
+        listingType: params.listing_type ?? null,
+        style: params.style ?? null,
+        language: params.language ?? null,
         askingPriceEur: yachtPayload?.asking_price_eur ?? null,
         charterRateEurWeek: yachtPayload?.charter_rate_eur_week ?? null,
         brokerageName: settingsPayload?.brokerage_name ?? null,

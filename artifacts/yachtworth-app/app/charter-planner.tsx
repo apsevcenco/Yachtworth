@@ -29,10 +29,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  exportFleetCsv,
-  exportFleetPdf,
-} from "../lib/charterExports";
+import { exportFleetCsv } from "../lib/charterExports";
+import { exportFleetDocument } from "../lib/documentExport";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -677,7 +675,7 @@ function CalendarTab({
         yachts,
         charters: monthCharters,
       };
-      if (kind === "pdf") await exportFleetPdf(input);
+      if (kind === "pdf") await exportFleetDocument(input);
       else await exportFleetCsv(input);
     } catch (err) {
       Alert.alert(

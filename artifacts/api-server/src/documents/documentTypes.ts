@@ -10,7 +10,15 @@
  * Expo client-side PDF generators.
  */
 
-export type DocumentType = "proposal" | "valuation_report" | "roi_report" | "cost_report";
+export type DocumentType =
+  | "proposal"
+  | "valuation_report"
+  | "roi_report"
+  | "cost_report"
+  | "listing_report"
+  | "charter_report"
+  | "fleet_charter_report"
+  | "survey_report";
 export type DocumentFormat = "pdf";
 
 export type DocumentEngine = "adaptive";
@@ -264,12 +272,152 @@ export interface CostReportData {
   legalDisclaimer?: string | null;
 }
 
+// Listing report
+
+export interface ListingReportData {
+  generatedText?: string | null;
+  listingType?: string | null;
+  style?: string | null;
+  language?: string | null;
+  askingPriceEur?: number | null;
+  charterRateEurWeek?: number | null;
+  brokerageName?: string | null;
+  contactEmail?: string | null;
+}
+
+// Charter planner reports
+
+export interface CharterLineItem {
+  label?: string | null;
+  value?: string | null;
+  amount_eur?: number | null;
+  note?: string | null;
+}
+
+export interface CharterReportData {
+  startDate?: string | null;
+  endDate?: string | null;
+  days?: number | null;
+  status?: string | null;
+  clientName?: string | null;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  ports?: string | null;
+  times?: string | null;
+  contractStatus?: string | null;
+  baseNetEur?: number | null;
+  vatAmountEur?: number | null;
+  totalToClientEur?: number | null;
+  apaAmountEur?: number | null;
+  apaSpentEur?: number | null;
+  apaBalanceEur?: number | null;
+  totalInvoiceEur?: number | null;
+  netProfitEur?: number | null;
+  marginPct?: number | null;
+  ownerReceivesEur?: number | null;
+  crewTotalEur?: number | null;
+  fuelCostEur?: number | null;
+  distributionBalanced?: boolean | null;
+  rateLine?: string | null;
+  crew?: CharterLineItem[] | null;
+  apaItems?: CharterLineItem[] | null;
+  distribution?: CharterLineItem[] | null;
+  notes?: string | null;
+}
+
+export interface FleetCharterRow {
+  yacht?: string | null;
+  client?: string | null;
+  range?: string | null;
+  status?: string | null;
+  port?: string | null;
+  value_eur?: number | null;
+}
+
+export interface FleetCharterReportData {
+  monthLabel?: string | null;
+  totalCharters?: number | null;
+  totalValueEur?: number | null;
+  rows?: FleetCharterRow[] | null;
+}
+
+// Survey report
+
+export interface SurveyItemData {
+  section_number?: number | null;
+  section_name?: string | null;
+  item_number?: string | null;
+  description?: string | null;
+  condition?: string | null;
+  notes?: string | null;
+  recommendation_level?: string | null;
+  recommendation_text?: string | null;
+  photo_urls?: string[] | null;
+  moisture_reading?: number | null;
+  moisture_level?: string | null;
+  sort_order?: number | null;
+}
+
+export interface SurveySeaTrialData {
+  trial_date?: string | null;
+  location?: string | null;
+  weather?: string | null;
+  sea_state?: string | null;
+  narrative?: string | null;
+  rpm_table?: Array<{
+    rpm?: number | null;
+    coolant_p?: number | null;
+    coolant_s?: number | null;
+    oil_p?: number | null;
+    oil_s?: number | null;
+    speed?: number | null;
+  }> | null;
+  tickover_rpm?: number | null;
+  tickover_speed?: number | null;
+  max_rpm?: number | null;
+  max_speed?: number | null;
+  additional_observations?: string | null;
+}
+
+export interface SurveyReportData {
+  vesselType?: string | null;
+  manufacturer?: string | null;
+  model?: string | null;
+  yearBuilt?: number | null;
+  flag?: string | null;
+  hin?: string | null;
+  lying?: string | null;
+  surveyDate?: string | null;
+  surveyPurpose?: string | null;
+  weatherConditions?: string | null;
+  seaState?: string | null;
+  clientName?: string | null;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  surveyorName?: string | null;
+  surveyorQualification?: string | null;
+  surveyorCompany?: string | null;
+  surveyorPhone?: string | null;
+  surveyorEmail?: string | null;
+  surveyorSignatureUrl?: string | null;
+  items?: SurveyItemData[] | null;
+  seaTrial?: SurveySeaTrialData | null;
+}
+
 export interface GenerateDocumentRequest {
   documentType: DocumentType;
   format: DocumentFormat;
   template?: DocumentTemplate;
   yachtProfile: YachtProfile;
-  reportData?: ProposalReportData | ValuationReportData | RoiReportData | CostReportData;
+  reportData?:
+    | ProposalReportData
+    | ValuationReportData
+    | RoiReportData
+    | CostReportData
+    | ListingReportData
+    | CharterReportData
+    | FleetCharterReportData
+    | SurveyReportData;
   exportSettings?: ExportSettings;
 }
 

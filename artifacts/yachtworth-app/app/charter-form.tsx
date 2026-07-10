@@ -41,7 +41,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { exportCharterPdf } from "../lib/charterExports";
+import { exportCharterDocument } from "../lib/documentExport";
 import {
   calcCharter,
   DEFAULT_DISTRIBUTION,
@@ -2386,7 +2386,7 @@ export default function CharterFormScreen() {
                 setExporting(true);
                 const y =
                   yachts.find((x) => x.id === charterQ.data!.yacht_id) ?? null;
-                await exportCharterPdf(charterQ.data, y);
+                await exportCharterDocument(charterQ.data, y);
               } catch (err) {
                 Alert.alert(
                   "Export failed",

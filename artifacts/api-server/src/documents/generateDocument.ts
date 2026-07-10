@@ -1,6 +1,9 @@
 import { buildProposalModel } from "./builders/proposal";
+import { buildCharterModel, buildFleetCharterModel } from "./builders/charter";
 import { buildCostModel } from "./builders/cost";
+import { buildListingModel } from "./builders/listing";
 import { buildRoiModel } from "./builders/roi";
+import { buildSurveyModel } from "./builders/survey";
 import { buildValuationModel } from "./builders/valuation";
 import { renderPdf } from "./pdf/generatePdf";
 import { renderModelToPdfHtml } from "./pdf/renderModelToPdfHtml";
@@ -11,9 +14,13 @@ import {
   normalizeTemplate,
   type GenerateDocumentRequest,
   type GeneratedDocument,
+  type CharterReportData,
   type CostReportData,
+  type FleetCharterReportData,
+  type ListingReportData,
   type ProposalReportData,
   type RoiReportData,
+  type SurveyReportData,
   type ValuationReportData,
 } from "./documentTypes";
 
@@ -34,7 +41,11 @@ export async function generateDocument(
     req.documentType !== "proposal" &&
     req.documentType !== "valuation_report" &&
     req.documentType !== "roi_report" &&
-    req.documentType !== "cost_report"
+    req.documentType !== "cost_report" &&
+    req.documentType !== "listing_report" &&
+    req.documentType !== "charter_report" &&
+    req.documentType !== "fleet_charter_report" &&
+    req.documentType !== "survey_report"
   ) {
     throw Object.assign(new Error(`Unsupported documentType: ${req.documentType}`), {
       statusCode: 501,
@@ -100,6 +111,86 @@ export async function generateDocument(
       buffer,
       contentType: PDF_CONTENT_TYPE,
       fileName: `${fileBase}_valuation.pdf`,
+    };
+  }
+
+  if (req.documentType === "listing_report") {
+    const reportData = (req.reportData ?? {}) as ListingReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "listing", "listing");
+    let yachtForListing = yacht;
+    if (yachtForListing) {
+      const rawPhotos = photoList(yachtForListing);
+      if (rawPhotos.length) {
+        const { valid } = await validateImageUrls(rawPhotos);
+        yachtForListing = {
+          ...yachtForListing,
+          cover_photo_url: valid[0] ?? null,
+          photo_urls: valid,
+        };
+      }
+    }
+    const html = renderModelToPdfHtml(
+      buildListingModel({ yacht: yachtForListing, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_listing.pdf`,
+    };
+  }
+
+  if (req.documentType === "charter_report") {
+    const reportData = (req.reportData ?? {}) as CharterReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "charter", "charter");
+    let yachtForCharter = yacht;
+    if (yachtForCharter) {
+      const rawPhotos = photoList(yachtForCharter);
+      if (rawPhotos.length) {
+        const { valid } = await validateImageUrls(rawPhotos);
+        yachtForCharter = {
+          ...yachtForCharter,
+          cover_photo_url: valid[0] ?? null,
+          photo_urls: valid,
+        };
+      }
+    }
+    const html = renderModelToPdfHtml(
+      buildCharterModel({ yacht: yachtForCharter, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_charter.pdf`,
+    };
+  }
+
+  if (req.documentType === "fleet_charter_report") {
+    const reportData = (req.reportData ?? {}) as FleetCharterReportData;
+    const fileBase = safeFileBase(reportData.monthLabel ?? "fleet_charter", "fleet_charter");
+    const html = renderModelToPdfHtml(
+      buildFleetCharterModel({ yacht, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_fleet_charter.pdf`,
+    };
+  }
+
+  if (req.documentType === "survey_report") {
+    const reportData = (req.reportData ?? {}) as SurveyReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "survey", "survey");
+    const html = renderModelToPdfHtml(
+      buildSurveyModel({ yacht, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_survey.pdf`,
     };
   }
 
