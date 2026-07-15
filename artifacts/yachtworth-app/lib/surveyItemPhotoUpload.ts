@@ -1,5 +1,6 @@
 import { getAuthToken, getBaseUrl } from "@workspace/api-client-react";
 import { compressPhoto } from "./photoCompression";
+import { appendPhotoToFormData } from "./photoFormData";
 
 /**
  * Survey item photo upload helper. Mirrors `lib/photoUpload.ts` — server
@@ -24,11 +25,12 @@ export async function uploadSurveyItemPhoto(
   const base = getBaseUrl() ?? "";
   const url = `${base}/api/survey-items/${itemId}/photos`;
   const form = new FormData();
-  form.append("file", {
-    uri: compressed.uri,
-    name: `photo_${Date.now()}.jpg`,
-    type: "image/jpeg",
-  } as unknown as Blob);
+  await appendPhotoToFormData(
+    form,
+    "file",
+    compressed.uri,
+    `photo_${Date.now()}.jpg`,
+  );
 
   const res = await fetch(url, {
     method: "POST",

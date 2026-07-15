@@ -162,10 +162,12 @@ export default function SurveySectionScreen() {
       await doUpload(r.assets[0].uri);
     };
     const fromLibrary = async () => {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert("Photo access needed", "Enable photo library in Settings.");
-        return;
+      if (Platform.OS !== "web") {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Photo access needed", "Enable photo library in Settings.");
+          return;
+        }
       }
       const remaining = MAX_ITEM_PHOTOS - editableItem.photo_urls.length;
       const r = await ImagePicker.launchImageLibraryAsync({
@@ -181,6 +183,10 @@ export default function SurveySectionScreen() {
         await doUpload(a.uri);
       }
     };
+    if (Platform.OS === "web") {
+      void fromLibrary();
+      return;
+    }
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {

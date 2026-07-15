@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
+import { Platform } from "react-native";
 
 /**
  * Auto-compress a photo before upload so the user never has to think
@@ -32,6 +33,10 @@ export type CompressedPhoto = {
 };
 
 export async function compressPhoto(uri: string): Promise<CompressedPhoto> {
+  if (Platform.OS === "web") {
+    return { uri, width: 0, height: 0, bytes: null };
+  }
+
   // First pass: read dimensions (no transform).
   const original = await ImageManipulator.manipulateAsync(uri, [], {
     base64: false,

@@ -1,5 +1,6 @@
 import { getAuthToken, getBaseUrl } from "@workspace/api-client-react";
 import { compressPhoto } from "./photoCompression";
+import { appendPhotoToFormData } from "./photoFormData";
 
 /**
  * Yacht photo upload helper. Sends the compressed JPEG to
@@ -37,14 +38,7 @@ export async function uploadYachtPhoto(
   // React Native FormData accepts { uri, name, type } objects directly.
   const form = new FormData();
   const fileName = `photo_${Date.now()}.jpg`;
-  form.append(
-    "file",
-    {
-      uri: compressed.uri,
-      name: fileName,
-      type: "image/jpeg",
-    } as unknown as Blob,
-  );
+  await appendPhotoToFormData(form, "file", compressed.uri, fileName);
 
   const res = await fetch(url, {
     method: "POST",

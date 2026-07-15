@@ -1,5 +1,6 @@
 import { getAuthToken, getBaseUrl } from "@workspace/api-client-react";
 import { compressPhoto } from "./photoCompression";
+import { appendPhotoToFormData } from "./photoFormData";
 
 /**
  * Proposal photo upload helper. Manual proposals have no yacht row, so photos
@@ -27,11 +28,7 @@ export async function uploadProposalPhoto(localUri: string): Promise<string> {
 
   const form = new FormData();
   const fileName = `photo_${Date.now()}.jpg`;
-  form.append("file", {
-    uri: compressed.uri,
-    name: fileName,
-    type: "image/jpeg",
-  } as unknown as Blob);
+  await appendPhotoToFormData(form, "file", compressed.uri, fileName);
 
   const res = await fetch(url, {
     method: "POST",

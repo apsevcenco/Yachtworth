@@ -6,6 +6,7 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -40,6 +41,7 @@ type Props = {
  */
 export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
   const [busy, setBusy] = useState<"add" | string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const remaining = MAX_PHOTOS - photos.length;
 
@@ -92,10 +94,12 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
   };
 
   const pickFromLibrary = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert("Photo library access needed", "Enable in Settings.");
-      return;
+    if (Platform.OS !== "web") {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Photo library access needed", "Enable in Settings.");
+        return;
+      }
     }
     const r = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -110,6 +114,10 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
   const openSourceSheet = () => {
     if (remaining <= 0) {
       Alert.alert("Photo limit reached", `Max ${MAX_PHOTOS} photos.`);
+      return;
+    }
+    if (Platform.OS === "web") {
+      void pickFromLibrary();
       return;
     }
     if (Platform.OS === "ios") {
@@ -180,6 +188,7 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
           return (
             <Pressable
               key={url}
+              onPress={() => setPreviewUrl(url)}
               onLongPress={() => onLongPress(url)}
               delayLongPress={350}
               style={styles.thumbWrap}
@@ -233,6 +242,35 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
           </Pressable>
         )}
       </ScrollView>
+
+      {previewUrl ? (
+        <Modal
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewUrl(null)}
+        >
+          <View style={styles.previewBg}>
+            <Pressable
+              onPress={() => setPreviewUrl(null)}
+              style={styles.previewClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close photo preview"
+            >
+              <Feather name="x" size={22} color="#F4EFE3" />
+            </Pressable>
+            <Pressable
+              onPress={() => setPreviewUrl(null)}
+              style={styles.previewBody}
+            >
+              <Image
+                source={{ uri: previewUrl }}
+                style={styles.previewImage}
+                contentFit="contain"
+              />
+            </Pressable>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -309,5 +347,35 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     color: GOLD,
+  },
+  previewBg: {
+    flex: 1,
+    backgroundColor: "rgba(2,8,20,0.92)",
+  },
+  previewBody: {
+    flex: 1,
+    padding: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
+    maxWidth: 1200,
+    maxHeight: 820,
+  },
+  previewClose: {
+    position: "absolute",
+    top: 22,
+    right: 22,
+    zIndex: 5,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(11,30,63,0.82)",
+    borderWidth: 1,
+    borderColor: BORDER,
   },
 });
