@@ -6,6 +6,7 @@ import {
   YACHTS_TABLE,
 } from "../lib/supabase";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 import { calculateRoi } from "../lib/roi";
 import type { YachtRow } from "../lib/roi/types";
@@ -25,7 +26,11 @@ const VALID_REGIONS: ReadonlySet<RateRegion> = new Set([
   "asia_pacific_me",
   "middle_east",
 ]);
-const VALID_SEASONS: ReadonlySet<RateSeason> = new Set(["high", "shoulder", "low"]);
+const VALID_SEASONS: ReadonlySet<RateSeason> = new Set([
+  "high",
+  "shoulder",
+  "low",
+]);
 const VALID_PERIODS: ReadonlySet<RatePeriod> = new Set(["day", "week"]);
 const VALID_CHARTER_TYPES: ReadonlySet<CharterType> = new Set([
   "crewed",
@@ -228,11 +233,11 @@ router.post(
         const rate = input.manual_rate_eur;
         const units = input.manual_charter_units;
         if (rate == null || units == null) {
-        res.status(400).json({
-          error:
-            "manual_rate_eur and manual_charter_units are required for manual pricing modes",
-        });
-        return;
+          res.status(400).json({
+            error:
+              "manual_rate_eur and manual_charter_units are required for manual pricing modes",
+          });
+          return;
         }
         if (!(rate > 0)) {
           res.status(400).json({ error: "manual_rate_eur must be > 0" });
@@ -263,7 +268,9 @@ router.post(
       for (const row of marinaRows) {
         if (row.rate == null && row.months == null) continue;
         if (row.rate == null || row.rate < 0) {
-          res.status(400).json({ error: `${row.label} monthly rate is required` });
+          res
+            .status(400)
+            .json({ error: `${row.label} monthly rate is required` });
           return;
         }
         if (row.months == null || row.months < 1 || row.months > 12) {
@@ -273,7 +280,9 @@ router.post(
         marinaMonths += row.months;
       }
       if (marinaMonths > 12) {
-        res.status(400).json({ error: "dual-region marina months cannot exceed 12 total" });
+        res
+          .status(400)
+          .json({ error: "dual-region marina months cannot exceed 12 total" });
         return;
       }
     }
@@ -289,10 +298,10 @@ router.post(
     // entered yacht. Manual yachts are NEVER written to the yachts table.
     let yacht: YachtRow | null = null;
     if (hasYachtId) {
-      const { data, error: yErr } = await sb
-        .from(YACHTS_TABLE)
-        .select(YACHT_COLUMNS_FOR_ROI)
-        .eq("clerk_user_id", req.userId!)
+      const { data, error: yErr } = await forClerkUser(
+        sb.from(YACHTS_TABLE).select(YACHT_COLUMNS_FOR_ROI),
+        req.userId!,
+      )
         .eq("id", input.yacht_id as string)
         .maybeSingle<YachtRow>();
       if (yErr) {
@@ -350,7 +359,8 @@ router.post(
         annual_expenses_eur: result.annual_expenses_eur,
         net_profit_eur: result.net_profit_eur,
         roi_pct: result.roi_pct,
-        payback_years: result.payback_years >= 999 ? null : result.payback_years,
+        payback_years:
+          result.payback_years >= 999 ? null : result.payback_years,
         input,
         result,
       };
@@ -411,12 +421,14 @@ router.get(
         return;
       }
     }
-    const { data, error } = await sb
-      .from(ROI_CALCULATIONS_TABLE)
-      .select(
-        "id, yacht_id, created_at, region, annual_revenue_eur, annual_expenses_eur, net_profit_eur, roi_pct, payback_years",
-      )
-      .ilike("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb
+        .from(ROI_CALCULATIONS_TABLE)
+        .select(
+          "id, yacht_id, created_at, region, annual_revenue_eur, annual_expenses_eur, net_profit_eur, roi_pct, payback_years",
+        ),
+      req.userId!,
+    )
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {
@@ -445,20 +457,24 @@ router.get(
       res.status(503).json({ error: "ROI storage not configured" });
       return;
     }
-    let { data, error } = await sb
-      .from(ROI_CALCULATIONS_TABLE)
-      .select("id, yacht_id, yacht_snapshot, created_at, input, result")
-      .ilike("clerk_user_id", req.userId!)
+    let { data, error } = await forClerkUser(
+      sb
+        .from(ROI_CALCULATIONS_TABLE)
+        .select("id, yacht_id, yacht_snapshot, created_at, input, result"),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     // Graceful degradation: migration 022 (yacht_snapshot column) may not be
     // applied yet. PostgREST returns 42703 (undefined_column) — retry without
     // the column so existing history items still open.
     if (error && isUndefinedColumn(error)) {
-      ({ data, error } = await sb
-        .from(ROI_CALCULATIONS_TABLE)
-        .select("id, yacht_id, created_at, input, result")
-        .ilike("clerk_user_id", req.userId!)
+      ({ data, error } = await forClerkUser(
+        sb
+          .from(ROI_CALCULATIONS_TABLE)
+          .select("id, yacht_id, created_at, input, result"),
+        req.userId!,
+      )
         .eq("id", req.params["id"])
         .maybeSingle());
     }
@@ -489,11 +505,10 @@ router.delete(
       res.status(503).json({ error: "ROI storage not configured" });
       return;
     }
-    const { error, count } = await sb
-      .from(ROI_CALCULATIONS_TABLE)
-      .delete({ count: "exact" })
-      .ilike("clerk_user_id", req.userId!)
-      .eq("id", req.params["id"]);
+    const { error, count } = await forClerkUser(
+      sb.from(ROI_CALCULATIONS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", req.params["id"]);
     if (error) {
       req.log.error({ err: error.message }, "Delete ROI calculation failed");
       res.status(500).json({ error: error.message });
@@ -513,7 +528,8 @@ router.post(
   requireAuth(),
   async (req, res): Promise<void> => {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const yachtId = typeof body["yacht_id"] === "string" ? body["yacht_id"] : "";
+    const yachtId =
+      typeof body["yacht_id"] === "string" ? body["yacht_id"] : "";
     if (!isUuid(yachtId)) {
       res.status(400).json({ error: "Invalid yacht_id" });
       return;
@@ -552,15 +568,17 @@ router.post(
       return;
     }
 
-    const { data: yacht, error: yErr } = await sb
-      .from(YACHTS_TABLE)
-      .select(YACHT_COLUMNS_FOR_ROI)
-      .eq("clerk_user_id", req.userId!)
+    const { data: yacht, error: yErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select(YACHT_COLUMNS_FOR_ROI),
+      req.userId!,
+    )
       .eq("id", yachtId)
       .maybeSingle<YachtRow>();
     if (yErr) {
       req.log.error({ err: yErr.message }, "AI rate: load yacht failed");
-      res.status(503).json({ error: "Could not load yacht. Please try again." });
+      res
+        .status(503)
+        .json({ error: "Could not load yacht. Please try again." });
       return;
     }
     if (!yacht) {

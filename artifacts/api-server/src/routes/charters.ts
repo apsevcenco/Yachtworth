@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { getSupabase, CHARTERS_TABLE, CLIENTS_TABLE } from "../lib/supabase";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import { CreateCharterBody, UpdateCharterBody } from "@workspace/api-zod";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
@@ -53,12 +54,17 @@ async function findConflictingCharter(
     end_date: string;
   },
   ignoreId?: string,
-): Promise<{ id: string; status: string; start_date: string; end_date: string } | null> {
+): Promise<{
+  id: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+} | null> {
   if (!charterBlocksCalendar(payload.status ?? "confirmed")) return null;
-  let q = sb
-    .from(CHARTERS_TABLE)
-    .select("id, status, start_date, end_date")
-    .eq("clerk_user_id", userId)
+  let q = forClerkUser(
+    sb.from(CHARTERS_TABLE).select("id, status, start_date, end_date"),
+    userId,
+  )
     .eq("yacht_id", payload.yacht_id)
     .in("status", [...BLOCKING_CHARTER_STATUSES])
     .lte("start_date", payload.end_date)
@@ -131,10 +137,7 @@ async function assertYachtOwned(
   userId: string,
   yachtId: string,
 ): Promise<boolean> {
-  const { data } = await sb
-    .from("yachts")
-    .select("id")
-    .eq("clerk_user_id", userId)
+  const { data } = await forClerkUser(sb.from("yachts").select("id"), userId)
     .eq("id", yachtId)
     .maybeSingle();
   return !!data;
@@ -175,10 +178,10 @@ router.get(
       string,
       string | undefined
     >;
-    let q = sb
-      .from(CHARTERS_TABLE)
-      .select(CHARTER_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    let q = forClerkUser(
+      sb.from(CHARTERS_TABLE).select(CHARTER_COLUMNS),
+      req.userId!,
+    )
       .order("start_date", { ascending: true })
       .limit(500);
     if (yacht_id && isUuid(yacht_id)) q = q.eq("yacht_id", yacht_id);
@@ -290,10 +293,10 @@ router.get(
       res.status(503).json({ error: "Charter storage not configured" });
       return;
     }
-    const { data, error } = await sb
-      .from(CHARTERS_TABLE)
-      .select(CHARTER_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(CHARTERS_TABLE).select(CHARTER_COLUMNS),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (error) {
@@ -371,10 +374,10 @@ router.patch(
       ...parsed.data,
       client_name: normalizeClientName(parsed.data.client_name),
     });
-    const { data, error } = await sb
-      .from(CHARTERS_TABLE)
-      .update(updatePayload)
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(CHARTERS_TABLE).update(updatePayload),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .select(CHARTER_COLUMNS)
       .maybeSingle();
@@ -418,11 +421,10 @@ router.delete(
       res.status(503).json({ error: "Charter storage not configured" });
       return;
     }
-    const { error, count } = await sb
-      .from(CHARTERS_TABLE)
-      .delete({ count: "exact" })
-      .eq("clerk_user_id", req.userId!)
-      .eq("id", req.params["id"]);
+    const { error, count } = await forClerkUser(
+      sb.from(CHARTERS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", req.params["id"]);
     if (error) {
       req.log.error({ err: error.message }, "Delete charter failed");
       res.status(500).json({ error: error.message });

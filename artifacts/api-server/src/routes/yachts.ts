@@ -12,6 +12,7 @@ import {
   ReplaceYachtEquipmentBody,
   UpdateYachtBody,
 } from "@workspace/api-zod";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
 const MAX_PHOTOS_PER_YACHT = 10;
@@ -75,10 +76,10 @@ router.get(
     // Default list hides archived yachts. Pass `?include_archived=1` to see all.
     const ia = req.query["include_archived"];
     const includeArchived = ia === "1" || ia === "true";
-    const { data, error } = await sb
-      .from(YACHTS_TABLE)
-      .select(YACHT_COLUMNS)
-      .ilike("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select(YACHT_COLUMNS),
+      req.userId!,
+    )
       .order("updated_at", { ascending: false })
       .limit(50);
     if (error) {
@@ -108,10 +109,10 @@ router.post(
       res.status(503).json({ error: "Yacht storage not configured" });
       return;
     }
-    const { count: existingCount, error: countErr } = await sb
-      .from(YACHTS_TABLE)
-      .select("id", { count: "exact", head: true })
-      .eq("clerk_user_id", req.userId!);
+    const { count: existingCount, error: countErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select("id", { count: "exact", head: true }),
+      req.userId!,
+    );
     if (countErr) {
       req.log.error({ err: countErr.message }, "Count yachts failed");
       res.status(500).json({ error: countErr.message });
@@ -160,10 +161,10 @@ router.get(
       res.status(503).json({ error: "Yacht storage not configured" });
       return;
     }
-    const { data, error } = await sb
-      .from(YACHTS_TABLE)
-      .select(YACHT_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select(YACHT_COLUMNS),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (error) {
@@ -204,10 +205,12 @@ router.patch(
     delete safeUpdate["photo_url"];
     delete safeUpdate["photo_urls"];
     delete safeUpdate["cover_photo_url"];
-    const { data, error } = await sb
-      .from(YACHTS_TABLE)
-      .update({ ...safeUpdate, updated_at: new Date().toISOString() })
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb
+        .from(YACHTS_TABLE)
+        .update({ ...safeUpdate, updated_at: new Date().toISOString() }),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .select(YACHT_COLUMNS)
       .maybeSingle();
@@ -241,11 +244,10 @@ router.delete(
     const yachtId = req.params["id"]!;
     // Snapshot photo folder so we can clean up storage after DB delete.
     // We never block delete on storage cleanup; orphans are non-fatal.
-    const { error, count } = await sb
-      .from(YACHTS_TABLE)
-      .delete({ count: "exact" })
-      .eq("clerk_user_id", req.userId!)
-      .eq("id", yachtId);
+    const { error, count } = await forClerkUser(
+      sb.from(YACHTS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", yachtId);
     if (error) {
       req.log.error({ err: error.message }, "Delete yacht failed");
       res.status(500).json({ error: error.message });
@@ -294,10 +296,10 @@ router.get(
       return;
     }
     // Verify yacht ownership before returning anything.
-    const { data: yacht, error: yErr } = await sb
-      .from(YACHTS_TABLE)
-      .select("id")
-      .eq("clerk_user_id", req.userId!)
+    const { data: yacht, error: yErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select("id"),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (yErr) {
@@ -309,11 +311,11 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { data, error } = await sb
-      .from(YACHT_EQUIPMENT_TABLE)
-      .select(EQUIPMENT_COLUMNS)
+    const { data, error } = await forClerkUser(
+      sb.from(YACHT_EQUIPMENT_TABLE).select(EQUIPMENT_COLUMNS),
+      req.userId!,
+    )
       .eq("yacht_id", req.params["id"])
-      .eq("clerk_user_id", req.userId!)
       .order("created_at", { ascending: true });
     if (error) {
       req.log.error({ err: error.message }, "List equipment failed");
@@ -344,10 +346,10 @@ router.put(
       return;
     }
     // Ownership check
-    const { data: yacht, error: yErr } = await sb
-      .from(YACHTS_TABLE)
-      .select("id")
-      .eq("clerk_user_id", req.userId!)
+    const { data: yacht, error: yErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select("id"),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (yErr) {
@@ -404,10 +406,10 @@ async function loadYachtForPhotoOps(
 > {
   const sb = getSupabase();
   if (!sb) return { status: 503, error: "Yacht storage not configured" };
-  const { data, error } = await sb
-    .from(YACHTS_TABLE)
-    .select("photo_urls, cover_photo_url")
-    .eq("clerk_user_id", userId)
+  const { data, error } = await forClerkUser(
+    sb.from(YACHTS_TABLE).select("photo_urls, cover_photo_url"),
+    userId,
+  )
     .eq("id", yachtId)
     .maybeSingle();
   if (error) return { status: 503, error: error.message };
@@ -418,7 +420,7 @@ async function loadYachtForPhotoOps(
     : [];
   const cover_photo_url =
     typeof (data as { cover_photo_url?: unknown }).cover_photo_url === "string"
-      ? ((data as { cover_photo_url: string }).cover_photo_url)
+      ? (data as { cover_photo_url: string }).cover_photo_url
       : null;
   return { ok: true, photo_urls, cover_photo_url };
 }
@@ -497,15 +499,14 @@ router.post(
     const nextPhotos = [...loaded.photo_urls, publicUrl];
     const nextCover = loaded.cover_photo_url ?? publicUrl;
 
-    const { error: upErr } = await sb
-      .from(YACHTS_TABLE)
-      .update({
+    const { error: upErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).update({
         photo_urls: nextPhotos,
         cover_photo_url: nextCover,
         photo_url: nextCover, // legacy column kept in sync
-      })
-      .eq("clerk_user_id", req.userId!)
-      .eq("id", yachtId);
+      }),
+      req.userId!,
+    ).eq("id", yachtId);
     if (upErr) {
       // Roll back the storage upload so we don't leak orphans.
       await sb.storage.from(YACHT_PHOTOS_BUCKET).remove([objectPath]);
@@ -558,7 +559,9 @@ router.delete(
     // Defence-in-depth: even if the URL is in the array, ensure the parsed
     // storage path is scoped to this yacht's folder before we touch storage.
     if (!path || !path.startsWith(`${yachtId}/`)) {
-      res.status(400).json({ error: "URL is not in this yacht's storage folder" });
+      res
+        .status(400)
+        .json({ error: "URL is not in this yacht's storage folder" });
       return;
     }
 
@@ -566,15 +569,14 @@ router.delete(
     let nextCover = loaded.cover_photo_url;
     if (nextCover === url) nextCover = nextPhotos[0] ?? null;
 
-    const { error: upErr } = await sb
-      .from(YACHTS_TABLE)
-      .update({
+    const { error: upErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).update({
         photo_urls: nextPhotos,
         cover_photo_url: nextCover,
         photo_url: nextCover,
-      })
-      .eq("clerk_user_id", req.userId!)
-      .eq("id", yachtId);
+      }),
+      req.userId!,
+    ).eq("id", yachtId);
     if (upErr) {
       req.log.error({ err: upErr.message }, "Yacht photo DB delete failed");
       res.status(500).json({ error: upErr.message });
@@ -624,11 +626,10 @@ router.patch(
       res.status(400).json({ error: "URL is not in this yacht's photos" });
       return;
     }
-    const { error: upErr } = await sb
-      .from(YACHTS_TABLE)
-      .update({ cover_photo_url: url, photo_url: url })
-      .eq("clerk_user_id", req.userId!)
-      .eq("id", yachtId);
+    const { error: upErr } = await forClerkUser(
+      sb.from(YACHTS_TABLE).update({ cover_photo_url: url, photo_url: url }),
+      req.userId!,
+    ).eq("id", yachtId);
     if (upErr) {
       req.log.error({ err: upErr.message }, "Yacht cover update failed");
       res.status(500).json({ error: upErr.message });

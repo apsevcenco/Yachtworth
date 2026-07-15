@@ -14,6 +14,7 @@ import {
   SURVEY_SEA_TRIAL_TABLE,
   SURVEY_ITEM_PHOTOS_BUCKET,
 } from "../lib/supabase";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
@@ -78,7 +79,11 @@ async function loadOwnedItem(
     : [];
   return {
     ok: true,
-    item: { id: item.id as string, report_id: item.report_id as string, photo_urls },
+    item: {
+      id: item.id as string,
+      report_id: item.report_id as string,
+      photo_urls,
+    },
   };
 }
 
@@ -91,11 +96,11 @@ async function verifyOwnership(
   userId: string,
 ): Promise<boolean> {
   if (!sb) return false;
-  const { data } = await sb
-    .from(SURVEY_REPORTS_TABLE)
-    .select("id")
+  const { data } = await forClerkUser(
+    sb.from(SURVEY_REPORTS_TABLE).select("id"),
+    userId,
+  )
     .eq("id", id)
-    .eq("clerk_user_id", userId)
     .maybeSingle();
   return !!data;
 }
@@ -111,10 +116,10 @@ router.get(
       res.json({ items: [] });
       return;
     }
-    const { data, error } = await sb
-      .from(SURVEY_REPORTS_TABLE)
-      .select(REPORT_LIST_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(SURVEY_REPORTS_TABLE).select(REPORT_LIST_COLUMNS),
+      req.userId!,
+    )
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) {
@@ -156,11 +161,11 @@ router.post(
         ? body.yacht_id
         : null;
     if (yachtId) {
-      const { data: ownedYacht } = await sb
-        .from("yachts")
-        .select("id")
+      const { data: ownedYacht } = await forClerkUser(
+        sb.from("yachts").select("id"),
+        req.userId!,
+      )
         .eq("id", yachtId)
-        .eq("clerk_user_id", req.userId!)
         .maybeSingle();
       if (!ownedYacht) yachtId = null;
     }
@@ -221,11 +226,11 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { data: report } = await sb
-      .from(SURVEY_REPORTS_TABLE)
-      .select("*")
+    const { data: report } = await forClerkUser(
+      sb.from(SURVEY_REPORTS_TABLE).select("*"),
+      req.userId!,
+    )
       .eq("id", id)
-      .eq("clerk_user_id", req.userId!)
       .maybeSingle();
     if (!report) {
       res.status(404).json({ error: "Not found" });
@@ -277,12 +282,15 @@ router.patch(
       });
       return;
     }
-    const patch: Record<string, unknown> = { ...parsed.data, updated_at: new Date().toISOString() };
-    const { data, error } = await sb
-      .from(SURVEY_REPORTS_TABLE)
-      .update(patch)
+    const patch: Record<string, unknown> = {
+      ...parsed.data,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await forClerkUser(
+      sb.from(SURVEY_REPORTS_TABLE).update(patch),
+      req.userId!,
+    )
       .eq("id", id)
-      .eq("clerk_user_id", req.userId!)
       .select("*")
       .single();
     if (error || !data) {
@@ -310,11 +318,10 @@ router.delete(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { error, count } = await sb
-      .from(SURVEY_REPORTS_TABLE)
-      .delete({ count: "exact" })
-      .eq("id", id)
-      .eq("clerk_user_id", req.userId!);
+    const { error, count } = await forClerkUser(
+      sb.from(SURVEY_REPORTS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", id);
     if (error) {
       req.log.error({ err: error.message }, "delete survey report failed");
       res.status(503).json({ error: "Delete failed" });
@@ -363,20 +370,22 @@ router.put(
       // Safe per-section replace via atomic PL/pgSQL function (migration 019).
       // Prevents cross-section overwrite when concurrent edits happen on
       // different sections, and is atomic for delete+insert+counter recompute.
-      const itemsJson = items.map((it: (typeof items)[number], idx: number) => ({
-        section_number: scopedSection,
-        section_name: it.section_name,
-        item_number: it.item_number,
-        description: it.description ?? null,
-        condition: it.condition ?? null,
-        notes: it.notes ?? null,
-        recommendation_level: it.recommendation_level ?? null,
-        recommendation_text: it.recommendation_text ?? null,
-        photo_urls: it.photo_urls ?? [],
-        moisture_reading: it.moisture_reading ?? null,
-        moisture_level: it.moisture_level ?? null,
-        sort_order: typeof it.sort_order === "number" ? it.sort_order : idx,
-      }));
+      const itemsJson = items.map(
+        (it: (typeof items)[number], idx: number) => ({
+          section_number: scopedSection,
+          section_name: it.section_name,
+          item_number: it.item_number,
+          description: it.description ?? null,
+          condition: it.condition ?? null,
+          notes: it.notes ?? null,
+          recommendation_level: it.recommendation_level ?? null,
+          recommendation_text: it.recommendation_text ?? null,
+          photo_urls: it.photo_urls ?? [],
+          moisture_reading: it.moisture_reading ?? null,
+          moisture_level: it.moisture_level ?? null,
+          sort_order: typeof it.sort_order === "number" ? it.sort_order : idx,
+        }),
+      );
       const { error: rpcErr } = await sb.rpc("replace_survey_section_items", {
         p_report_id: id,
         p_section_number: scopedSection,
@@ -400,7 +409,10 @@ router.put(
         .delete()
         .eq("report_id", id);
       if (delErr) {
-        req.log.error({ err: delErr.message }, "delete old survey items failed");
+        req.log.error(
+          { err: delErr.message },
+          "delete old survey items failed",
+        );
         res.status(503).json({ error: "Could not replace items" });
         return;
       }
@@ -420,14 +432,21 @@ router.put(
         sort_order: typeof it.sort_order === "number" ? it.sort_order : idx,
       }));
       if (rows.length > 0) {
-        const { error: insErr } = await sb.from(SURVEY_ITEMS_TABLE).insert(rows);
+        const { error: insErr } = await sb
+          .from(SURVEY_ITEMS_TABLE)
+          .insert(rows);
         if (insErr) {
           req.log.error({ err: insErr.message }, "insert survey items failed");
           res.status(503).json({ error: "Could not save items" });
           return;
         }
       }
-      const counts: { A: number; B: number; C: number; D: number } = { A: 0, B: 0, C: 0, D: 0 };
+      const counts: { A: number; B: number; C: number; D: number } = {
+        A: 0,
+        B: 0,
+        C: 0,
+        D: 0,
+      };
       for (const it of rows) {
         const lvl = it.recommendation_level;
         if (lvl === "A" || lvl === "B" || lvl === "C" || lvl === "D") {
@@ -563,7 +582,10 @@ router.post(
         upsert: false,
       });
     if (up.error) {
-      req.log.error({ err: up.error.message }, "survey item photo upload failed");
+      req.log.error(
+        { err: up.error.message },
+        "survey item photo upload failed",
+      );
       res.status(502).json({ error: up.error.message });
       return;
     }
@@ -583,7 +605,11 @@ router.post(
       await sb.storage.from(SURVEY_ITEM_PHOTOS_BUCKET).remove([objectPath]);
       const msg = rpcErr?.message ?? "Could not append photo";
       if (rpcErr?.code === "P0001") {
-        res.status(400).json({ error: `Photo limit reached (${MAX_PHOTOS_PER_ITEM} per item).` });
+        res
+          .status(400)
+          .json({
+            error: `Photo limit reached (${MAX_PHOTOS_PER_ITEM} per item).`,
+          });
         return;
       }
       if (rpcErr?.code === "P0002") {
@@ -598,7 +624,9 @@ router.post(
       return;
     }
     const nextPhotos = Array.isArray(appended)
-      ? (appended as unknown[]).filter((x): x is string => typeof x === "string")
+      ? (appended as unknown[]).filter(
+          (x): x is string => typeof x === "string",
+        )
       : loaded.item.photo_urls.concat(publicUrl);
     res.json({ url: publicUrl, photo_urls: nextPhotos });
   },
@@ -632,7 +660,9 @@ router.delete(
     }
     const path = storagePathFromPublicUrl(url);
     if (!path || !path.startsWith(`${loaded.item.report_id}/${itemId}/`)) {
-      res.status(400).json({ error: "URL is not in this item's storage folder" });
+      res
+        .status(400)
+        .json({ error: "URL is not in this item's storage folder" });
       return;
     }
     const sb = getSupabase()!;
@@ -647,7 +677,10 @@ router.delete(
         res.status(404).json({ error: "Not found" });
         return;
       }
-      req.log.error({ err: rpcErr.message }, "survey_item_remove_photo RPC failed");
+      req.log.error(
+        { err: rpcErr.message },
+        "survey_item_remove_photo RPC failed",
+      );
       res.status(500).json({ error: rpcErr.message });
       return;
     }

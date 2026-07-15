@@ -7,6 +7,7 @@ import {
   PROPOSALS_TABLE,
   YACHT_PHOTOS_BUCKET,
 } from "../lib/supabase";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
@@ -118,10 +119,10 @@ router.get(
       res.json({ items: [] });
       return;
     }
-    const { data, error } = await sb
-      .from(PROPOSALS_TABLE)
-      .select(PROPOSAL_LIST_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(PROPOSALS_TABLE).select(PROPOSAL_LIST_COLUMNS),
+      req.userId!,
+    )
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) {
@@ -162,11 +163,11 @@ router.post(
         ? body.yacht_id
         : null;
     if (yachtId) {
-      const { data: ownedYacht } = await sb
-        .from("yachts")
-        .select("id")
+      const { data: ownedYacht } = await forClerkUser(
+        sb.from("yachts").select("id"),
+        req.userId!,
+      )
         .eq("id", yachtId)
-        .eq("clerk_user_id", req.userId!)
         .maybeSingle();
       if (!ownedYacht) yachtId = null;
     }
@@ -209,11 +210,11 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { data, error } = await sb
-      .from(PROPOSALS_TABLE)
-      .select("*")
+    const { data, error } = await forClerkUser(
+      sb.from(PROPOSALS_TABLE).select("*"),
+      req.userId!,
+    )
       .eq("id", id)
-      .eq("clerk_user_id", req.userId!)
       .maybeSingle();
     if (error || !data) {
       res.status(404).json({ error: "Not found" });
@@ -238,11 +239,10 @@ router.delete(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { error, count } = await sb
-      .from(PROPOSALS_TABLE)
-      .delete({ count: "exact" })
-      .eq("id", id)
-      .eq("clerk_user_id", req.userId!);
+    const { error, count } = await forClerkUser(
+      sb.from(PROPOSALS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", id);
     if (error) {
       req.log.error({ err: error.message }, "delete proposal failed");
       res.status(503).json({ error: "Delete failed" });

@@ -9,10 +9,13 @@ import {
   ROI_CALCULATIONS_TABLE,
   YACHTS_TABLE,
 } from "../lib/supabase";
+import { forClerkUser } from "../lib/clerkUserFilter";
 
 const router: IRouter = Router();
 
-function decodeJwtPayload(token: string | undefined): Record<string, unknown> | null {
+function decodeJwtPayload(
+  token: string | undefined,
+): Record<string, unknown> | null {
   if (!token || token.startsWith("sb_")) return null;
   const [, payload] = token.split(".");
   if (!payload) return null;
@@ -76,10 +79,10 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
 
       if (!req.userId) continue;
 
-      const { count, error } = await sb
-        .from(table)
-        .select("id", { count: "exact", head: true })
-        .ilike("clerk_user_id", req.userId);
+      const { count, error } = await forClerkUser(
+        sb.from(table).select("id", { count: "exact", head: true }),
+        req.userId,
+      );
       counts[key] = count ?? null;
       if (error) countErrors[key] = error.message;
 
@@ -116,7 +119,9 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       clerkSecretConfigured: Boolean(process.env["CLERK_SECRET_KEY"]),
       supabaseConfigured: Boolean(sb),
       supabaseHost,
-      supabaseKeyKind: serviceKey?.startsWith("sb_") ? "supabase-secret" : "jwt",
+      supabaseKeyKind: serviceKey?.startsWith("sb_")
+        ? "supabase-secret"
+        : "jwt",
       supabaseKeyRole:
         typeof serviceKeyPayload?.["role"] === "string"
           ? serviceKeyPayload["role"]

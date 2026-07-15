@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getSupabase, CHARTERS_TABLE, CLIENTS_TABLE } from "../lib/supabase";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
@@ -30,7 +31,11 @@ function daysInclusive(start: string, end: string): number {
 }
 
 function countsAsRevenue(c: CharterAggRow): boolean {
-  return c.status !== "cancelled" && c.status !== "blocked" && c.status !== "maintenance";
+  return (
+    c.status !== "cancelled" &&
+    c.status !== "blocked" &&
+    c.status !== "maintenance"
+  );
 }
 
 function computeGrossRevenue(c: CharterAggRow): number {
@@ -57,18 +62,17 @@ router.get(
     }
     const [{ data: clients, error: cErr }, { data: charters, error: chErr }] =
       await Promise.all([
-        sb
-          .from(CLIENTS_TABLE)
-          .select(CLIENT_COLUMNS)
-          .eq("clerk_user_id", req.userId!)
+        forClerkUser(sb.from(CLIENTS_TABLE).select(CLIENT_COLUMNS), req.userId!)
           .order("updated_at", { ascending: false })
           .limit(500),
-        sb
-          .from(CHARTERS_TABLE)
-          .select(
-            "client_name, status, start_date, end_date, charter_rate, charter_rate_type, vat_applicable, vat_percent",
-          )
-          .eq("clerk_user_id", req.userId!)
+        forClerkUser(
+          sb
+            .from(CHARTERS_TABLE)
+            .select(
+              "client_name, status, start_date, end_date, charter_rate, charter_rate_type, vat_applicable, vat_percent",
+            ),
+          req.userId!,
+        )
           .not("client_name", "is", null)
           .limit(2000),
       ]);
@@ -117,10 +121,10 @@ router.get(
       res.status(503).json({ error: "Client storage not configured" });
       return;
     }
-    const { data: client, error: cErr } = await sb
-      .from(CLIENTS_TABLE)
-      .select(CLIENT_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    const { data: client, error: cErr } = await forClerkUser(
+      sb.from(CLIENTS_TABLE).select(CLIENT_COLUMNS),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (cErr) {
@@ -132,10 +136,10 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { data: charters, error: chErr } = await sb
-      .from(CHARTERS_TABLE)
-      .select("*")
-      .eq("clerk_user_id", req.userId!)
+    const { data: charters, error: chErr } = await forClerkUser(
+      sb.from(CHARTERS_TABLE).select("*"),
+      req.userId!,
+    )
       .eq("client_name", client.name)
       .order("start_date", { ascending: false })
       .limit(500);

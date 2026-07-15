@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import { getSupabase, LISTINGS_TABLE } from "../lib/supabase";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 import {
   generateListing,
@@ -56,11 +57,17 @@ interface RawSettings {
 function parseSettings(raw: unknown): ListingSettings | string {
   if (!raw || typeof raw !== "object") return "settings missing";
   const s = raw as RawSettings;
-  if (typeof s.listing_type !== "string" || !LISTING_TYPES.has(s.listing_type as ListingType))
+  if (
+    typeof s.listing_type !== "string" ||
+    !LISTING_TYPES.has(s.listing_type as ListingType)
+  )
     return "Invalid listing_type";
   if (typeof s.style !== "string" || !STYLES.has(s.style as ListingStyle))
     return "Invalid style";
-  if (typeof s.language !== "string" || !LANGUAGES.has(s.language as ListingLanguage))
+  if (
+    typeof s.language !== "string" ||
+    !LANGUAGES.has(s.language as ListingLanguage)
+  )
     return "Invalid language";
   if (
     typeof s.word_length !== "string" ||
@@ -118,7 +125,11 @@ function parseYacht(raw: unknown): YachtSnapshot | string {
     typeof v === "string" && v.trim() ? v.trim().slice(0, 400) : null;
   const arr = (v: unknown): string[] =>
     Array.isArray(v)
-      ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 120))
+      ? v
+          .filter(
+            (x): x is string => typeof x === "string" && x.trim().length > 0,
+          )
+          .map((x) => x.trim().slice(0, 120))
       : [];
   return {
     name: name.slice(0, 120),
@@ -198,10 +209,10 @@ router.get(
       res.json({ items: [] });
       return;
     }
-    const { data, error } = await sb
-      .from(LISTINGS_TABLE)
-      .select(LISTING_LIST_COLUMNS)
-      .eq("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(LISTINGS_TABLE).select(LISTING_LIST_COLUMNS),
+      req.userId!,
+    )
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) {
@@ -219,7 +230,10 @@ router.get(
       word_length: row.word_length,
       preview:
         typeof row.generated_text === "string"
-          ? row.generated_text.replace(/[#*_>`-]/g, "").trim().slice(0, 140)
+          ? row.generated_text
+              .replace(/[#*_>`-]/g, "")
+              .trim()
+              .slice(0, 140)
           : "",
       created_at: row.created_at,
     }));
@@ -279,11 +293,11 @@ router.post(
         ? body.yacht_id
         : null;
     if (yachtId) {
-      const { data: ownedYacht } = await sb
-        .from("yachts")
-        .select("id")
+      const { data: ownedYacht } = await forClerkUser(
+        sb.from("yachts").select("id"),
+        req.userId!,
+      )
         .eq("id", yachtId)
-        .eq("clerk_user_id", req.userId!)
         .maybeSingle();
       if (!ownedYacht) {
         yachtId = null;
@@ -337,11 +351,11 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { data, error } = await sb
-      .from(LISTINGS_TABLE)
-      .select("*")
+    const { data, error } = await forClerkUser(
+      sb.from(LISTINGS_TABLE).select("*"),
+      req.userId!,
+    )
       .eq("id", id)
-      .eq("clerk_user_id", req.userId!)
       .maybeSingle();
     if (error || !data) {
       res.status(404).json({ error: "Not found" });
@@ -366,11 +380,10 @@ router.delete(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { error, count } = await sb
-      .from(LISTINGS_TABLE)
-      .delete({ count: "exact" })
-      .eq("id", id)
-      .eq("clerk_user_id", req.userId!);
+    const { error, count } = await forClerkUser(
+      sb.from(LISTINGS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", id);
     if (error) {
       req.log.error({ err: error.message }, "delete listing failed");
       res.status(503).json({ error: "Delete failed" });

@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { ESTIMATES_TABLE, getSupabase } from "../lib/supabase";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 
@@ -23,12 +24,14 @@ router.get(
         return;
       }
     }
-    const { data, error } = await sb
-      .from(ESTIMATES_TABLE)
-      .select(
-        "id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
-      )
-      .ilike("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb
+        .from(ESTIMATES_TABLE)
+        .select(
+          "id, created_at, yacht_id, yacht_label, yacht_type, length_meters, estimated_price_eur, currency",
+        ),
+      req.userId!,
+    )
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {
@@ -53,10 +56,10 @@ router.get(
       res.status(503).json({ error: "History storage not configured" });
       return;
     }
-    const { data, error } = await sb
-      .from(ESTIMATES_TABLE)
-      .select("id, created_at, request, result")
-      .ilike("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(ESTIMATES_TABLE).select("id, created_at, request, result"),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (error) {
@@ -86,11 +89,10 @@ router.delete(
       res.status(503).json({ error: "History storage not configured" });
       return;
     }
-    const { error, count } = await sb
-      .from(ESTIMATES_TABLE)
-      .delete({ count: "exact" })
-      .ilike("clerk_user_id", req.userId!)
-      .eq("id", req.params["id"]);
+    const { error, count } = await forClerkUser(
+      sb.from(ESTIMATES_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", req.params["id"]);
     if (error) {
       req.log.error({ err: error.message }, "Delete estimate failed");
       res.status(500).json({ error: error.message });

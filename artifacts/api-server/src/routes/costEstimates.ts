@@ -3,6 +3,7 @@ import { CalculateCostEstimateBody } from "@workspace/api-zod";
 import { computeCostEstimate } from "../lib/cost-estimate";
 import { getSupabase, COST_ESTIMATES_TABLE } from "../lib/supabase";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
+import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
 const router: IRouter = Router();
@@ -97,10 +98,10 @@ router.get(
         return;
       }
     }
-    const { data, error } = await sb
-      .from(COST_ESTIMATES_TABLE)
-      .select(LIST_COLUMNS)
-      .ilike("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(COST_ESTIMATES_TABLE).select(LIST_COLUMNS),
+      req.userId!,
+    )
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {
@@ -129,10 +130,10 @@ router.get(
       res.status(503).json({ error: "Storage not configured" });
       return;
     }
-    const { data, error } = await sb
-      .from(COST_ESTIMATES_TABLE)
-      .select(DETAIL_COLUMNS)
-      .ilike("clerk_user_id", req.userId!)
+    const { data, error } = await forClerkUser(
+      sb.from(COST_ESTIMATES_TABLE).select(DETAIL_COLUMNS),
+      req.userId!,
+    )
       .eq("id", req.params["id"])
       .maybeSingle();
     if (error) {
@@ -162,11 +163,10 @@ router.delete(
       res.status(503).json({ error: "Storage not configured" });
       return;
     }
-    const { error, count } = await sb
-      .from(COST_ESTIMATES_TABLE)
-      .delete({ count: "exact" })
-      .ilike("clerk_user_id", req.userId!)
-      .eq("id", req.params["id"]);
+    const { error, count } = await forClerkUser(
+      sb.from(COST_ESTIMATES_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", req.params["id"]);
     if (error) {
       req.log.error({ err: error.message }, "Delete cost estimate failed");
       res.status(500).json({ error: error.message });
