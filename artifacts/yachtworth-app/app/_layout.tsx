@@ -38,6 +38,31 @@ const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 const disableIntro = process.env.EXPO_PUBLIC_DISABLE_INTRO === "1";
 const clerkTokenCache = Platform.OS === "web" ? undefined : tokenCache;
 
+function getWebOrigin(): string | null {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
+  return window.location.origin;
+}
+
+function decodeClerkDomain(key: string): string | null {
+  const match = key.match(/^pk_(?:test|live)_(.+)$/);
+  if (!match) return null;
+
+  try {
+    const encoded = match[1].replace(/_/g, "/").replace(/-/g, "+");
+    const padded = encoded.padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
+    const decoded =
+      typeof atob === "function"
+        ? atob(padded)
+        : Buffer.from(padded, "base64").toString("utf8");
+    return decoded.replace(/\$$/, "") || null;
+  } catch {
+    return null;
+  }
+}
+
+const clerkDomain = decodeClerkDomain(publishableKey);
+const clerkProviderDomain = Platform.OS === "web" ? clerkDomain ?? undefined : undefined;
+
 function normalizeApiBaseUrl(value: string | undefined): string | null {
   const raw = value?.trim().replace(/\/+$/, "");
   if (!raw) return null;
@@ -129,6 +154,7 @@ const CLERK_LOAD_TIMEOUT_MS = 10000;
  * allowed-origins misconfig), surface a message instead of a blank screen. */
 function ClerkLoadingGate() {
   const [timedOut, setTimedOut] = useState(false);
+  const origin = getWebOrigin();
 
   useEffect(() => {
     const timer = setTimeout(() => setTimedOut(true), CLERK_LOAD_TIMEOUT_MS);
@@ -171,6 +197,21 @@ function ClerkLoadingGate() {
         Yachtworth couldn't reach the sign-in service. Check your connection
         and try again.
       </Text>
+      {Platform.OS === "web" ? (
+        <Text
+          selectable
+          style={{
+            color: "rgba(247,243,236,0.58)",
+            fontFamily: "Inter_400Regular",
+            fontSize: 12,
+            lineHeight: 18,
+            textAlign: "center",
+            marginBottom: 20,
+          }}
+        >
+          {`Site origin: ${origin ?? "unknown"}\nClerk: ${clerkDomain ?? "unknown"}`}
+        </Text>
+      ) : null}
       {Platform.OS === "web" ? (
         <Pressable
           onPress={() => window.location.reload()}
@@ -385,6 +426,7 @@ export default function RootLayout() {
       publishableKey={publishableKey}
       tokenCache={clerkTokenCache}
       proxyUrl={proxyUrl}
+      domain={clerkProviderDomain}
     >
       <ClerkLoading>
         <ClerkLoadingGate />
