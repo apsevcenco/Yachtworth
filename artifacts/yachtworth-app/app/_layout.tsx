@@ -38,6 +38,7 @@ if (Platform.OS !== "web") {
 const queryClient = new QueryClient();
 const DESKTOP_BREAKPOINT = 900;
 const DESKTOP_SIDEBAR_WIDTH = 264;
+const DESKTOP_CONTENT_WIDTH = 920;
 
 const FALLBACK_CLERK_PUBLISHABLE_KEY =
   "pk_test_cmVzdGVkLXJhbS04MC5jbGVyay5hY2NvdW50cy5kZXYk";
@@ -633,10 +634,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     backgroundColor: "#0B1E3F",
+    paddingHorizontal: 32,
   },
   desktopContent: {
     flex: 1,
     width: "100%",
-    maxWidth: 1280,
+    maxWidth: DESKTOP_CONTENT_WIDTH,
   },
 });
