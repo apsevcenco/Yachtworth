@@ -13,7 +13,7 @@ import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -34,6 +34,7 @@ const publishableKey =
   process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? FALLBACK_CLERK_PUBLISHABLE_KEY;
 const proxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 const disableIntro = process.env.EXPO_PUBLIC_DISABLE_INTRO === "1";
+const clerkTokenCache = Platform.OS === "web" ? undefined : tokenCache;
 
 function normalizeApiBaseUrl(value: string | undefined): string | null {
   const raw = value?.trim().replace(/\/+$/, "");
@@ -262,7 +263,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={publishableKey}
-      tokenCache={tokenCache}
+      tokenCache={clerkTokenCache}
       proxyUrl={proxyUrl}
     >
       <ClerkLoaded>

@@ -6,6 +6,7 @@
     "preinstall": "node scripts/preinstall.cjs",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "app:dev:render": "pnpm --filter @workspace/yachtworth-app run dev:render",
+    "app:build:web": "pnpm --filter @workspace/yachtworth-app run build:web",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
