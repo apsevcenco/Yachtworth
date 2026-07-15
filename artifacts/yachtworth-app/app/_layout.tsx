@@ -4,7 +4,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
-import { ClerkProvider, ClerkLoaded, useAuth } from "@clerk/expo";
+import { ClerkProvider, ClerkLoaded, ClerkLoading, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,7 +13,7 @@ import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
-import { Platform, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -119,6 +119,79 @@ function AppLoadingScreen() {
       >
         Loading your workspace...
       </Text>
+    </View>
+  );
+}
+
+const CLERK_LOAD_TIMEOUT_MS = 10000;
+
+/** Shown while Clerk's SDK is loading. If it never loads (network, CORS,
+ * allowed-origins misconfig), surface a message instead of a blank screen. */
+function ClerkLoadingGate() {
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), CLERK_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!timedOut) return <AppLoadingScreen />;
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "#0B1E3F",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <Text
+        style={{
+          color: "#C9A961",
+          fontFamily: "Inter_700Bold",
+          fontSize: 18,
+          marginBottom: 10,
+          textAlign: "center",
+        }}
+      >
+        Connection problem
+      </Text>
+      <Text
+        style={{
+          color: "rgba(247,243,236,0.78)",
+          fontFamily: "Inter_400Regular",
+          fontSize: 14,
+          lineHeight: 21,
+          textAlign: "center",
+          marginBottom: Platform.OS === "web" ? 20 : 0,
+        }}
+      >
+        Yachtworth couldn't reach the sign-in service. Check your connection
+        and try again.
+      </Text>
+      {Platform.OS === "web" ? (
+        <Pressable
+          onPress={() => window.location.reload()}
+          style={{
+            backgroundColor: "#C9A961",
+            paddingVertical: 10,
+            paddingHorizontal: 24,
+            borderRadius: 8,
+          }}
+        >
+          <Text
+            style={{
+              color: "#0B1E3F",
+              fontFamily: "Inter_600SemiBold",
+              fontSize: 14,
+            }}
+          >
+            Reload
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -313,6 +386,9 @@ export default function RootLayout() {
       tokenCache={clerkTokenCache}
       proxyUrl={proxyUrl}
     >
+      <ClerkLoading>
+        <ClerkLoadingGate />
+      </ClerkLoading>
       <ClerkLoaded>
         <AuthReadyGate>
           <SafeAreaProvider>
