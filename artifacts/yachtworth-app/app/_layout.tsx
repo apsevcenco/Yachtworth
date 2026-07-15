@@ -22,7 +22,9 @@ import { BrandHeader } from "@/components/BrandHeader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LaunchIntro } from "@/components/LaunchIntro";
 
-SplashScreen.preventAutoHideAsync();
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync();
+}
 
 const queryClient = new QueryClient();
 
@@ -84,6 +86,51 @@ function MissingConfigScreen() {
   );
 }
 
+function AppLoadingScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "#0B1E3F",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <Text
+        style={{
+          color: "#C9A961",
+          fontFamily: "Inter_700Bold",
+          fontSize: 18,
+          marginBottom: 10,
+          textAlign: "center",
+        }}
+      >
+        Yachtworth
+      </Text>
+      <Text
+        style={{
+          color: "rgba(247,243,236,0.78)",
+          fontFamily: "Inter_400Regular",
+          fontSize: 14,
+          lineHeight: 21,
+          textAlign: "center",
+        }}
+      >
+        Loading your workspace...
+      </Text>
+    </View>
+  );
+}
+
+function AppKeyboardProvider({ children }: { children: React.ReactNode }) {
+  if (Platform.OS === "web") {
+    return <>{children}</>;
+  }
+
+  return <KeyboardProvider>{children}</KeyboardProvider>;
+}
+
 function AuthReadyGate({ children }: { children: React.ReactNode }) {
   const { getToken, isLoaded } = useAuth();
   const [isReady, setIsReady] = useState(false);
@@ -110,7 +157,7 @@ function AuthReadyGate({ children }: { children: React.ReactNode }) {
     };
   }, [getToken, isLoaded]);
 
-  return isReady ? <>{children}</> : null;
+  return isReady ? <>{children}</> : <AppLoadingScreen />;
 }
 
 function RootLayoutNav() {
@@ -249,12 +296,12 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (Platform.OS !== "web" && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) return <AppLoadingScreen />;
 
   if (!publishableKey) {
     return <MissingConfigScreen />;
@@ -272,11 +319,11 @@ export default function RootLayout() {
             <ErrorBoundary>
               <QueryClientProvider client={queryClient}>
                 <GestureHandlerRootView style={{ flex: 1 }}>
-                  <KeyboardProvider>
+                  <AppKeyboardProvider>
                     <StatusBar style="light" />
                     <RootLayoutNav />
                     {disableIntro ? null : <LaunchIntro />}
-                  </KeyboardProvider>
+                  </AppKeyboardProvider>
                 </GestureHandlerRootView>
               </QueryClientProvider>
             </ErrorBoundary>
