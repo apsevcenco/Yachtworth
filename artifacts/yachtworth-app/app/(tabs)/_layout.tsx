@@ -3,14 +3,16 @@ import { Tabs } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
 export default function TabLayout() {
   const colors = useColors();
+  const { width } = useWindowDimensions();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const isDesktopWeb = isWeb && width >= 900;
 
   return (
     <Tabs
@@ -29,6 +31,7 @@ export default function TabLayout() {
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: colors.border,
           elevation: 0,
+          display: isDesktopWeb ? "none" : "flex",
           ...(isWeb ? { height: 84 } : {}),
         },
         tabBarBackground: () =>
