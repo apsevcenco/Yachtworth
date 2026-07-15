@@ -135,7 +135,9 @@ export default function ListingFormScreen() {
   const yachtId = params.yacht_id;
   const getQ = useGetYacht(yachtId ?? "", {
     query: {
-      queryKey: yachtId ? getGetYachtQueryKey(yachtId) : ["listing-yacht-disabled"],
+      queryKey: yachtId
+        ? getGetYachtQueryKey(yachtId)
+        : ["listing-yacht-disabled"],
       enabled: !!yachtId,
       staleTime: 60_000,
     },
@@ -201,15 +203,17 @@ export default function ListingFormScreen() {
     setLengthM(y.length_meters != null ? String(y.length_meters) : "");
     setBeamM(y.beam_meters != null ? String(y.beam_meters) : "");
     setCabins(y.cabins != null ? String(y.cabins) : "");
-    if (y.cabins != null && y.cabins > 0) {
+    if (y.guests != null && y.guests > 0) {
+      setGuests(String(y.guests));
+    } else if (y.cabins != null && y.cabins > 0) {
       setGuests(String(y.cabins * 2));
+    } else {
+      setGuests("");
     }
     setFlag(y.registration_number ?? "");
     setHomeBase(y.home_port ?? "");
     const engineParts = [
-      y.engine_count && y.engine_count > 0
-        ? `${y.engine_count} ×`
-        : null,
+      y.engine_count && y.engine_count > 0 ? `${y.engine_count} ×` : null,
       y.engine_maker,
       y.engine_model,
       y.total_hp ? `${y.total_hp} HP` : null,
