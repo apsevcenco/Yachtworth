@@ -3,19 +3,39 @@ import { useAuth } from "@clerk/expo";
 import {
   getListCostEstimatesQueryKey,
   getListEstimatesQueryKey,
+  getListChartersQueryKey,
+  getListListingsQueryKey,
+  getListProposalsQueryKey,
   getListRoiCalculationsQueryKey,
+  getListSurveyReportsQueryKey,
   listCostEstimates,
   listEstimates,
+  listCharters,
+  listListings,
+  listProposals,
   listRoiCalculations,
+  listSurveyReports,
+  useDeleteCharter,
   useDeleteCostEstimate,
   useDeleteEstimate,
+  useDeleteListing,
+  useDeleteProposal,
   useDeleteRoiCalculation,
+  useDeleteSurveyReport,
+  useListCharters,
   useListCostEstimates,
   useListEstimates,
+  useListListings,
+  useListProposals,
   useListRoiCalculations,
+  useListSurveyReports,
+  type Charter,
   type CostEstimateListItem,
   type EstimateListItem,
+  type ListingListItem,
+  type ProposalListItem,
   type RoiCalculationListItem,
+  type SurveyReportListItem,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -45,12 +65,23 @@ const DIVIDER = "rgba(247,243,236,0.08)";
 const POSITIVE = "#7BD389";
 const NEGATIVE = "#FF8A8A";
 
-type Tab = "estimates" | "cost" | "roi";
+type Tab =
+  | "estimates"
+  | "cost"
+  | "roi"
+  | "listings"
+  | "proposals"
+  | "survey"
+  | "charters";
 
 type HistoryItemsByTab = {
   estimates: EstimateListItem[] | null;
   cost: CostEstimateListItem[] | null;
   roi: RoiCalculationListItem[] | null;
+  listings: ListingListItem[] | null;
+  proposals: ProposalListItem[] | null;
+  survey: SurveyReportListItem[] | null;
+  charters: Charter[] | null;
 };
 
 type HistoryErrorsByTab = Record<Tab, Error | null>;
@@ -94,7 +125,10 @@ function formatDate(iso: string): string {
   }
 }
 
-function formatLength(m: number | null | undefined, units: "metric" | "imperial"): string {
+function formatLength(
+  m: number | null | undefined,
+  units: "metric" | "imperial",
+): string {
   if (m == null) return "";
   if (units === "metric") return `${m.toFixed(1)} m`;
   return `${Math.round(m * 3.28084)} ft`;
@@ -112,11 +146,19 @@ export default function HistoryScreen() {
     estimates: null,
     cost: null,
     roi: null,
+    listings: null,
+    proposals: null,
+    survey: null,
+    charters: null,
   });
   const [directErrors, setDirectErrors] = useState<HistoryErrorsByTab>({
     estimates: null,
     cost: null,
     roi: null,
+    listings: null,
+    proposals: null,
+    survey: null,
+    charters: null,
   });
   const [directLoading, setDirectLoading] = useState<Tab | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
@@ -158,9 +200,45 @@ export default function HistoryScreen() {
       staleTime: 30_000,
     },
   });
+  const listingsQ = useListListings({
+    query: {
+      queryKey: getListListingsQueryKey(),
+      enabled: Boolean(isSignedIn) && tab === "listings",
+      refetchOnMount: "always",
+      staleTime: 30_000,
+    },
+  });
+  const proposalsQ = useListProposals({
+    query: {
+      queryKey: getListProposalsQueryKey(),
+      enabled: Boolean(isSignedIn) && tab === "proposals",
+      refetchOnMount: "always",
+      staleTime: 30_000,
+    },
+  });
+  const surveyQ = useListSurveyReports({
+    query: {
+      queryKey: getListSurveyReportsQueryKey(),
+      enabled: Boolean(isSignedIn) && tab === "survey",
+      refetchOnMount: "always",
+      staleTime: 30_000,
+    },
+  });
+  const chartersQ = useListCharters(undefined, {
+    query: {
+      queryKey: getListChartersQueryKey(),
+      enabled: Boolean(isSignedIn) && tab === "charters",
+      refetchOnMount: "always",
+      staleTime: 30_000,
+    },
+  });
   const refetchEstimates = estimatesQ.refetch;
   const refetchCost = costQ.refetch;
   const refetchRoi = roiQ.refetch;
+  const refetchListings = listingsQ.refetch;
+  const refetchProposals = proposalsQ.refetch;
+  const refetchSurvey = surveyQ.refetch;
+  const refetchCharters = chartersQ.refetch;
 
   const loadDirectTab = useCallback(async (target: Tab) => {
     setDirectLoading(target);
@@ -172,9 +250,21 @@ export default function HistoryScreen() {
       } else if (target === "cost") {
         const data = await listCostEstimates();
         setDirectItems((prev) => ({ ...prev, cost: data.items ?? [] }));
-      } else {
+      } else if (target === "roi") {
         const data = await listRoiCalculations();
         setDirectItems((prev) => ({ ...prev, roi: data.items ?? [] }));
+      } else if (target === "listings") {
+        const data = await listListings();
+        setDirectItems((prev) => ({ ...prev, listings: data.items ?? [] }));
+      } else if (target === "proposals") {
+        const data = await listProposals();
+        setDirectItems((prev) => ({ ...prev, proposals: data.items ?? [] }));
+      } else if (target === "survey") {
+        const data = await listSurveyReports();
+        setDirectItems((prev) => ({ ...prev, survey: data.items ?? [] }));
+      } else {
+        const data = await listCharters();
+        setDirectItems((prev) => ({ ...prev, charters: data.items ?? [] }));
       }
     } catch (err) {
       setDirectErrors((prev) => ({
@@ -189,14 +279,34 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!isSignedIn) return;
-      void queryClient.invalidateQueries({ queryKey: getListEstimatesQueryKey() });
-      void queryClient.invalidateQueries({ queryKey: getListCostEstimatesQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: getListEstimatesQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListCostEstimatesQueryKey(),
+      });
       void queryClient.invalidateQueries({
         queryKey: getListRoiCalculationsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListListingsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListProposalsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListSurveyReportsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListChartersQueryKey(),
       });
       if (tab === "estimates") void refetchEstimates();
       if (tab === "cost") void refetchCost();
       if (tab === "roi") void refetchRoi();
+      if (tab === "listings") void refetchListings();
+      if (tab === "proposals") void refetchProposals();
+      if (tab === "survey") void refetchSurvey();
+      if (tab === "charters") void refetchCharters();
       void loadDirectTab(tab);
     }, [
       isSignedIn,
@@ -204,15 +314,21 @@ export default function HistoryScreen() {
       queryClient,
       refetchCost,
       refetchEstimates,
+      refetchListings,
+      refetchProposals,
       refetchRoi,
+      refetchSurvey,
+      refetchCharters,
       tab,
     ]),
   );
 
   const deleteEstimate = useDeleteEstimate({
     mutation: {
-      onSuccess: () =>
-        queryClient.invalidateQueries({ queryKey: getListEstimatesQueryKey() }),
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, estimates: null }));
+        queryClient.invalidateQueries({ queryKey: getListEstimatesQueryKey() });
+      },
       onError: (err) =>
         Alert.alert(
           "Couldn't delete",
@@ -223,8 +339,12 @@ export default function HistoryScreen() {
   });
   const deleteCost = useDeleteCostEstimate({
     mutation: {
-      onSuccess: () =>
-        queryClient.invalidateQueries({ queryKey: getListCostEstimatesQueryKey() }),
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, cost: null }));
+        queryClient.invalidateQueries({
+          queryKey: getListCostEstimatesQueryKey(),
+        });
+      },
       onError: (err) =>
         Alert.alert(
           "Couldn't delete",
@@ -235,10 +355,70 @@ export default function HistoryScreen() {
   });
   const deleteRoi = useDeleteRoiCalculation({
     mutation: {
-      onSuccess: () =>
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, roi: null }));
         queryClient.invalidateQueries({
           queryKey: getListRoiCalculationsQueryKey(),
-        }),
+        });
+      },
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
+    },
+  });
+  const deleteListing = useDeleteListing({
+    mutation: {
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, listings: null }));
+        queryClient.invalidateQueries({ queryKey: getListListingsQueryKey() });
+      },
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
+    },
+  });
+  const deleteProposal = useDeleteProposal({
+    mutation: {
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, proposals: null }));
+        queryClient.invalidateQueries({ queryKey: getListProposalsQueryKey() });
+      },
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
+    },
+  });
+  const deleteSurvey = useDeleteSurveyReport({
+    mutation: {
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, survey: null }));
+        queryClient.invalidateQueries({
+          queryKey: getListSurveyReportsQueryKey(),
+        });
+      },
+      onError: (err) =>
+        Alert.alert(
+          "Couldn't delete",
+          err instanceof Error ? err.message : "Please try again.",
+        ),
+      onSettled: (_d, _e, vars) => clearPending(vars.id),
+    },
+  });
+  const deleteCharter = useDeleteCharter({
+    mutation: {
+      onSuccess: () => {
+        setDirectItems((prev) => ({ ...prev, charters: null }));
+        queryClient.invalidateQueries({ queryKey: getListChartersQueryKey() });
+      },
       onError: (err) =>
         Alert.alert(
           "Couldn't delete",
@@ -248,16 +428,44 @@ export default function HistoryScreen() {
     },
   });
 
-  const activeQ = tab === "estimates" ? estimatesQ : tab === "cost" ? costQ : roiQ;
+  const activeQ =
+    tab === "estimates"
+      ? estimatesQ
+      : tab === "cost"
+        ? costQ
+        : tab === "roi"
+          ? roiQ
+          : tab === "listings"
+            ? listingsQ
+            : tab === "proposals"
+              ? proposalsQ
+              : tab === "survey"
+                ? surveyQ
+                : chartersQ;
   const items = useMemo(() => {
     const direct = directItems[tab];
     if (direct) return direct;
     if (tab === "estimates") return estimatesQ.data?.items ?? [];
     if (tab === "cost") return costQ.data?.items ?? [];
-    return roiQ.data?.items ?? [];
-  }, [tab, directItems, estimatesQ.data, costQ.data, roiQ.data]);
+    if (tab === "roi") return roiQ.data?.items ?? [];
+    if (tab === "listings") return listingsQ.data?.items ?? [];
+    if (tab === "proposals") return proposalsQ.data?.items ?? [];
+    if (tab === "survey") return surveyQ.data?.items ?? [];
+    return chartersQ.data?.items ?? [];
+  }, [
+    tab,
+    directItems,
+    estimatesQ.data,
+    costQ.data,
+    roiQ.data,
+    listingsQ.data,
+    proposalsQ.data,
+    surveyQ.data,
+    chartersQ.data,
+  ]);
   const activeDirectError = directErrors[tab];
-  const activeError = activeDirectError ?? (activeQ.isError ? activeQ.error : null);
+  const activeError =
+    activeDirectError ?? (activeQ.isError ? activeQ.error : null);
   const activeLoading =
     directItems[tab] == null && (activeQ.isLoading || directLoading === tab);
 
@@ -280,13 +488,40 @@ export default function HistoryScreen() {
       cta: "Open Charter ROI",
       ctaPath: "/(tabs)/charter",
     },
+    listings: {
+      title: "No listings yet",
+      text: "Saved yacht listings will appear here.",
+      cta: "Open Listing Generator",
+      ctaPath: "/listing",
+    },
+    proposals: {
+      title: "No proposals yet",
+      text: "Saved yacht proposals will appear here.",
+      cta: "Open Proposal Builder",
+      ctaPath: "/yacht-proposal",
+    },
+    survey: {
+      title: "No survey reports yet",
+      text: "Draft and completed survey reports will appear here.",
+      cta: "New Survey",
+      ctaPath: "/survey/new",
+    },
+    charters: {
+      title: "No charters yet",
+      text: "Saved charter bookings will appear here.",
+      cta: "Open Charter Planner",
+      ctaPath: "/charter-planner",
+    },
   }[tab];
 
   return (
     <View
       style={[
         styles.root,
-        { paddingTop: (isWeb ? 67 : insets.top) + 70, paddingBottom: insets.bottom + 100 },
+        {
+          paddingTop: (isWeb ? 67 : insets.top) + 70,
+          paddingBottom: insets.bottom + 100,
+        },
       ]}
     >
       <Pressable
@@ -312,6 +547,10 @@ export default function HistoryScreen() {
             { key: "estimates", label: "Estimates" },
             { key: "cost", label: "Cost" },
             { key: "roi", label: "ROI" },
+            { key: "listings", label: "Listings" },
+            { key: "proposals", label: "Proposals" },
+            { key: "survey", label: "Survey" },
+            { key: "charters", label: "Charters" },
           ] as { key: Tab; label: string }[]
         ).map((t) => {
           const active = tab === t.key;
@@ -324,7 +563,9 @@ export default function HistoryScreen() {
               accessibilityLabel={`${t.label} tab`}
               style={[styles.segmentBtn, active && styles.segmentBtnActive]}
             >
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+              <Text
+                style={[styles.segmentText, active && styles.segmentTextActive]}
+              >
                 {t.label}
               </Text>
             </Pressable>
@@ -343,13 +584,17 @@ export default function HistoryScreen() {
           </View>
           <Text style={styles.emptyTitle}>Sign in to see history</Text>
           <Text style={styles.emptyText}>
-            Your activity is saved to your account. Sign in or create one to access it across devices.
+            Your activity is saved to your account. Sign in or create one to
+            access it across devices.
           </Text>
           <Pressable
             onPress={() => router.push("/(auth)/sign-in")}
             accessibilityRole="button"
             accessibilityLabel="Sign in"
-            style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [
+              styles.cta,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
           >
             <Text style={styles.ctaText}>Sign in</Text>
           </Pressable>
@@ -360,14 +605,15 @@ export default function HistoryScreen() {
             <Feather name="alert-circle" size={26} color={GOLD} />
           </View>
           <Text style={styles.emptyTitle}>Couldn't load history</Text>
-          <Text style={styles.emptyText}>
-            {activeError.message}
-          </Text>
+          <Text style={styles.emptyText}>{activeError.message}</Text>
           <Pressable
             onPress={() => activeQ.refetch()}
             accessibilityRole="button"
             accessibilityLabel="Retry"
-            style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [
+              styles.cta,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
           >
             <Text style={styles.ctaText}>Retry</Text>
           </Pressable>
@@ -383,7 +629,10 @@ export default function HistoryScreen() {
             onPress={() => router.push(emptyConfig.ctaPath as never)}
             accessibilityRole="button"
             accessibilityLabel={emptyConfig.cta}
-            style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [
+              styles.cta,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
           >
             <Text style={styles.ctaText}>{emptyConfig.cta}</Text>
           </Pressable>
@@ -418,9 +667,15 @@ export default function HistoryScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Open estimate ${title}`}
                   onPress={() =>
-                    router.push({ pathname: "/valuation/result", params: { id: item.id } })
+                    router.push({
+                      pathname: "/valuation/result",
+                      params: { id: item.id },
+                    })
                   }
-                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.card,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
                 >
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
@@ -428,7 +683,9 @@ export default function HistoryScreen() {
                     </Text>
                     <Text style={styles.cardMeta}>
                       {[
-                        item.yacht_type ? TYPE_LABELS[item.yacht_type] ?? item.yacht_type : null,
+                        item.yacht_type
+                          ? (TYPE_LABELS[item.yacht_type] ?? item.yacht_type)
+                          : null,
                         formatLength(item.length_meters, units),
                         formatDate(item.created_at),
                       ]
@@ -437,7 +694,9 @@ export default function HistoryScreen() {
                     </Text>
                   </View>
                   <View style={styles.priceWrap}>
-                    <Text style={styles.cardPrice}>{formatEur(item.estimated_price_eur)}</Text>
+                    <Text style={styles.cardPrice}>
+                      {formatEur(item.estimated_price_eur)}
+                    </Text>
                     <Feather name="chevron-right" size={18} color={MUTED} />
                   </View>
                 </Pressable>
@@ -475,9 +734,15 @@ export default function HistoryScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Open cost estimate ${title}`}
                   onPress={() =>
-                    router.push({ pathname: "/cost/result", params: { id: item.id } })
+                    router.push({
+                      pathname: "/cost/result",
+                      params: { id: item.id },
+                    })
                   }
-                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.card,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
                 >
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
@@ -505,7 +770,7 @@ export default function HistoryScreen() {
             );
           }}
         />
-      ) : (
+      ) : tab === "roi" ? (
         <FlatList
           data={items as RoiCalculationListItem[]}
           keyExtractor={(item) => item.id}
@@ -536,9 +801,15 @@ export default function HistoryScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Open ROI calculation, ${item.roi_pct.toFixed(1)} percent`}
                   onPress={() =>
-                    router.push({ pathname: "/roi/result", params: { id: item.id } })
+                    router.push({
+                      pathname: "/roi/result",
+                      params: { id: item.id },
+                    })
                   }
-                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.card,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
                 >
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
@@ -550,11 +821,247 @@ export default function HistoryScreen() {
                   </View>
                   <View style={styles.priceWrap}>
                     <View style={{ alignItems: "flex-end" }}>
-                      <Text style={[styles.cardPrice, { color: positive ? POSITIVE : NEGATIVE }]}>
+                      <Text
+                        style={[
+                          styles.cardPrice,
+                          { color: positive ? POSITIVE : NEGATIVE },
+                        ]}
+                      >
                         {formatEurSigned(item.net_profit_eur)}
                       </Text>
-                      <Text style={styles.roiSub}>{item.roi_pct.toFixed(1)}% ROI</Text>
+                      <Text style={styles.roiSub}>
+                        {item.roi_pct.toFixed(1)}% ROI
+                      </Text>
                     </View>
+                    <Feather name="chevron-right" size={18} color={MUTED} />
+                  </View>
+                </Pressable>
+              </SwipeableCard>
+            );
+          }}
+        />
+      ) : tab === "listings" ? (
+        <FlatList
+          data={items as ListingListItem[]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={listingsQ.isFetching && !listingsQ.isLoading}
+              onRefresh={() => listingsQ.refetch()}
+              tintColor={GOLD}
+            />
+          }
+          renderItem={({ item }) => (
+            <SwipeableCard
+              onDelete={() => {
+                markPending(item.id);
+                deleteListing.mutate({ id: item.id });
+              }}
+              deletingLabel={`Delete ${item.yacht_name}`}
+              confirmTitle="Delete listing?"
+              confirmMessage={`${item.yacht_name} listing will be permanently removed.`}
+              isDeleting={pendingIds.has(item.id)}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open listing ${item.yacht_name}`}
+                onPress={() => router.push("/listing/my-listings")}
+                style={({ pressed }) => [
+                  styles.card,
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.yacht_name}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {[
+                      item.listing_type,
+                      item.language,
+                      formatDate(item.created_at),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                  {item.preview ? (
+                    <Text style={styles.cardPreview} numberOfLines={2}>
+                      {item.preview}
+                    </Text>
+                  ) : null}
+                </View>
+                <Feather name="chevron-right" size={18} color={MUTED} />
+              </Pressable>
+            </SwipeableCard>
+          )}
+        />
+      ) : tab === "proposals" ? (
+        <FlatList
+          data={items as ProposalListItem[]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={proposalsQ.isFetching && !proposalsQ.isLoading}
+              onRefresh={() => proposalsQ.refetch()}
+              tintColor={GOLD}
+            />
+          }
+          renderItem={({ item }) => (
+            <SwipeableCard
+              onDelete={() => {
+                markPending(item.id);
+                deleteProposal.mutate({ id: item.id });
+              }}
+              deletingLabel={`Delete ${item.yacht_name}`}
+              confirmTitle="Delete proposal?"
+              confirmMessage={`${item.yacht_name} proposal will be permanently removed.`}
+              isDeleting={pendingIds.has(item.id)}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open proposal ${item.yacht_name}`}
+                onPress={() => router.push("/yacht-proposal/my-proposals")}
+                style={({ pressed }) => [
+                  styles.card,
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.yacht_name}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {[
+                      item.proposal_type,
+                      item.language,
+                      formatDate(item.created_at),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={MUTED} />
+              </Pressable>
+            </SwipeableCard>
+          )}
+        />
+      ) : tab === "survey" ? (
+        <FlatList
+          data={items as SurveyReportListItem[]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={surveyQ.isFetching && !surveyQ.isLoading}
+              onRefresh={() => surveyQ.refetch()}
+              tintColor={GOLD}
+            />
+          }
+          renderItem={({ item }) => (
+            <SwipeableCard
+              onDelete={() => {
+                markPending(item.id);
+                deleteSurvey.mutate({ id: item.id });
+              }}
+              deletingLabel={`Delete ${item.vessel_name}`}
+              confirmTitle="Delete survey report?"
+              confirmMessage={`${item.vessel_name} survey report will be permanently removed.`}
+              isDeleting={pendingIds.has(item.id)}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open survey report ${item.vessel_name}`}
+                onPress={() => router.push(`/survey/${item.id}`)}
+                style={({ pressed }) => [
+                  styles.card,
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.vessel_name}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {[
+                      item.status,
+                      [item.manufacturer, item.model].filter(Boolean).join(" "),
+                      item.survey_date
+                        ? formatDate(item.survey_date)
+                        : formatDate(item.created_at),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                  <Text style={styles.cardPreview} numberOfLines={1}>
+                    {`Recommendations A/B/C/D: ${item.total_recommendations_a ?? 0}/${item.total_recommendations_b ?? 0}/${item.total_recommendations_c ?? 0}/${item.total_recommendations_d ?? 0}`}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={MUTED} />
+              </Pressable>
+            </SwipeableCard>
+          )}
+        />
+      ) : (
+        <FlatList
+          data={items as Charter[]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={chartersQ.isFetching && !chartersQ.isLoading}
+              onRefresh={() => chartersQ.refetch()}
+              tintColor={GOLD}
+            />
+          }
+          renderItem={({ item }) => {
+            const title = item.client_name || "Charter booking";
+            return (
+              <SwipeableCard
+                onDelete={() => {
+                  markPending(item.id);
+                  deleteCharter.mutate({ id: item.id });
+                }}
+                deletingLabel={`Delete ${title}`}
+                confirmTitle="Delete charter?"
+                confirmMessage={`${title} will be permanently removed.`}
+                isDeleting={pendingIds.has(item.id)}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open charter ${title}`}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/charter-form",
+                      params: { id: item.id },
+                    })
+                  }
+                  style={({ pressed }) => [
+                    styles.card,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {title}
+                    </Text>
+                    <Text style={styles.cardMeta}>
+                      {[item.status, item.start_date, item.end_date]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  </View>
+                  <View style={styles.priceWrap}>
+                    {item.charter_rate != null ? (
+                      <Text style={styles.cardPrice}>
+                        {formatEur(item.charter_rate)}
+                      </Text>
+                    ) : null}
                     <Feather name="chevron-right" size={18} color={MUTED} />
                   </View>
                 </Pressable>
@@ -586,6 +1093,8 @@ const styles = StyleSheet.create({
   },
   segment: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
     backgroundColor: NAVY_DEEP,
     borderColor: DIVIDER,
     borderWidth: 1,
@@ -594,7 +1103,8 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   segmentBtn: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "30%",
     alignItems: "center",
     paddingVertical: 9,
     borderRadius: 7,
@@ -610,7 +1120,12 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: { color: GOLD },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  empty: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
   emptyIcon: {
     width: 64,
     height: 64,
@@ -660,10 +1175,26 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardMeta: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12 },
+  cardPreview: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 6,
+  },
   priceWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
   cardPrice: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
-  cardPriceSuffix: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11 },
-  roiSub: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11, marginTop: 2 },
+  cardPriceSuffix: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+  },
+  roiSub: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    marginTop: 2,
+  },
   backFab: {
     position: "absolute",
     left: 12,

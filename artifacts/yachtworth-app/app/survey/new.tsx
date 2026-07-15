@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getListSurveyReportsQueryKey,
@@ -36,7 +37,12 @@ const DIVIDER = "rgba(247,243,236,0.08)";
 
 type SectionKey = "vessel" | "client" | "surveyor" | "conditions";
 
-const VESSEL_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht"];
+const VESSEL_TYPES = [
+  "Motor Yacht",
+  "Sailing Yacht",
+  "Catamaran",
+  "Superyacht",
+];
 const PURPOSES = ["Pre-purchase", "Insurance", "Annual", "Damage", "Other"];
 
 export default function SurveyNewScreen() {
@@ -44,6 +50,7 @@ export default function SurveyNewScreen() {
   const isWeb = Platform.OS === "web";
   const router = useRouter();
   const qc = useQueryClient();
+  const { isLoaded, isSignedIn } = useAuth();
   const createM = useCreateSurveyReport();
   const replaceM = useReplaceSurveyItems();
   const deleteM = useDeleteSurveyReport();
@@ -98,9 +105,24 @@ export default function SurveyNewScreen() {
   const [saving, setSaving] = useState(false);
 
   const onSave = async () => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      Alert.alert(
+        "Sign in required",
+        "Please sign in to create survey reports.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Sign in", onPress: () => router.replace("/(auth)/sign-in") },
+        ],
+      );
+      return;
+    }
     const name = vesselName.trim();
     if (!name) {
-      Alert.alert("Vessel name required", "Please enter the vessel name first.");
+      Alert.alert(
+        "Vessel name required",
+        "Please enter the vessel name first.",
+      );
       setOpen("vessel");
       return;
     }
@@ -155,7 +177,10 @@ export default function SurveyNewScreen() {
         });
       }
       try {
-        await replaceM.mutateAsync({ id: created.id, data: { items: seedItems } });
+        await replaceM.mutateAsync({
+          id: created.id,
+          data: { items: seedItems },
+        });
       } catch (seedErr) {
         // Roll back the empty report so user isn't left with a broken half-created row.
         try {
@@ -177,157 +202,229 @@ export default function SurveyNewScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 56 }]}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 22,
-            paddingBottom: insets.bottom + 120,
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={styles.backBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <Feather name="arrow-left" size={20} color={IVORY} />
-          </Pressable>
-
-          <Text style={styles.kicker}>NEW REPORT</Text>
-          <Text style={styles.title}>Survey Setup</Text>
-          <Text style={styles.subtitle}>
-            Cover information. You can complete sections after saving.
+      {!isLoaded ? (
+        <View style={styles.centerFull}>
+          <ActivityIndicator color={GOLD} />
+        </View>
+      ) : !isSignedIn ? (
+        <View style={styles.centerFull}>
+          <Feather name="lock" size={28} color={GOLD} />
+          <Text style={styles.emptyTitle}>Sign in required</Text>
+          <Text style={styles.emptyText}>
+            Sign in to create and save survey reports.
           </Text>
-
-          <Section
-            label="Vessel"
-            isOpen={open === "vessel"}
-            onToggle={() => setOpen(open === "vessel" ? "client" : "vessel")}
-          >
-            <Field label="Vessel name *" value={vesselName} onChange={setVesselName} placeholder="Aurelia" />
-            <PillRow
-              label="Type"
-              options={VESSEL_TYPES}
-              value={vesselType}
-              onChange={setVesselType}
-            />
-            <Field label="Manufacturer" value={manufacturer} onChange={setManufacturer} placeholder="Azimut" />
-            <Field label="Model" value={model} onChange={setModel} placeholder="78 Fly" />
-            <Field
-              label="Year built"
-              value={yearBuilt}
-              onChange={setYearBuilt}
-              keyboardType="number-pad"
-              placeholder="2019"
-            />
-            <Field label="Flag / registration" value={flag} onChange={setFlag} placeholder="Malta" />
-            <Field
-              label="HIN (Hull ID)"
-              value={hin}
-              onChange={setHin}
-              placeholder="IT-TRHT8509L922"
-              autoCapitalize="characters"
-            />
-            <Field label="Lying (location)" value={lying} onChange={setLying} placeholder="Port Vauban, Antibes" />
-            <Field
-              label="Date of survey (YYYY-MM-DD)"
-              value={surveyDate}
-              onChange={setSurveyDate}
-              placeholder="2026-05-28"
-            />
-            <PillRow label="Purpose" options={PURPOSES} value={purpose} onChange={setPurpose} />
-          </Section>
-
-          <Section
-            label="Client"
-            isOpen={open === "client"}
-            onToggle={() => setOpen(open === "client" ? "surveyor" : "client")}
-          >
-            <Field label="Client name" value={clientName} onChange={setClientName} />
-            <Field
-              label="Client email"
-              value={clientEmail}
-              onChange={setClientEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Field
-              label="Client phone"
-              value={clientPhone}
-              onChange={setClientPhone}
-              keyboardType="phone-pad"
-            />
-          </Section>
-
-          <Section
-            label="Surveyor"
-            isOpen={open === "surveyor"}
-            onToggle={() => setOpen(open === "surveyor" ? "conditions" : "surveyor")}
-          >
-            <Field label="Your name" value={surveyorName} onChange={setSurveyorName} />
-            <Field
-              label="Qualification"
-              value={qualification}
-              onChange={setQualification}
-              placeholder="Dip.MS, YDSA, IIMS"
-            />
-            <Field label="Company" value={company} onChange={setCompany} />
-            <Field
-              label="Phone"
-              value={surveyorPhone}
-              onChange={setSurveyorPhone}
-              keyboardType="phone-pad"
-            />
-            <Field
-              label="Email"
-              value={surveyorEmail}
-              onChange={setSurveyorEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Text style={styles.note}>
-              Logo + signature upload — coming in next update.
-            </Text>
-          </Section>
-
-          <Section
-            label="Conditions"
-            isOpen={open === "conditions"}
-            onToggle={() => setOpen(open === "conditions" ? "vessel" : "conditions")}
-          >
-            <Field
-              label="Weather conditions"
-              value={weather}
-              onChange={setWeather}
-              placeholder="Sunny and calm, wind 5kts"
-            />
-            <Field label="Sea state" value={seaState} onChange={setSeaState} placeholder="Calm" />
-          </Section>
-        </ScrollView>
-
-        <View style={[styles.saveBar, { paddingBottom: insets.bottom + 12 }]}>
           <Pressable
-            onPress={onSave}
-            disabled={saving}
+            onPress={() => router.replace("/(auth)/sign-in")}
             style={({ pressed }) => [
-              styles.saveBtn,
-              { opacity: pressed || saving ? 0.85 : 1 },
+              styles.signInBtn,
+              { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            {saving ? (
-              <ActivityIndicator color={NAVY} />
-            ) : (
-              <Text style={styles.saveBtnText}>Create Survey →</Text>
-            )}
+            <Text style={styles.signInBtnText}>Sign in</Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 22,
+              paddingBottom: insets.bottom + 120,
+            }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={10}
+              style={styles.backBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <Feather name="arrow-left" size={20} color={IVORY} />
+            </Pressable>
+
+            <Text style={styles.kicker}>NEW REPORT</Text>
+            <Text style={styles.title}>Survey Setup</Text>
+            <Text style={styles.subtitle}>
+              Cover information. You can complete sections after saving.
+            </Text>
+
+            <Section
+              label="Vessel"
+              isOpen={open === "vessel"}
+              onToggle={() => setOpen(open === "vessel" ? "client" : "vessel")}
+            >
+              <Field
+                label="Vessel name *"
+                value={vesselName}
+                onChange={setVesselName}
+                placeholder="Aurelia"
+              />
+              <PillRow
+                label="Type"
+                options={VESSEL_TYPES}
+                value={vesselType}
+                onChange={setVesselType}
+              />
+              <Field
+                label="Manufacturer"
+                value={manufacturer}
+                onChange={setManufacturer}
+                placeholder="Azimut"
+              />
+              <Field
+                label="Model"
+                value={model}
+                onChange={setModel}
+                placeholder="78 Fly"
+              />
+              <Field
+                label="Year built"
+                value={yearBuilt}
+                onChange={setYearBuilt}
+                keyboardType="number-pad"
+                placeholder="2019"
+              />
+              <Field
+                label="Flag / registration"
+                value={flag}
+                onChange={setFlag}
+                placeholder="Malta"
+              />
+              <Field
+                label="HIN (Hull ID)"
+                value={hin}
+                onChange={setHin}
+                placeholder="IT-TRHT8509L922"
+                autoCapitalize="characters"
+              />
+              <Field
+                label="Lying (location)"
+                value={lying}
+                onChange={setLying}
+                placeholder="Port Vauban, Antibes"
+              />
+              <Field
+                label="Date of survey (YYYY-MM-DD)"
+                value={surveyDate}
+                onChange={setSurveyDate}
+                placeholder="2026-05-28"
+              />
+              <PillRow
+                label="Purpose"
+                options={PURPOSES}
+                value={purpose}
+                onChange={setPurpose}
+              />
+            </Section>
+
+            <Section
+              label="Client"
+              isOpen={open === "client"}
+              onToggle={() =>
+                setOpen(open === "client" ? "surveyor" : "client")
+              }
+            >
+              <Field
+                label="Client name"
+                value={clientName}
+                onChange={setClientName}
+              />
+              <Field
+                label="Client email"
+                value={clientEmail}
+                onChange={setClientEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Field
+                label="Client phone"
+                value={clientPhone}
+                onChange={setClientPhone}
+                keyboardType="phone-pad"
+              />
+            </Section>
+
+            <Section
+              label="Surveyor"
+              isOpen={open === "surveyor"}
+              onToggle={() =>
+                setOpen(open === "surveyor" ? "conditions" : "surveyor")
+              }
+            >
+              <Field
+                label="Your name"
+                value={surveyorName}
+                onChange={setSurveyorName}
+              />
+              <Field
+                label="Qualification"
+                value={qualification}
+                onChange={setQualification}
+                placeholder="Dip.MS, YDSA, IIMS"
+              />
+              <Field label="Company" value={company} onChange={setCompany} />
+              <Field
+                label="Phone"
+                value={surveyorPhone}
+                onChange={setSurveyorPhone}
+                keyboardType="phone-pad"
+              />
+              <Field
+                label="Email"
+                value={surveyorEmail}
+                onChange={setSurveyorEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Text style={styles.note}>
+                Logo + signature upload — coming in next update.
+              </Text>
+            </Section>
+
+            <Section
+              label="Conditions"
+              isOpen={open === "conditions"}
+              onToggle={() =>
+                setOpen(open === "conditions" ? "vessel" : "conditions")
+              }
+            >
+              <Field
+                label="Weather conditions"
+                value={weather}
+                onChange={setWeather}
+                placeholder="Sunny and calm, wind 5kts"
+              />
+              <Field
+                label="Sea state"
+                value={seaState}
+                onChange={setSeaState}
+                placeholder="Calm"
+              />
+            </Section>
+          </ScrollView>
+
+          <View style={[styles.saveBar, { paddingBottom: insets.bottom + 12 }]}>
+            <Pressable
+              onPress={onSave}
+              disabled={saving}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { opacity: pressed || saving ? 0.85 : 1 },
+              ]}
+            >
+              {saving ? (
+                <ActivityIndicator color={NAVY} />
+              ) : (
+                <Text style={styles.saveBtnText}>Create Survey →</Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      )}
     </View>
   );
 }
@@ -347,7 +444,11 @@ function Section({
     <View style={styles.sectionCard}>
       <Pressable onPress={onToggle} style={styles.sectionHead}>
         <Text style={styles.sectionLabel}>{label}</Text>
-        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={18} color={MUTED} />
+        <Feather
+          name={isOpen ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={MUTED}
+        />
       </Pressable>
       {isOpen && <View style={styles.sectionBody}>{children}</View>}
     </View>
@@ -412,7 +513,9 @@ function PillRow({
                 { opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              <Text style={[styles.pillText, active && styles.pillTextActive]}>{opt}</Text>
+              <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                {opt}
+              </Text>
             </Pressable>
           );
         })}
@@ -423,6 +526,13 @@ function PillRow({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
+  centerFull: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    gap: 12,
+  },
   backBtn: {
     width: 36,
     height: 36,
@@ -432,9 +542,42 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY_ELEV,
     marginBottom: 14,
   },
-  kicker: { color: GOLD, fontFamily: "Inter_500Medium", fontSize: 11, letterSpacing: 2, marginBottom: 6 },
-  title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 30, letterSpacing: -0.4, marginBottom: 8 },
-  subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, marginBottom: 18 },
+  kicker: {
+    color: GOLD,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  title: {
+    color: IVORY,
+    fontFamily: "Gilroy-ExtraBold",
+    fontSize: 30,
+    letterSpacing: -0.4,
+    marginBottom: 8,
+  },
+  subtitle: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    marginBottom: 18,
+  },
+  emptyTitle: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 18 },
+  emptyText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  signInBtn: {
+    backgroundColor: GOLD,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 99,
+    marginTop: 4,
+  },
+  signInBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
   sectionCard: {
     backgroundColor: NAVY_DEEP,
     borderRadius: 14,
@@ -449,8 +592,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 16,
   },
-  sectionLabel: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 14, letterSpacing: 0.3 },
-  sectionBody: { paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: DIVIDER, paddingTop: 14 },
+  sectionLabel: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    letterSpacing: 0.3,
+  },
+  sectionBody: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: DIVIDER,
+    paddingTop: 14,
+  },
   fieldLabel: {
     color: MUTED,
     fontFamily: "Inter_500Medium",
@@ -482,7 +636,13 @@ const styles = StyleSheet.create({
   pillActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
   pillText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12 },
   pillTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
-  note: { color: FAINT, fontFamily: "Inter_400Regular", fontSize: 11, fontStyle: "italic", marginTop: 4 },
+  note: {
+    color: FAINT,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    fontStyle: "italic",
+    marginTop: 4,
+  },
   saveBar: {
     position: "absolute",
     left: 0,
@@ -500,5 +660,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
   },
-  saveBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15, letterSpacing: 0.3 },
+  saveBtnText: {
+    color: NAVY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
 });

@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getListSurveyReportsQueryKey,
@@ -51,24 +52,33 @@ export default function SurveyListScreen() {
   const isWeb = Platform.OS === "web";
   const router = useRouter();
   const qc = useQueryClient();
+  const { isLoaded, isSignedIn } = useAuth();
   const [segment, setSegment] = useState<Segment>("draft");
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const listQ = useListSurveyReports({
-    query: { queryKey: getListSurveyReportsQueryKey(), staleTime: 10_000 },
+    query: {
+      queryKey: getListSurveyReportsQueryKey(),
+      enabled: Boolean(isSignedIn),
+      staleTime: 10_000,
+    },
   });
   const deleteM = useDeleteSurveyReport();
 
   useFocusEffect(
     useCallback(() => {
+      if (!isSignedIn) return;
       qc.invalidateQueries({ queryKey: getListSurveyReportsQueryKey() });
-    }, [qc]),
+    }, [isSignedIn, qc]),
   );
 
   const items = (listQ.data?.items ?? []).filter((r) => r.status === segment);
-  const draftCount = (listQ.data?.items ?? []).filter((r) => r.status === "draft").length;
-  const completeCount =
-    (listQ.data?.items ?? []).filter((r) => r.status === "complete").length;
+  const draftCount = (listQ.data?.items ?? []).filter(
+    (r) => r.status === "draft",
+  ).length;
+  const completeCount = (listQ.data?.items ?? []).filter(
+    (r) => r.status === "complete",
+  ).length;
 
   const onDelete = (id: string, name: string) => {
     Alert.alert("Delete survey?", `"${name}" will be removed permanently.`, [
@@ -80,7 +90,9 @@ export default function SurveyListScreen() {
           setPendingId(id);
           try {
             await deleteM.mutateAsync({ id });
-            await qc.invalidateQueries({ queryKey: getListSurveyReportsQueryKey() });
+            await qc.invalidateQueries({
+              queryKey: getListSurveyReportsQueryKey(),
+            });
           } catch {
             Alert.alert("Delete failed", "Please try again.");
           } finally {
@@ -117,8 +129,15 @@ export default function SurveyListScreen() {
         </Text>
 
         <Pressable
-          onPress={() => router.push("/survey/new")}
-          style={({ pressed }) => [styles.newBtn, { opacity: pressed ? 0.85 : 1 }]}
+          onPress={() =>
+            isSignedIn
+              ? router.push("/survey/new")
+              : router.push("/(auth)/sign-in")
+          }
+          style={({ pressed }) => [
+            styles.newBtn,
+            { opacity: pressed ? 0.85 : 1 },
+          ]}
           accessibilityRole="button"
           accessibilityLabel="New survey"
         >
@@ -139,7 +158,32 @@ export default function SurveyListScreen() {
           />
         </View>
 
-        {listQ.isLoading ? (
+        {!isLoaded ? (
+          <View style={{ paddingTop: 40, alignItems: "center" }}>
+            <ActivityIndicator color={GOLD} />
+          </View>
+        ) : !isSignedIn ? (
+          <View style={styles.emptyBlock}>
+            <Feather name="lock" size={28} color={GOLD} />
+            <Text style={styles.emptyTitle}>Sign in required</Text>
+            <Text style={styles.emptyText}>
+              Sign in to create and manage survey reports.
+            </Text>
+            <Pressable
+              onPress={() => router.push("/(auth)/sign-in")}
+              style={({ pressed }) => [
+                styles.newBtn,
+                {
+                  alignSelf: "center",
+                  marginBottom: 0,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text style={styles.newBtnText}>Sign in</Text>
+            </Pressable>
+          </View>
+        ) : listQ.isLoading ? (
           <View style={{ paddingTop: 40, alignItems: "center" }}>
             <ActivityIndicator color={GOLD} />
           </View>
@@ -147,7 +191,9 @@ export default function SurveyListScreen() {
           <View style={styles.emptyBlock}>
             <Feather name="clipboard" size={28} color={GOLD} />
             <Text style={styles.emptyTitle}>
-              {segment === "draft" ? "No draft reports" : "No completed reports yet"}
+              {segment === "draft"
+                ? "No draft reports"
+                : "No completed reports yet"}
             </Text>
             <Text style={styles.emptyText}>
               Tap “New Survey” to start a pre-purchase inspection.
@@ -161,21 +207,31 @@ export default function SurveyListScreen() {
               return (
                 <View
                   key={it.id}
-                  style={[styles.itemWrap, i === items.length - 1 && { borderBottomWidth: 0 }]}
+                  style={[
+                    styles.itemWrap,
+                    i === items.length - 1 && { borderBottomWidth: 0 },
+                  ]}
                 >
                   <Pressable
                     onPress={() => router.push(`/survey/${it.id}`)}
-                    style={({ pressed }) => [styles.item, { opacity: pressed ? 0.85 : 1 }]}
+                    style={({ pressed }) => [
+                      styles.item,
+                      { opacity: pressed ? 0.85 : 1 },
+                    ]}
                   >
                     <View style={{ flex: 1 }}>
                       <View style={styles.itemHead}>
                         <Text style={styles.itemTitle} numberOfLines={1}>
                           {it.vessel_name}
                         </Text>
-                        <Text style={styles.itemDate}>{fmt(it.survey_date ?? it.created_at)}</Text>
+                        <Text style={styles.itemDate}>
+                          {fmt(it.survey_date ?? it.created_at)}
+                        </Text>
                       </View>
                       <Text style={styles.itemSub} numberOfLines={1}>
-                        {[it.manufacturer, it.model].filter(Boolean).join(" · ") || "—"}
+                        {[it.manufacturer, it.model]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
                         {it.lying ? ` · ${it.lying}` : ""}
                       </Text>
                       <View style={styles.itemChips}>
@@ -184,17 +240,28 @@ export default function SurveyListScreen() {
                           color={GOLD}
                         />
                         {urgent && (
-                          <Chip text={`A·${it.total_recommendations_a}`} color={RED_URGENT} />
+                          <Chip
+                            text={`A·${it.total_recommendations_a}`}
+                            color={RED_URGENT}
+                          />
                         )}
                         {warn && (
-                          <Chip text={`B·${it.total_recommendations_b}`} color={AMBER} />
+                          <Chip
+                            text={`B·${it.total_recommendations_b}`}
+                            color={AMBER}
+                          />
                         )}
                         {!urgent && !warn && it.status === "complete" && (
                           <Chip text="Clean" color={GREEN} />
                         )}
                       </View>
                     </View>
-                    <Feather name="chevron-right" size={18} color={FAINT} style={{ marginLeft: 6 }} />
+                    <Feather
+                      name="chevron-right"
+                      size={18}
+                      color={FAINT}
+                      style={{ marginLeft: 6 }}
+                    />
                   </Pressable>
                   <Pressable
                     onPress={() => onDelete(it.id, it.vessel_name)}
@@ -219,7 +286,15 @@ export default function SurveyListScreen() {
   );
 }
 
-function SegBtn({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function SegBtn({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -229,14 +304,21 @@ function SegBtn({ label, active, onPress }: { label: string; active: boolean; on
         { opacity: pressed ? 0.85 : 1 },
       ]}
     >
-      <Text style={[styles.segText, active && styles.segTextActive]}>{label}</Text>
+      <Text style={[styles.segText, active && styles.segTextActive]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 function Chip({ text, color }: { text: string; color: string }) {
   return (
-    <View style={[styles.chip, { borderColor: `${color}55`, backgroundColor: `${color}15` }]}>
+    <View
+      style={[
+        styles.chip,
+        { borderColor: `${color}55`, backgroundColor: `${color}15` },
+      ]}
+    >
       <Text style={[styles.chipText, { color }]}>{text}</Text>
     </View>
   );
@@ -267,7 +349,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     marginBottom: 8,
   },
-  subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, marginBottom: 18 },
+  subtitle: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    marginBottom: 18,
+  },
   newBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -289,7 +376,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: DIVIDER,
   },
-  segBtn: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 99 },
+  segBtn: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 9,
+    borderRadius: 99,
+  },
   segBtnActive: { backgroundColor: "rgba(201,169,97,0.18)" },
   segText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12 },
   segTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
@@ -324,11 +416,36 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: DIVIDER,
   },
-  item: { flex: 1, flexDirection: "row", alignItems: "center", padding: 14, gap: 8 },
-  itemHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  itemTitle: { flex: 1, color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 15 },
-  itemDate: { color: FAINT, fontFamily: "Inter_400Regular", fontSize: 11, marginLeft: 8 },
-  itemSub: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
+  item: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 8,
+  },
+  itemHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  itemTitle: {
+    flex: 1,
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  itemDate: {
+    color: FAINT,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginLeft: 8,
+  },
+  itemSub: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 3,
+  },
   itemChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   chip: {
     paddingHorizontal: 8,
