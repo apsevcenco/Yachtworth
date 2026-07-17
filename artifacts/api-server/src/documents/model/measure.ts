@@ -145,7 +145,11 @@ export function measureNode(node: ContentNode): number {
     case "gallery": {
       const cols = node.columns ?? 3;
       const hasCaption = node.images.some((im) => im.caption);
-      const cellH = GAL_IMG_MM + (hasCaption ? GAL_CAP_MM : 0);
+      const imgH =
+        typeof node.imageHeightMm === "number" && Number.isFinite(node.imageHeightMm)
+          ? Math.max(24, Math.min(120, node.imageHeightMm))
+          : GAL_IMG_MM;
+      const cellH = imgH + (hasCaption ? GAL_CAP_MM : 0);
       const galleryRows = Math.ceil(node.images.length / cols);
       return (node.heading ? HEADING_MM : 0) + galleryRows * (cellH + GALLERY_GAP_MM);
     }

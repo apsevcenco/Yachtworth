@@ -8,6 +8,18 @@ import type {
 import { getTheme } from "../core/theme";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
 
+const GLOSSARY_TEXT = `Excellent condition - The item described is in as-new or near as-new condition.
+Serviceable / Functioning - The item described is serviceable and fit for purpose at the time of survey.
+Fair condition - The item described is serviceable but showing age, wear or maintenance requirement.
+Poor condition - The item described requires repair, replacement or specialist attention.
+Not inspected / N/A - The item was not inspected, was inaccessible, or was not applicable to this vessel.
+
+Recommendations:
+A - Urgent. Required to ensure safe operation of the vessel.
+B - Soonest opportunity. Required for continued successful operation.
+C - Expert or specialist required to investigate further.
+D - Cosmetic or leisure equipment.`;
+
 function fmtDate(s: string | null | undefined): string {
   if (!s) return "-";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
@@ -94,6 +106,23 @@ function recText(item: SurveyItemData): string {
   const level = item.recommendation_level ? `Rec ${item.recommendation_level}` : "";
   const text = item.recommendation_text ?? "";
   return [level, text].filter(Boolean).join(" - ") || "-";
+}
+
+function itemDisplayRows(item: SurveyItemData): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [
+    { label: "Condition", value: clean(item.condition) },
+    { label: "Recommendation", value: recText(item) },
+  ];
+  if (item.notes) rows.push({ label: "Notes", value: item.notes });
+  if (item.moisture_reading != null) {
+    rows.push({
+      label: "Moisture",
+      value: `${item.moisture_reading}${item.moisture_level ? ` (${item.moisture_level})` : ""}`,
+    });
+  }
+  const professional = professionalLines(item);
+  if (professional.length) rows.push({ label: "Inspection details", value: professional.join(" | ") });
+  return rows;
 }
 
 function sectionRows(items: SurveyItemData[]): TableCell[][] {
@@ -222,54 +251,91 @@ export function buildSurveyModel(input: {
   }
 
   const items = [...(reportData.items ?? [])].sort(compareSurveyItems);
+  const sections = new Map<number, { name: string; rows: SurveyItemData[] }>();
+  for (const item of items) {
+    const n = item.section_number ?? 0;
+    const entry = sections.get(n) ?? { name: item.section_name ?? "Survey Section", rows: [] };
+    entry.rows.push(item);
+    sections.set(n, entry);
+  }
+  if (!sections.has(3)) {
+    sections.set(3, { name: "Glossary of Terms", rows: [] });
+  }
+  const displayNumberByItem = new Map<SurveyItemData, string>();
+  for (const [sectionNumber, section] of sections) {
+    [...section.rows].sort(compareSurveyItems).forEach((item, idx) => {
+      displayNumberByItem.set(item, `${sectionNumber}.${idx + 1}`);
+    });
+  }
+
   const recItems = items.filter((item) => item.recommendation_level || item.recommendation_text);
   if (recItems.length) {
     body.push({
       kind: "table",
       heading: "Recommendation Summary",
       columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
-      rows: sectionRows(recItems),
+      rows: sectionRows(
+        recItems.map((item) => ({
+          ...item,
+          item_number: displayNumberByItem.get(item) ?? item.item_number,
+        })),
+      ),
     });
   }
 
-  const sections = new Map<string, SurveyItemData[]>();
-  for (const item of items) {
-    const key = `${item.section_number ?? 0}. ${item.section_name ?? "Survey Section"}`;
-    const rows = sections.get(key) ?? [];
-    rows.push(item);
-    sections.set(key, rows);
-  }
-  const photoAppendixImages: { url: string; caption?: string }[] = [];
-  for (const [heading, rows] of sections) {
-    const sortedRows = [...rows].sort(compareSurveyItems);
+  for (const [sectionNumber, section] of [...sections.entries()].sort(([a], [b]) => a - b)) {
+    const sortedRows = [...section.rows].sort(compareSurveyItems);
+    const sectionTitle = `${sectionNumber} ${section.name}`;
     body.push({
       kind: "heading",
       level: 1,
-      text: heading,
+      text: sectionTitle,
     });
-    body.push({
-      kind: "table",
-      heading: undefined,
-      columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
-      rows: sectionRows(sortedRows),
-    });
-    for (const item of sortedRows) {
-      for (const url of item.photo_urls ?? []) {
-        if (typeof url !== "string" || !url.trim()) continue;
-        photoAppendixImages.push({
+
+    if (sectionNumber === 3 && !sortedRows.some((item) => item.notes || item.description)) {
+      body.push({
+        kind: "paragraph",
+        heading: undefined,
+        text: GLOSSARY_TEXT,
+        panel: true,
+      });
+      continue;
+    }
+
+    if (sectionNumber === 3) {
+      body.push({
+        kind: "paragraph",
+        heading: undefined,
+        text: GLOSSARY_TEXT,
+        panel: true,
+      });
+    }
+
+    for (const [idx, item] of sortedRows.entries()) {
+      const displayNumber = `${sectionNumber}.${idx + 1}`;
+      const title = [displayNumber, item.description].filter(Boolean).join(" ");
+      body.push({
+        kind: "keyValue",
+        heading: title,
+        rows: itemDisplayRows({ ...item, item_number: displayNumber }),
+        boxed: true,
+      });
+      const photos = (item.photo_urls ?? [])
+        .filter((url) => typeof url === "string" && url.trim().length > 0)
+        .map((url) => ({
           url: url.trim(),
-          caption: [heading, item.item_number, item.description].filter(Boolean).join(" - "),
+          caption: title,
+        }));
+      if (photos.length) {
+        body.push({
+          kind: "gallery",
+          heading: undefined,
+          images: photos,
+          columns: 2,
+          imageHeightMm: 78,
         });
       }
     }
-  }
-  if (photoAppendixImages.length) {
-    body.push({
-      kind: "gallery",
-      heading: "Photo Appendix",
-      images: photoAppendixImages,
-      columns: 3,
-    });
   }
 
   const sea = reportData.seaTrial;

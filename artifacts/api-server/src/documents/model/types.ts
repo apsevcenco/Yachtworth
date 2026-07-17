@@ -172,6 +172,8 @@ export interface GalleryNode {
   images: { url: string; caption?: string }[];
   /** Columns per row (default 3). */
   columns?: number;
+  /** Optional fixed image height in millimetres. */
+  imageHeightMm?: number;
 }
 
 /** Single image (charts, diagrams). */

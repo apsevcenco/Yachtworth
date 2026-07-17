@@ -292,10 +292,11 @@ function columnsHtml(node: ColumnsNode): string {
 function galleryHtml(node: GalleryNode, images: GalleryNode["images"]): string {
   const cols = node.columns ?? 3;
   const widthCalc = `calc((100% - ${(cols - 1) * GALLERY_GAP_MM}mm) / ${cols})`;
+  const imgHeight = clampMm(node.imageHeightMm, GAL_IMG_MM, 24, 120);
   const cells = images
     .map(
       (im) =>
-        `<div class="gal-cell" style="flex:0 0 ${widthCalc};max-width:${widthCalc}"><img class="gal-img" src="${esc(
+        `<div class="gal-cell" style="flex:0 0 ${widthCalc};max-width:${widthCalc}"><img class="gal-img" style="height:${imgHeight}mm" src="${esc(
           im.url,
         )}" />${im.caption ? `<div class="gal-cap">${esc(im.caption)}</div>` : ""}</div>`,
     )
@@ -428,7 +429,8 @@ function galleryBlocks(node: GalleryNode): DocBlock[] {
   if (!valid.length) return [];
   const cols = node.columns ?? 3;
   const hasCaption = valid.some((im) => im.caption);
-  const rowH = GAL_IMG_MM + (hasCaption ? GAL_CAP_MM : 0) + GALLERY_GAP_MM;
+  const imgH = clampMm(node.imageHeightMm, GAL_IMG_MM, 24, 120);
+  const rowH = imgH + (hasCaption ? GAL_CAP_MM : 0) + GALLERY_GAP_MM;
   const headingH = node.heading ? HEADING_MM : 0;
   const rowsPerPage = Math.max(1, Math.floor((PACK_BUDGET_MM - headingH) / rowH));
   const imgsPerPage = rowsPerPage * cols;

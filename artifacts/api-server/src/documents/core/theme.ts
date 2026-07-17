@@ -97,7 +97,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .page-flow:last-child { page-break-after: auto; }
   .cover-page { padding: 0; min-height: 0; }
   .block { break-inside: avoid; page-break-inside: avoid; }
-  .block + .block { margin-top: 24px; }
+  .block + .block { margin-top: 16px; }
   .muted { color: ${t.textMuted}; }
   /* shared section label */
   .eyebrow {
