@@ -7,6 +7,7 @@ import {
   ESTIMATES_TABLE,
   getSupabase,
   ROI_CALCULATIONS_TABLE,
+  SURVEY_REPORTS_TABLE,
   YACHTS_TABLE,
 } from "../lib/supabase";
 import { forClerkUser } from "../lib/clerkUserFilter";
@@ -70,6 +71,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       estimates: ESTIMATES_TABLE,
       roi: ROI_CALCULATIONS_TABLE,
       cost: COST_ESTIMATES_TABLE,
+      survey: SURVEY_REPORTS_TABLE,
     })) {
       const { count: totalCount, error: totalError } = await sb
         .from(table)
