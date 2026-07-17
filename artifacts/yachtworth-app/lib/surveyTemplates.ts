@@ -16,6 +16,23 @@ export type SectionTemplate = {
   items?: TemplateItem[];
 };
 
+export type SectionFieldType = "text" | "number" | "select" | "date" | "boolean" | "textarea";
+
+export type SectionField = {
+  key: string;
+  label: string;
+  type: SectionFieldType;
+  placeholder?: string;
+  options?: string[];
+  unit?: string;
+};
+
+export type SectionSchema = {
+  sectionNumber: number;
+  title: string;
+  fields: SectionField[];
+};
+
 export const GLOSSARY_TEXT = `Excellent condition — The item described is in 'as new' condition.
 Serviceable / Functioning — The item described is serviceable and fit for purpose.
 Fair condition — The item described is serviceable but showing signs of wear.
@@ -175,6 +192,190 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
   { number: 25, name: "Pictures", kind: "pictures" },
   { number: 26, name: "Sea Trial", kind: "sea_trial" },
 ];
+
+export const SECTION_SCHEMAS: Record<number, SectionSchema> = {
+  2: {
+    sectionNumber: 2,
+    title: "Documents and vessel identity",
+    fields: [
+      { key: "registration_number", label: "Registration number", type: "text" },
+      { key: "ownership_documents_seen", label: "Ownership documents seen", type: "boolean" },
+      {
+        key: "vat_status",
+        label: "VAT status",
+        type: "select",
+        options: ["VAT paid", "VAT not paid", "Unknown", "Not applicable"],
+      },
+      { key: "vat_evidence_seen", label: "VAT evidence seen", type: "boolean" },
+      {
+        key: "ce_ukca_rcd_status",
+        label: "CE / UKCA / RCD status",
+        type: "select",
+        options: ["CE seen", "UKCA seen", "RCD/RCR seen", "Not seen", "Not applicable", "Unknown"],
+      },
+      { key: "hin_verified", label: "HIN / CIN verified", type: "boolean" },
+      { key: "insurance_certificate_seen", label: "Insurance certificate seen", type: "boolean" },
+      { key: "class_or_coding_certificate", label: "Class / coding certificate", type: "text" },
+      { key: "service_records_seen", label: "Service records seen", type: "boolean" },
+      { key: "manuals_seen", label: "Manuals seen", type: "boolean" },
+      { key: "document_issues", label: "Document issues", type: "textarea" },
+    ],
+  },
+  6: {
+    sectionNumber: 6,
+    title: "Hull inspection details",
+    fields: [
+      {
+        key: "hull_material",
+        label: "Hull material",
+        type: "select",
+        options: ["GRP", "Composite", "Aluminium", "Steel", "Wood", "Other", "Unknown"],
+      },
+      {
+        key: "inspection_mode",
+        label: "Inspection mode",
+        type: "select",
+        options: ["Afloat", "Ashore", "Afloat and ashore", "Not inspected"],
+      },
+      { key: "moisture_meter", label: "Moisture meter", type: "text" },
+      { key: "moisture_reference", label: "Moisture reference", type: "text" },
+      {
+        key: "osmosis_blistering",
+        label: "Osmosis / blistering",
+        type: "select",
+        options: ["None observed", "Minor", "Moderate", "Severe", "Unknown"],
+      },
+      {
+        key: "delamination",
+        label: "Delamination",
+        type: "select",
+        options: ["Not observed", "Suspected", "Confirmed", "Unknown"],
+      },
+      { key: "previous_repairs", label: "Previous repairs", type: "textarea" },
+      { key: "antifouling_condition", label: "Antifouling condition", type: "text" },
+      { key: "anodes_condition", label: "Anodes condition", type: "text" },
+      { key: "underwater_findings", label: "Underwater findings", type: "textarea" },
+    ],
+  },
+  15: {
+    sectionNumber: 15,
+    title: "Engine and transmission details",
+    fields: [
+      { key: "engine_make", label: "Engine make", type: "text" },
+      { key: "engine_model", label: "Engine model", type: "text" },
+      { key: "port_serial_number", label: "Port serial number", type: "text" },
+      { key: "starboard_serial_number", label: "Starboard serial number", type: "text" },
+      { key: "port_hours", label: "Port hours", type: "number", unit: "h" },
+      { key: "starboard_hours", label: "Starboard hours", type: "number", unit: "h" },
+      { key: "horsepower", label: "Horsepower", type: "number", unit: "hp" },
+      { key: "service_history_seen", label: "Service history seen", type: "boolean" },
+      { key: "oil_condition", label: "Oil condition", type: "text" },
+      { key: "coolant_condition", label: "Coolant condition", type: "text" },
+      { key: "mounts_condition", label: "Mounts condition", type: "text" },
+      { key: "belts_hoses_condition", label: "Belts / hoses condition", type: "text" },
+      { key: "exhaust_condition", label: "Exhaust condition", type: "text" },
+      { key: "turbo_condition", label: "Turbo condition", type: "text" },
+      { key: "gearbox_condition", label: "Gearbox condition", type: "text" },
+      {
+        key: "start_test",
+        label: "Start test",
+        type: "select",
+        options: ["Not tested", "Cold start", "Warm start", "Observed running"],
+      },
+      {
+        key: "smoke_observed",
+        label: "Smoke observed",
+        type: "select",
+        options: ["None", "Light", "Moderate", "Heavy", "Not tested"],
+      },
+      {
+        key: "vibration_observed",
+        label: "Vibration observed",
+        type: "select",
+        options: ["None", "Minor", "Moderate", "Severe", "Not tested"],
+      },
+      { key: "specialist_required", label: "Specialist required", type: "boolean" },
+    ],
+  },
+  19: {
+    sectionNumber: 19,
+    title: "Electrical and generator details",
+    fields: [
+      { key: "ac_system_condition", label: "AC system condition", type: "text" },
+      { key: "dc_system_condition", label: "DC system condition", type: "text" },
+      { key: "shore_power_tested", label: "Shore power tested", type: "boolean" },
+      { key: "batteries_count", label: "Batteries count", type: "number" },
+      {
+        key: "battery_type",
+        label: "Battery type",
+        type: "select",
+        options: ["Lead acid", "AGM", "Gel", "Lithium", "Unknown"],
+      },
+      { key: "battery_age", label: "Battery age", type: "text" },
+      { key: "charger_inverter_condition", label: "Charger / inverter condition", type: "text" },
+      { key: "generator_make", label: "Generator make", type: "text" },
+      { key: "generator_model", label: "Generator model", type: "text" },
+      { key: "generator_serial_number", label: "Generator serial number", type: "text" },
+      { key: "generator_hours", label: "Generator hours", type: "number", unit: "h" },
+      {
+        key: "generator_load_test",
+        label: "Generator load test",
+        type: "select",
+        options: ["Not tested", "Light load", "Full load", "Failed"],
+      },
+      { key: "bonding_condition", label: "Bonding condition", type: "text" },
+      { key: "cable_condition", label: "Cable condition", type: "text" },
+      { key: "electrical_issues", label: "Electrical issues", type: "textarea" },
+    ],
+  },
+  20: {
+    sectionNumber: 20,
+    title: "Fire and safety equipment details",
+    fields: [
+      { key: "fixed_fire_system", label: "Fixed fire system", type: "text" },
+      { key: "fixed_fire_service_date", label: "Fixed fire service date", type: "date" },
+      { key: "portable_extinguishers_count", label: "Portable extinguishers", type: "number" },
+      {
+        key: "extinguisher_expiry_status",
+        label: "Extinguisher expiry status",
+        type: "select",
+        options: ["In date", "Expired", "Mixed", "Not seen"],
+      },
+      { key: "liferaft_present", label: "Liferaft present", type: "boolean" },
+      { key: "liferaft_service_date", label: "Liferaft service date", type: "date" },
+      { key: "lifejackets_count", label: "Lifejackets count", type: "number" },
+      {
+        key: "flares_expiry_status",
+        label: "Flares expiry status",
+        type: "select",
+        options: ["In date", "Expired", "Mixed", "Not carried", "Not seen"],
+      },
+      {
+        key: "epirb_status",
+        label: "EPIRB status",
+        type: "select",
+        options: ["Registered", "In date", "Expired", "Not carried", "Not seen"],
+      },
+      {
+        key: "bilge_pumps_tested",
+        label: "Bilge pumps tested",
+        type: "select",
+        options: ["Tested", "Partly tested", "Not tested", "Failed"],
+      },
+      {
+        key: "high_water_alarm_tested",
+        label: "High water alarm tested",
+        type: "select",
+        options: ["Tested", "Not tested", "Failed", "Not fitted"],
+      },
+      { key: "safety_issues", label: "Safety issues", type: "textarea" },
+    ],
+  },
+};
+
+export function getSectionSchema(sectionNumber: number): SectionSchema | null {
+  return SECTION_SCHEMAS[sectionNumber] ?? null;
+}
 
 export type ConditionLevel =
   | "Excellent"

@@ -31,8 +31,11 @@ import {
   CONDITION_OPTIONS,
   REC_OPTIONS,
   SECTION_TEMPLATES,
+  getSectionSchema,
   type ConditionLevel,
   type RecLevel,
+  type SectionField,
+  type SectionSchema,
 } from "../../../../lib/surveyTemplates";
 import {
   deleteSurveyItemPhoto,
@@ -67,7 +70,32 @@ type Editable = {
   moisture_reading: string;
   moisture_level: "Low" | "Medium" | "High" | "";
   sort_order: number;
+  inspected_status: string;
+  defect_description: string;
+  test_method: string;
+  regulatory_reference: string;
+  safety_critical: boolean;
+  insurance_critical: boolean;
+  compliance_critical: boolean;
+  estimated_cost_eur: string;
+  due_date: string;
+  section_data: Record<string, unknown>;
+  sync_status: string;
 };
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function toStringValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  return "";
+}
 
 function toEditable(it: SurveyItem): Editable {
   return {
@@ -86,6 +114,18 @@ function toEditable(it: SurveyItem): Editable {
     moisture_level:
       (it.moisture_level as "Low" | "Medium" | "High") ?? "",
     sort_order: it.sort_order ?? 0,
+    inspected_status: it.inspected_status ?? "",
+    defect_description: it.defect_description ?? "",
+    test_method: it.test_method ?? "",
+    regulatory_reference: it.regulatory_reference ?? "",
+    safety_critical: Boolean(it.safety_critical),
+    insurance_critical: Boolean(it.insurance_critical),
+    compliance_critical: Boolean(it.compliance_critical),
+    estimated_cost_eur:
+      typeof it.estimated_cost_eur === "number" ? String(it.estimated_cost_eur) : "",
+    due_date: it.due_date ?? "",
+    section_data: toRecord(it.section_data),
+    sync_status: it.sync_status ?? "synced",
   };
 }
 
@@ -107,6 +147,7 @@ export default function SurveySectionScreen() {
   const replaceM = useReplaceSurveyItems();
 
   const template = SECTION_TEMPLATES.find((s) => s.number === sectionNumber);
+  const sectionSchema = getSectionSchema(sectionNumber);
   const allItems = detailQ.data?.items ?? [];
 
   const [editable, setEditable] = useState<Editable[]>([]);
@@ -276,6 +317,17 @@ export default function SurveySectionScreen() {
         moisture_reading: "",
         moisture_level: "",
         sort_order: cur.length,
+        inspected_status: "",
+        defect_description: "",
+        test_method: "",
+        regulatory_reference: "",
+        safety_critical: false,
+        insurance_critical: false,
+        compliance_critical: false,
+        estimated_cost_eur: "",
+        due_date: "",
+        section_data: {},
+        sync_status: "local",
       },
     ]);
   };
@@ -309,6 +361,7 @@ export default function SurveySectionScreen() {
       // sections are untouched and concurrent edits in other sections survive.
       const payloadItems = editable.map((it, i) => {
         const moistureNum = Number(it.moisture_reading);
+        const costNum = Number(it.estimated_cost_eur);
         return {
           section_number: it.section_number,
           section_name: it.section_name,
@@ -325,6 +378,18 @@ export default function SurveySectionScreen() {
             Number.isFinite(moistureNum) && it.moisture_reading !== "" ? moistureNum : null,
           moisture_level: it.moisture_level || null,
           sort_order: i,
+          inspected_status: it.inspected_status || null,
+          defect_description: it.defect_description || null,
+          test_method: it.test_method || null,
+          regulatory_reference: it.regulatory_reference || null,
+          safety_critical: it.safety_critical,
+          insurance_critical: it.insurance_critical,
+          compliance_critical: it.compliance_critical,
+          estimated_cost_eur:
+            Number.isFinite(costNum) && it.estimated_cost_eur !== "" ? costNum : null,
+          due_date: it.due_date || null,
+          section_data: it.section_data,
+          sync_status: it.sync_status || "synced",
         };
       });
       await replaceM.mutateAsync({
@@ -457,6 +522,14 @@ export default function SurveySectionScreen() {
                 multiline
                 style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]}
               />
+
+              {sectionSchema && (
+                <SectionSpecificFields
+                  schema={sectionSchema}
+                  item={it}
+                  onChange={(patch) => updateItem(idx, patch)}
+                />
+              )}
 
               <View style={[styles.row, { marginTop: 10 }]}>
                 <Text style={styles.fieldLabel}>Recommendation</Text>
@@ -721,6 +794,203 @@ function PickerSheet({
   );
 }
 
+function SectionSpecificFields({
+  schema,
+  item,
+  onChange,
+}: {
+  schema: SectionSchema;
+  item: Editable;
+  onChange: (patch: Partial<Editable>) => void;
+}) {
+  const setField = (key: string, value: unknown) => {
+    onChange({ section_data: { ...item.section_data, [key]: value } });
+  };
+
+  return (
+    <View style={styles.professionalBox}>
+      <Text style={styles.professionalTitle}>{schema.title}</Text>
+      {schema.fields.map((field) => (
+        <SectionFieldInput
+          key={field.key}
+          field={field}
+          value={item.section_data[field.key]}
+          onChange={(value) => setField(field.key, value)}
+        />
+      ))}
+      <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Inspection status</Text>
+      <View style={styles.pillRowWrap}>
+        {["Inspected", "Partly inspected", "Not inspected", "Not applicable"].map((status) => {
+          const active = item.inspected_status === status;
+          return (
+            <Pressable
+              key={status}
+              onPress={() => onChange({ inspected_status: active ? "" : status })}
+              style={[styles.pill, active && styles.pillActive]}
+            >
+              <Text style={[styles.pillText, active && styles.pillTextActive]}>{status}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Critical flags</Text>
+      <View style={styles.pillRowWrap}>
+        {[
+          { key: "safety_critical", label: "Safety" },
+          { key: "insurance_critical", label: "Insurance" },
+          { key: "compliance_critical", label: "Compliance" },
+        ].map((flag) => {
+          const key = flag.key as "safety_critical" | "insurance_critical" | "compliance_critical";
+          const active = item[key];
+          return (
+            <Pressable
+              key={flag.key}
+              onPress={() => {
+                const patch: Partial<Editable> = { [key]: !active };
+                onChange(patch);
+              }}
+              style={[styles.pill, active && styles.pillUrgent]}
+            >
+              <Text style={[styles.pillText, active && styles.pillUrgentText]}>{flag.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Defect / finding</Text>
+      <TextInput
+        value={item.defect_description}
+        onChangeText={(v) => onChange({ defect_description: v })}
+        placeholder="Specific defect, limitation, or notable finding..."
+        placeholderTextColor={FAINT}
+        multiline
+        style={[styles.input, { minHeight: 60, textAlignVertical: "top" }]}
+      />
+      <View style={styles.professionalGrid}>
+        <View style={styles.professionalGridCell}>
+          <Text style={styles.fieldLabel}>Test method</Text>
+          <TextInput
+            value={item.test_method}
+            onChangeText={(v) => onChange({ test_method: v })}
+            placeholder="Visual / tested / observed"
+            placeholderTextColor={FAINT}
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.professionalGridCell}>
+          <Text style={styles.fieldLabel}>Reference</Text>
+          <TextInput
+            value={item.regulatory_reference}
+            onChangeText={(v) => onChange({ regulatory_reference: v })}
+            placeholder="ISO / ABYC / MCA / RCD"
+            placeholderTextColor={FAINT}
+            style={styles.input}
+          />
+        </View>
+      </View>
+      <View style={styles.professionalGrid}>
+        <View style={styles.professionalGridCell}>
+          <Text style={styles.fieldLabel}>Est. cost EUR</Text>
+          <TextInput
+            value={item.estimated_cost_eur}
+            onChangeText={(v) => onChange({ estimated_cost_eur: v })}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            placeholderTextColor={FAINT}
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.professionalGridCell}>
+          <Text style={styles.fieldLabel}>Due date</Text>
+          <TextInput
+            value={item.due_date}
+            onChangeText={(v) => onChange({ due_date: v })}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={FAINT}
+            style={styles.input}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function SectionFieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: SectionField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  if (field.type === "boolean") {
+    return (
+      <View style={styles.sectionField}>
+        <Text style={styles.fieldLabel}>{field.label}</Text>
+        <View style={styles.pillRow}>
+          {[
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ].map((option) => {
+            const active = value === option.value;
+            return (
+              <Pressable
+                key={option.label}
+                onPress={() => onChange(active ? null : option.value)}
+                style={[styles.pill, active && styles.pillActive]}
+              >
+                <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  if (field.type === "select") {
+    return (
+      <View style={styles.sectionField}>
+        <Text style={styles.fieldLabel}>{field.label}</Text>
+        <View style={styles.pillRowWrap}>
+          {(field.options ?? []).map((option) => {
+            const active = value === option;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => onChange(active ? "" : option)}
+                style={[styles.pill, active && styles.pillActive]}
+              >
+                <Text style={[styles.pillText, active && styles.pillTextActive]}>{option}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.sectionField}>
+      <Text style={styles.fieldLabel}>{field.label}</Text>
+      <TextInput
+        value={toStringValue(value)}
+        onChangeText={(text) => onChange(text)}
+        keyboardType={field.type === "number" ? "decimal-pad" : "default"}
+        placeholder={field.placeholder ?? field.unit ?? ""}
+        placeholderTextColor={FAINT}
+        multiline={field.type === "textarea"}
+        style={[
+          styles.input,
+          field.type === "textarea" && { minHeight: 60, textAlignVertical: "top" },
+        ]}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
   center: { alignItems: "center", justifyContent: "center" },
@@ -787,6 +1057,7 @@ const styles = StyleSheet.create({
     borderColor: DIVIDER,
   },
   pillRow: { flexDirection: "row", gap: 6 },
+  pillRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   pill: {
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -796,8 +1067,29 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY_ELEV,
   },
   pillActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
+  pillUrgent: { borderColor: RED_URGENT, backgroundColor: "rgba(226,125,125,0.14)" },
   pillText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11 },
   pillTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
+  pillUrgentText: { color: RED_URGENT, fontFamily: "Inter_700Bold" },
+  professionalBox: {
+    backgroundColor: "rgba(247,243,236,0.035)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    padding: 12,
+    marginTop: 12,
+  },
+  professionalTitle: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+  sectionField: { marginBottom: 10 },
+  professionalGrid: { flexDirection: "row", gap: 8, marginTop: 10 },
+  professionalGridCell: { flex: 1 },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
