@@ -19,6 +19,51 @@ function clean(s: unknown): string {
   return s == null || s === "" ? "-" : String(s);
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function labelize(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatBool(v: boolean): string {
+  return v ? "Yes" : "No";
+}
+
+function formatMoney(v: number | null | undefined): string | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  return `EUR ${Math.round(v).toLocaleString("en-US")}`;
+}
+
+function sectionDataLines(item: SurveyItemData): string[] {
+  if (!isRecord(item.section_data)) return [];
+  return Object.entries(item.section_data)
+    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .map(([key, value]) => {
+      const formatted = typeof value === "boolean" ? formatBool(value) : String(value);
+      return `${labelize(key)}: ${formatted}`;
+    });
+}
+
+function professionalLines(item: SurveyItemData): string[] {
+  const flags = [
+    item.safety_critical ? "Safety critical" : null,
+    item.insurance_critical ? "Insurance critical" : null,
+    item.compliance_critical ? "Compliance critical" : null,
+  ].filter(Boolean);
+  return [
+    item.inspected_status ? `Status: ${item.inspected_status}` : null,
+    flags.length ? `Flags: ${flags.join(", ")}` : null,
+    item.defect_description ? `Finding: ${item.defect_description}` : null,
+    item.test_method ? `Test method: ${item.test_method}` : null,
+    item.regulatory_reference ? `Reference: ${item.regulatory_reference}` : null,
+    item.estimated_cost_eur != null ? `Estimated cost: ${formatMoney(item.estimated_cost_eur)}` : null,
+    item.due_date ? `Due date: ${fmtDate(item.due_date)}` : null,
+    ...sectionDataLines(item),
+  ].filter((line): line is string => Boolean(line));
+}
+
 function recText(item: SurveyItemData): string {
   const level = item.recommendation_level ? `Rec ${item.recommendation_level}` : "";
   const text = item.recommendation_text ?? "";
@@ -33,6 +78,7 @@ function sectionRows(items: SurveyItemData[]): TableCell[][] {
     const sub = [
       item.notes ? `Notes: ${item.notes}` : null,
       item.moisture_reading != null ? `Moisture: ${item.moisture_reading}${item.moisture_level ? ` (${item.moisture_level})` : ""}` : null,
+      ...professionalLines(item),
     ].filter(Boolean).join(" · ");
     if (sub) desc.sub = sub;
     return [
@@ -178,6 +224,22 @@ export function buildSurveyModel(input: {
       columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
       rows: sectionRows(rows),
     });
+    const photos = rows.flatMap((item) =>
+      (item.photo_urls ?? [])
+        .filter((url) => typeof url === "string" && url.trim().length > 0)
+        .map((url) => ({
+          url,
+          caption: [item.item_number, item.description].filter(Boolean).join(" - "),
+        })),
+    );
+    if (photos.length) {
+      body.push({
+        kind: "gallery",
+        heading: `${heading} Photos`,
+        images: photos.slice(0, 18),
+        columns: 3,
+      });
+    }
   }
 
   const sea = reportData.seaTrial;
