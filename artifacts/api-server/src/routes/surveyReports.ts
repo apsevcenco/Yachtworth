@@ -88,7 +88,7 @@ async function loadOwnedItem(
 }
 
 const REPORT_LIST_COLUMNS =
-  "id,yacht_id,vessel_name,manufacturer,model,lying,survey_date,survey_purpose,status,total_recommendations_a,total_recommendations_b,total_recommendations_c,total_recommendations_d,created_at,updated_at";
+  "id,yacht_id,report_type,vessel_name,manufacturer,model,lying,survey_date,survey_purpose,status,total_recommendations_a,total_recommendations_b,total_recommendations_c,total_recommendations_d,created_at,updated_at";
 
 async function verifyOwnership(
   sb: ReturnType<typeof getSupabase>,
@@ -172,6 +172,7 @@ router.post(
     const row = {
       clerk_user_id: req.userId!,
       yacht_id: yachtId,
+      report_type: body.report_type ?? "pre_purchase",
       vessel_name: vesselName.slice(0, 200),
       vessel_type: body.vessel_type ?? null,
       manufacturer: body.manufacturer ?? null,
@@ -184,6 +185,10 @@ router.post(
       survey_purpose: body.survey_purpose ?? "Pre-purchase",
       weather_conditions: body.weather_conditions ?? null,
       sea_state: body.sea_state ?? null,
+      intended_use: body.intended_use ?? null,
+      survey_scope: body.survey_scope ?? null,
+      standards_referenced: body.standards_referenced ?? [],
+      limitations: body.limitations ?? [],
       client_name: body.client_name ?? null,
       client_email: body.client_email ?? null,
       client_phone: body.client_phone ?? null,
@@ -383,6 +388,17 @@ router.put(
           photo_urls: it.photo_urls ?? [],
           moisture_reading: it.moisture_reading ?? null,
           moisture_level: it.moisture_level ?? null,
+          inspected_status: it.inspected_status ?? null,
+          defect_description: it.defect_description ?? null,
+          test_method: it.test_method ?? null,
+          regulatory_reference: it.regulatory_reference ?? null,
+          safety_critical: it.safety_critical ?? false,
+          insurance_critical: it.insurance_critical ?? false,
+          compliance_critical: it.compliance_critical ?? false,
+          estimated_cost_eur: it.estimated_cost_eur ?? null,
+          due_date: it.due_date ?? null,
+          section_data: it.section_data ?? {},
+          sync_status: it.sync_status ?? "synced",
           sort_order: typeof it.sort_order === "number" ? it.sort_order : idx,
         }),
       );
@@ -429,6 +445,17 @@ router.put(
         photo_urls: it.photo_urls ?? [],
         moisture_reading: it.moisture_reading ?? null,
         moisture_level: it.moisture_level ?? null,
+        inspected_status: it.inspected_status ?? null,
+        defect_description: it.defect_description ?? null,
+        test_method: it.test_method ?? null,
+        regulatory_reference: it.regulatory_reference ?? null,
+        safety_critical: it.safety_critical ?? false,
+        insurance_critical: it.insurance_critical ?? false,
+        compliance_critical: it.compliance_critical ?? false,
+        estimated_cost_eur: it.estimated_cost_eur ?? null,
+        due_date: it.due_date ?? null,
+        section_data: it.section_data ?? {},
+        sync_status: it.sync_status ?? "synced",
         sort_order: typeof it.sort_order === "number" ? it.sort_order : idx,
       }));
       if (rows.length > 0) {

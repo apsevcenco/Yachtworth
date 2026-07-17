@@ -2481,6 +2481,8 @@ export const SurveyStatus = {
 export interface SurveyReportInput {
   /** @nullable */
   yacht_id?: string | null;
+  /** @nullable */
+  report_type?: string | null;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;
@@ -2508,6 +2510,14 @@ export interface SurveyReportInput {
   /** @nullable */
   sea_state?: string | null;
   /** @nullable */
+  intended_use?: string | null;
+  /** @nullable */
+  survey_scope?: string | null;
+  /** @nullable */
+  standards_referenced?: string[] | null;
+  /** @nullable */
+  limitations?: string[] | null;
+  /** @nullable */
   client_name?: string | null;
   /** @nullable */
   client_email?: string | null;
@@ -2533,6 +2543,8 @@ export interface SurveyReportInput {
 
 export interface SurveyReportPatch {
   /** @nullable */
+  report_type?: string | null;
+  /** @nullable */
   vessel_name?: string | null;
   /** @nullable */
   vessel_type?: string | null;
@@ -2556,6 +2568,14 @@ export interface SurveyReportPatch {
   weather_conditions?: string | null;
   /** @nullable */
   sea_state?: string | null;
+  /** @nullable */
+  intended_use?: string | null;
+  /** @nullable */
+  survey_scope?: string | null;
+  /** @nullable */
+  standards_referenced?: string[] | null;
+  /** @nullable */
+  limitations?: string[] | null;
   /** @nullable */
   client_name?: string | null;
   /** @nullable */
@@ -2586,6 +2606,7 @@ export interface SurveyReport {
   clerk_user_id: string;
   /** @nullable */
   yacht_id?: string | null;
+  report_type?: string;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;
@@ -2609,6 +2630,12 @@ export interface SurveyReport {
   weather_conditions?: string | null;
   /** @nullable */
   sea_state?: string | null;
+  /** @nullable */
+  intended_use?: string | null;
+  /** @nullable */
+  survey_scope?: string | null;
+  standards_referenced?: string[];
+  limitations?: string[];
   /** @nullable */
   client_name?: string | null;
   /** @nullable */
@@ -2656,6 +2683,23 @@ export interface SurveyItemInput {
   /** @nullable */
   moisture_reading?: number | null;
   moisture_level?: SurveyMoistureLevel | null;
+  /** @nullable */
+  inspected_status?: string | null;
+  /** @nullable */
+  defect_description?: string | null;
+  /** @nullable */
+  test_method?: string | null;
+  /** @nullable */
+  regulatory_reference?: string | null;
+  safety_critical?: boolean;
+  insurance_critical?: boolean;
+  compliance_critical?: boolean;
+  /** @nullable */
+  estimated_cost_eur?: number | null;
+  /** @nullable */
+  due_date?: string | null;
+  section_data?: { [key: string]: unknown };
+  sync_status?: string;
   sort_order?: number;
 }
 
@@ -2677,7 +2721,25 @@ export interface SurveyItem {
   /** @nullable */
   moisture_reading?: number | null;
   moisture_level?: SurveyMoistureLevel | null;
+  /** @nullable */
+  inspected_status?: string | null;
+  /** @nullable */
+  defect_description?: string | null;
+  /** @nullable */
+  test_method?: string | null;
+  /** @nullable */
+  regulatory_reference?: string | null;
+  safety_critical?: boolean;
+  insurance_critical?: boolean;
+  compliance_critical?: boolean;
+  /** @nullable */
+  estimated_cost_eur?: number | null;
+  /** @nullable */
+  due_date?: string | null;
+  section_data?: { [key: string]: unknown };
+  sync_status?: string;
   sort_order?: number;
+  updated_at?: string;
   created_at?: string;
 }
 
@@ -2771,6 +2833,7 @@ export interface SurveyReportListItem {
   id: string;
   /** @nullable */
   yacht_id?: string | null;
+  report_type?: string;
   vessel_name: string;
   /** @nullable */
   manufacturer?: string | null;

@@ -4006,11 +4006,15 @@ components:
     SurveyStatus:
       type: string
       enum: [draft, complete]
+    SurveyLooseObject:
+      type: object
+      additionalProperties: true
     SurveyReportInput:
       type: object
       required: [vessel_name]
       properties:
         yacht_id: { type: ["string", "null"] }
+        report_type: { type: ["string", "null"] }
         vessel_name: { type: string }
         vessel_type: { type: ["string", "null"] }
         manufacturer: { type: ["string", "null"] }
@@ -4023,6 +4027,14 @@ components:
         survey_purpose: { type: ["string", "null"] }
         weather_conditions: { type: ["string", "null"] }
         sea_state: { type: ["string", "null"] }
+        intended_use: { type: ["string", "null"] }
+        survey_scope: { type: ["string", "null"] }
+        standards_referenced:
+          type: ["array", "null"]
+          items: { type: string }
+        limitations:
+          type: ["array", "null"]
+          items: { type: string }
         client_name: { type: ["string", "null"] }
         client_email: { type: ["string", "null"] }
         client_phone: { type: ["string", "null"] }
@@ -4037,6 +4049,7 @@ components:
     SurveyReportPatch:
       type: object
       properties:
+        report_type: { type: ["string", "null"] }
         vessel_name: { type: ["string", "null"] }
         vessel_type: { type: ["string", "null"] }
         manufacturer: { type: ["string", "null"] }
@@ -4049,6 +4062,14 @@ components:
         survey_purpose: { type: ["string", "null"] }
         weather_conditions: { type: ["string", "null"] }
         sea_state: { type: ["string", "null"] }
+        intended_use: { type: ["string", "null"] }
+        survey_scope: { type: ["string", "null"] }
+        standards_referenced:
+          type: ["array", "null"]
+          items: { type: string }
+        limitations:
+          type: ["array", "null"]
+          items: { type: string }
         client_name: { type: ["string", "null"] }
         client_email: { type: ["string", "null"] }
         client_phone: { type: ["string", "null"] }
@@ -4071,6 +4092,7 @@ components:
         id: { type: string }
         clerk_user_id: { type: string }
         yacht_id: { type: ["string", "null"] }
+        report_type: { type: string }
         vessel_name: { type: string }
         vessel_type: { type: ["string", "null"] }
         manufacturer: { type: ["string", "null"] }
@@ -4083,6 +4105,14 @@ components:
         survey_purpose: { type: ["string", "null"] }
         weather_conditions: { type: ["string", "null"] }
         sea_state: { type: ["string", "null"] }
+        intended_use: { type: ["string", "null"] }
+        survey_scope: { type: ["string", "null"] }
+        standards_referenced:
+          type: array
+          items: { type: string }
+        limitations:
+          type: array
+          items: { type: string }
         client_name: { type: ["string", "null"] }
         client_email: { type: ["string", "null"] }
         client_phone: { type: ["string", "null"] }
@@ -4128,6 +4158,18 @@ components:
           oneOf:
             - $ref: "#/components/schemas/SurveyMoistureLevel"
             - type: "null"
+        inspected_status: { type: ["string", "null"] }
+        defect_description: { type: ["string", "null"] }
+        test_method: { type: ["string", "null"] }
+        regulatory_reference: { type: ["string", "null"] }
+        safety_critical: { type: boolean }
+        insurance_critical: { type: boolean }
+        compliance_critical: { type: boolean }
+        estimated_cost_eur: { type: ["number", "null"] }
+        due_date: { type: ["string", "null"] }
+        section_data:
+          $ref: "#/components/schemas/SurveyLooseObject"
+        sync_status: { type: string }
         sort_order: { type: integer }
     SurveyItem:
       type: object
@@ -4157,7 +4199,20 @@ components:
           oneOf:
             - $ref: "#/components/schemas/SurveyMoistureLevel"
             - type: "null"
+        inspected_status: { type: ["string", "null"] }
+        defect_description: { type: ["string", "null"] }
+        test_method: { type: ["string", "null"] }
+        regulatory_reference: { type: ["string", "null"] }
+        safety_critical: { type: boolean }
+        insurance_critical: { type: boolean }
+        compliance_critical: { type: boolean }
+        estimated_cost_eur: { type: ["number", "null"] }
+        due_date: { type: ["string", "null"] }
+        section_data:
+          $ref: "#/components/schemas/SurveyLooseObject"
+        sync_status: { type: string }
         sort_order: { type: integer }
+        updated_at: { type: string }
         created_at: { type: string }
     SurveyItemsReplaceInput:
       type: object
@@ -4246,6 +4301,7 @@ components:
       properties:
         id: { type: string }
         yacht_id: { type: ["string", "null"] }
+        report_type: { type: string }
         vessel_name: { type: string }
         manufacturer: { type: ["string", "null"] }
         model: { type: ["string", "null"] }

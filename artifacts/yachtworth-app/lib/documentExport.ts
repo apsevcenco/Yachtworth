@@ -887,6 +887,7 @@ export async function exportFleetDocument(input: {
 
 export type SurveyDocumentInput = {
   report: {
+    report_type?: string | null;
     vessel_name: string;
     vessel_type?: string | null;
     manufacturer?: string | null;
@@ -899,6 +900,10 @@ export type SurveyDocumentInput = {
     survey_purpose?: string | null;
     weather_conditions?: string | null;
     sea_state?: string | null;
+    intended_use?: string | null;
+    survey_scope?: string | null;
+    standards_referenced?: string[] | null;
+    limitations?: string[] | null;
     client_name?: string | null;
     client_email?: string | null;
     client_phone?: string | null;
@@ -921,6 +926,17 @@ export type SurveyDocumentInput = {
     photo_urls?: string[] | null;
     moisture_reading?: number | null;
     moisture_level?: string | null;
+    inspected_status?: string | null;
+    defect_description?: string | null;
+    test_method?: string | null;
+    regulatory_reference?: string | null;
+    safety_critical?: boolean | null;
+    insurance_critical?: boolean | null;
+    compliance_critical?: boolean | null;
+    estimated_cost_eur?: number | null;
+    due_date?: string | null;
+    section_data?: Record<string, unknown> | null;
+    sync_status?: string | null;
     sort_order?: number | null;
   }>;
   seaTrial?: unknown | null;
@@ -942,6 +958,7 @@ function buildSurveyBody(input: SurveyDocumentInput) {
       hull_id: r.hin ?? null,
     },
     reportData: {
+      reportType: r.report_type ?? null,
       vesselType: r.vessel_type ?? null,
       manufacturer: r.manufacturer ?? null,
       model: r.model ?? null,
@@ -953,6 +970,10 @@ function buildSurveyBody(input: SurveyDocumentInput) {
       surveyPurpose: r.survey_purpose ?? null,
       weatherConditions: r.weather_conditions ?? null,
       seaState: r.sea_state ?? null,
+      intendedUse: r.intended_use ?? null,
+      surveyScope: r.survey_scope ?? null,
+      standardsReferenced: r.standards_referenced ?? null,
+      limitations: r.limitations ?? null,
       clientName: r.client_name ?? null,
       clientEmail: r.client_email ?? null,
       clientPhone: r.client_phone ?? null,

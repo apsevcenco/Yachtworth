@@ -12,6 +12,7 @@ export interface SurveyReport {
   clerk_user_id: string;
   /** @nullable */
   yacht_id?: string | null;
+  report_type?: string;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;
@@ -35,6 +36,12 @@ export interface SurveyReport {
   weather_conditions?: string | null;
   /** @nullable */
   sea_state?: string | null;
+  /** @nullable */
+  intended_use?: string | null;
+  /** @nullable */
+  survey_scope?: string | null;
+  standards_referenced?: string[];
+  limitations?: string[];
   /** @nullable */
   client_name?: string | null;
   /** @nullable */

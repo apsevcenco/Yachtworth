@@ -43,6 +43,16 @@ const VESSEL_TYPES = [
   "Catamaran",
   "Superyacht",
 ];
+const REPORT_TYPES = [
+  { label: "Pre-purchase", value: "pre_purchase" },
+  { label: "Insurance", value: "insurance" },
+  { label: "Damage", value: "damage" },
+  { label: "Valuation", value: "valuation" },
+  { label: "Sea trial", value: "sea_trial" },
+  { label: "Rigging", value: "rigging" },
+  { label: "Engine", value: "engine_mechanical" },
+  { label: "Commercial", value: "commercial_coding" },
+];
 const PURPOSES = ["Pre-purchase", "Insurance", "Annual", "Damage", "Other"];
 
 export default function SurveyNewScreen() {
@@ -84,6 +94,7 @@ export default function SurveyNewScreen() {
   const [hin, setHin] = useState("");
   const [lying, setLying] = useState("");
   const [surveyDate, setSurveyDate] = useState(""); // ISO YYYY-MM-DD
+  const [reportType, setReportType] = useState("pre_purchase");
   const [purpose, setPurpose] = useState("Pre-purchase");
 
   // Client
@@ -131,6 +142,7 @@ export default function SurveyNewScreen() {
       const yr = Number(yearBuilt);
       const created = await createM.mutateAsync({
         data: {
+          report_type: reportType,
           vessel_name: name,
           vessel_type: vesselType || null,
           manufacturer: manufacturer.trim() || null,
@@ -257,6 +269,17 @@ export default function SurveyNewScreen() {
               isOpen={open === "vessel"}
               onToggle={() => setOpen(open === "vessel" ? "client" : "vessel")}
             >
+              <PillRow
+                label="Report type"
+                options={REPORT_TYPES.map((t) => t.label)}
+                value={REPORT_TYPES.find((t) => t.value === reportType)?.label ?? "Pre-purchase"}
+                onChange={(label) => {
+                  const next = REPORT_TYPES.find((t) => t.label === label);
+                  if (!next) return;
+                  setReportType(next.value);
+                  if (next.label !== "Commercial") setPurpose(next.label);
+                }}
+              />
               <Field
                 label="Vessel name *"
                 value={vesselName}

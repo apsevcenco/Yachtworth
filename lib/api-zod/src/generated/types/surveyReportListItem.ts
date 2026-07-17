@@ -11,6 +11,7 @@ export interface SurveyReportListItem {
   id: string;
   /** @nullable */
   yacht_id?: string | null;
+  report_type?: string;
   vessel_name: string;
   /** @nullable */
   manufacturer?: string | null;

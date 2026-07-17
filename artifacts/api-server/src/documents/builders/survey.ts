@@ -122,6 +122,33 @@ export function buildSurveyModel(input: {
     },
   ];
 
+  const scopeRows = [
+    { label: "Report type", value: clean(reportData.reportType) },
+    { label: "Intended use", value: clean(reportData.intendedUse) },
+    { label: "Scope", value: clean(reportData.surveyScope) },
+    {
+      label: "Standards referenced",
+      value: (reportData.standardsReferenced ?? []).filter(Boolean).join(", ") || "-",
+    },
+  ];
+  if (scopeRows.some((row) => row.value !== "-")) {
+    body.push({
+      kind: "keyValue",
+      heading: "Scope & Standards",
+      rows: scopeRows,
+      layout: "pairs",
+    });
+  }
+  const limitations = (reportData.limitations ?? []).filter(Boolean);
+  if (limitations.length) {
+    body.push({
+      kind: "paragraph",
+      heading: "Limitations",
+      text: limitations.map((item) => `- ${item}`).join("\n"),
+      panel: true,
+    });
+  }
+
   const items = [...(reportData.items ?? [])].sort(
     (a, b) =>
       (a.section_number ?? 0) - (b.section_number ?? 0) ||

@@ -25,5 +25,22 @@ export interface SurveyItemInput {
   /** @nullable */
   moisture_reading?: number | null;
   moisture_level?: SurveyMoistureLevel | null;
+  /** @nullable */
+  inspected_status?: string | null;
+  /** @nullable */
+  defect_description?: string | null;
+  /** @nullable */
+  test_method?: string | null;
+  /** @nullable */
+  regulatory_reference?: string | null;
+  safety_critical?: boolean;
+  insurance_critical?: boolean;
+  compliance_critical?: boolean;
+  /** @nullable */
+  estimated_cost_eur?: number | null;
+  /** @nullable */
+  due_date?: string | null;
+  section_data?: { [key: string]: unknown };
+  sync_status?: string;
   sort_order?: number;
 }

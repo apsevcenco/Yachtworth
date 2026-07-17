@@ -355,6 +355,17 @@ export interface SurveyItemData {
   photo_urls?: string[] | null;
   moisture_reading?: number | null;
   moisture_level?: string | null;
+  inspected_status?: string | null;
+  defect_description?: string | null;
+  test_method?: string | null;
+  regulatory_reference?: string | null;
+  safety_critical?: boolean | null;
+  insurance_critical?: boolean | null;
+  compliance_critical?: boolean | null;
+  estimated_cost_eur?: number | null;
+  due_date?: string | null;
+  section_data?: Record<string, unknown> | null;
+  sync_status?: string | null;
   sort_order?: number | null;
 }
 
@@ -380,6 +391,7 @@ export interface SurveySeaTrialData {
 }
 
 export interface SurveyReportData {
+  reportType?: string | null;
   vesselType?: string | null;
   manufacturer?: string | null;
   model?: string | null;
@@ -391,6 +403,10 @@ export interface SurveyReportData {
   surveyPurpose?: string | null;
   weatherConditions?: string | null;
   seaState?: string | null;
+  intendedUse?: string | null;
+  surveyScope?: string | null;
+  standardsReferenced?: string[] | null;
+  limitations?: string[] | null;
   clientName?: string | null;
   clientEmail?: string | null;
   clientPhone?: string | null;
