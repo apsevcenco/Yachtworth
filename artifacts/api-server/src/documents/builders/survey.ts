@@ -217,6 +217,7 @@ export function buildSurveyModel(input: {
     rows.push(item);
     sections.set(key, rows);
   }
+  const photoAppendixImages: { url: string; caption?: string }[] = [];
   for (const [heading, rows] of sections) {
     body.push({
       kind: "table",
@@ -224,22 +225,23 @@ export function buildSurveyModel(input: {
       columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
       rows: sectionRows(rows),
     });
-    const photos = rows.flatMap((item) =>
-      (item.photo_urls ?? [])
-        .filter((url) => typeof url === "string" && url.trim().length > 0)
-        .map((url) => ({
-          url,
-          caption: [item.item_number, item.description].filter(Boolean).join(" - "),
-        })),
-    );
-    if (photos.length) {
-      body.push({
-        kind: "gallery",
-        heading: `${heading} Photos`,
-        images: photos.slice(0, 18),
-        columns: 3,
-      });
+    for (const item of rows) {
+      for (const url of item.photo_urls ?? []) {
+        if (typeof url !== "string" || !url.trim()) continue;
+        photoAppendixImages.push({
+          url: url.trim(),
+          caption: [heading, item.item_number, item.description].filter(Boolean).join(" - "),
+        });
+      }
     }
+  }
+  if (photoAppendixImages.length) {
+    body.push({
+      kind: "gallery",
+      heading: "Photo Appendix",
+      images: photoAppendixImages,
+      columns: 3,
+    });
   }
 
   const sea = reportData.seaTrial;
