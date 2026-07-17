@@ -36,6 +36,32 @@ function formatMoney(v: number | null | undefined): string | null {
   return `EUR ${Math.round(v).toLocaleString("en-US")}`;
 }
 
+function itemNumberParts(value: string | null | undefined): number[] {
+  return String(value ?? "")
+    .split(".")
+    .map((part) => Number.parseInt(part.replace(/\D/g, ""), 10))
+    .map((n) => (Number.isFinite(n) ? n : -1));
+}
+
+function compareItemNumber(a: string | null | undefined, b: string | null | undefined): number {
+  const aa = itemNumberParts(a);
+  const bb = itemNumberParts(b);
+  const len = Math.max(aa.length, bb.length);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (aa[i] ?? -1) - (bb[i] ?? -1);
+    if (diff !== 0) return diff;
+  }
+  return String(a ?? "").localeCompare(String(b ?? ""), "en", { numeric: true });
+}
+
+function compareSurveyItems(a: SurveyItemData, b: SurveyItemData): number {
+  return (
+    (a.section_number ?? 0) - (b.section_number ?? 0) ||
+    compareItemNumber(a.item_number, b.item_number) ||
+    (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  );
+}
+
 function sectionDataLines(item: SurveyItemData): string[] {
   if (!isRecord(item.section_data)) return [];
   return Object.entries(item.section_data)
@@ -195,11 +221,7 @@ export function buildSurveyModel(input: {
     });
   }
 
-  const items = [...(reportData.items ?? [])].sort(
-    (a, b) =>
-      (a.section_number ?? 0) - (b.section_number ?? 0) ||
-      (a.sort_order ?? 0) - (b.sort_order ?? 0),
-  );
+  const items = [...(reportData.items ?? [])].sort(compareSurveyItems);
   const recItems = items.filter((item) => item.recommendation_level || item.recommendation_text);
   if (recItems.length) {
     body.push({
@@ -219,13 +241,19 @@ export function buildSurveyModel(input: {
   }
   const photoAppendixImages: { url: string; caption?: string }[] = [];
   for (const [heading, rows] of sections) {
+    const sortedRows = [...rows].sort(compareSurveyItems);
+    body.push({
+      kind: "heading",
+      level: 1,
+      text: heading,
+    });
     body.push({
       kind: "table",
-      heading,
+      heading: undefined,
       columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
-      rows: sectionRows(rows),
+      rows: sectionRows(sortedRows),
     });
-    for (const item of rows) {
+    for (const item of sortedRows) {
       for (const url of item.photo_urls ?? []) {
         if (typeof url !== "string" || !url.trim()) continue;
         photoAppendixImages.push({
