@@ -84,6 +84,12 @@ function sectionDataLines(item: SurveyItemData): string[] {
     });
 }
 
+function photoUrls(item: SurveyItemData): string[] {
+  return (item.photo_urls ?? [])
+    .filter((url) => typeof url === "string" && url.trim().length > 0)
+    .map((url) => url.trim());
+}
+
 function professionalLines(item: SurveyItemData): string[] {
   const flags = [
     item.safety_critical ? "Safety critical" : null,
@@ -106,23 +112,6 @@ function recText(item: SurveyItemData): string {
   const level = item.recommendation_level ? `Rec ${item.recommendation_level}` : "";
   const text = item.recommendation_text ?? "";
   return [level, text].filter(Boolean).join(" - ") || "-";
-}
-
-function itemDisplayRows(item: SurveyItemData): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [
-    { label: "Condition", value: clean(item.condition) },
-    { label: "Recommendation", value: recText(item) },
-  ];
-  if (item.notes) rows.push({ label: "Notes", value: item.notes });
-  if (item.moisture_reading != null) {
-    rows.push({
-      label: "Moisture",
-      value: `${item.moisture_reading}${item.moisture_level ? ` (${item.moisture_level})` : ""}`,
-    });
-  }
-  const professional = professionalLines(item);
-  if (professional.length) rows.push({ label: "Inspection details", value: professional.join(" | ") });
-  return rows;
 }
 
 function sectionRows(items: SurveyItemData[]): TableCell[][] {
@@ -152,6 +141,63 @@ function sectionRows(items: SurveyItemData[]): TableCell[][] {
   });
 }
 
+function titleCaseWords(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function sectionTitle(sectionNumber: number, name: string): string {
+  return `${sectionNumber}. ${titleCaseWords(name)}`;
+}
+
+function shouldSkipNarrativeItem(item: SurveyItemData): boolean {
+  const name = `${item.section_name ?? ""} ${item.description ?? ""}`.toLowerCase();
+  return item.section_number === 25 || /\bpictures?\b|\bphotos?\b/.test(name);
+}
+
+function recommendationLine(item: SurveyItemData): string | null {
+  if (!item.recommendation_level && !item.recommendation_text) return null;
+  const level = item.recommendation_level ? `Recommendation '${item.recommendation_level}'` : "Recommendation";
+  return `${level}: ${item.recommendation_text ?? "See surveyor comments."}`;
+}
+
+function itemNarrativeText(item: SurveyItemData, pictureRefs: string[]): string {
+  const lines: string[] = [];
+  if (item.description) lines.push(item.description);
+  if (item.notes) lines.push(item.notes);
+  if (item.defect_description) lines.push(`Finding: ${item.defect_description}`);
+  if (item.condition && item.condition !== "-") {
+    lines.push(`Condition was recorded as ${item.condition}.`);
+  }
+  if (item.moisture_reading != null) {
+    lines.push(
+      `Moisture reading: ${item.moisture_reading}${item.moisture_level ? ` (${item.moisture_level})` : ""}.`,
+    );
+  }
+
+  const details = professionalLines(item).filter((line) => {
+    return !line.startsWith("Finding:") && !line.startsWith("Estimated cost:") && !line.startsWith("Due date:");
+  });
+  if (details.length) lines.push(`Inspection details: ${details.join("; ")}.`);
+
+  const rec = recommendationLine(item);
+  if (rec) lines.push(rec);
+  if (item.estimated_cost_eur != null || item.due_date) {
+    lines.push(
+      [
+        item.estimated_cost_eur != null ? `Estimated cost: ${formatMoney(item.estimated_cost_eur)}` : null,
+        item.due_date ? `Due date: ${fmtDate(item.due_date)}` : null,
+      ]
+        .filter(Boolean)
+        .join("; ") + ".",
+    );
+  }
+  if (pictureRefs.length) lines.push(`Photographs: ${pictureRefs.join(", ")}.`);
+  return lines.filter(Boolean).join("\n\n");
+}
+
 export function buildSurveyModel(input: {
   yacht: YachtProfile;
   reportData: SurveyReportData;
@@ -174,10 +220,87 @@ export function buildSurveyModel(input: {
     { label: "Flag", value: clean(reportData.flag) },
   ];
 
+  const items = [...(reportData.items ?? [])].sort(compareSurveyItems);
+  const sections = new Map<number, { name: string; rows: SurveyItemData[] }>();
+  for (const item of items) {
+    const n = item.section_number ?? 0;
+    const entry = sections.get(n) ?? { name: item.section_name ?? "Survey Section", rows: [] };
+    entry.rows.push(item);
+    sections.set(n, entry);
+  }
+  const displayNumberByItem = new Map<SurveyItemData, string>();
+  for (const [sectionNumber, section] of sections) {
+    [...section.rows].sort(compareSurveyItems).forEach((item, idx) => {
+      displayNumberByItem.set(item, `${sectionNumber}.${idx + 1}`);
+    });
+  }
+
+  const pictureRefs = new Map<SurveyItemData, string[]>();
+  const pictureImages: { url: string; caption: string }[] = [];
+  let pictureNo = 1;
+  for (const item of items) {
+    const urls = photoUrls(item);
+    const refs: string[] = [];
+    for (const url of urls) {
+      const ref = `pic ${String(pictureNo).padStart(3, "0")}`;
+      refs.push(ref);
+      pictureImages.push({
+        url,
+        caption: `${ref} - ${displayNumberByItem.get(item) ?? item.item_number ?? ""} ${
+          item.description ?? item.section_name ?? "Survey photograph"
+        }`.trim(),
+      });
+      pictureNo += 1;
+    }
+    if (refs.length) pictureRefs.set(item, refs);
+  }
+
+  const contentsEntries = [
+    { n: 1, title: "Introduction" },
+    { n: 2, title: "Specification" },
+    { n: 3, title: "Glossary of Terms" },
+    { n: 4, title: "Limitations of Survey" },
+    ...[...sections.entries()]
+      .filter(([n]) => n > 4 && n !== 25)
+      .map(([n, section]) => ({ n, title: titleCaseWords(section.name) })),
+  ];
+  if (pictureImages.length) contentsEntries.push({ n: 25, title: "Pictures" });
+  if (reportData.seaTrial && !sections.has(26)) contentsEntries.push({ n: 26, title: "Sea Trial" });
+  const contentsRows: TableCell[][] = contentsEntries
+    .sort((a, b) => a.n - b.n)
+    .map((entry) => [{ text: String(entry.n) }, { text: entry.title }]);
+
   const body: ContentNode[] = [
     {
+      kind: "table",
+      heading: "Contents",
+      columns: [{ header: "Section", widthPct: 18 }, { header: "Title", widthPct: 82 }],
+      rows: contentsRows,
+    },
+    {
+      kind: "heading",
+      level: 1,
+      text: "1. Introduction",
+    },
+    {
+      kind: "paragraph",
+      text: [
+        `This report records the condition of ${yacht.name || "the vessel"} as far as accessible at the time of survey.`,
+        reportData.surveyPurpose ? `The stated purpose of the survey was ${reportData.surveyPurpose}.` : null,
+        reportData.intendedUse ? `The intended use was recorded as ${reportData.intendedUse}.` : null,
+        reportData.lying ? `The vessel was lying at ${reportData.lying}.` : null,
+        reportData.surveyDate ? `The survey date was ${fmtDate(reportData.surveyDate)}.` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    },
+    {
+      kind: "heading",
+      level: 1,
+      text: "2. Specification",
+    },
+    {
       kind: "keyValue",
-      heading: "Vessel Particulars",
       rows: [
         { label: "Vessel", value: yacht.name },
         { label: "Type", value: clean(reportData.vesselType ?? yacht.yacht_type) },
@@ -185,6 +308,8 @@ export function buildSurveyModel(input: {
         { label: "Model", value: clean(reportData.model ?? yacht.model) },
         { label: "Year built", value: clean(reportData.yearBuilt ?? yacht.year_built) },
         { label: "HIN", value: clean(reportData.hin ?? yacht.hull_id) },
+        { label: "Flag", value: clean(reportData.flag) },
+        { label: "Lying", value: clean(reportData.lying) },
       ],
       layout: "pairs",
     },
@@ -234,45 +359,63 @@ export function buildSurveyModel(input: {
   ];
   if (scopeRows.some((row) => row.value !== "-")) {
     body.push({
-      kind: "keyValue",
-      heading: "Scope & Standards",
-      rows: scopeRows,
-      layout: "pairs",
-    });
-  }
-  const limitations = (reportData.limitations ?? []).filter(Boolean);
-  if (limitations.length) {
-    body.push({
       kind: "paragraph",
-      heading: "Limitations",
-      text: limitations.map((item) => `- ${item}`).join("\n"),
-      panel: true,
+      heading: "Scope & Standards",
+      text: scopeRows
+        .filter((row) => row.value !== "-")
+        .map((row) => `${row.label}: ${row.value}.`)
+        .join("\n"),
     });
   }
-
-  const items = [...(reportData.items ?? [])].sort(compareSurveyItems);
-  const sections = new Map<number, { name: string; rows: SurveyItemData[] }>();
-  for (const item of items) {
-    const n = item.section_number ?? 0;
-    const entry = sections.get(n) ?? { name: item.section_name ?? "Survey Section", rows: [] };
-    entry.rows.push(item);
-    sections.set(n, entry);
-  }
-  if (!sections.has(3)) {
-    sections.set(3, { name: "Glossary of Terms", rows: [] });
-  }
-  const displayNumberByItem = new Map<SurveyItemData, string>();
-  for (const [sectionNumber, section] of sections) {
-    [...section.rows].sort(compareSurveyItems).forEach((item, idx) => {
-      displayNumberByItem.set(item, `${sectionNumber}.${idx + 1}`);
-    });
-  }
+  body.push({
+    kind: "heading",
+    level: 1,
+    text: "3. Glossary of Terms",
+  });
+  body.push({
+    kind: "paragraph",
+    text: GLOSSARY_TEXT,
+  });
+  body.push({
+    kind: "heading",
+    level: 1,
+    text: "4. Limitations of Survey",
+  });
+  const limitations = (reportData.limitations ?? []).filter(Boolean);
+  body.push({
+    kind: "paragraph",
+    text: limitations.length
+      ? limitations.map((item) => `- ${item}`).join("\n")
+      : "The survey was limited to accessible areas only. No destructive testing was carried out unless specifically stated. Equipment was inspected visually and, where practicable, functionally checked.",
+  });
 
   const recItems = items.filter((item) => item.recommendation_level || item.recommendation_text);
+
+  for (const [sectionNumber, section] of [...sections.entries()].sort(([a], [b]) => a - b)) {
+    if (sectionNumber <= 4 || sectionNumber === 25) continue;
+    const sortedRows = [...section.rows].sort(compareSurveyItems);
+    body.push({
+      kind: "heading",
+      level: 1,
+      text: sectionTitle(sectionNumber, section.name),
+    });
+
+    for (const [idx, item] of sortedRows.entries()) {
+      if (shouldSkipNarrativeItem(item)) continue;
+      const displayNumber = displayNumberByItem.get(item) ?? `${sectionNumber}.${idx + 1}`;
+      const title = [displayNumber, item.description].filter(Boolean).join(" ");
+      body.push({
+        kind: "paragraph",
+        heading: title,
+        text: itemNarrativeText(item, pictureRefs.get(item) ?? []),
+      });
+    }
+  }
+
   if (recItems.length) {
     body.push({
       kind: "table",
-      heading: "Recommendation Summary",
+      heading: "Summary of Recommendations",
       columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
       rows: sectionRows(
         recItems.map((item) => ({
@@ -283,63 +426,18 @@ export function buildSurveyModel(input: {
     });
   }
 
-  for (const [sectionNumber, section] of [...sections.entries()].sort(([a], [b]) => a - b)) {
-    const sortedRows = [...section.rows].sort(compareSurveyItems);
-    const sectionTitle = `${sectionNumber} ${section.name}`;
+  if (pictureImages.length) {
     body.push({
-      kind: "heading",
-      level: 1,
-      text: sectionTitle,
+      kind: "gallery",
+      heading: "25. Pictures",
+      images: pictureImages,
+      columns: 2,
+      imageHeightMm: 78,
     });
-
-    if (sectionNumber === 3 && !sortedRows.some((item) => item.notes || item.description)) {
-      body.push({
-        kind: "paragraph",
-        heading: undefined,
-        text: GLOSSARY_TEXT,
-        panel: true,
-      });
-      continue;
-    }
-
-    if (sectionNumber === 3) {
-      body.push({
-        kind: "paragraph",
-        heading: undefined,
-        text: GLOSSARY_TEXT,
-        panel: true,
-      });
-    }
-
-    for (const [idx, item] of sortedRows.entries()) {
-      const displayNumber = `${sectionNumber}.${idx + 1}`;
-      const title = [displayNumber, item.description].filter(Boolean).join(" ");
-      body.push({
-        kind: "keyValue",
-        heading: title,
-        rows: itemDisplayRows({ ...item, item_number: displayNumber }),
-        boxed: true,
-      });
-      const photos = (item.photo_urls ?? [])
-        .filter((url) => typeof url === "string" && url.trim().length > 0)
-        .map((url) => ({
-          url: url.trim(),
-          caption: title,
-        }));
-      if (photos.length) {
-        body.push({
-          kind: "gallery",
-          heading: undefined,
-          images: photos,
-          columns: 2,
-          imageHeightMm: 78,
-        });
-      }
-    }
   }
 
   const sea = reportData.seaTrial;
-  if (sea) {
+  if (sea && !sections.has(26)) {
     body.push({
       kind: "keyValue",
       heading: "Sea Trial",
@@ -398,7 +496,7 @@ export function buildSurveyModel(input: {
       brand,
       title: "SURVEY REPORT",
       language: settings.language ?? "english",
-      confidential: !!settings.confidential,
+      confidential: false,
       watermarkText: "CONFIDENTIAL",
       generatedAt: date,
     },
