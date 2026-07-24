@@ -30,7 +30,8 @@ export function paginateBlocks(
     }
   };
 
-  for (const block of blocks) {
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!;
     if (block.standalone) {
       flush();
       pages.push({ blocks: [block], standalone: true });
@@ -50,6 +51,17 @@ export function paginateBlocks(
       continue;
     }
     if (current.length > 0 && used + block.estimatedHeight > budgetMm) {
+      flush();
+    }
+    const next = blocks[i + 1];
+    if (
+      current.length > 0 &&
+      block.type === "heading" &&
+      next &&
+      !next.standalone &&
+      !next.breakBefore &&
+      used + block.estimatedHeight + Math.min(next.estimatedHeight, 45) > budgetMm
+    ) {
       flush();
     }
     current.push(block);

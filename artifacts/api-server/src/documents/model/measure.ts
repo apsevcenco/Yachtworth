@@ -45,6 +45,14 @@ function linesFor(text: string | undefined, widthPct: number): number {
   return Math.ceil(len / charsPerLine(widthPct));
 }
 
+function explicitLinesFor(text: string | undefined, widthPct: number): number {
+  const raw = text ?? "";
+  if (!raw) return 0;
+  return raw
+    .split(/\n/)
+    .reduce((sum, segment) => sum + Math.max(1, linesFor(segment, widthPct)), 0);
+}
+
 /** Approx chars that fit on one line of a column of the given width (%). */
 function charsPerLine(widthPct: number): number {
   const mm = (CONTENT_WIDTH_MM * widthPct) / 100;
@@ -86,9 +94,8 @@ export function measureParagraph(
   text: string,
   panel: boolean,
 ): number {
-  const len = (text ?? "").length;
-  const lines = Math.max(1, Math.ceil(len / charsPerLine(100)));
-  return (heading ? HEADING_MM : 0) + (panel ? 10 : 0) + lines * LINE_MM;
+  const lines = Math.max(1, explicitLinesFor(text, 100));
+  return (heading ? HEADING_MM : 0) + (panel ? 10 : 0) + lines * LINE_MM + 3;
 }
 
 export function measureNode(node: ContentNode): number {

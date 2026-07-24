@@ -141,6 +141,39 @@ function sectionRows(items: SurveyItemData[]): TableCell[][] {
   });
 }
 
+function recommendationSummaryRows(items: SurveyItemData[]): TableCell[][] {
+  return items.map((item) => {
+    const details = [
+      item.estimated_cost_eur != null ? `Estimated cost: ${formatMoney(item.estimated_cost_eur)}` : null,
+      item.due_date ? `Due date: ${fmtDate(item.due_date)}` : null,
+    ].filter(Boolean).join(" - ");
+    const rec = recText(item);
+    return [
+      {
+        text: [item.item_number, item.description].filter(Boolean).join(" - ") || "-",
+        sub: details || undefined,
+      },
+      { text: clean(item.condition) },
+      {
+        text: rec,
+        tag: item.recommendation_level
+          ? {
+              text: item.recommendation_level,
+              tone:
+                item.recommendation_level === "A"
+                  ? "a"
+                  : item.recommendation_level === "B"
+                    ? "b"
+                    : item.recommendation_level === "D"
+                      ? "d"
+                      : "c",
+            }
+          : undefined,
+      },
+    ];
+  });
+}
+
 function titleCaseWords(text: string): string {
   return text
     .replace(/\s+/g, " ")
@@ -414,16 +447,32 @@ export function buildSurveyModel(input: {
 
   if (recItems.length) {
     body.push({
-      kind: "table",
-      heading: "Summary of Recommendations",
-      columns: [{ header: "Item" }, { header: "Condition" }, { header: "Recommendation" }],
-      rows: sectionRows(
-        recItems.map((item) => ({
-          ...item,
-          item_number: displayNumberByItem.get(item) ?? item.item_number,
-        })),
-      ),
+      kind: "heading",
+      level: 1,
+      text: "Summary of Recommendations",
     });
+    const recSections = new Map<number, { name: string; rows: SurveyItemData[] }>();
+    for (const item of recItems) {
+      const n = item.section_number ?? 0;
+      const entry = recSections.get(n) ?? { name: item.section_name ?? "Survey Section", rows: [] };
+      entry.rows.push({
+        ...item,
+        item_number: displayNumberByItem.get(item) ?? item.item_number,
+      });
+      recSections.set(n, entry);
+    }
+    for (const [sectionNumber, section] of [...recSections.entries()].sort(([a], [b]) => a - b)) {
+      body.push({
+        kind: "table",
+        heading: sectionTitle(sectionNumber, section.name),
+        columns: [
+          { header: "Item", widthPct: 42 },
+          { header: "Condition", widthPct: 16 },
+          { header: "Recommendation", widthPct: 42 },
+        ],
+        rows: recommendationSummaryRows([...section.rows].sort(compareSurveyItems)),
+      });
+    }
   }
 
   if (pictureImages.length) {
