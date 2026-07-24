@@ -31,6 +31,15 @@ function clean(s: unknown): string {
   return s == null || s === "" ? "-" : String(s);
 }
 
+function num(v: unknown): number | null {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? Math.round(n * 10) / 10 : null;
+}
+
+function humanize(value: string): string {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -46,6 +55,76 @@ function formatBool(v: boolean): string {
 function formatMoney(v: number | null | undefined): string | null {
   if (v == null || !Number.isFinite(v)) return null;
   return `EUR ${Math.round(v).toLocaleString("en-US")}`;
+}
+
+function formatVatStatus(v: unknown): string | null {
+  if (v == null || v === "") return null;
+  const key = String(v).trim().toLowerCase();
+  const labels: Record<string, string> = {
+    paid: "VAT Paid / EU Free Circulation",
+    tax_paid_eu: "VAT Paid / EU Free Circulation",
+    not_paid: "VAT Not Paid",
+    tax_not_paid: "VAT Not Paid",
+    unknown: "VAT status not stated",
+  };
+  return labels[key] ?? humanize(String(v));
+}
+
+function yachtExtra(yacht: YachtProfile, key: string): unknown {
+  return (yacht as unknown as Record<string, unknown>)[key];
+}
+
+function surveySpecificationRows(
+  yacht: YachtProfile,
+  reportData: SurveyReportData,
+): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  const push = (label: string, value: unknown, suffix = ""): void => {
+    if (value != null && value !== "") rows.push({ label, value: `${value}${suffix}` });
+  };
+  const pushNum = (label: string, value: unknown, suffix: string): void => {
+    const n = num(value);
+    if (n != null) push(label, n, suffix);
+  };
+
+  push("Vessel", yacht.name);
+  push("Type", reportData.vesselType ?? (yacht.yacht_type ? humanize(String(yacht.yacht_type)) : null));
+  push("Builder", reportData.manufacturer ?? yacht.builder);
+  push("Model", reportData.model ?? yacht.model);
+  push("Year built", reportData.yearBuilt ?? yacht.year_built);
+  pushNum("Length overall", yacht.length_meters, " m");
+  pushNum("Beam", yacht.beam_meters, " m");
+  pushNum("Draft", yacht.draft_meters, " m");
+  pushNum("Gross tonnage", yachtExtra(yacht, "gross_tonnage"), " GT");
+  pushNum("Displacement", yachtExtra(yacht, "displacement_tonnes"), " t");
+  push("Hull material", yacht.hull_material);
+  push("Hull type", yacht.hull_type);
+  push("Flag", reportData.flag ?? yacht.flag);
+  push("Home port", yacht.home_port);
+  push("Lying", reportData.lying);
+  push("Registration", yacht.registration_number);
+  push("IMO", yacht.imo_number);
+  push("HIN", reportData.hin ?? yacht.hull_id);
+  push("VAT status", formatVatStatus(yacht.vat_status));
+  push("Guest cabins", yacht.cabins);
+  push("Guests", yacht.guests);
+  push("Berths", yacht.berths);
+  push("Heads", yacht.heads);
+  push("Crew", yacht.crew);
+  push("Crew cabins", yacht.crew_cabins);
+  push("Engine maker", yacht.engine_maker);
+  push("Engine model", yacht.engine_model);
+  push("Engines", yacht.engine_count);
+  pushNum("Total power", yacht.total_hp, " hp");
+  push("Engine hours", yacht.engine_hours);
+  push("Port engine hours", yacht.engine_hours_port);
+  push("Starboard engine hours", yacht.engine_hours_starboard);
+  pushNum("Maximum speed", yacht.max_speed_knots, " kn");
+  pushNum("Cruising speed", yacht.cruising_speed_knots, " kn");
+  pushNum("Range", yacht.range_nm, " nm");
+  pushNum("Fuel capacity", yacht.fuel_capacity_l, " L");
+  pushNum("Water capacity", yacht.water_capacity_l, " L");
+  return rows;
 }
 
 function itemNumberParts(value: string | null | undefined): number[] {
@@ -228,7 +307,7 @@ function itemNarrativeText(item: SurveyItemData, pictureRefs: string[]): string 
     );
   }
   if (pictureRefs.length) lines.push(`Photographs: ${pictureRefs.join(", ")}.`);
-  return lines.filter(Boolean).join("\n\n");
+  return lines.filter(Boolean).join("\n");
 }
 
 export function buildSurveyModel(input: {
@@ -334,16 +413,7 @@ export function buildSurveyModel(input: {
     },
     {
       kind: "keyValue",
-      rows: [
-        { label: "Vessel", value: yacht.name },
-        { label: "Type", value: clean(reportData.vesselType ?? yacht.yacht_type) },
-        { label: "Manufacturer", value: clean(reportData.manufacturer ?? yacht.builder) },
-        { label: "Model", value: clean(reportData.model ?? yacht.model) },
-        { label: "Year built", value: clean(reportData.yearBuilt ?? yacht.year_built) },
-        { label: "HIN", value: clean(reportData.hin ?? yacht.hull_id) },
-        { label: "Flag", value: clean(reportData.flag) },
-        { label: "Lying", value: clean(reportData.lying) },
-      ],
+      rows: surveySpecificationRows(yacht, reportData),
       layout: "pairs",
     },
     {

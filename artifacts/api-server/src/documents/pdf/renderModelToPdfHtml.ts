@@ -12,7 +12,7 @@ import { renderModelToBlocks } from "./renderModelToBlocks";
 
 export function renderModelToPdfHtml(model: DocumentModel): string {
   const blocks = renderModelToBlocks(model);
-  const pages = paginateBlocks(blocks, model.meta.type === "survey_report" ? 240 : undefined);
+  const pages = paginateBlocks(blocks, model.meta.type === "survey_report" ? 248 : undefined);
   return renderBlocksToHtml({
     pages,
     theme: model.theme,
