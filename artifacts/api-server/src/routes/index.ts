@@ -12,6 +12,7 @@ import proposalsRouter from "./proposals";
 import surveyReportsRouter from "./surveyReports";
 import documentsRouter from "./documents";
 import flagIntelligenceRouter from "./flagIntelligence";
+import brokerOsRouter from "./brokerOs";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(proposalsRouter);
 router.use(surveyReportsRouter);
 router.use(documentsRouter);
 router.use(flagIntelligenceRouter);
+router.use(brokerOsRouter);
 
 export default router;

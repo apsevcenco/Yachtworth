@@ -123,10 +123,11 @@ const TOOLS: Tool[] = [
   {
     key: "broker_crm",
     icon: "users",
-    title: "Broker CRM",
-    subtitle: "Clients · Alerts · Co-brokerage",
+    title: "Broker OS",
+    subtitle: "Cases - follow-ups - commission",
     roles: ["broker"],
-    status: "soon",
+    status: "live",
+    route: "/broker-os",
   },
   {
     key: "charter_planner",

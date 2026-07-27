@@ -434,6 +434,10 @@ function RootLayoutNav() {
               options={{ headerShown: false, presentation: "card" }}
             />
             <Stack.Screen
+              name="broker-os"
+              options={{ headerShown: false, presentation: "card" }}
+            />
+            <Stack.Screen
               name="history"
               options={{ headerShown: false, presentation: "card" }}
             />
