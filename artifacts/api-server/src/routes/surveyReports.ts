@@ -22,6 +22,10 @@ import {
   transcribeSurveyVoiceNote,
   type SurveyVoiceLanguage,
 } from "../lib/survey/voiceTranscription";
+import {
+  polishSurveyText,
+  type SurveyPolishMode,
+} from "../lib/survey/textPolish";
 import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
@@ -154,14 +158,27 @@ async function loadOwnedItem(
   itemId: string,
   userId: string,
 ): Promise<
-  | { ok: true; item: { id: string; report_id: string; photo_urls: string[] } }
+  | {
+      ok: true;
+      item: {
+        id: string;
+        report_id: string;
+        section_number: number | null;
+        section_name: string | null;
+        item_number: string | null;
+        description: string | null;
+        condition: string | null;
+        recommendation_level: string | null;
+        photo_urls: string[];
+      };
+    }
   | { status: 404 | 503; error: string }
 > {
   const sb = getSupabase();
   if (!sb) return { status: 503, error: "Survey storage not configured" };
   const { data: item, error } = await sb
     .from(SURVEY_ITEMS_TABLE)
-    .select("id, report_id, photo_urls")
+    .select("id, report_id, section_number, section_name, item_number, description, condition, recommendation_level, photo_urls")
     .eq("id", itemId)
     .maybeSingle();
   if (error) return { status: 503, error: error.message };
@@ -177,6 +194,19 @@ async function loadOwnedItem(
     item: {
       id: item.id as string,
       report_id: item.report_id as string,
+      section_number:
+        typeof item.section_number === "number" ? item.section_number : null,
+      section_name:
+        typeof item.section_name === "string" ? item.section_name : null,
+      item_number:
+        typeof item.item_number === "string" ? item.item_number : null,
+      description:
+        typeof item.description === "string" ? item.description : null,
+      condition: typeof item.condition === "string" ? item.condition : null,
+      recommendation_level:
+        typeof item.recommendation_level === "string"
+          ? item.recommendation_level
+          : null,
       photo_urls,
     },
   };
@@ -1040,6 +1070,78 @@ router.get(
 );
 
 // â”€â”€ ITEM PHOTOS â€” DELETE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+router.post(
+  "/survey-items/:itemId/text-polish",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const itemId = req.params["itemId"] ?? "";
+    if (!isUuid(itemId)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const body = (req.body ?? {}) as {
+      text?: unknown;
+      field_key?: unknown;
+      mode?: unknown;
+      language?: unknown;
+    };
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    if (!text) {
+      res.status(400).json({ error: "Text is required" });
+      return;
+    }
+    if (text.length > 6000) {
+      res.status(400).json({ error: "Text is too long for one polish request" });
+      return;
+    }
+    const fieldKey = typeof body.field_key === "string" ? body.field_key : "notes";
+    const requestedMode = body.mode as SurveyPolishMode;
+    const inferredMode: SurveyPolishMode =
+      requestedMode === "note" ||
+      requestedMode === "finding" ||
+      requestedMode === "recommendation"
+        ? requestedMode
+        : fieldKey === "recommendation_text"
+          ? "recommendation"
+          : fieldKey === "defect_description"
+            ? "finding"
+            : "note";
+
+    const loaded = await loadOwnedItem(itemId, req.userId!);
+    if ("status" in loaded) {
+      res.status(loaded.status).json({ error: loaded.error });
+      return;
+    }
+    try {
+      const polished = await polishSurveyText({
+        text,
+        mode: inferredMode,
+        language: typeof body.language === "string" ? body.language : null,
+        sectionName: loaded.item.section_name,
+        itemNumber: loaded.item.item_number,
+        itemDescription: loaded.item.description,
+        condition: loaded.item.condition,
+        recommendationLevel: loaded.item.recommendation_level,
+      });
+      res.json({
+        field_key: fieldKey,
+        mode: inferredMode,
+        original_text: text,
+        ...polished,
+      });
+    } catch (err) {
+      req.log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "survey text polish failed",
+      );
+      res.status(502).json({
+        error: err instanceof Error ? err.message : "AI polish failed",
+      });
+    }
+  },
+);
+
 router.delete(
   "/survey-items/:itemId/photos",
   softClerkAuth(),
@@ -1047,6 +1149,7 @@ router.delete(
   async (req, res): Promise<void> => {
     const itemId = req.params["itemId"] ?? "";
     if (!isUuid(itemId)) {
+
       res.status(404).json({ error: "Not found" });
       return;
     }

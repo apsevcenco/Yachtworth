@@ -55,6 +55,11 @@ import {
   type SurveyVoiceNoteItem,
   type SurveyVoiceLanguage,
 } from "../../../../lib/surveyVoiceNoteUpload";
+import {
+  polishSurveyText,
+  type SurveyPolishMode,
+  type SurveyPolishResponse,
+} from "../../../../lib/surveyTextPolish";
 
 const MAX_ITEM_PHOTOS = 10;
 
@@ -114,6 +119,19 @@ type VoiceTarget = {
 type VoiceNotesState = {
   loading: boolean;
   items: SurveyVoiceNoteItem[];
+};
+
+type PolishTarget = {
+  idx: number;
+  itemId: string;
+  fieldKey: string;
+  mode: SurveyPolishMode;
+  sectionDataKey?: string;
+};
+
+type PolishPreview = {
+  target: PolishTarget;
+  result: SurveyPolishResponse;
 };
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -205,6 +223,8 @@ export default function SurveySectionScreen() {
   const [transcribingTargetKey, setTranscribingTargetKey] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [voiceNotesByItem, setVoiceNotesByItem] = useState<Record<string, VoiceNotesState>>({});
+  const [polishingTargetKey, setPolishingTargetKey] = useState<string | null>(null);
+  const [polishPreview, setPolishPreview] = useState<PolishPreview | null>(null);
 
   const voiceKey = (idx: number, fieldKey: string) => `${idx}:${fieldKey}`;
 
@@ -215,6 +235,82 @@ export default function SurveySectionScreen() {
     }
     if (transcribingTargetKey === key) return "transcribing" as const;
     return "idle" as const;
+  };
+
+  const getTextForPolish = (target: PolishTarget): string => {
+    const item = editable[target.idx];
+    if (!item) return "";
+    if (target.sectionDataKey) {
+      return toStringValue(item.section_data[target.sectionDataKey]);
+    }
+    const field = target.fieldKey as "notes" | "recommendation_text" | "defect_description";
+    return String(item[field] ?? "");
+  };
+
+  const applyPolishText = (target: PolishTarget, mode: "replace" | "append") => {
+    const text = polishPreview?.result.polished_text.trim();
+    if (!text) return;
+    dirtyRef.current = true;
+    setEditable((cur) =>
+      cur.map((it, i) => {
+        if (i !== target.idx) return it;
+        if (target.sectionDataKey) {
+          const current = toStringValue(it.section_data[target.sectionDataKey]).trim();
+          return {
+            ...it,
+            section_data: {
+              ...it.section_data,
+              [target.sectionDataKey]: mode === "append" && current ? `${current}\n${text}` : text,
+            },
+          };
+        }
+        const field = target.fieldKey as "notes" | "recommendation_text" | "defect_description";
+        const current = String(it[field] ?? "").trim();
+        return { ...it, [field]: mode === "append" && current ? `${current}\n${text}` : text };
+      }),
+    );
+    setPolishPreview(null);
+  };
+
+  const handlePolishPress = async (
+    idx: number,
+    item: Editable,
+    fieldKey: string,
+    mode: SurveyPolishMode,
+    sectionDataKey?: string,
+  ) => {
+    if (!item.id) {
+      Alert.alert("Save section first", "Save this section once before using AI polish.");
+      return;
+    }
+    const target: PolishTarget = {
+      idx,
+      itemId: item.id,
+      fieldKey,
+      mode,
+      sectionDataKey,
+    };
+    const sourceText = getTextForPolish(target).trim();
+    if (!sourceText) {
+      Alert.alert("Nothing to polish", "Add or dictate text first.");
+      return;
+    }
+    const key = voiceKey(idx, `ai.${fieldKey}`);
+    setPolishingTargetKey(key);
+    try {
+      const result = await polishSurveyText({
+        itemId: item.id,
+        text: sourceText,
+        fieldKey,
+        mode,
+        language: voiceLanguage,
+      });
+      setPolishPreview({ target, result });
+    } catch (e) {
+      Alert.alert("AI polish failed", e instanceof Error ? e.message : "Please try again.");
+    } finally {
+      setPolishingTargetKey(null);
+    }
   };
 
   useEffect(() => {
@@ -747,6 +843,8 @@ export default function SurveySectionScreen() {
                 label="Notes"
                 state={getVoiceState(idx, "notes")}
                 onPress={() => handleVoicePress(idx, it, "notes")}
+                polishing={polishingTargetKey === voiceKey(idx, "ai.notes")}
+                onPolish={() => handlePolishPress(idx, it, "notes", "note")}
               />
               <TextInput
                 value={it.notes}
@@ -766,6 +864,12 @@ export default function SurveySectionScreen() {
                     handleVoicePress(idx, it, fieldKey, sectionDataKey)
                   }
                   getVoiceState={(fieldKey) => getVoiceState(idx, fieldKey)}
+                  onPolishPress={(fieldKey, mode, sectionDataKey) =>
+                    handlePolishPress(idx, it, fieldKey, mode, sectionDataKey)
+                  }
+                  getPolishState={(fieldKey) =>
+                    polishingTargetKey === voiceKey(idx, `ai.${fieldKey}`)
+                  }
                 />
               )}
 
@@ -789,6 +893,10 @@ export default function SurveySectionScreen() {
                     label="Recommendation text"
                     state={getVoiceState(idx, "recommendation_text")}
                     onPress={() => handleVoicePress(idx, it, "recommendation_text")}
+                    polishing={polishingTargetKey === voiceKey(idx, "ai.recommendation_text")}
+                    onPolish={() =>
+                      handlePolishPress(idx, it, "recommendation_text", "recommendation")
+                    }
                   />
                   <TextInput
                     value={it.recommendation_text}
@@ -966,6 +1074,15 @@ export default function SurveySectionScreen() {
         </Modal>
       )}
 
+      {polishPreview && (
+        <PolishPreviewSheet
+          preview={polishPreview}
+          onReplace={() => applyPolishText(polishPreview.target, "replace")}
+          onAppend={() => applyPolishText(polishPreview.target, "append")}
+          onClose={() => setPolishPreview(null)}
+        />
+      )}
+
       {picker && (
         <PickerSheet
           title={
@@ -1016,41 +1133,61 @@ function VoiceFieldHeader({
   label,
   state,
   onPress,
+  onPolish,
+  polishing = false,
 }: {
   label: string;
   state: "idle" | "recording" | "transcribing";
   onPress: () => void;
+  onPolish?: () => void;
+  polishing?: boolean;
 }) {
   const active = state !== "idle";
   return (
     <View style={styles.voiceFieldHeader}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <Pressable
-        onPress={onPress}
-        disabled={state === "transcribing"}
-        hitSlop={8}
-        style={[
-          styles.voiceBtn,
-          state === "recording" && styles.voiceBtnRecording,
-          state === "transcribing" && styles.voiceBtnBusy,
-        ]}
-      >
-        {state === "transcribing" ? (
-          <>
-            <ActivityIndicator color={GOLD} size="small" />
-            <Text style={styles.voiceBtnText}>Transcribing</Text>
-          </>
-        ) : (
-          <>
-            <Feather
-              name={state === "recording" ? "square" : "mic"}
-              size={13}
-              color={active ? NAVY : GOLD}
-            />
-            {state === "recording" && <Text style={styles.voiceBtnRecordingText}>REC</Text>}
-          </>
+      <View style={styles.fieldActionRow}>
+        {onPolish && (
+          <Pressable
+            onPress={onPolish}
+            disabled={polishing || state !== "idle"}
+            hitSlop={8}
+            style={[styles.aiBtn, polishing && styles.voiceBtnBusy]}
+          >
+            {polishing ? (
+              <ActivityIndicator color={GOLD} size="small" />
+            ) : (
+              <Text style={styles.aiBtnText}>AI</Text>
+            )}
+          </Pressable>
         )}
-      </Pressable>
+        <Pressable
+          onPress={onPress}
+          disabled={state === "transcribing" || polishing}
+          hitSlop={8}
+          style={[
+            styles.voiceBtn,
+            state === "recording" && styles.voiceBtnRecording,
+            state === "transcribing" && styles.voiceBtnBusy,
+          ]}
+        >
+          {state === "transcribing" ? (
+            <>
+              <ActivityIndicator color={GOLD} size="small" />
+              <Text style={styles.voiceBtnText}>Transcribing</Text>
+            </>
+          ) : (
+            <>
+              <Feather
+                name={state === "recording" ? "square" : "mic"}
+                size={13}
+                color={active ? NAVY : GOLD}
+              />
+              {state === "recording" && <Text style={styles.voiceBtnRecordingText}>REC</Text>}
+            </>
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -1114,6 +1251,54 @@ function VoiceNotesPanel({
   );
 }
 
+function PolishPreviewSheet({
+  preview,
+  onReplace,
+  onAppend,
+  onClose,
+}: {
+  preview: PolishPreview;
+  onReplace: () => void;
+  onAppend: () => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBg} onPress={onClose}>
+        <Pressable
+          style={[styles.polishSheet, { paddingBottom: insets.bottom + 14 }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={styles.polishHead}>
+            <Text style={styles.sheetTitle}>AI professional rewrite</Text>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Feather name="x" size={18} color={MUTED} />
+            </Pressable>
+          </View>
+          <Text style={styles.polishMeta}>
+            {preview.result.mode.toUpperCase()} · confidence {preview.result.confidence ?? "medium"}
+          </Text>
+          <ScrollView style={styles.polishTextBox}>
+            <Text style={styles.polishText}>{preview.result.polished_text}</Text>
+          </ScrollView>
+          <View style={styles.polishActions}>
+            <Pressable onPress={onClose} style={styles.polishSecondaryBtn}>
+              <Text style={styles.polishSecondaryText}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={onAppend} style={styles.polishSecondaryBtn}>
+              <Text style={styles.polishSecondaryText}>Append</Text>
+            </Pressable>
+            <Pressable onPress={onReplace} style={styles.polishPrimaryBtn}>
+              <Text style={styles.polishPrimaryText}>Replace</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function PickerSheet({
   title,
   options,
@@ -1155,12 +1340,16 @@ function SectionSpecificFields({
   onChange,
   onVoicePress,
   getVoiceState,
+  onPolishPress,
+  getPolishState,
 }: {
   schema: SectionSchema;
   item: Editable;
   onChange: (patch: Partial<Editable>) => void;
   onVoicePress: (fieldKey: string, sectionDataKey?: string) => void;
   getVoiceState: (fieldKey: string) => "idle" | "recording" | "transcribing";
+  onPolishPress: (fieldKey: string, mode: SurveyPolishMode, sectionDataKey?: string) => void;
+  getPolishState: (fieldKey: string) => boolean;
 }) {
   const setField = (key: string, value: unknown) => {
     onChange({ section_data: { ...item.section_data, [key]: value } });
@@ -1184,6 +1373,16 @@ function SectionSpecificFields({
             field.type === "textarea"
               ? getVoiceState(`section_data.${field.key}`)
               : "idle"
+          }
+          onPolishPress={
+            field.type === "textarea"
+              ? () => onPolishPress(`section_data.${field.key}`, "note", field.key)
+              : undefined
+          }
+          polishing={
+            field.type === "textarea"
+              ? getPolishState(`section_data.${field.key}`)
+              : false
           }
         />
       ))}
@@ -1230,6 +1429,8 @@ function SectionSpecificFields({
           label="Defect / finding"
           state={getVoiceState("defect_description")}
           onPress={() => onVoicePress("defect_description")}
+          polishing={getPolishState("defect_description")}
+          onPolish={() => onPolishPress("defect_description", "finding")}
         />
       </View>
       <TextInput
@@ -1295,12 +1496,16 @@ function SectionFieldInput({
   onChange,
   onVoicePress,
   voiceState = "idle",
+  onPolishPress,
+  polishing = false,
 }: {
   field: SectionField;
   value: unknown;
   onChange: (value: unknown) => void;
   onVoicePress?: () => void;
   voiceState?: "idle" | "recording" | "transcribing";
+  onPolishPress?: () => void;
+  polishing?: boolean;
 }) {
   if (field.type === "boolean") {
     return (
@@ -1358,6 +1563,8 @@ function SectionFieldInput({
           label={field.label}
           state={voiceState}
           onPress={onVoicePress}
+          polishing={polishing}
+          onPolish={onPolishPress}
         />
       ) : (
         <Text style={styles.fieldLabel}>{field.label}</Text>
@@ -1433,6 +1640,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+  },
+  fieldActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  aiBtn: {
+    minWidth: 34,
+    height: 28,
+    paddingHorizontal: 9,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(123,211,137,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(123,211,137,0.08)",
+  },
+  aiBtnText: {
+    color: GREEN,
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
   },
   voiceBtn: {
     minWidth: 34,
@@ -1689,6 +1917,73 @@ const styles = StyleSheet.create({
     borderTopColor: DIVIDER,
   },
   sheetRowText: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 14 },
+  polishSheet: {
+    maxHeight: "78%",
+    backgroundColor: NAVY_DEEP,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 18,
+  },
+  polishHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  polishMeta: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+  polishTextBox: {
+    maxHeight: 260,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: NAVY_ELEV,
+    padding: 12,
+  },
+  polishText: {
+    color: IVORY,
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  polishActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
+  polishSecondaryBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: NAVY_ELEV,
+  },
+  polishSecondaryText: {
+    color: MUTED,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+  },
+  polishPrimaryBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: GOLD,
+  },
+  polishPrimaryText: {
+    color: NAVY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+  },
   photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   photoThumbWrap: { position: "relative" },
   photoThumb: {
