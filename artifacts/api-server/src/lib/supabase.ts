@@ -57,3 +57,4 @@ export const SURVEY_ITEM_PHOTOS_BUCKET = "survey-item-photos";
 export const SURVEYOR_ASSETS_BUCKET = "surveyor-assets";
 export const SURVEY_VOICE_NOTES_TABLE = "survey_voice_notes";
 export const SURVEY_VOICE_NOTES_BUCKET = "survey-voice-notes";
+export const FLAG_REGISTRIES_TABLE = "flag_registries";

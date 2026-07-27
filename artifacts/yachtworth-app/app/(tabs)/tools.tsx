@@ -138,12 +138,13 @@ const TOOLS: Tool[] = [
     route: "/charter-planner",
   },
   {
-    key: "flag_calculator",
+    key: "flag_intelligence",
     icon: "flag",
-    title: "Flag Calculator",
-    subtitle: "Compare registrations & VAT",
+    title: "Flag Intelligence",
+    subtitle: "Registration advisor & comparison",
     roles: ["owner", "broker"],
-    status: "soon",
+    status: "live",
+    route: "/flag-intelligence",
   },
   {
     key: "marina_database",

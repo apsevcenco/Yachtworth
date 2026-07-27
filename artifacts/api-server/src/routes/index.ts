@@ -11,6 +11,7 @@ import listingsRouter from "./listings";
 import proposalsRouter from "./proposals";
 import surveyReportsRouter from "./surveyReports";
 import documentsRouter from "./documents";
+import flagIntelligenceRouter from "./flagIntelligence";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(listingsRouter);
 router.use(proposalsRouter);
 router.use(surveyReportsRouter);
 router.use(documentsRouter);
+router.use(flagIntelligenceRouter);
 
 export default router;
