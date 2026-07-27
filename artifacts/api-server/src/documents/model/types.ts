@@ -45,6 +45,8 @@ export interface CoverSpec {
   date: string;
   /** Validated image URL (https) or omitted for a solid-colour cover. */
   photoUrl?: string;
+  /** Optional brand/surveyor logo shown on the cover. */
+  logoUrl?: string;
   cells: { label: string; value: string }[];
   /** Formatted headline figure (e.g. asking price / estimated value). */
   price?: string;

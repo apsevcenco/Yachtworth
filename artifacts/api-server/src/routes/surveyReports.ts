@@ -173,6 +173,7 @@ router.post(
       clerk_user_id: req.userId!,
       yacht_id: yachtId,
       report_type: body.report_type ?? "pre_purchase",
+      branding_mode: body.branding_mode ?? "yachtworth",
       vessel_name: vesselName.slice(0, 200),
       vessel_type: body.vessel_type ?? null,
       manufacturer: body.manufacturer ?? null,

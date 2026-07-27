@@ -11,6 +11,8 @@ export interface SurveyReportInput {
   yacht_id?: string | null;
   /** @nullable */
   report_type?: string | null;
+  /** @nullable */
+  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;

@@ -2483,6 +2483,8 @@ export interface SurveyReportInput {
   yacht_id?: string | null;
   /** @nullable */
   report_type?: string | null;
+  /** @nullable */
+  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;
@@ -2574,6 +2576,8 @@ export interface SurveyReportInput {
 export interface SurveyReportPatch {
   /** @nullable */
   report_type?: string | null;
+  /** @nullable */
+  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
   /** @nullable */
   vessel_name?: string | null;
   /** @nullable */
@@ -2667,6 +2671,8 @@ export interface SurveyReport {
   /** @nullable */
   yacht_id?: string | null;
   report_type?: string;
+  /** @nullable */
+  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;

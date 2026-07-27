@@ -157,6 +157,17 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
     overflow: hidden;
   }
   .cover-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .cover-logo {
+    position: absolute;
+    top: 16mm;
+    left: 16mm;
+    max-width: 42mm;
+    max-height: 20mm;
+    object-fit: contain;
+    padding: 4mm;
+    background: rgba(255,255,255,0.92);
+    border-radius: 3px;
+  }
   .cover-overlay {
     position: absolute; inset: 0;
     background: linear-gradient(to bottom, rgba(7,18,38,0.45) 0%, rgba(7,18,38,0.12) 30%, rgba(7,18,38,0.55) 62%, rgba(7,18,38,0.86) 100%);

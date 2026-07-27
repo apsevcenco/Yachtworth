@@ -4015,6 +4015,9 @@ components:
       properties:
         yacht_id: { type: ["string", "null"] }
         report_type: { type: ["string", "null"] }
+        branding_mode:
+          type: ["string", "null"]
+          enum: [white_label, yachtworth, surveyor]
         vessel_name: { type: string }
         vessel_type: { type: ["string", "null"] }
         manufacturer: { type: ["string", "null"] }
@@ -4065,6 +4068,9 @@ components:
       type: object
       properties:
         report_type: { type: ["string", "null"] }
+        branding_mode:
+          type: ["string", "null"]
+          enum: [white_label, yachtworth, surveyor]
         vessel_name: { type: ["string", "null"] }
         vessel_type: { type: ["string", "null"] }
         manufacturer: { type: ["string", "null"] }
@@ -4123,6 +4129,9 @@ components:
         clerk_user_id: { type: string }
         yacht_id: { type: ["string", "null"] }
         report_type: { type: string }
+        branding_mode:
+          type: ["string", "null"]
+          enum: [white_label, yachtworth, surveyor]
         vessel_name: { type: string }
         vessel_type: { type: ["string", "null"] }
         manufacturer: { type: ["string", "null"] }

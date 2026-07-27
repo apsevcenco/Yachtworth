@@ -127,6 +127,32 @@ function formatVatStatus(v: unknown): string | null {
   return labels[key] ?? humanize(String(v));
 }
 
+function surveyBranding(input: {
+  mode?: string | null;
+  settingsBrand?: string | null;
+  surveyorCompany?: string | null;
+  surveyorName?: string | null;
+  surveyorLogoUrl?: string | null;
+}): { brand: string; eyebrow: string; logoUrl?: string } {
+  const mode = input.mode === "white_label" || input.mode === "surveyor" ? input.mode : "yachtworth";
+  if (mode === "white_label") {
+    return { brand: "Survey Report", eyebrow: "SURVEY REPORT" };
+  }
+  if (mode === "surveyor") {
+    const brand =
+      input.surveyorCompany?.trim() ||
+      input.surveyorName?.trim() ||
+      "Marine Surveyor";
+    return {
+      brand,
+      eyebrow: `${brand} · SURVEY REPORT`,
+      logoUrl: input.surveyorLogoUrl?.trim() || undefined,
+    };
+  }
+  const brand = input.settingsBrand?.trim() || "Yachtworth";
+  return { brand, eyebrow: `${brand} · SURVEY REPORT` };
+}
+
 function yachtExtra(yacht: YachtProfile, key: string): unknown {
   return (yacht as unknown as Record<string, unknown>)[key];
 }
@@ -383,7 +409,14 @@ export function buildSurveyModel(input: {
 }): DocumentModel {
   const { yacht, reportData, settings, template } = input;
   const theme = getTheme(template);
-  const brand = settings.branding ?? settings.brand_name ?? "Yachtworth";
+  const branding = surveyBranding({
+    mode: reportData.brandingMode ?? settings.branding_mode,
+    settingsBrand: settings.branding ?? settings.brand_name,
+    surveyorCompany: reportData.surveyorCompany,
+    surveyorName: reportData.surveyorName,
+    surveyorLogoUrl: reportData.surveyorLogoUrl,
+  });
+  const brand = branding.brand;
   const date = new Date().toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
@@ -701,6 +734,7 @@ export function buildSurveyModel(input: {
       date,
       cells,
       photoUrl: coverPhotoUrl,
+      logoUrl: branding.logoUrl,
     },
     body,
   };

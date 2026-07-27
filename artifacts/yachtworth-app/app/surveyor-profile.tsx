@@ -107,6 +107,13 @@ export default function SurveyorProfileScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        <Field
+          label="Logo URL"
+          value={profile.logoUrl}
+          onChange={(v) => set("logoUrl", v)}
+          keyboardType="url"
+          autoCapitalize="none"
+        />
       </ScrollView>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
@@ -135,7 +142,7 @@ function Field({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  keyboardType?: "default" | "email-address" | "phone-pad";
+  keyboardType?: "default" | "email-address" | "phone-pad" | "url";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
 }) {
   return (

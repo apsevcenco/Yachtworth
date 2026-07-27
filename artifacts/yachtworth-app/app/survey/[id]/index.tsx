@@ -102,6 +102,7 @@ export default function SurveySectionsScreen() {
       await exportSurveyDocument({
         report: {
           report_type: report.report_type,
+          branding_mode: report.branding_mode,
           vessel_name: report.vessel_name,
           vessel_type: report.vessel_type,
           manufacturer: report.manufacturer,
@@ -142,6 +143,7 @@ export default function SurveySectionsScreen() {
           surveyor_phone: report.surveyor_phone,
           surveyor_email: report.surveyor_email,
           surveyor_signature_url: report.surveyor_signature_url,
+          surveyor_logo_url: report.surveyor_logo_url,
         },
         items: items.map((it) => ({
           section_number: it.section_number,

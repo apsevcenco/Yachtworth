@@ -8,6 +8,7 @@ export type SurveyorProfile = {
   company: string;
   phone: string;
   email: string;
+  logoUrl: string;
 };
 
 export const EMPTY_PROFILE: SurveyorProfile = {
@@ -16,6 +17,7 @@ export const EMPTY_PROFILE: SurveyorProfile = {
   company: "",
   phone: "",
   email: "",
+  logoUrl: "",
 };
 
 export async function loadSurveyorProfile(): Promise<SurveyorProfile> {
@@ -30,6 +32,7 @@ export async function loadSurveyorProfile(): Promise<SurveyorProfile> {
       company: typeof parsed.company === "string" ? parsed.company : "",
       phone: typeof parsed.phone === "string" ? parsed.phone : "",
       email: typeof parsed.email === "string" ? parsed.email : "",
+      logoUrl: typeof parsed.logoUrl === "string" ? parsed.logoUrl : "",
     };
   } catch {
     return EMPTY_PROFILE;

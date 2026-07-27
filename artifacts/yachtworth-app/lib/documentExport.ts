@@ -888,6 +888,7 @@ export async function exportFleetDocument(input: {
 export type SurveyDocumentInput = {
   report: {
     report_type?: string | null;
+    branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
     vessel_name: string;
     vessel_type?: string | null;
     manufacturer?: string | null;
@@ -928,6 +929,7 @@ export type SurveyDocumentInput = {
     surveyor_phone?: string | null;
     surveyor_email?: string | null;
     surveyor_signature_url?: string | null;
+    surveyor_logo_url?: string | null;
   };
   items: Array<{
     section_number?: number | null;
@@ -1019,6 +1021,8 @@ function buildSurveyBody(input: SurveyDocumentInput) {
       surveyorPhone: r.surveyor_phone ?? null,
       surveyorEmail: r.surveyor_email ?? null,
       surveyorSignatureUrl: r.surveyor_signature_url ?? null,
+      surveyorLogoUrl: r.surveyor_logo_url ?? null,
+      brandingMode: r.branding_mode ?? "yachtworth",
       items: input.items,
       seaTrial: input.seaTrial ?? null,
     },
@@ -1026,6 +1030,7 @@ function buildSurveyBody(input: SurveyDocumentInput) {
       template: "premium" as const,
       language: "english" as const,
       branding: "Yachtworth",
+      branding_mode: r.branding_mode ?? "yachtworth",
       engine: "adaptive" as const,
       confidential: true,
     },

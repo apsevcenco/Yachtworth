@@ -5164,6 +5164,7 @@ export const ListSurveyReportsResponse = zod.object({
 export const CreateSurveyReportBody = zod.object({
   yacht_id: zod.string().nullish(),
   report_type: zod.string().nullish(),
+  branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish(),
   vessel_name: zod.string(),
   vessel_type: zod.string().nullish(),
   manufacturer: zod.string().nullish(),
@@ -5221,6 +5222,7 @@ export const GetSurveyReportResponse = zod.object({
     clerk_user_id: zod.string(),
     yacht_id: zod.string().nullish(),
     report_type: zod.string().optional(),
+    branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish().optional(),
     vessel_name: zod.string(),
     vessel_type: zod.string().nullish(),
     manufacturer: zod.string().nullish(),
@@ -5376,6 +5378,7 @@ export const UpdateSurveyReportParams = zod.object({
 
 export const UpdateSurveyReportBody = zod.object({
   report_type: zod.string().nullish(),
+  branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish(),
   vessel_name: zod.string().nullish(),
   vessel_type: zod.string().nullish(),
   manufacturer: zod.string().nullish(),
@@ -5426,6 +5429,7 @@ export const UpdateSurveyReportResponse = zod.object({
   clerk_user_id: zod.string(),
   yacht_id: zod.string().nullish(),
   report_type: zod.string().optional(),
+  branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish().optional(),
   vessel_name: zod.string(),
   vessel_type: zod.string().nullish(),
   manufacturer: zod.string().nullish(),

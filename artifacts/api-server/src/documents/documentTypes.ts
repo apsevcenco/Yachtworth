@@ -23,6 +23,7 @@ export type DocumentFormat = "pdf";
 
 export type DocumentEngine = "adaptive";
 export type DocumentTemplate = "minimal" | "classic" | "premium";
+export type SurveyBrandingMode = "white_label" | "yachtworth" | "surveyor";
 
 export type ProposalLanguage =
   | "english"
@@ -130,6 +131,7 @@ export interface ExportSettings {
   brand_name?: string | null;
   accent_color?: string | null;
   branding?: string | null;
+  branding_mode?: SurveyBrandingMode | null;
   brokerInfo?: BrokerInfo | null;
   engine?: DocumentEngine;
 }
@@ -400,6 +402,7 @@ export interface SurveySeaTrialData {
 
 export interface SurveyReportData {
   reportType?: string | null;
+  brandingMode?: SurveyBrandingMode | null;
   vesselType?: string | null;
   manufacturer?: string | null;
   model?: string | null;
@@ -438,6 +441,7 @@ export interface SurveyReportData {
   surveyorCompany?: string | null;
   surveyorPhone?: string | null;
   surveyorEmail?: string | null;
+  surveyorLogoUrl?: string | null;
   surveyorSignatureUrl?: string | null;
   items?: SurveyItemData[] | null;
   seaTrial?: SurveySeaTrialData | null;

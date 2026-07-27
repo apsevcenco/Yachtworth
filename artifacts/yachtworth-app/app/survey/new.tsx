@@ -37,7 +37,8 @@ const MUTED = "rgba(247,243,236,0.6)";
 const FAINT = "rgba(247,243,236,0.4)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 
-type SectionKey = "vessel" | "specification" | "client" | "surveyor" | "conditions";
+type SectionKey = "vessel" | "specification" | "client" | "branding" | "surveyor" | "conditions";
+type SurveyBrandingMode = "white_label" | "yachtworth" | "surveyor";
 
 const VESSEL_TYPES = [
   "Motor Yacht",
@@ -56,6 +57,11 @@ const REPORT_TYPES = [
   { label: "Commercial", value: "commercial_coding" },
 ];
 const PURPOSES = ["Pre-purchase", "Insurance", "Annual", "Damage", "Other"];
+const BRANDING_MODES = [
+  { label: "White label", value: "white_label" },
+  { label: "Yachtworth", value: "yachtworth" },
+  { label: "Surveyor", value: "surveyor" },
+] as const;
 
 function numOrNull(value: string): number | null {
   const n = Number(value.replace(",", "."));
@@ -104,6 +110,7 @@ export default function SurveyNewScreen() {
       if (p.company) setCompany(p.company);
       if (p.phone) setSurveyorPhone(p.phone);
       if (p.email) setSurveyorEmail(p.email);
+      if (p.logoUrl) setSurveyorLogoUrl(p.logoUrl);
     });
     return () => {
       cancelled = true;
@@ -147,6 +154,10 @@ export default function SurveyNewScreen() {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+
+  // PDF branding
+  const [brandingMode, setBrandingMode] = useState<SurveyBrandingMode>("yachtworth");
+  const [surveyorLogoUrl, setSurveyorLogoUrl] = useState("");
 
   // Surveyor
   const [surveyorName, setSurveyorName] = useState("");
@@ -230,6 +241,7 @@ export default function SurveyNewScreen() {
       const created = await createM.mutateAsync({
         data: {
           report_type: reportType,
+          branding_mode: brandingMode,
           yacht_id: selectedYachtId,
           vessel_name: name,
           vessel_type: vesselType || null,
@@ -266,6 +278,7 @@ export default function SurveyNewScreen() {
           surveyor_company: company.trim() || null,
           surveyor_phone: surveyorPhone.trim() || null,
           surveyor_email: surveyorEmail.trim() || null,
+          surveyor_logo_url: surveyorLogoUrl.trim() || null,
         },
       });
 
@@ -517,7 +530,7 @@ export default function SurveyNewScreen() {
               label="Client"
               isOpen={open === "client"}
               onToggle={() =>
-                setOpen(open === "client" ? "surveyor" : "client")
+                setOpen(open === "client" ? "branding" : "client")
               }
             >
               <Field
@@ -538,6 +551,34 @@ export default function SurveyNewScreen() {
                 onChange={setClientPhone}
                 keyboardType="phone-pad"
               />
+            </Section>
+
+            <Section
+              label="PDF Branding"
+              isOpen={open === "branding"}
+              onToggle={() =>
+                setOpen(open === "branding" ? "surveyor" : "branding")
+              }
+            >
+              <PillRow
+                label="Report format"
+                options={BRANDING_MODES.map((m) => m.label)}
+                value={BRANDING_MODES.find((m) => m.value === brandingMode)?.label ?? "Yachtworth"}
+                onChange={(label) => {
+                  const next = BRANDING_MODES.find((m) => m.label === label);
+                  if (next) setBrandingMode(next.value);
+                }}
+              />
+              {brandingMode === "surveyor" ? (
+                <Field
+                  label="Surveyor logo URL"
+                  value={surveyorLogoUrl}
+                  onChange={setSurveyorLogoUrl}
+                  placeholder="https://..."
+                  keyboardType="url"
+                  autoCapitalize="none"
+                />
+              ) : null}
             </Section>
 
             <Section
@@ -572,9 +613,9 @@ export default function SurveyNewScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              <Text style={styles.note}>
+              {false ? <Text style={styles.note}>
                 Logo + signature upload — coming in next update.
-              </Text>
+              </Text> : null}
             </Section>
 
             <Section
@@ -660,7 +701,7 @@ function Field({
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  keyboardType?: "default" | "number-pad" | "email-address" | "phone-pad";
+  keyboardType?: "default" | "number-pad" | "email-address" | "phone-pad" | "url";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   multiline?: boolean;
 }) {

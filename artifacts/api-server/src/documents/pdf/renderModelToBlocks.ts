@@ -81,6 +81,7 @@ function alignClass(a: TableCell["align"] | TableColumn["align"]): string {
 
 function coverBlock(c: CoverSpec): DocBlock {
   const photo = isHttps(c.photoUrl) ? c.photoUrl : undefined;
+  const logo = isHttps(c.logoUrl) ? c.logoUrl : undefined;
   const cells = c.cells
     .map(
       (cell) =>
@@ -92,6 +93,7 @@ function coverBlock(c: CoverSpec): DocBlock {
   const html = `<div class="cover">
     ${photo ? `<img class="cover-photo" src="${esc(photo)}" />` : ""}
     ${photo ? `<div class="cover-overlay"></div>` : `<div class="cover-frame"></div>`}
+    ${logo ? `<img class="cover-logo" src="${esc(logo)}" />` : ""}
     <div class="cover-date">${esc(c.date)}</div>
     <div class="cover-inner">
       <div class="cover-eyebrow">${esc(c.eyebrow)}</div>
