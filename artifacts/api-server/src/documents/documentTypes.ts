@@ -375,6 +375,14 @@ export interface SurveySeaTrialData {
   weather?: string | null;
   sea_state?: string | null;
   narrative?: string | null;
+  rpm_table_columns?: Array<{
+    id?: string | null;
+    label?: string | null;
+  }> | null;
+  rpm_table_rows?: Array<{
+    id?: string | null;
+    cells?: Record<string, string | number | null | undefined> | null;
+  }> | null;
   rpm_table?: Array<{
     rpm?: number | null;
     coolant_p?: number | null;

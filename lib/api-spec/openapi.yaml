@@ -4297,6 +4297,26 @@ components:
         weather: { type: ["string", "null"] }
         sea_state: { type: ["string", "null"] }
         narrative: { type: ["string", "null"] }
+        rpm_table_columns:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: ["string", "null"] }
+              label: { type: ["string", "null"] }
+        rpm_table_rows:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: ["string", "null"] }
+              cells:
+                type: ["object", "null"]
+                additionalProperties:
+                  oneOf:
+                    - type: string
+                    - type: number
+                    - type: "null"
         rpm_table:
           type: array
           items:
@@ -4316,6 +4336,26 @@ components:
         weather: { type: ["string", "null"] }
         sea_state: { type: ["string", "null"] }
         narrative: { type: ["string", "null"] }
+        rpm_table_columns:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: ["string", "null"] }
+              label: { type: ["string", "null"] }
+        rpm_table_rows:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: ["string", "null"] }
+              cells:
+                type: ["object", "null"]
+                additionalProperties:
+                  oneOf:
+                    - type: string
+                    - type: number
+                    - type: "null"
         rpm_table:
           type: array
           items:

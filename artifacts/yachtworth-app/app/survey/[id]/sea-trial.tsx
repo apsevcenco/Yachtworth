@@ -39,14 +39,34 @@ type RpmRow = {
   speed: string;
 };
 
-const EMPTY_ROW: RpmRow = {
-  rpm: "",
-  coolant_p: "",
-  coolant_s: "",
-  oil_p: "",
-  oil_s: "",
-  speed: "",
+type TrialColumn = {
+  id: string;
+  label: string;
 };
+
+type TrialTableRow = {
+  id: string;
+  cells: Record<string, string>;
+};
+
+const DEFAULT_COLUMNS: TrialColumn[] = [
+  { id: "rpm", label: "RPM" },
+  { id: "coolant_p", label: "Cool P" },
+  { id: "coolant_s", label: "Cool S" },
+  { id: "oil_p", label: "Oil P" },
+  { id: "oil_s", label: "Oil S" },
+  { id: "speed", label: "Speed" },
+];
+
+const LEGACY_KEYS = DEFAULT_COLUMNS.map((c) => c.id) as Array<keyof RpmRow>;
+
+function makeId(prefix: string): string {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function emptyCells(columns: TrialColumn[]): Record<string, string> {
+  return Object.fromEntries(columns.map((c) => [c.id, ""]));
+}
 
 function toNum(s: string): number | null {
   const t = s.trim();
@@ -86,7 +106,10 @@ export default function SeaTrialScreen() {
   const [maxSpeed, setMaxSpeed] = useState("");
   const [narrative, setNarrative] = useState("");
   const [observations, setObservations] = useState("");
-  const [rpmRows, setRpmRows] = useState<RpmRow[]>([{ ...EMPTY_ROW }]);
+  const [tableColumns, setTableColumns] = useState<TrialColumn[]>(DEFAULT_COLUMNS);
+  const [tableRows, setTableRows] = useState<TrialTableRow[]>([
+    { id: makeId("row"), cells: emptyCells(DEFAULT_COLUMNS) },
+  ]);
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -107,56 +130,133 @@ export default function SeaTrialScreen() {
     setMaxSpeed(fromNum(st.max_speed));
     setNarrative(st.narrative ?? "");
     setObservations(st.additional_observations ?? "");
-    const rows = Array.isArray(st.rpm_table) ? st.rpm_table : [];
-    if (rows.length > 0) {
-      setRpmRows(
-        rows.map((r) => ({
-          rpm: fromNum(r.rpm),
-          coolant_p: fromNum(r.coolant_p),
-          coolant_s: fromNum(r.coolant_s),
-          oil_p: fromNum(r.oil_p),
-          oil_s: fromNum(r.oil_s),
-          speed: fromNum(r.speed),
-        })),
+    const savedColumns = Array.isArray(st.rpm_table_columns)
+      ? st.rpm_table_columns
+          .map((c, i) => ({
+            id: typeof c.id === "string" && c.id.trim() ? c.id : `col_${i + 1}`,
+            label:
+              typeof c.label === "string" && c.label.trim()
+                ? c.label
+                : `Column ${i + 1}`,
+          }))
+          .filter((c) => c.id.trim())
+      : [];
+    const columns = savedColumns.length ? savedColumns : DEFAULT_COLUMNS;
+    setTableColumns(columns);
+
+    const savedRows = Array.isArray(st.rpm_table_rows) ? st.rpm_table_rows : [];
+    if (savedRows.length > 0) {
+      setTableRows(
+        savedRows.map((r, i) => {
+          const sourceCells =
+            r && typeof r.cells === "object" && r.cells != null
+              ? (r.cells as Record<string, unknown>)
+              : {};
+          return {
+            id: typeof r.id === "string" && r.id.trim() ? r.id : `row_${i + 1}`,
+            cells: Object.fromEntries(
+              columns.map((c) => {
+                const value = sourceCells[c.id];
+                return [c.id, value == null ? "" : String(value)];
+              }),
+            ),
+          };
+        }),
+      );
+    } else {
+      const rows = Array.isArray(st.rpm_table) ? st.rpm_table : [];
+      setTableRows(
+        rows.length > 0
+          ? rows.map((r, i) => ({
+              id: `row_${i + 1}`,
+              cells: Object.fromEntries(
+                columns.map((c) => {
+                  const key = c.id as keyof RpmRow;
+                  return [c.id, fromNum((r as Record<string, number | null | undefined>)[key])];
+                }),
+              ),
+            }))
+          : [{ id: makeId("row"), cells: emptyCells(columns) }],
       );
     }
     setHydrated(true);
   }, [detailQ.data, hydrated]);
 
-  const setRowField = (idx: number, k: keyof RpmRow, v: string) => {
-    setRpmRows((prev) =>
-      prev.map((row, i) => (i === idx ? { ...row, [k]: v } : row)),
+  const setColumnLabel = (columnId: string, label: string) => {
+    setTableColumns((prev) =>
+      prev.map((c) => (c.id === columnId ? { ...c, label } : c)),
     );
   };
 
-  const addRow = () => setRpmRows((prev) => [...prev, { ...EMPTY_ROW }]);
-  const removeRow = (idx: number) =>
-    setRpmRows((prev) =>
-      prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx),
+  const addColumn = () => {
+    const column: TrialColumn = {
+      id: makeId("col"),
+      label: `Column ${tableColumns.length + 1}`,
+    };
+    setTableColumns((prev) => [...prev, column]);
+    setTableRows((prev) =>
+      prev.map((row) => ({ ...row, cells: { ...row.cells, [column.id]: "" } })),
+    );
+  };
+
+  const removeColumn = (columnId: string) => {
+    if (tableColumns.length <= 1) return;
+    setTableColumns((prev) => prev.filter((c) => c.id !== columnId));
+    setTableRows((prev) =>
+      prev.map((row) => {
+        const nextCells = { ...row.cells };
+        delete nextCells[columnId];
+        return { ...row, cells: nextCells };
+      }),
+    );
+  };
+
+  const setCell = (rowId: string, columnId: string, value: string) => {
+    setTableRows((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? { ...row, cells: { ...row.cells, [columnId]: value } }
+          : row,
+      ),
+    );
+  };
+
+  const addRow = () =>
+    setTableRows((prev) => [
+      ...prev,
+      { id: makeId("row"), cells: emptyCells(tableColumns) },
+    ]);
+  const removeRow = (rowId: string) =>
+    setTableRows((prev) =>
+      prev.length <= 1 ? prev : prev.filter((row) => row.id !== rowId),
     );
 
   const onSave = async () => {
     if (!reportId) return;
     setSaving(true);
     try {
-      const rpmTable = rpmRows
-        .map((r) => ({
-          rpm: toNum(r.rpm),
-          coolant_p: toNum(r.coolant_p),
-          coolant_s: toNum(r.coolant_s),
-          oil_p: toNum(r.oil_p),
-          oil_s: toNum(r.oil_s),
-          speed: toNum(r.speed),
+      const cleanColumns = tableColumns.map((c, i) => ({
+        id: c.id,
+        label: c.label.trim() || `Column ${i + 1}`,
+      }));
+      const cleanRows = tableRows
+        .map((row) => ({
+          id: row.id,
+          cells: Object.fromEntries(
+            cleanColumns.map((c) => [c.id, (row.cells[c.id] ?? "").trim()]),
+          ),
         }))
-        .filter(
-          (r) =>
-            r.rpm != null ||
-            r.coolant_p != null ||
-            r.coolant_s != null ||
-            r.oil_p != null ||
-            r.oil_s != null ||
-            r.speed != null,
-        );
+        .filter((row) => Object.values(row.cells).some((value) => value !== ""));
+      const rpmTable = cleanRows
+        .map((row) => ({
+          rpm: toNum(row.cells.rpm ?? ""),
+          coolant_p: toNum(row.cells.coolant_p ?? ""),
+          coolant_s: toNum(row.cells.coolant_s ?? ""),
+          oil_p: toNum(row.cells.oil_p ?? ""),
+          oil_s: toNum(row.cells.oil_s ?? ""),
+          speed: toNum(row.cells.speed ?? ""),
+        }))
+        .filter((row) => LEGACY_KEYS.some((key) => row[key] != null));
       await upsertM.mutateAsync({
         id: reportId,
         data: {
@@ -165,6 +265,8 @@ export default function SeaTrialScreen() {
           weather: weather.trim() || null,
           sea_state: seaState.trim() || null,
           narrative: narrative.trim() || null,
+          rpm_table_columns: cleanColumns,
+          rpm_table_rows: cleanRows,
           rpm_table: rpmTable,
           tickover_rpm: toNum(tickoverRpm) as number | null,
           tickover_speed: toNum(tickoverSpeed),
@@ -264,57 +366,72 @@ export default function SeaTrialScreen() {
           />
         </View>
 
-        <Text style={[styles.sectionHead, { marginTop: 8 }]}>RPM TABLE</Text>
-        <View style={styles.rpmHeader}>
-          <Text style={[styles.rpmHeadCell, { flex: 1.2 }]}>RPM</Text>
-          <Text style={styles.rpmHeadCell}>Cool P</Text>
-          <Text style={styles.rpmHeadCell}>Cool S</Text>
-          <Text style={styles.rpmHeadCell}>Oil P</Text>
-          <Text style={styles.rpmHeadCell}>Oil S</Text>
-          <Text style={styles.rpmHeadCell}>Speed</Text>
-          <View style={{ width: 28 }} />
+        <View style={styles.tableTitleRow}>
+          <Text style={[styles.sectionHead, { marginTop: 8 }]}>SEA TRIAL TABLE</Text>
+          <Pressable onPress={addColumn} style={styles.addColumnBtn}>
+            <Feather name="columns" size={13} color={GOLD} />
+            <Text style={styles.addRowText}>Add column</Text>
+          </Pressable>
         </View>
-        {rpmRows.map((row, i) => (
-          <View key={i} style={styles.rpmRow}>
-            <RpmInput
-              value={row.rpm}
-              onChange={(v) => setRowField(i, "rpm", v)}
-              flex={1.2}
-            />
-            <RpmInput
-              value={row.coolant_p}
-              onChange={(v) => setRowField(i, "coolant_p", v)}
-            />
-            <RpmInput
-              value={row.coolant_s}
-              onChange={(v) => setRowField(i, "coolant_s", v)}
-            />
-            <RpmInput
-              value={row.oil_p}
-              onChange={(v) => setRowField(i, "oil_p", v)}
-            />
-            <RpmInput
-              value={row.oil_s}
-              onChange={(v) => setRowField(i, "oil_s", v)}
-            />
-            <RpmInput
-              value={row.speed}
-              onChange={(v) => setRowField(i, "speed", v)}
-            />
-            <Pressable
-              onPress={() => removeRow(i)}
-              hitSlop={8}
-              style={styles.rowDel}
-              disabled={rpmRows.length <= 1}
-            >
-              <Feather
-                name="x"
-                size={14}
-                color={rpmRows.length <= 1 ? "rgba(232,123,123,0.35)" : DANGER}
-              />
-            </Pressable>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dynamicTableContent}
+        >
+          <View>
+            <View style={styles.dynamicHeader}>
+              {tableColumns.map((column) => (
+                <View key={column.id} style={styles.dynamicHeaderCell}>
+                  <TextInput
+                    value={column.label}
+                    onChangeText={(v) => setColumnLabel(column.id, v)}
+                    placeholder="Column"
+                    placeholderTextColor={MUTED}
+                    style={styles.columnNameInput}
+                  />
+                  <Pressable
+                    onPress={() => removeColumn(column.id)}
+                    hitSlop={8}
+                    style={styles.columnDelete}
+                    disabled={tableColumns.length <= 1}
+                  >
+                    <Feather
+                      name="x"
+                      size={13}
+                      color={tableColumns.length <= 1 ? "rgba(232,123,123,0.35)" : DANGER}
+                    />
+                  </Pressable>
+                </View>
+              ))}
+              <View style={styles.rowActionSpacer} />
+            </View>
+            {tableRows.map((row) => (
+              <View key={row.id} style={styles.dynamicRow}>
+                {tableColumns.map((column) => (
+                  <TextInput
+                    key={column.id}
+                    value={row.cells[column.id] ?? ""}
+                    onChangeText={(v) => setCell(row.id, column.id, v)}
+                    style={styles.dynamicCell}
+                    placeholderTextColor={MUTED}
+                  />
+                ))}
+                <Pressable
+                  onPress={() => removeRow(row.id)}
+                  hitSlop={8}
+                  style={styles.rowDel}
+                  disabled={tableRows.length <= 1}
+                >
+                  <Feather
+                    name="x"
+                    size={14}
+                    color={tableRows.length <= 1 ? "rgba(232,123,123,0.35)" : DANGER}
+                  />
+                </Pressable>
+              </View>
+            ))}
           </View>
-        ))}
+        </ScrollView>
         <Pressable onPress={addRow} style={styles.addRowBtn}>
           <Feather name="plus" size={14} color={GOLD} />
           <Text style={styles.addRowText}>Add row</Text>
@@ -395,26 +512,6 @@ function Field({
   );
 }
 
-function RpmInput({
-  value,
-  onChange,
-  flex,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  flex?: number;
-}) {
-  return (
-    <TextInput
-      value={value}
-      onChangeText={onChange}
-      keyboardType="numeric"
-      style={[styles.rpmCell, flex ? { flex } : { flex: 1 }]}
-      placeholderTextColor={MUTED}
-    />
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
   center: { alignItems: "center", justifyContent: "center" },
@@ -476,6 +573,83 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: "uppercase",
     marginBottom: 8,
+  },
+  tableTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  addColumnBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.4)",
+  },
+  dynamicTableContent: {
+    paddingRight: 18,
+    paddingBottom: 4,
+  },
+  dynamicHeader: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 6,
+  },
+  dynamicHeaderCell: {
+    width: 96,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: NAVY_DEEP,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.28)",
+    paddingLeft: 8,
+    paddingRight: 4,
+  },
+  columnNameInput: {
+    flex: 1,
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    paddingVertical: 8,
+  },
+  columnDelete: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dynamicRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  dynamicCell: {
+    width: 96,
+    minHeight: 42,
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 9,
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    textAlign: "center",
+  },
+  rowActionSpacer: {
+    width: 28,
   },
   rpmHeader: {
     flexDirection: "row",

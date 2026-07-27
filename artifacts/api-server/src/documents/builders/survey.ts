@@ -32,6 +32,62 @@ function clean(s: unknown): string {
   return s == null || s === "" ? "-" : String(s);
 }
 
+type SeaTrialColumn = { id: string; label: string };
+type SeaTrialRow = { id?: string | null; cells: Record<string, unknown> };
+
+const LEGACY_SEA_TRIAL_COLUMNS: SeaTrialColumn[] = [
+  { id: "rpm", label: "RPM" },
+  { id: "coolant_p", label: "Coolant P" },
+  { id: "coolant_s", label: "Coolant S" },
+  { id: "oil_p", label: "Oil P" },
+  { id: "oil_s", label: "Oil S" },
+  { id: "speed", label: "Speed" },
+];
+
+function seaTrialColumns(raw: unknown): SeaTrialColumn[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((col, i) => {
+      if (!isRecord(col)) return null;
+      const id = typeof col["id"] === "string" && col["id"].trim() ? col["id"].trim() : `col_${i + 1}`;
+      const label =
+        typeof col["label"] === "string" && col["label"].trim()
+          ? col["label"].trim()
+          : `Column ${i + 1}`;
+      return { id, label };
+    })
+    .filter((col): col is SeaTrialColumn => Boolean(col));
+}
+
+function seaTrialRows(raw: unknown, columns: SeaTrialColumn[]): SeaTrialRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: SeaTrialRow[] = [];
+  for (const row of raw) {
+    if (isRecord(row) && isRecord(row["cells"])) {
+      const sourceCells = row["cells"];
+      const cells = Object.fromEntries(columns.map((col) => [col.id, sourceCells[col.id]]));
+      rows.push({
+        id: typeof row["id"] === "string" ? row["id"] : null,
+        cells,
+      });
+    }
+  }
+  return rows.filter((row) => columns.some((col) => clean(row.cells[col.id]) !== "-"));
+}
+
+function legacySeaTrialRows(raw: unknown): SeaTrialRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: SeaTrialRow[] = [];
+  for (const row of raw) {
+    if (isRecord(row)) {
+      rows.push({
+        cells: Object.fromEntries(LEGACY_SEA_TRIAL_COLUMNS.map((col) => [col.id, row[col.id]])),
+      });
+    }
+  }
+  return rows.filter((row) => LEGACY_SEA_TRIAL_COLUMNS.some((col) => clean(row.cells[col.id]) !== "-"));
+}
+
 function num(v: unknown): number | null {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? Math.round(n * 10) / 10 : null;
@@ -581,27 +637,35 @@ export function buildSurveyModel(input: {
       layout: "pairs",
     });
     if (sea.narrative) body.push({ kind: "paragraph", heading: "Sea Trial Narrative", text: sea.narrative, panel: true });
-    const rpmRows = (sea.rpm_table ?? []).map((row) => [
-      { text: clean(row.rpm) },
-      { text: clean(row.coolant_p), align: "right" as const },
-      { text: clean(row.coolant_s), align: "right" as const },
-      { text: clean(row.oil_p), align: "right" as const },
-      { text: clean(row.oil_s), align: "right" as const },
-      { text: row.speed != null ? `${row.speed} kn` : "-", align: "right" as const },
-    ]);
-    if (rpmRows.length) {
-      body.push({
-        kind: "table",
-        heading: "RPM Table",
-        columns: [
-          { header: "RPM" },
-          { header: "Coolant P", align: "right" },
-          { header: "Coolant S", align: "right" },
-          { header: "Oil P", align: "right" },
-          { header: "Oil S", align: "right" },
-          { header: "Speed", align: "right" },
-        ],
-        rows: rpmRows,
+    let trialColumns = seaTrialColumns(sea.rpm_table_columns);
+    let trialRows = seaTrialRows(sea.rpm_table_rows, trialColumns);
+    if (!trialColumns.length || !trialRows.length) {
+      trialColumns = LEGACY_SEA_TRIAL_COLUMNS;
+      trialRows = legacySeaTrialRows(sea.rpm_table);
+    }
+    if (trialColumns.length && trialRows.length) {
+      const maxColumnsPerTable = 6;
+      const chunks: SeaTrialColumn[][] = [];
+      for (let i = 0; i < trialColumns.length; i += maxColumnsPerTable) {
+        chunks.push(trialColumns.slice(i, i + maxColumnsPerTable));
+      }
+      chunks.forEach((columns, idx) => {
+        const rows: TableCell[][] = trialRows.map((row) =>
+          columns.map((col) => ({ text: clean(row.cells[col.id]), align: "center" as const })),
+        );
+        body.push({
+          kind: "table",
+          heading:
+            chunks.length > 1
+              ? `Sea Trial Table (${idx + 1}/${chunks.length})`
+              : "Sea Trial Table",
+          columns: columns.map((col) => ({
+            header: col.label,
+            widthPct: Math.floor(100 / columns.length),
+            align: "center" as const,
+          })),
+          rows,
+        });
       });
     }
   }

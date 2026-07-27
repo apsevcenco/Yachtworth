@@ -553,6 +553,8 @@ router.put(
       weather: body.weather ?? null,
       sea_state: body.sea_state ?? null,
       narrative: body.narrative ?? null,
+      rpm_table_columns: body.rpm_table_columns ?? [],
+      rpm_table_rows: body.rpm_table_rows ?? [],
       rpm_table: body.rpm_table ?? [],
       tickover_rpm: body.tickover_rpm ?? null,
       tickover_speed: body.tickover_speed ?? null,

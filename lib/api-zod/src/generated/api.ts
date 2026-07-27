@@ -5327,6 +5327,22 @@ export const GetSurveyReportResponse = zod.object({
         weather: zod.string().nullish(),
         sea_state: zod.string().nullish(),
         narrative: zod.string().nullish(),
+        rpm_table_columns: zod
+          .array(
+            zod.object({
+              id: zod.string().nullish(),
+              label: zod.string().nullish(),
+            }),
+          )
+          .optional(),
+        rpm_table_rows: zod
+          .array(
+            zod.object({
+              id: zod.string().nullish(),
+              cells: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.null()])).nullish(),
+            }),
+          )
+          .optional(),
         rpm_table: zod
           .array(
             zod.object({
@@ -5594,6 +5610,22 @@ export const UpsertSurveySeaTrialBody = zod.object({
   weather: zod.string().nullish(),
   sea_state: zod.string().nullish(),
   narrative: zod.string().nullish(),
+  rpm_table_columns: zod
+    .array(
+      zod.object({
+        id: zod.string().nullish(),
+        label: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  rpm_table_rows: zod
+    .array(
+      zod.object({
+        id: zod.string().nullish(),
+        cells: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.null()])).nullish(),
+      }),
+    )
+    .optional(),
   rpm_table: zod
     .array(
       zod.object({
@@ -5620,6 +5652,22 @@ export const UpsertSurveySeaTrialResponse = zod.object({
   weather: zod.string().nullish(),
   sea_state: zod.string().nullish(),
   narrative: zod.string().nullish(),
+  rpm_table_columns: zod
+    .array(
+      zod.object({
+        id: zod.string().nullish(),
+        label: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  rpm_table_rows: zod
+    .array(
+      zod.object({
+        id: zod.string().nullish(),
+        cells: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.null()])).nullish(),
+      }),
+    )
+    .optional(),
   rpm_table: zod
     .array(
       zod.object({

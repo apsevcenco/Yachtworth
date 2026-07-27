@@ -18,6 +18,18 @@ export interface SurveySeaTrialInput {
   sea_state?: string | null;
   /** @nullable */
   narrative?: string | null;
+  rpm_table_columns?: {
+    /** @nullable */
+    id?: string | null;
+    /** @nullable */
+    label?: string | null;
+  }[];
+  rpm_table_rows?: {
+    /** @nullable */
+    id?: string | null;
+    /** @nullable */
+    cells?: Record<string, string | number | null> | null;
+  }[];
   rpm_table?: SurveyRpmRow[];
   /** @nullable */
   tickover_rpm?: number | null;
