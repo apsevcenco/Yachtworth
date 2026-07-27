@@ -14,9 +14,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   compareFlags,
+  estimateFlagFees,
   getFlagRegistries,
   type FlagComparisonInput,
   type FlagComparisonResult,
+  type FlagFeeEstimateResponse,
   type FlagRegistry,
 } from "../lib/flagIntelligence";
 
@@ -30,7 +32,7 @@ const DIVIDER = "rgba(247,243,236,0.1)";
 const GREEN = "#7BD389";
 const RED = "#E77777";
 
-type Mode = "flags" | "advice" | "comparison";
+type Mode = "flags" | "advice" | "comparison" | "fees";
 
 type FormState = {
   loa_m: string;
@@ -74,6 +76,7 @@ const MODES: Array<{ key: Mode; title: string; subtitle: string; icon: React.Com
   { key: "flags", title: "All Flags", subtitle: "Open a flag card and review registry terms", icon: "list" },
   { key: "advice", title: "Registration Advice", subtitle: "Profile the yacht and get a ranked recommendation", icon: "compass" },
   { key: "comparison", title: "Comparison", subtitle: "Compare selected registries side by side", icon: "columns" },
+  { key: "fees", title: "Fee Estimate", subtitle: "Preliminary confirmed registry-fee estimate", icon: "dollar-sign" },
 ];
 
 function toNumber(value: string): number | null {
@@ -130,6 +133,10 @@ function textOrVerify(value: string | null | undefined): string {
   return value?.trim() || "To verify";
 }
 
+function statusLabel(value: string | null | undefined): string {
+  return textOrVerify(value).replace(/_/g, " ");
+}
+
 function Field({
   label,
   value,
@@ -181,6 +188,10 @@ export default function FlagIntelligenceScreen() {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feeFlag, setFeeFlag] = useState<string>("");
+  const [feeResult, setFeeResult] = useState<FlagFeeEstimateResponse | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeError, setFeeError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +204,7 @@ export default function FlagIntelligenceScreen() {
         setFlags(response.registries);
         setExpandedCode(response.registries[0]?.code ?? null);
         setComparisonCodes(response.registries.slice(0, 3).map((f) => f.code));
+        setFeeFlag(response.registries[0]?.code ?? "");
       } catch (err) {
         if (!cancelled) setFlagsError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -236,6 +248,29 @@ export default function FlagIntelligenceScreen() {
       if (current.includes(code)) return current.filter((c) => c !== code);
       return [...current, code].slice(-4);
     });
+  }
+
+  async function runFeeEstimate() {
+    if (!feeFlag) return;
+    setFeeLoading(true);
+    setFeeError(null);
+    try {
+      setFeeResult(
+        await estimateFlagFees({
+          flag: feeFlag,
+          registration_type: form.use_type,
+          loa_m: toNumber(form.loa_m),
+          gt: toNumber(form.gt),
+          mortgage_required: form.mortgage_needed,
+          radio_licence_required: true,
+          provisional_or_permanent: form.registration_type === "new_registration" ? "permanent" : "reflag",
+        }),
+      );
+    } catch (err) {
+      setFeeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setFeeLoading(false);
+    }
   }
 
   return (
@@ -295,7 +330,19 @@ export default function FlagIntelligenceScreen() {
             runCompare={runCompare}
           />
         ) : (
+          mode === "comparison" ? (
           <Comparison flags={flags} comparisonFlags={comparisonFlags} comparisonCodes={comparisonCodes} onToggle={toggleComparison} />
+          ) : (
+            <FeeEstimate
+              flags={flags}
+              selectedCode={feeFlag}
+              onSelect={setFeeFlag}
+              result={feeResult}
+              loading={feeLoading}
+              error={feeError}
+              onRun={runFeeEstimate}
+            />
+          )
         )}
       </ScrollView>
     </View>
@@ -477,12 +524,75 @@ function Comparison({
   );
 }
 
+function FeeEstimate({
+  flags,
+  selectedCode,
+  onSelect,
+  result,
+  loading,
+  error,
+  onRun,
+}: {
+  flags: FlagRegistry[];
+  selectedCode: string;
+  onSelect: (code: string) => void;
+  result: FlagFeeEstimateResponse | null;
+  loading: boolean;
+  error: string | null;
+  onRun: () => void;
+}) {
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelTitle}>Preliminary Fee Estimate</Text>
+      <Text style={styles.panelCopy}>
+        Uses confirmed registry fee rules only. External legal, company, class, survey, tax, VAT, insurance and crew costs are excluded unless explicitly stored as official registry fees.
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
+        {flags.map((flag) => (
+          <Pressable key={flag.code} onPress={() => onSelect(flag.code)} style={[styles.compareChip, selectedCode === flag.code && styles.compareChipActive]}>
+            <Text style={[styles.compareChipText, selectedCode === flag.code && styles.compareChipTextActive]}>{flag.flag_name}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <Pressable onPress={onRun} disabled={loading || !selectedCode} style={[styles.primaryButton, loading && { opacity: 0.7 }]}>
+        {loading ? <ActivityIndicator color={NAVY} /> : <Feather name="dollar-sign" size={18} color={NAVY} />}
+        <Text style={styles.primaryText}>Calculate confirmed fees</Text>
+      </Pressable>
+      {result ? (
+        <View style={styles.feeResult}>
+          <Text style={styles.warningText}>{result.label}</Text>
+          <View style={styles.factGrid}>
+            {Object.entries(result.totals_by_currency).map(([currency, amount]) => (
+              <Fact key={currency} label={`Total ${currency}`} value={`${currency} ${amount.toLocaleString("en-GB")}`} />
+            ))}
+            <Fact label="Confirmed items" value={String(result.confirmed_registry_fees.length)} />
+            <Fact label="Formula items" value={String(result.formula_based_fees.length)} />
+            <Fact label="Quote required" value={String(result.separately_quoted_fees.length)} />
+          </View>
+          <TextBlock title="Excluded external costs" text={result.excluded_external_costs.join(", ")} />
+          {result.missing_data.length ? <TextBlock title="Missing data" text={result.missing_data.join("; ")} /> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function FlagCard({ flag }: { flag: FlagRegistry }) {
+  const advisor = flag.advisor;
   return (
     <View style={styles.flagCard}>
+      <View style={styles.statusRow}>
+        <StatusBadge label={advisor?.is_eu_flag ? "EU flag" : "Non-EU flag"} tone={advisor?.is_eu_flag ? "green" : "gold"} />
+        <StatusBadge label={statusLabel(advisor?.confidence_level)} tone="gold" />
+        <StatusBadge label={statusLabel(advisor?.coverage_status)} tone={advisor?.data_quality_status === "research_required" ? "red" : "green"} />
+        <StatusBadge label={statusLabel(advisor?.data_quality_status)} tone={advisor?.data_quality_status === "research_required" ? "red" : "green"} />
+      </View>
       <View style={styles.factGrid}>
         <Fact label="Private" value={yesNo(flag.private_available)} />
         <Fact label="Commercial" value={yesNo(flag.commercial_available)} />
+        <Fact label="Private status" value={statusLabel(advisor?.private_registration_status)} />
+        <Fact label="Commercial status" value={statusLabel(advisor?.commercial_registration_status)} />
         <Fact label="Registration cost" value={money(flag.registration_cost_eur)} />
         <Fact label="Annual fees" value={money(flag.annual_fee_eur)} />
         <Fact label="Processing" value={processing(flag)} />
@@ -495,16 +605,25 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
         <Fact label="Accepted class" value={flag.accepted_class.length ? flag.accepted_class.join(", ") : "To verify"} />
       </View>
 
-      <TextBlock title="Eligibility" text={textOrVerify(flag.owner_nationality_restrictions)} />
-      <TextBlock title="Company structure" text={textOrVerify(flag.company_restrictions)} />
-      <TextBlock title="Crew" text={textOrVerify(flag.crew_restrictions)} />
-      <TextBlock title="VAT" text={textOrVerify(flag.vat_notes)} />
+      <TextBlock title="Official registry" text={textOrVerify(advisor?.official_registry_name)} />
+      <TextBlock title="Eligibility" text={textOrVerify(advisor?.owner_eligibility ?? flag.owner_nationality_restrictions)} />
+      <TextBlock title="Foreign company ownership" text={textOrVerify(advisor?.foreign_company_ownership ?? flag.company_restrictions)} />
+      <TextBlock title="Local / resident agent" text={textOrVerify(advisor?.local_agent_requirement)} />
+      <TextBlock title="Provisional registration" text={`${statusLabel(advisor?.provisional_registration_status)} / ${textOrVerify(advisor?.provisional_validity)}`} />
+      <TextBlock title="Permanent validity" text={textOrVerify(advisor?.permanent_validity)} />
+      <TextBlock title="Crew / safe manning" text={`${textOrVerify(advisor?.crew_note ?? flag.crew_restrictions)} / ${textOrVerify(advisor?.minimum_safe_manning)}`} />
+      <TextBlock title="Required documents" text={textOrVerify(advisor?.required_documents_summary)} />
+      <TextBlock title="VAT / tax" text={textOrVerify(advisor?.vat_tax_note ?? flag.vat_notes)} />
       <TextBlock title="Insurance" text={textOrVerify(flag.insurance_notes)} />
       <InfoList title="Advantages" items={flag.advantages} icon="check" />
       <InfoList title="Disadvantages" items={flag.disadvantages} icon="alert-circle" />
+      {advisor?.missing_verification_notes ? <TextBlock title="Missing / next verification" text={advisor.missing_verification_notes} /> : null}
 
       <Text style={styles.sectionHeading}>Official / legal contacts</Text>
-      {flag.official_website ? <Text style={styles.linkText}>{flag.official_website}</Text> : null}
+      {advisor?.last_verified_at ? <Text style={styles.sourceText}>Last verified: {advisor.last_verified_at}</Text> : null}
+      {advisor?.source_version ? <Text style={styles.sourceText}>Source version: {advisor.source_version}</Text> : null}
+      {advisor?.official_registry_url ?? flag.official_website ? <Text style={styles.linkText}>{advisor?.official_registry_url ?? flag.official_website}</Text> : null}
+      {advisor?.primary_fee_url ? <Text style={styles.linkText}>{advisor.primary_fee_url}</Text> : null}
       {flag.legal_partners.length ? (
         flag.legal_partners.map((partner) => (
           <View key={partner.name} style={styles.partnerCard}>
@@ -515,6 +634,15 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
       ) : (
         <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
       )}
+    </View>
+  );
+}
+
+function StatusBadge({ label, tone }: { label: string; tone: "green" | "gold" | "red" }) {
+  const color = tone === "green" ? GREEN : tone === "red" ? RED : GOLD;
+  return (
+    <View style={[styles.statusBadge, { borderColor: color }]}>
+      <Text style={[styles.statusBadgeText, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -598,6 +726,9 @@ const styles = StyleSheet.create({
   flagTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
   flagMeta: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
   flagCard: { borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, borderTopWidth: 0, backgroundColor: "rgba(8,22,51,0.7)", padding: 14 },
+  statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  statusBadge: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "rgba(8,22,51,0.75)" },
+  statusBadgeText: { fontFamily: "Inter_800ExtraBold", fontSize: 10, textTransform: "capitalize" },
   factGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   fact: { width: Platform.OS === "web" ? "31.5%" : "48%", borderRadius: 10, backgroundColor: NAVY_ELEV, padding: 10 },
   factLabel: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase" },
@@ -606,6 +737,8 @@ const styles = StyleSheet.create({
   sectionHeading: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 13, marginBottom: 8 },
   bodyText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, flex: 1 },
   linkText: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 13, lineHeight: 19, marginBottom: 8 },
+  sourceText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12, lineHeight: 17, marginBottom: 4 },
+  warningText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13, lineHeight: 19, marginTop: 14, marginBottom: 10 },
   listRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 7 },
   partnerCard: { borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, padding: 10, marginBottom: 8 },
   partnerName: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13 },
@@ -627,6 +760,7 @@ const styles = StyleSheet.create({
   compareChipActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
   compareChipText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
   compareChipTextActive: { color: GOLD },
+  feeResult: { marginTop: 14, borderTopWidth: 1, borderTopColor: DIVIDER, paddingTop: 14 },
   comparisonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   comparisonCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? "31%" : "100%", borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, gap: 8 },
   compareTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 17, marginBottom: 3 },

@@ -1,0 +1,10 @@
+{
+  "filename": "2026-07-27 Yachtworth_Flag_Registry_Base_v1.xlsx",
+  "file_hash": "40349cba0b925aeb86a537cda824191739b07ee27bde887899e47176edbb0e62",
+  "source_version": "Yachtworth_Flag_Registry_Base_v1",
+  "flags": 21,
+  "fees": 32,
+  "sources": 28,
+  "generated_at": "2026-07-27T18:04:06Z",
+  "sql_file": "C:\\Users\\Andrey\\Yachtworth\\exports\\flag_advisor\\flag_advisor_import.sql"
+}
