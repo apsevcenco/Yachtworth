@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -14,8 +14,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   compareFlags,
+  getFlagRegistries,
   type FlagComparisonInput,
   type FlagComparisonResult,
+  type FlagRegistry,
 } from "../lib/flagIntelligence";
 
 const NAVY = "#0B1E3F";
@@ -27,6 +29,8 @@ const MUTED = "rgba(247,243,236,0.62)";
 const DIVIDER = "rgba(247,243,236,0.1)";
 const GREEN = "#7BD389";
 const RED = "#E77777";
+
+type Mode = "flags" | "advice" | "comparison";
 
 type FormState = {
   loa_m: string;
@@ -65,6 +69,12 @@ const DEFAULT_FORM: FormState = {
   registration_type: "new_registration",
   mortgage_needed: true,
 };
+
+const MODES: Array<{ key: Mode; title: string; subtitle: string; icon: React.ComponentProps<typeof Feather>["name"] }> = [
+  { key: "flags", title: "All Flags", subtitle: "Open a flag card and review registry terms", icon: "list" },
+  { key: "advice", title: "Registration Advice", subtitle: "Profile the yacht and get a ranked recommendation", icon: "compass" },
+  { key: "comparison", title: "Comparison", subtitle: "Compare selected registries side by side", icon: "columns" },
+];
 
 function toNumber(value: string): number | null {
   const cleaned = value.replace(/[,\s]/g, "");
@@ -106,10 +116,18 @@ function money(value: number | null): string {
   return `EUR ${value.toLocaleString("en-GB")}`;
 }
 
-function processing(flag: FlagComparisonResult): string {
+function yesNo(value: boolean): string {
+  return value ? "Yes" : "No";
+}
+
+function processing(flag: FlagRegistry): string {
   if (flag.processing_time_days_min == null && flag.processing_time_days_max == null) return "To verify";
   if (flag.processing_time_days_min === flag.processing_time_days_max) return `${flag.processing_time_days_min} days`;
   return `${flag.processing_time_days_min ?? "?"}-${flag.processing_time_days_max ?? "?"} days`;
+}
+
+function textOrVerify(value: string | null | undefined): string {
+  return value?.trim() || "To verify";
 }
 
 function Field({
@@ -140,15 +158,7 @@ function Field({
   );
 }
 
-function Toggle({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+function Toggle({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={[styles.toggle, active && styles.toggleActive]}>
       <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{label}</Text>
@@ -160,24 +170,60 @@ export default function FlagIntelligenceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const [mode, setMode] = useState<Mode>("flags");
+  const [flags, setFlags] = useState<FlagRegistry[]>([]);
+  const [flagsLoading, setFlagsLoading] = useState(true);
+  const [flagsError, setFlagsError] = useState<string | null>(null);
+  const [expandedCode, setExpandedCode] = useState<string | null>(null);
+  const [comparisonCodes, setComparisonCodes] = useState<string[]>([]);
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [results, setResults] = useState<FlagComparisonResult[]>([]);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFlags() {
+      setFlagsLoading(true);
+      setFlagsError(null);
+      try {
+        const response = await getFlagRegistries();
+        if (cancelled) return;
+        setFlags(response.registries);
+        setExpandedCode(response.registries[0]?.code ?? null);
+        setComparisonCodes(response.registries.slice(0, 3).map((f) => f.code));
+      } catch (err) {
+        if (!cancelled) setFlagsError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setFlagsLoading(false);
+      }
+    }
+    loadFlags().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const selected = useMemo(
     () => results.find((r) => r.code === selectedCode) ?? results[0] ?? null,
     [results, selectedCode],
   );
 
+  const comparisonFlags = useMemo(() => {
+    const codes = comparisonCodes.length ? comparisonCodes : flags.slice(0, 3).map((f) => f.code);
+    return codes.map((code) => flags.find((flag) => flag.code === code)).filter((flag): flag is FlagRegistry => Boolean(flag));
+  }, [comparisonCodes, flags]);
+
   async function runCompare() {
+    setMode("advice");
     setLoading(true);
     setError(null);
     try {
       const response = await compareFlags(asInput(form));
       setResults(response.results);
       setSelectedCode(response.results[0]?.code ?? null);
+      if (response.results.length) setComparisonCodes(response.results.slice(0, 3).map((f) => f.code));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -185,14 +231,17 @@ export default function FlagIntelligenceScreen() {
     }
   }
 
+  function toggleComparison(code: string) {
+    setComparisonCodes((current) => {
+      if (current.includes(code)) return current.filter((c) => c !== code);
+      return [...current, code].slice(-4);
+    });
+  }
+
   return (
     <View style={[styles.root, { paddingTop: (isWeb ? 62 : insets.top) + 64 }]}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + 42 },
-          isWeb && styles.webScroll,
-        ]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 42 }, isWeb && styles.webScroll]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topbar}>
@@ -202,126 +251,270 @@ export default function FlagIntelligenceScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.kicker}>YACHTWORTH</Text>
             <Text style={styles.title}>Flag Intelligence</Text>
+            <Text style={styles.subtitle}>Registry cards, advisory ranking and side-by-side comparison.</Text>
           </View>
         </View>
 
-        <View style={[styles.layout, isWeb && styles.webLayout]}>
-          <View style={[styles.panel, styles.formPanel]}>
-            <Text style={styles.panelTitle}>Yacht & owner profile</Text>
-            <View style={styles.segmentRow}>
-              <Toggle
-                label="Private"
-                active={form.use_type === "private"}
-                onPress={() => setForm((f) => ({ ...f, use_type: "private", charter: false }))}
-              />
-              <Toggle
-                label="Commercial"
-                active={form.use_type === "commercial"}
-                onPress={() => setForm((f) => ({ ...f, use_type: "commercial", charter: true }))}
-              />
-            </View>
-            <View style={styles.segmentRow}>
-              <Toggle label="New registration" active={form.registration_type === "new_registration"} onPress={() => setForm((f) => ({ ...f, registration_type: "new_registration" }))} />
-              <Toggle label="Reflag" active={form.registration_type === "reflag"} onPress={() => setForm((f) => ({ ...f, registration_type: "reflag" }))} />
-            </View>
-            <View style={styles.segmentRow}>
-              <Toggle label="Charter" active={form.charter} onPress={() => setForm((f) => ({ ...f, charter: !f.charter }))} />
-              <Toggle label="Mortgage needed" active={form.mortgage_needed} onPress={() => setForm((f) => ({ ...f, mortgage_needed: !f.mortgage_needed }))} />
-            </View>
-
-            <View style={styles.grid}>
-              <Field label="LOA (m)" value={form.loa_m} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, loa_m: v }))} />
-              <Field label="GT" value={form.gt} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, gt: v }))} />
-              <Field label="Year" value={form.year_built} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, year_built: v }))} />
-              <Field label="Value EUR" value={form.value_eur} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, value_eur: v }))} />
-              <Field label="Builder" value={form.builder} onChangeText={(v) => setForm((f) => ({ ...f, builder: v }))} />
-              <Field label="Current flag" value={form.current_flag} onChangeText={(v) => setForm((f) => ({ ...f, current_flag: v }))} />
-              <Field label="Owner nationality" value={form.owner_nationality} onChangeText={(v) => setForm((f) => ({ ...f, owner_nationality: v }))} />
-              <Field label="Owner residency" value={form.owner_residency} onChangeText={(v) => setForm((f) => ({ ...f, owner_residency: v }))} />
-              <Field label="Company country" value={form.company_country} onChangeText={(v) => setForm((f) => ({ ...f, company_country: v }))} />
-              <Field label="Crew nationality" value={form.crew_nationality} onChangeText={(v) => setForm((f) => ({ ...f, crew_nationality: v }))} />
-              <Field label="Navigation area" value={form.navigation_area} multiline onChangeText={(v) => setForm((f) => ({ ...f, navigation_area: v }))} />
-              <Field label="Intended cruising area" value={form.intended_cruising_area} multiline onChangeText={(v) => setForm((f) => ({ ...f, intended_cruising_area: v }))} />
-            </View>
-
-            {error && <Text style={styles.errorText}>{error}</Text>}
-            <Pressable onPress={runCompare} disabled={loading} style={[styles.primaryButton, loading && { opacity: 0.7 }]}>
-              {loading ? <ActivityIndicator color={NAVY} /> : <Feather name="bar-chart-2" size={18} color={NAVY} />}
-              <Text style={styles.primaryText}>Compare flags</Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.panel, styles.resultPanel]}>
-            <Text style={styles.panelTitle}>Ranking</Text>
-            {results.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Feather name="flag" size={28} color={GOLD} />
-                <Text style={styles.emptyTitle}>Ready to compare</Text>
-                <Text style={styles.emptyCopy}>Run the advisor to rank the strongest flag options for this yacht profile.</Text>
+        <View style={styles.modeList}>
+          {MODES.map((item) => (
+            <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.modeRow, mode === item.key && styles.modeRowActive]}>
+              <View style={styles.modeIcon}>
+                <Feather name={item.icon} size={18} color={mode === item.key ? GOLD : MUTED} />
               </View>
-            ) : (
-              <>
-                {results.slice(0, 6).map((flag, index) => {
-                  const active = selected?.code === flag.code;
-                  return (
-                    <Pressable key={flag.code} onPress={() => setSelectedCode(flag.code)} style={[styles.rankCard, active && styles.rankCardActive]}>
-                      <Text style={styles.rankNumber}>{index + 1}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.rankTitle}>{flag.flag_name}</Text>
-                        <Text style={styles.rankSub}>{flag.fit_summary}</Text>
-                      </View>
-                      <Text style={[styles.score, { color: scoreColor(flag.score) }]}>{flag.score}</Text>
-                    </Pressable>
-                  );
-                })}
-
-                {selected && (
-                  <View style={styles.detailCard}>
-                    <View style={styles.detailHeader}>
-                      <View>
-                        <Text style={styles.detailTitle}>{selected.flag_name}</Text>
-                        <Text style={styles.detailSub}>{selected.country} · {selected.registry_type}</Text>
-                      </View>
-                      <View style={styles.scoreBadge}>
-                        <Text style={styles.scoreBadgeText}>{selected.score}/100</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.factGrid}>
-                      <Fact label="Registration" value={money(selected.registration_cost_eur)} />
-                      <Fact label="Annual fees" value={money(selected.annual_fee_eur)} />
-                      <Fact label="Processing" value={processing(selected)} />
-                      <Fact label="Mortgage" value={selected.mortgage_available ? "Yes" : "Verify"} />
-                      <Fact label="Commercial" value={selected.commercial_available ? "Yes" : "No"} />
-                      <Fact label="Class" value={selected.classification_required ? "Required" : "Case by case"} />
-                    </View>
-
-                    <InfoList title="Advantages" items={selected.positives.length ? selected.positives : selected.advantages} />
-                    <InfoList title="Risks to review" items={selected.risks.length ? selected.risks : selected.disadvantages} />
-
-                    <Text style={styles.sectionHeading}>VAT / insurance / crew</Text>
-                    <Text style={styles.bodyText}>{selected.vat_notes ?? "VAT notes to verify."}</Text>
-                    <Text style={styles.bodyText}>{selected.insurance_notes ?? "Insurance acceptance to verify."}</Text>
-                    <Text style={styles.bodyText}>{selected.crew_restrictions ?? "Crew restrictions to verify."}</Text>
-
-                    <Text style={styles.sectionHeading}>Legal partners</Text>
-                    {selected.legal_partners.length ? (
-                      selected.legal_partners.map((partner) => (
-                        <View key={partner.name} style={styles.partnerCard}>
-                          <Text style={styles.partnerName}>{partner.name}</Text>
-                          <Text style={styles.partnerText}>{partner.notes ?? partner.contact_url ?? partner.email ?? "Contact details to verify."}</Text>
-                        </View>
-                      ))
-                    ) : (
-                      <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
-                    )}
-                  </View>
-                )}
-              </>
-            )}
-          </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modeTitle}>{item.title}</Text>
+                <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
+              </View>
+              <Feather name={mode === item.key ? "chevron-down" : "chevron-right"} size={20} color={MUTED} />
+            </Pressable>
+          ))}
         </View>
+
+        {flagsLoading ? (
+          <View style={styles.centerPanel}>
+            <ActivityIndicator color={GOLD} />
+          </View>
+        ) : flagsError ? (
+          <View style={styles.centerPanel}>
+            <Feather name="alert-circle" size={28} color={RED} />
+            <Text style={styles.emptyTitle}>Could not load flags</Text>
+            <Text style={styles.emptyCopy}>{flagsError}</Text>
+          </View>
+        ) : mode === "flags" ? (
+          <AllFlags flags={flags} expandedCode={expandedCode} onToggle={(code) => setExpandedCode((current) => (current === code ? null : code))} />
+        ) : mode === "advice" ? (
+          <Advice
+            form={form}
+            setForm={setForm}
+            results={results}
+            selected={selected}
+            selectedCode={selectedCode}
+            setSelectedCode={setSelectedCode}
+            loading={loading}
+            error={error}
+            runCompare={runCompare}
+          />
+        ) : (
+          <Comparison flags={flags} comparisonFlags={comparisonFlags} comparisonCodes={comparisonCodes} onToggle={toggleComparison} />
+        )}
       </ScrollView>
+    </View>
+  );
+}
+
+function AllFlags({ flags, expandedCode, onToggle }: { flags: FlagRegistry[]; expandedCode: string | null; onToggle: (code: string) => void }) {
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelTitle}>All Flags</Text>
+      {flags.map((flag) => {
+        const expanded = expandedCode === flag.code;
+        return (
+          <View key={flag.code} style={styles.flagRowWrap}>
+            <Pressable onPress={() => onToggle(flag.code)} style={[styles.flagRow, expanded && styles.flagRowActive]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.flagTitle}>{flag.flag_name}</Text>
+                <Text style={styles.flagMeta}>{flag.country} / {flag.registry_type} / {processing(flag)}</Text>
+              </View>
+              <Feather name={expanded ? "chevron-up" : "chevron-down"} size={20} color={MUTED} />
+            </Pressable>
+            {expanded ? <FlagCard flag={flag} /> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function Advice({
+  form,
+  setForm,
+  results,
+  selected,
+  selectedCode,
+  setSelectedCode,
+  loading,
+  error,
+  runCompare,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  results: FlagComparisonResult[];
+  selected: FlagComparisonResult | null;
+  selectedCode: string | null;
+  setSelectedCode: (code: string) => void;
+  loading: boolean;
+  error: string | null;
+  runCompare: () => void;
+}) {
+  const isWeb = Platform.OS === "web";
+  return (
+    <View style={[styles.layout, isWeb && styles.webLayout]}>
+      <View style={[styles.panel, styles.formPanel]}>
+        <Text style={styles.panelTitle}>Registration Advice</Text>
+        <View style={styles.segmentRow}>
+          <Toggle label="Private" active={form.use_type === "private"} onPress={() => setForm((f) => ({ ...f, use_type: "private", charter: false }))} />
+          <Toggle label="Commercial" active={form.use_type === "commercial"} onPress={() => setForm((f) => ({ ...f, use_type: "commercial", charter: true }))} />
+        </View>
+        <View style={styles.segmentRow}>
+          <Toggle label="New registration" active={form.registration_type === "new_registration"} onPress={() => setForm((f) => ({ ...f, registration_type: "new_registration" }))} />
+          <Toggle label="Reflag" active={form.registration_type === "reflag"} onPress={() => setForm((f) => ({ ...f, registration_type: "reflag" }))} />
+        </View>
+        <View style={styles.segmentRow}>
+          <Toggle label="Charter" active={form.charter} onPress={() => setForm((f) => ({ ...f, charter: !f.charter }))} />
+          <Toggle label="Mortgage needed" active={form.mortgage_needed} onPress={() => setForm((f) => ({ ...f, mortgage_needed: !f.mortgage_needed }))} />
+        </View>
+
+        <View style={styles.grid}>
+          <Field label="LOA (m)" value={form.loa_m} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, loa_m: v }))} />
+          <Field label="GT" value={form.gt} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, gt: v }))} />
+          <Field label="Year" value={form.year_built} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, year_built: v }))} />
+          <Field label="Value EUR" value={form.value_eur} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, value_eur: v }))} />
+          <Field label="Builder" value={form.builder} onChangeText={(v) => setForm((f) => ({ ...f, builder: v }))} />
+          <Field label="Current flag" value={form.current_flag} onChangeText={(v) => setForm((f) => ({ ...f, current_flag: v }))} />
+          <Field label="Owner nationality" value={form.owner_nationality} onChangeText={(v) => setForm((f) => ({ ...f, owner_nationality: v }))} />
+          <Field label="Owner residency" value={form.owner_residency} onChangeText={(v) => setForm((f) => ({ ...f, owner_residency: v }))} />
+          <Field label="Company country" value={form.company_country} onChangeText={(v) => setForm((f) => ({ ...f, company_country: v }))} />
+          <Field label="Crew nationality" value={form.crew_nationality} onChangeText={(v) => setForm((f) => ({ ...f, crew_nationality: v }))} />
+          <Field label="Navigation area" value={form.navigation_area} multiline onChangeText={(v) => setForm((f) => ({ ...f, navigation_area: v }))} />
+          <Field label="Intended cruising area" value={form.intended_cruising_area} multiline onChangeText={(v) => setForm((f) => ({ ...f, intended_cruising_area: v }))} />
+        </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <Pressable onPress={runCompare} disabled={loading} style={[styles.primaryButton, loading && { opacity: 0.7 }]}>
+          {loading ? <ActivityIndicator color={NAVY} /> : <Feather name="compass" size={18} color={NAVY} />}
+          <Text style={styles.primaryText}>Get advice</Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.panel, styles.resultPanel]}>
+        <Text style={styles.panelTitle}>Recommended Ranking</Text>
+        {results.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Feather name="flag" size={28} color={GOLD} />
+            <Text style={styles.emptyTitle}>Ready to advise</Text>
+            <Text style={styles.emptyCopy}>Complete the yacht profile to rank the strongest registration options.</Text>
+          </View>
+        ) : (
+          <>
+            {results.slice(0, 6).map((flag, index) => {
+              const active = selectedCode === flag.code;
+              return (
+                <Pressable key={flag.code} onPress={() => setSelectedCode(flag.code)} style={[styles.rankCard, active && styles.rankCardActive]}>
+                  <Text style={styles.rankNumber}>{index + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rankTitle}>{flag.flag_name}</Text>
+                    <Text style={styles.rankSub}>{flag.fit_summary}</Text>
+                  </View>
+                  <Text style={[styles.score, { color: scoreColor(flag.score) }]}>{flag.score}</Text>
+                </Pressable>
+              );
+            })}
+            {selected ? (
+              <View style={styles.detailCard}>
+                <View style={styles.detailHeader}>
+                  <View>
+                    <Text style={styles.detailTitle}>{selected.flag_name}</Text>
+                    <Text style={styles.detailSub}>{selected.country} / {selected.recommendation.replace(/_/g, " ")}</Text>
+                  </View>
+                  <View style={styles.scoreBadge}>
+                    <Text style={styles.scoreBadgeText}>{selected.score}/100</Text>
+                  </View>
+                </View>
+                <InfoList title="Why it fits" items={selected.positives.length ? selected.positives : selected.advantages} icon="check" />
+                <InfoList title="Risks to review" items={selected.risks.length ? selected.risks : selected.disadvantages} icon="alert-triangle" />
+              </View>
+            ) : null}
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function Comparison({
+  flags,
+  comparisonFlags,
+  comparisonCodes,
+  onToggle,
+}: {
+  flags: FlagRegistry[];
+  comparisonFlags: FlagRegistry[];
+  comparisonCodes: string[];
+  onToggle: (code: string) => void;
+}) {
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelTitle}>Comparison</Text>
+      <Text style={styles.panelCopy}>Select up to four flags to compare the core commercial and ownership criteria.</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
+        {flags.map((flag) => (
+          <Pressable key={flag.code} onPress={() => onToggle(flag.code)} style={[styles.compareChip, comparisonCodes.includes(flag.code) && styles.compareChipActive]}>
+            <Text style={[styles.compareChipText, comparisonCodes.includes(flag.code) && styles.compareChipTextActive]}>{flag.flag_name}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <View style={styles.comparisonGrid}>
+        {comparisonFlags.map((flag) => (
+          <View key={flag.code} style={styles.comparisonCard}>
+            <Text style={styles.compareTitle}>{flag.flag_name}</Text>
+            <Fact label="Registration" value={money(flag.registration_cost_eur)} />
+            <Fact label="Annual fee" value={money(flag.annual_fee_eur)} />
+            <Fact label="Commercial use" value={yesNo(flag.commercial_available)} />
+            <Fact label="Private use" value={yesNo(flag.private_available)} />
+            <Fact label="Mortgage" value={yesNo(flag.mortgage_available)} />
+            <Fact label="Temporary registration" value={yesNo(flag.temporary_registration)} />
+            <Fact label="Permanent registration" value={yesNo(flag.permanent_registration)} />
+            <Fact label="Radio license" value={yesNo(flag.radio_license)} />
+            <Fact label="Survey" value={flag.survey_required ? "Required" : "Case by case"} />
+            <Fact label="Class" value={flag.classification_required ? "Required" : "Case by case"} />
+            <Fact label="Processing" value={processing(flag)} />
+            <Fact label="Accepted class" value={flag.accepted_class.length ? flag.accepted_class.join(", ") : "To verify"} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function FlagCard({ flag }: { flag: FlagRegistry }) {
+  return (
+    <View style={styles.flagCard}>
+      <View style={styles.factGrid}>
+        <Fact label="Private" value={yesNo(flag.private_available)} />
+        <Fact label="Commercial" value={yesNo(flag.commercial_available)} />
+        <Fact label="Registration cost" value={money(flag.registration_cost_eur)} />
+        <Fact label="Annual fees" value={money(flag.annual_fee_eur)} />
+        <Fact label="Processing" value={processing(flag)} />
+        <Fact label="Mortgage" value={yesNo(flag.mortgage_available)} />
+        <Fact label="Temporary registration" value={yesNo(flag.temporary_registration)} />
+        <Fact label="Permanent registration" value={yesNo(flag.permanent_registration)} />
+        <Fact label="Radio license" value={yesNo(flag.radio_license)} />
+        <Fact label="Survey" value={flag.survey_required ? "Required" : "Case by case"} />
+        <Fact label="Classification" value={flag.classification_required ? "Required" : "Case by case"} />
+        <Fact label="Accepted class" value={flag.accepted_class.length ? flag.accepted_class.join(", ") : "To verify"} />
+      </View>
+
+      <TextBlock title="Eligibility" text={textOrVerify(flag.owner_nationality_restrictions)} />
+      <TextBlock title="Company structure" text={textOrVerify(flag.company_restrictions)} />
+      <TextBlock title="Crew" text={textOrVerify(flag.crew_restrictions)} />
+      <TextBlock title="VAT" text={textOrVerify(flag.vat_notes)} />
+      <TextBlock title="Insurance" text={textOrVerify(flag.insurance_notes)} />
+      <InfoList title="Advantages" items={flag.advantages} icon="check" />
+      <InfoList title="Disadvantages" items={flag.disadvantages} icon="alert-circle" />
+
+      <Text style={styles.sectionHeading}>Official / legal contacts</Text>
+      {flag.official_website ? <Text style={styles.linkText}>{flag.official_website}</Text> : null}
+      {flag.legal_partners.length ? (
+        flag.legal_partners.map((partner) => (
+          <View key={partner.name} style={styles.partnerCard}>
+            <Text style={styles.partnerName}>{partner.name}</Text>
+            <Text style={styles.partnerText}>{partner.notes ?? partner.contact_url ?? partner.email ?? partner.phone ?? "Contact details to verify."}</Text>
+          </View>
+        ))
+      ) : (
+        <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
+      )}
     </View>
   );
 }
@@ -335,13 +528,23 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InfoList({ title, items }: { title: string; items: string[] }) {
+function TextBlock({ title, text }: { title: string; text: string }) {
   return (
-    <View style={{ marginTop: 16 }}>
+    <View style={styles.textBlock}>
+      <Text style={styles.sectionHeading}>{title}</Text>
+      <Text style={styles.bodyText}>{text}</Text>
+    </View>
+  );
+}
+
+function InfoList({ title, items, icon }: { title: string; items: string[]; icon: React.ComponentProps<typeof Feather>["name"] }) {
+  if (!items.length) return null;
+  return (
+    <View style={styles.textBlock}>
       <Text style={styles.sectionHeading}>{title}</Text>
       {items.map((item) => (
         <View key={item} style={styles.listRow}>
-          <Feather name="check" size={14} color={GOLD} />
+          <Feather name={icon} size={14} color={GOLD} />
           <Text style={styles.bodyText}>{item}</Text>
         </View>
       ))}
@@ -354,105 +557,60 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 22 },
   webScroll: { maxWidth: 1240, width: "100%", alignSelf: "center" },
   topbar: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 },
-  iconButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: NAVY_DEEP,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  kicker: {
-    color: GOLD,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    letterSpacing: 2.4,
-  },
-  title: {
-    color: IVORY,
-    fontFamily: "Gilroy-ExtraBold",
-    fontSize: 32,
-    marginTop: 4,
-  },
+  iconButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: NAVY_DEEP, alignItems: "center", justifyContent: "center" },
+  kicker: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 2.4 },
+  title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 32, marginTop: 4 },
+  subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 4 },
+  modeList: { gap: 10, marginBottom: 14 },
+  modeRow: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY_DEEP, padding: 14 },
+  modeRowActive: { borderColor: "rgba(201,169,97,0.55)", backgroundColor: NAVY_ELEV },
+  modeIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: NAVY, alignItems: "center", justifyContent: "center" },
+  modeTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
+  modeSubtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, marginTop: 3 },
+  centerPanel: { minHeight: 260, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: NAVY_DEEP, borderRadius: 16, borderWidth: 1, borderColor: DIVIDER, padding: 24 },
   layout: { gap: 14 },
   webLayout: { flexDirection: "row", alignItems: "flex-start" },
-  panel: {
-    backgroundColor: NAVY_DEEP,
-    borderWidth: 1,
-    borderColor: DIVIDER,
-    borderRadius: 16,
-    padding: 18,
-  },
+  panel: { backgroundColor: NAVY_DEEP, borderWidth: 1, borderColor: DIVIDER, borderRadius: 16, padding: 18 },
   formPanel: { flex: 1.05 },
   resultPanel: { flex: 1 },
-  panelTitle: {
-    color: IVORY,
-    fontFamily: "Inter_700Bold",
-    fontSize: 18,
-    marginBottom: 14,
-  },
+  panelTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 18, marginBottom: 14 },
+  panelCopy: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: -5, marginBottom: 12 },
   segmentRow: { flexDirection: "row", gap: 8, marginBottom: 10, flexWrap: "wrap" },
-  toggle: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: DIVIDER,
-    backgroundColor: NAVY,
-  },
+  toggle: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY },
   toggleActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.13)" },
   toggleText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   toggleTextActive: { color: GOLD },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 6 },
   field: { width: Platform.OS === "web" ? "48%" : "100%" },
   fieldWide: { width: "100%" },
-  label: {
-    color: MUTED,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 11,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
-  input: {
-    minHeight: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(247,243,236,0.12)",
-    backgroundColor: NAVY_ELEV,
-    color: IVORY,
-    fontFamily: "Inter_500Medium",
-    fontSize: 15,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
+  label: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 6 },
+  input: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: "rgba(247,243,236,0.12)", backgroundColor: NAVY_ELEV, color: IVORY, fontFamily: "Inter_500Medium", fontSize: 15, paddingHorizontal: 14, paddingVertical: 12 },
   textarea: { minHeight: 82, textAlignVertical: "top" },
-  primaryButton: {
-    marginTop: 16,
-    minHeight: 54,
-    borderRadius: 14,
-    backgroundColor: GOLD,
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  primaryButton: { marginTop: 16, minHeight: 54, borderRadius: 14, backgroundColor: GOLD, flexDirection: "row", gap: 10, alignItems: "center", justifyContent: "center" },
   primaryText: { color: NAVY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
   errorText: { color: RED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 12 },
   emptyState: { alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 17 },
   emptyCopy: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", lineHeight: 19 },
-  rankCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: DIVIDER,
-    backgroundColor: NAVY,
-    padding: 12,
-    marginBottom: 10,
-  },
+  flagRowWrap: { marginBottom: 10 },
+  flagRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 14 },
+  flagRowActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.09)" },
+  flagTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
+  flagMeta: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
+  flagCard: { borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, borderTopWidth: 0, backgroundColor: "rgba(8,22,51,0.7)", padding: 14 },
+  factGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  fact: { width: Platform.OS === "web" ? "31.5%" : "48%", borderRadius: 10, backgroundColor: NAVY_ELEV, padding: 10 },
+  factLabel: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase" },
+  factValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13, lineHeight: 18, marginTop: 5 },
+  textBlock: { marginTop: 14 },
+  sectionHeading: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 13, marginBottom: 8 },
+  bodyText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, flex: 1 },
+  linkText: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 13, lineHeight: 19, marginBottom: 8 },
+  listRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 7 },
+  partnerCard: { borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, padding: 10, marginBottom: 8 },
+  partnerName: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13 },
+  partnerText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 4, lineHeight: 17 },
+  rankCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, marginBottom: 10 },
   rankCardActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.09)" },
   rankNumber: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 17, width: 24 },
   rankTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 15 },
@@ -461,17 +619,15 @@ const styles = StyleSheet.create({
   detailCard: { marginTop: 10, borderTopWidth: 1, borderTopColor: DIVIDER, paddingTop: 16 },
   detailHeader: { flexDirection: "row", justifyContent: "space-between", gap: 12, alignItems: "center" },
   detailTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 22 },
-  detailSub: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 3 },
+  detailSub: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 3, textTransform: "capitalize" },
   scoreBadge: { borderRadius: 12, backgroundColor: "rgba(123,211,137,0.14)", paddingHorizontal: 10, paddingVertical: 8 },
   scoreBadgeText: { color: GREEN, fontFamily: "Inter_800ExtraBold", fontSize: 13 },
-  factGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
-  fact: { width: "48%", borderRadius: 10, backgroundColor: NAVY_ELEV, padding: 10 },
-  factLabel: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 1 },
-  factValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13, marginTop: 5 },
-  sectionHeading: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 13, marginTop: 14, marginBottom: 8 },
-  listRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 7 },
-  bodyText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, flex: 1 },
-  partnerCard: { borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, padding: 10, marginBottom: 8 },
-  partnerName: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13 },
-  partnerText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 4, lineHeight: 17 },
+  compareSelectRow: { gap: 8, paddingBottom: 14 },
+  compareChip: { borderRadius: 999, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, paddingHorizontal: 12, paddingVertical: 9 },
+  compareChipActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
+  compareChipText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
+  compareChipTextActive: { color: GOLD },
+  comparisonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  comparisonCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? "31%" : "100%", borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, gap: 8 },
+  compareTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 17, marginBottom: 3 },
 });

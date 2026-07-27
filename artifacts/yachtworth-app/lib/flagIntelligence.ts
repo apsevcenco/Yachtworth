@@ -19,7 +19,17 @@ export type FlagComparisonInput = {
   mortgage_needed?: boolean | null;
 };
 
-export type FlagComparisonResult = {
+export type LegalPartner = {
+  name: string;
+  jurisdiction?: string;
+  contact_url?: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  sponsored?: boolean;
+};
+
+export type FlagRegistry = {
   code: string;
   flag_name: string;
   country: string;
@@ -45,16 +55,11 @@ export type FlagComparisonResult = {
   advantages: string[];
   disadvantages: string[];
   official_website: string | null;
-  legal_partners: Array<{
-    name: string;
-    jurisdiction?: string;
-    contact_url?: string;
-    email?: string;
-    phone?: string;
-    notes?: string;
-    sponsored?: boolean;
-  }>;
+  legal_partners: LegalPartner[];
   last_updated: string;
+};
+
+export type FlagComparisonResult = FlagRegistry & {
   score: number;
   recommendation: "recommended" | "suitable" | "possible" | "not_recommended";
   fit_summary: string;
@@ -66,6 +71,10 @@ export type FlagComparisonResponse = {
   input: FlagComparisonInput;
   results: FlagComparisonResult[];
   disclaimer: string;
+};
+
+export type FlagRegistriesResponse = {
+  registries: FlagRegistry[];
 };
 
 async function buildHeaders(): Promise<HeadersInit> {
@@ -90,4 +99,16 @@ export async function compareFlags(input: FlagComparisonInput): Promise<FlagComp
     throw new Error(`Flag comparison failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
   }
   return (await res.json()) as FlagComparisonResponse;
+}
+
+export async function getFlagRegistries(): Promise<FlagRegistriesResponse> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/flag-registries`, {
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Flag registries failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
+  }
+  return (await res.json()) as FlagRegistriesResponse;
 }
