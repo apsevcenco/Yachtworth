@@ -64,6 +64,50 @@ export type BrokerDashboard = {
   }>;
 };
 
+export type BrokerContactCase = {
+  id: string;
+  contact_id: string | null;
+  title: string;
+  case_type: string;
+  stage: string;
+  status: string;
+  updated_at: string;
+};
+
+export type BrokerContact = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  linkedin: string | null;
+  country: string | null;
+  citizenship: string | null;
+  residency: string | null;
+  languages: string[] | null;
+  preferred_channel: string | null;
+  relationship_owner: string | null;
+  relationship_type: string | null;
+  trust_level: string | null;
+  source: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  cases_count: number;
+  active_cases_count: number;
+  last_case_title: string | null;
+  cases: BrokerContactCase[];
+};
+
+export type BrokerContactsResponse = {
+  items: BrokerContact[];
+  total: number;
+  filters: {
+    sources: string[];
+    relationship_types: string[];
+  };
+};
+
 export type CreateBrokerCaseInput = {
   title: string;
   contact_name?: string | null;
@@ -113,6 +157,18 @@ export async function getBrokerDashboard(): Promise<BrokerDashboard> {
     headers: await headers(),
   });
   return readJson<BrokerDashboard>(res);
+}
+
+export async function getBrokerContacts(params?: { q?: string; source?: string }): Promise<BrokerContactsResponse> {
+  const base = getBaseUrl() ?? "";
+  const qs = new URLSearchParams();
+  if (params?.q?.trim()) qs.set("q", params.q.trim());
+  if (params?.source && params.source !== "all") qs.set("source", params.source);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await fetch(`${base}/api/broker-os/contacts${suffix}`, {
+    headers: await headers(),
+  });
+  return readJson<BrokerContactsResponse>(res);
 }
 
 export async function createBrokerCase(input: CreateBrokerCaseInput): Promise<{ item: BrokerCase }> {

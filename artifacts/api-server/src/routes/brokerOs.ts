@@ -53,6 +53,27 @@ type BrokerTaskRow = {
   created_at: string;
 };
 
+type BrokerContactRow = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  linkedin: string | null;
+  country: string | null;
+  citizenship: string | null;
+  residency: string | null;
+  languages: string[] | null;
+  preferred_channel: string | null;
+  relationship_owner: string | null;
+  relationship_type: string | null;
+  trust_level: string | null;
+  source: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 function todayIso(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
@@ -226,6 +247,109 @@ router.get(
       return;
     }
     res.json({ items: data ?? [] });
+  },
+);
+
+router.get(
+  "/broker-os/contacts",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker OS storage not configured" });
+      return;
+    }
+
+    const source = str(req.query["source"], 80);
+    const q = str(req.query["q"], 160)?.toLowerCase();
+
+    let contactsQuery = forClerkUser(sb.from(BROKER_CONTACTS_TABLE).select(CONTACT_COLUMNS), req.userId!)
+      .order("updated_at", { ascending: false })
+      .limit(500);
+    if (source && source !== "all") contactsQuery = contactsQuery.eq("source", source);
+
+    const [
+      { data: contacts, error: contactsErr },
+      { data: allContacts, error: allContactsErr },
+      { data: cases, error: casesErr },
+    ] = await Promise.all([
+      contactsQuery,
+      forClerkUser(sb.from(BROKER_CONTACTS_TABLE).select(CONTACT_COLUMNS), req.userId!)
+        .order("updated_at", { ascending: false })
+        .limit(500),
+      forClerkUser(
+        sb.from(BROKER_CASES_TABLE).select("id,contact_id,title,case_type,stage,status,updated_at"),
+        req.userId!,
+      ).limit(1000),
+    ]);
+
+    if (contactsErr || allContactsErr || casesErr) {
+      const msg = contactsErr?.message ?? allContactsErr?.message ?? casesErr?.message ?? "unknown";
+      req.log.error({ err: msg }, "broker crm contacts failed");
+      res.status(500).json({ error: msg });
+      return;
+    }
+
+    const caseRows = (cases ?? []) as Array<{
+      id: string;
+      contact_id: string | null;
+      title: string;
+      case_type: string;
+      stage: string;
+      status: string;
+      updated_at: string;
+    }>;
+    const casesByContact = new Map<string, typeof caseRows>();
+    for (const c of caseRows) {
+      if (!c.contact_id) continue;
+      casesByContact.set(c.contact_id, [...(casesByContact.get(c.contact_id) ?? []), c]);
+    }
+
+    const rows = ((contacts ?? []) as BrokerContactRow[]).filter((c) => {
+      if (!q) return true;
+      const haystack = [
+        c.full_name,
+        c.email,
+        c.phone,
+        c.whatsapp,
+        c.country,
+        c.citizenship,
+        c.residency,
+        c.relationship_type,
+        c.source,
+        c.notes,
+        ...(c.languages ?? []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+
+    const enriched = rows.map((contact) => {
+      const linkedCases = casesByContact.get(contact.id) ?? [];
+      const activeCases = linkedCases.filter((c) => c.status === "active");
+      return {
+        ...contact,
+        cases_count: linkedCases.length,
+        active_cases_count: activeCases.length,
+        last_case_title: linkedCases[0]?.title ?? null,
+        cases: linkedCases.slice(0, 8),
+      };
+    });
+
+    const filterContacts = (allContacts ?? []) as BrokerContactRow[];
+    res.json({
+      items: enriched,
+      total: enriched.length,
+      filters: {
+        sources: Array.from(new Set(filterContacts.map((c) => c.source).filter((v): v is string => Boolean(v)))).sort(),
+        relationship_types: Array.from(
+          new Set(filterContacts.map((c) => c.relationship_type).filter((v): v is string => Boolean(v))),
+        ).sort(),
+      },
+    });
   },
 );
 

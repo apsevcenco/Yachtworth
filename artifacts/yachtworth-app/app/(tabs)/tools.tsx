@@ -121,8 +121,17 @@ const TOOLS: Tool[] = [
     status: "soon",
   },
   {
-    key: "broker_crm",
+    key: "crm",
     icon: "users",
+    title: "CRM",
+    subtitle: "Client database & filters",
+    roles: ["broker", "charter"],
+    status: "live",
+    route: "/crm",
+  },
+  {
+    key: "broker_os",
+    icon: "briefcase",
     title: "Broker OS",
     subtitle: "Cases - follow-ups - commission",
     roles: ["broker"],
