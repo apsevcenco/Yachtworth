@@ -14,7 +14,14 @@ import {
   SURVEY_SEA_TRIAL_TABLE,
   SURVEY_ITEM_PHOTOS_BUCKET,
   SURVEYOR_ASSETS_BUCKET,
+  SURVEY_VOICE_NOTES_BUCKET,
+  SURVEY_VOICE_NOTES_TABLE,
 } from "../lib/supabase";
+import {
+  SURVEY_VOICE_LANGUAGES,
+  transcribeSurveyVoiceNote,
+  type SurveyVoiceLanguage,
+} from "../lib/survey/voiceTranscription";
 import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
 
@@ -23,6 +30,8 @@ const router: IRouter = Router();
 const MAX_PHOTOS_PER_ITEM = 10;
 const PHOTO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 const LOGO_UPLOAD_MAX_BYTES = 3 * 1024 * 1024;
+const VOICE_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+const VOICE_TRANSCRIPTION_TIMEOUT_MS = 90_000;
 
 const itemPhotoUpload = multer({
   storage: multer.memoryStorage(),
@@ -32,6 +41,11 @@ const itemPhotoUpload = multer({
 const logoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: LOGO_UPLOAD_MAX_BYTES, files: 1 },
+});
+
+const voiceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: VOICE_UPLOAD_MAX_BYTES, files: 1 },
 });
 
 const itemPhotoMw: import("express").RequestHandler = (req, res, next) => {
@@ -67,6 +81,48 @@ const logoUploadMw: import("express").RequestHandler = (req, res, next) => {
     next(err);
   });
 };
+
+const voiceUploadMw: import("express").RequestHandler = (req, res, next) => {
+  voiceUpload.single("file")(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: `Audio file too large. Max ${VOICE_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
+        });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    next(err);
+  });
+};
+
+function parseVoiceLanguage(value: unknown): SurveyVoiceLanguage {
+  return SURVEY_VOICE_LANGUAGES.includes(value as SurveyVoiceLanguage)
+    ? (value as SurveyVoiceLanguage)
+    : "en";
+}
+
+function getAudioExtension(mimeType: string, originalName: string): string {
+  const fromName = originalName.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  if (fromName && /^[a-z0-9]{2,5}$/.test(fromName)) return fromName;
+  if (mimeType.includes("webm")) return "webm";
+  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "mp3";
+  if (mimeType.includes("wav")) return "wav";
+  if (mimeType.includes("3gpp")) return "3gp";
+  return "m4a";
+}
+
+function parseOptionalNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
 
 function storagePathFromPublicUrl(publicUrl: string): string | null {
   const marker = `/storage/v1/object/public/${SURVEY_ITEM_PHOTOS_BUCKET}/`;
@@ -747,6 +803,138 @@ router.post(
         )
       : loaded.item.photo_urls.concat(publicUrl);
     res.json({ url: publicUrl, photo_urls: nextPhotos });
+  },
+);
+
+router.post(
+  "/survey-items/:itemId/voice-notes",
+  softClerkAuth(),
+  requireAuth(),
+  voiceUploadMw,
+  async (req, res): Promise<void> => {
+    const itemId = req.params["itemId"] ?? "";
+    if (!isUuid(itemId)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const file = req.file;
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      res.status(400).json({ error: "Missing audio file" });
+      return;
+    }
+    const body = (req.body ?? {}) as {
+      field_key?: unknown;
+      language?: unknown;
+      duration_seconds?: unknown;
+    };
+    const fieldKey =
+      typeof body.field_key === "string" && body.field_key.trim()
+        ? body.field_key.trim().slice(0, 120)
+        : "notes";
+    const language = parseVoiceLanguage(body.language);
+    const durationSeconds = parseOptionalNumber(body.duration_seconds);
+    const loaded = await loadOwnedItem(itemId, req.userId!);
+    if ("status" in loaded) {
+      res.status(loaded.status).json({ error: loaded.error });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Survey storage not configured" });
+      return;
+    }
+
+    const ext = getAudioExtension(file.mimetype || "", file.originalname || "");
+    const objectPath = `${loaded.item.report_id}/${itemId}/${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}.${ext}`;
+    const contentType = file.mimetype || "audio/m4a";
+    const up = await sb.storage
+      .from(SURVEY_VOICE_NOTES_BUCKET)
+      .upload(objectPath, file.buffer, {
+        contentType,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (up.error) {
+      req.log.error({ err: up.error.message }, "survey voice upload failed");
+      res.status(502).json({ error: up.error.message });
+      return;
+    }
+
+    let transcript: { text: string; confidence: number | null };
+    try {
+      transcript = await transcribeSurveyVoiceNote({
+        buffer: file.buffer,
+        fileName: file.originalname || `voice_note.${ext}`,
+        mimeType: contentType,
+        language,
+        signal: AbortSignal.timeout(VOICE_TRANSCRIPTION_TIMEOUT_MS),
+      });
+    } catch (err) {
+      await sb.from(SURVEY_VOICE_NOTES_TABLE).insert({
+        clerk_user_id: req.userId!,
+        report_id: loaded.item.report_id,
+        item_id: itemId,
+        field_key: fieldKey,
+        language,
+        transcription_status: "failed",
+        audio_url: objectPath,
+        raw_transcript: "",
+        edited_text: "",
+        confidence: null,
+        duration_seconds: durationSeconds,
+        created_by: req.userId!,
+        error_message: err instanceof Error ? err.message : String(err),
+      });
+      req.log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "survey voice transcription failed",
+      );
+      res.status(502).json({
+        error: err instanceof Error ? err.message : "Transcription failed",
+      });
+      return;
+    }
+
+    const { data: row, error: insErr } = await sb
+      .from(SURVEY_VOICE_NOTES_TABLE)
+      .insert({
+        clerk_user_id: req.userId!,
+        report_id: loaded.item.report_id,
+        item_id: itemId,
+        field_key: fieldKey,
+        language,
+        transcription_status: "completed",
+        audio_url: objectPath,
+        raw_transcript: transcript.text,
+        edited_text: transcript.text,
+        confidence: transcript.confidence,
+        duration_seconds: durationSeconds,
+        created_by: req.userId!,
+      })
+      .select("id,field_key,language,transcription_status,audio_url,raw_transcript,edited_text,confidence,created_at")
+      .single();
+    if (insErr || !row) {
+      req.log.error(
+        { err: insErr?.message },
+        "insert survey voice note failed",
+      );
+      res.status(503).json({ error: "Could not save transcript" });
+      return;
+    }
+    res.json({
+      id: row.id,
+      field_key: row.field_key,
+      language: row.language,
+      status: row.transcription_status,
+      audio_url: row.audio_url,
+      text: row.edited_text,
+      raw_transcript: row.raw_transcript,
+      edited_text: row.edited_text,
+      confidence: row.confidence,
+      created_at: row.created_at,
+    });
   },
 );
 

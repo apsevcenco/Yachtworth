@@ -64,6 +64,7 @@
   "dependencies": {
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@react-native-community/datetimepicker": "8.4.4",
+    "expo-audio": "~1.1.1",
     "expo-clipboard": "~8.0.8",
     "expo-dev-client": "~6.0.21",
     "expo-file-system": "~19.0.22",

@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+﻿import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetSurveyReportQueryKey,
@@ -7,6 +7,12 @@ import {
   useReplaceSurveyItems,
 } from "@workspace/api-client-react";
 import type { SurveyItem } from "@workspace/api-client-react";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -41,6 +47,10 @@ import {
   deleteSurveyItemPhoto,
   uploadSurveyItemPhoto,
 } from "../../../../lib/surveyItemPhotoUpload";
+import {
+  uploadSurveyVoiceNote,
+  type SurveyVoiceLanguage,
+} from "../../../../lib/surveyVoiceNoteUpload";
 
 const MAX_ITEM_PHOTOS = 10;
 
@@ -55,6 +65,12 @@ const DIVIDER = "rgba(247,243,236,0.08)";
 const RED_URGENT = "#E27D7D";
 const AMBER = "#F4B860";
 const GREEN = "#7BD389";
+const VOICE_LANGUAGES: { value: SurveyVoiceLanguage; label: string }[] = [
+  { value: "en", label: "EN" },
+  { value: "fr", label: "FR" },
+  { value: "it", label: "IT" },
+  { value: "ru", label: "RU" },
+];
 
 type Editable = {
   id?: string;
@@ -81,6 +97,14 @@ type Editable = {
   due_date: string;
   section_data: Record<string, unknown>;
   sync_status: string;
+};
+
+type VoiceTarget = {
+  idx: number;
+  itemId: string;
+  fieldKey: string;
+  sectionDataKey?: string;
+  startedAt: number;
 };
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -145,6 +169,7 @@ export default function SurveySectionScreen() {
     },
   });
   const replaceM = useReplaceSurveyItems();
+  const audioRecorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
 
   const template = SECTION_TEMPLATES.find((s) => s.number === sectionNumber);
   const sectionSchema = getSectionSchema(sectionNumber);
@@ -166,6 +191,120 @@ export default function SurveySectionScreen() {
   // saves silently every 30 s while the screen is mounted.
   const dirtyRef = useRef(false);
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
+  const [voiceLanguage, setVoiceLanguage] = useState<SurveyVoiceLanguage>("en");
+  const [voiceTarget, setVoiceTarget] = useState<VoiceTarget | null>(null);
+  const [transcribingTargetKey, setTranscribingTargetKey] = useState<string | null>(null);
+
+  const voiceKey = (idx: number, fieldKey: string) => `${idx}:${fieldKey}`;
+
+  const getVoiceState = (idx: number, fieldKey: string) => {
+    const key = voiceKey(idx, fieldKey);
+    if (voiceTarget && voiceKey(voiceTarget.idx, voiceTarget.fieldKey) === key) {
+      return "recording" as const;
+    }
+    if (transcribingTargetKey === key) return "transcribing" as const;
+    return "idle" as const;
+  };
+
+  const appendTranscriptToField = (target: VoiceTarget, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    dirtyRef.current = true;
+    setEditable((cur) =>
+      cur.map((it, i) => {
+        if (i !== target.idx) return it;
+        if (target.sectionDataKey) {
+          const current = toStringValue(it.section_data[target.sectionDataKey]).trim();
+          return {
+            ...it,
+            section_data: {
+              ...it.section_data,
+              [target.sectionDataKey]: current ? `${current}\n${trimmed}` : trimmed,
+            },
+          };
+        }
+        const field = target.fieldKey as "notes" | "recommendation_text" | "defect_description";
+        const current = String(it[field] ?? "").trim();
+        return { ...it, [field]: current ? `${current}\n${trimmed}` : trimmed };
+      }),
+    );
+  };
+
+  const stopVoiceRecording = async (target: VoiceTarget) => {
+    const key = voiceKey(target.idx, target.fieldKey);
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      setVoiceTarget(null);
+      if (!uri) {
+        Alert.alert("Recording failed", "No audio file was created.");
+        return;
+      }
+      setTranscribingTargetKey(key);
+      const response = await uploadSurveyVoiceNote({
+        itemId: target.itemId,
+        localUri: uri,
+        fieldKey: target.fieldKey,
+        language: voiceLanguage,
+        durationSeconds: Math.round((Date.now() - target.startedAt) / 1000),
+      });
+      appendTranscriptToField(target, response.text);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Please try again.";
+      Alert.alert("Voice transcription failed", msg);
+    } finally {
+      setVoiceTarget(null);
+      setTranscribingTargetKey(null);
+      try {
+        await setAudioModeAsync({ allowsRecording: false });
+      } catch {
+        // Non-critical: the next recording will set the mode again.
+      }
+    }
+  };
+
+  const handleVoicePress = async (
+    idx: number,
+    item: Editable,
+    fieldKey: string,
+    sectionDataKey?: string,
+  ) => {
+    const itemId = item.id;
+    if (!itemId) {
+      Alert.alert("Save section first", "Save this section once before adding voice notes.");
+      return;
+    }
+    const key = voiceKey(idx, fieldKey);
+    if (voiceTarget) {
+      if (voiceKey(voiceTarget.idx, voiceTarget.fieldKey) === key) {
+        await stopVoiceRecording(voiceTarget);
+      } else {
+        Alert.alert("Recording in progress", "Stop the current recording first.");
+      }
+      return;
+    }
+    if (transcribingTargetKey) return;
+    const permission = await requestRecordingPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Microphone access needed", "Enable microphone access in Settings.");
+      return;
+    }
+    try {
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setVoiceTarget({
+        idx,
+        itemId,
+        fieldKey,
+        sectionDataKey,
+        startedAt: Date.now(),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Please try again.";
+      Alert.alert("Recording failed", msg);
+    }
+  };
 
   const pickAndUploadPhoto = async (idx: number, itemId: string) => {
     const editableItem = editable[idx];
@@ -179,7 +318,7 @@ export default function SurveySectionScreen() {
       try {
         const r = await uploadSurveyItemPhoto(itemId, uri);
         // Update only the local row's photo_urls. We deliberately do NOT
-        // invalidate the report query here — a refetch would re-run the
+        // invalidate the report query here â€” a refetch would re-run the
         // `setEditable(mine)` effect and silently discard any unsaved
         // notes/recommendation edits in this section.
         updateItem(idx, { photo_urls: r.photo_urls });
@@ -355,7 +494,7 @@ export default function SurveySectionScreen() {
             .map((i) => [i.id as string, Array.isArray(i.photo_urls) ? i.photo_urls : []]),
         );
       } catch {
-        // Best-effort — if refetch fails, fall back to local snapshot.
+        // Best-effort â€” if refetch fails, fall back to local snapshot.
       }
       // Server scopes replace to this section only (atomic via RPC), so other
       // sections are untouched and concurrent edits in other sections survive.
@@ -398,7 +537,7 @@ export default function SurveySectionScreen() {
       });
       dirtyRef.current = false;
       if (silent) {
-        // Don't invalidate — that would refetch and the re-seed effect would
+        // Don't invalidate â€” that would refetch and the re-seed effect would
         // wipe any keystrokes the user has typed since this auto-save started.
         setAutoSavedAt(Date.now());
       } else {
@@ -411,7 +550,7 @@ export default function SurveySectionScreen() {
         const msg = e instanceof Error ? e.message : "Please try again.";
         Alert.alert("Save failed", msg);
       }
-      // Silent saves swallow errors — the user can still hit Save manually
+      // Silent saves swallow errors â€” the user can still hit Save manually
       // and will see a real alert if it still fails.
     } finally {
       setSaving(false);
@@ -460,6 +599,31 @@ export default function SurveySectionScreen() {
 
           <Text style={styles.kicker}>SECTION {sectionNumber}</Text>
           <Text style={styles.title}>{template.name}</Text>
+          <View style={styles.voiceToolbar}>
+            <Text style={styles.voiceToolbarLabel}>Dictation language</Text>
+            <View style={styles.voiceLangRow}>
+              {VOICE_LANGUAGES.map((lang) => {
+                const active = voiceLanguage === lang.value;
+                return (
+                  <Pressable
+                    key={lang.value}
+                    onPress={() => setVoiceLanguage(lang.value)}
+                    disabled={!!voiceTarget || !!transcribingTargetKey}
+                    style={[styles.voiceLangPill, active && styles.voiceLangPillActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.voiceLangText,
+                        active && styles.voiceLangTextActive,
+                      ]}
+                    >
+                      {lang.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
           {editable.map((it, idx) => (
             <View key={`${it.item_number}_${idx}`} style={styles.itemCard}>
@@ -507,17 +671,21 @@ export default function SurveySectionScreen() {
                   style={styles.selectBtn}
                 >
                   <Text style={[styles.selectText, !it.condition && { color: FAINT }]}>
-                    {it.condition || "Select…"}
+                    {it.condition || "Selectâ€¦"}
                   </Text>
                   <Feather name="chevron-down" size={14} color={MUTED} />
                 </Pressable>
               </View>
 
-              <Text style={styles.fieldLabel}>Notes</Text>
+              <VoiceFieldHeader
+                label="Notes"
+                state={getVoiceState(idx, "notes")}
+                onPress={() => handleVoicePress(idx, it, "notes")}
+              />
               <TextInput
                 value={it.notes}
                 onChangeText={(v) => updateItem(idx, { notes: v })}
-                placeholder="Surveyor observations…"
+                placeholder="Surveyor observationsâ€¦"
                 placeholderTextColor={FAINT}
                 multiline
                 style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]}
@@ -528,6 +696,10 @@ export default function SurveySectionScreen() {
                   schema={sectionSchema}
                   item={it}
                   onChange={(patch) => updateItem(idx, patch)}
+                  onVoicePress={(fieldKey, sectionDataKey) =>
+                    handleVoicePress(idx, it, fieldKey, sectionDataKey)
+                  }
+                  getVoiceState={(fieldKey) => getVoiceState(idx, fieldKey)}
                 />
               )}
 
@@ -546,17 +718,24 @@ export default function SurveySectionScreen() {
                 </Pressable>
               </View>
               {it.recommendation_level !== "" && (
-                <TextInput
-                  value={it.recommendation_text}
-                  onChangeText={(v) => updateItem(idx, { recommendation_text: v })}
-                  placeholder="Full recommendation text…"
-                  placeholderTextColor={FAINT}
-                  multiline
-                  style={[styles.input, { minHeight: 60, marginTop: 6, textAlignVertical: "top" }]}
-                />
+                <View style={{ marginTop: 6 }}>
+                  <VoiceFieldHeader
+                    label="Recommendation text"
+                    state={getVoiceState(idx, "recommendation_text")}
+                    onPress={() => handleVoicePress(idx, it, "recommendation_text")}
+                  />
+                  <TextInput
+                    value={it.recommendation_text}
+                    onChangeText={(v) => updateItem(idx, { recommendation_text: v })}
+                    placeholder="Full recommendation text..."
+                    placeholderTextColor={FAINT}
+                    multiline
+                    style={[styles.input, { minHeight: 60, textAlignVertical: "top" }]}
+                  />
+                </View>
               )}
 
-              {/* Photos — only after item has been saved (needs server id) */}
+              {/* Photos â€” only after item has been saved (needs server id) */}
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.fieldLabel}>
                   Photos ({it.photo_urls.length}/{MAX_ITEM_PHOTOS})
@@ -616,7 +795,7 @@ export default function SurveySectionScreen() {
                       value={it.moisture_reading}
                       onChangeText={(v) => updateItem(idx, { moisture_reading: v })}
                       keyboardType="decimal-pad"
-                      placeholder="0–100"
+                      placeholder="0â€“100"
                       placeholderTextColor={FAINT}
                       style={styles.input}
                     />
@@ -654,7 +833,7 @@ export default function SurveySectionScreen() {
         <View style={[styles.saveBar, { paddingBottom: insets.bottom + 12 }]}>
           {autoSavedAt && (
             <Text style={styles.autoSavedHint}>
-              Auto-saved · {new Date(autoSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              Auto-saved Â· {new Date(autoSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </Text>
           )}
           <Pressable
@@ -683,7 +862,7 @@ export default function SurveySectionScreen() {
           <View style={styles.previewBg}>
             {/* ScrollView gives free pinch-to-zoom on iOS via maximumZoomScale.
                 Android falls back to tap-to-dismiss (native ScrollView ignores
-                maximumZoomScale on Android — true cross-platform pinch would
+                maximumZoomScale on Android â€” true cross-platform pinch would
                 need a gesture-handler wrapper, deferred). */}
             <ScrollView
               style={{ flex: 1, width: "100%" }}
@@ -726,7 +905,7 @@ export default function SurveySectionScreen() {
             picker.type === "condition"
               ? CONDITION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))
               : picker.type === "rec"
-                ? [{ value: "", label: "None" }, ...REC_OPTIONS.map((o) => ({ value: o.value, label: `${o.short} — ${o.full}` }))]
+                ? [{ value: "", label: "None" }, ...REC_OPTIONS.map((o) => ({ value: o.value, label: `${o.short} â€” ${o.full}` }))]
                 : [
                     { value: "Low", label: "Low" },
                     { value: "Medium", label: "Medium" },
@@ -755,6 +934,43 @@ export default function SurveySectionScreen() {
           onClose={() => setPicker(null)}
         />
       )}
+    </View>
+  );
+}
+
+function VoiceFieldHeader({
+  label,
+  state,
+  onPress,
+}: {
+  label: string;
+  state: "idle" | "recording" | "transcribing";
+  onPress: () => void;
+}) {
+  const active = state !== "idle";
+  return (
+    <View style={styles.voiceFieldHeader}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable
+        onPress={onPress}
+        disabled={state === "transcribing"}
+        hitSlop={8}
+        style={[
+          styles.voiceBtn,
+          state === "recording" && styles.voiceBtnRecording,
+          state === "transcribing" && styles.voiceBtnBusy,
+        ]}
+      >
+        {state === "transcribing" ? (
+          <ActivityIndicator color={GOLD} size="small" />
+        ) : (
+          <Feather
+            name={state === "recording" ? "square" : "mic"}
+            size={13}
+            color={active ? NAVY : GOLD}
+          />
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -798,10 +1014,14 @@ function SectionSpecificFields({
   schema,
   item,
   onChange,
+  onVoicePress,
+  getVoiceState,
 }: {
   schema: SectionSchema;
   item: Editable;
   onChange: (patch: Partial<Editable>) => void;
+  onVoicePress: (fieldKey: string, sectionDataKey?: string) => void;
+  getVoiceState: (fieldKey: string) => "idle" | "recording" | "transcribing";
 }) {
   const setField = (key: string, value: unknown) => {
     onChange({ section_data: { ...item.section_data, [key]: value } });
@@ -816,6 +1036,16 @@ function SectionSpecificFields({
           field={field}
           value={item.section_data[field.key]}
           onChange={(value) => setField(field.key, value)}
+          onVoicePress={
+            field.type === "textarea"
+              ? () => onVoicePress(`section_data.${field.key}`, field.key)
+              : undefined
+          }
+          voiceState={
+            field.type === "textarea"
+              ? getVoiceState(`section_data.${field.key}`)
+              : "idle"
+          }
         />
       ))}
       <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Inspection status</Text>
@@ -856,7 +1086,13 @@ function SectionSpecificFields({
           );
         })}
       </View>
-      <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Defect / finding</Text>
+      <View style={{ marginTop: 10 }}>
+        <VoiceFieldHeader
+          label="Defect / finding"
+          state={getVoiceState("defect_description")}
+          onPress={() => onVoicePress("defect_description")}
+        />
+      </View>
       <TextInput
         value={item.defect_description}
         onChangeText={(v) => onChange({ defect_description: v })}
@@ -918,10 +1154,14 @@ function SectionFieldInput({
   field,
   value,
   onChange,
+  onVoicePress,
+  voiceState = "idle",
 }: {
   field: SectionField;
   value: unknown;
   onChange: (value: unknown) => void;
+  onVoicePress?: () => void;
+  voiceState?: "idle" | "recording" | "transcribing";
 }) {
   if (field.type === "boolean") {
     return (
@@ -974,7 +1214,15 @@ function SectionFieldInput({
 
   return (
     <View style={styles.sectionField}>
-      <Text style={styles.fieldLabel}>{field.label}</Text>
+      {onVoicePress ? (
+        <VoiceFieldHeader
+          label={field.label}
+          state={voiceState}
+          onPress={onVoicePress}
+        />
+      ) : (
+        <Text style={styles.fieldLabel}>{field.label}</Text>
+      )}
       <TextInput
         value={toStringValue(value)}
         onChangeText={(text) => onChange(text)}
@@ -1005,6 +1253,66 @@ const styles = StyleSheet.create({
   },
   kicker: { color: GOLD, fontFamily: "Inter_500Medium", fontSize: 11, letterSpacing: 2, marginBottom: 6 },
   title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 28, letterSpacing: -0.4, marginBottom: 18 },
+  voiceToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 12,
+  },
+  voiceToolbarLabel: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  voiceLangRow: { flexDirection: "row", gap: 6 },
+  voiceLangPill: {
+    minWidth: 38,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    alignItems: "center",
+    backgroundColor: NAVY_ELEV,
+  },
+  voiceLangPillActive: {
+    borderColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.14)",
+  },
+  voiceLangText: {
+    color: MUTED,
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+  },
+  voiceLangTextActive: { color: GOLD },
+  voiceFieldHeader: {
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  voiceBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(201,169,97,0.08)",
+  },
+  voiceBtnRecording: {
+    borderColor: RED_URGENT,
+    backgroundColor: RED_URGENT,
+  },
+  voiceBtnBusy: {
+    opacity: 0.7,
+    backgroundColor: "rgba(201,169,97,0.12)",
+  },
   itemCard: {
     backgroundColor: NAVY_DEEP,
     borderRadius: 14,
