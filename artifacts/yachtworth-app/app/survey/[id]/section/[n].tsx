@@ -22,6 +22,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -48,7 +49,10 @@ import {
   uploadSurveyItemPhoto,
 } from "../../../../lib/surveyItemPhotoUpload";
 import {
+  getSurveyVoiceNoteAudioUrl,
+  listSurveyItemVoiceNotes,
   uploadSurveyVoiceNote,
+  type SurveyVoiceNoteItem,
   type SurveyVoiceLanguage,
 } from "../../../../lib/surveyVoiceNoteUpload";
 
@@ -105,6 +109,11 @@ type VoiceTarget = {
   fieldKey: string;
   sectionDataKey?: string;
   startedAt: number;
+};
+
+type VoiceNotesState = {
+  loading: boolean;
+  items: SurveyVoiceNoteItem[];
 };
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -194,6 +203,8 @@ export default function SurveySectionScreen() {
   const [voiceLanguage, setVoiceLanguage] = useState<SurveyVoiceLanguage>("en");
   const [voiceTarget, setVoiceTarget] = useState<VoiceTarget | null>(null);
   const [transcribingTargetKey, setTranscribingTargetKey] = useState<string | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [voiceNotesByItem, setVoiceNotesByItem] = useState<Record<string, VoiceNotesState>>({});
 
   const voiceKey = (idx: number, fieldKey: string) => `${idx}:${fieldKey}`;
 
@@ -205,6 +216,18 @@ export default function SurveySectionScreen() {
     if (transcribingTargetKey === key) return "transcribing" as const;
     return "idle" as const;
   };
+
+  useEffect(() => {
+    if (!voiceTarget) {
+      setRecordingSeconds(0);
+      return;
+    }
+    const tick = () =>
+      setRecordingSeconds(Math.max(0, Math.round((Date.now() - voiceTarget.startedAt) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [voiceTarget]);
 
   const appendTranscriptToField = (target: VoiceTarget, text: string) => {
     const trimmed = text.trim();
@@ -249,6 +272,7 @@ export default function SurveySectionScreen() {
         durationSeconds: Math.round((Date.now() - target.startedAt) / 1000),
       });
       appendTranscriptToField(target, response.text);
+      void loadVoiceNotes(target.itemId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Please try again.";
       Alert.alert("Voice transcription failed", msg);
@@ -260,6 +284,35 @@ export default function SurveySectionScreen() {
       } catch {
         // Non-critical: the next recording will set the mode again.
       }
+    }
+  };
+
+  const loadVoiceNotes = async (itemId: string) => {
+    setVoiceNotesByItem((cur) => ({
+      ...cur,
+      [itemId]: { loading: true, items: cur[itemId]?.items ?? [] },
+    }));
+    try {
+      const items = await listSurveyItemVoiceNotes(itemId);
+      setVoiceNotesByItem((cur) => ({
+        ...cur,
+        [itemId]: { loading: false, items },
+      }));
+    } catch (e) {
+      setVoiceNotesByItem((cur) => ({
+        ...cur,
+        [itemId]: { loading: false, items: cur[itemId]?.items ?? [] },
+      }));
+      Alert.alert("Voice notes failed", e instanceof Error ? e.message : "Please try again.");
+    }
+  };
+
+  const openVoiceAudio = async (voiceNoteId: string) => {
+    try {
+      const url = await getSurveyVoiceNoteAudioUrl(voiceNoteId);
+      await Linking.openURL(url);
+    } catch (e) {
+      Alert.alert("Audio link failed", e instanceof Error ? e.message : "Please try again.");
     }
   };
 
@@ -624,6 +677,19 @@ export default function SurveySectionScreen() {
               })}
             </View>
           </View>
+          {voiceTarget && (
+            <View style={styles.recordingBanner}>
+              <View style={styles.recordingDot} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.recordingTitle}>
+                  Recording {editable[voiceTarget.idx]?.item_number ?? ""}
+                </Text>
+                <Text style={styles.recordingText}>
+                  {voiceTarget.fieldKey.replace("section_data.", "")} · {recordingSeconds}s · tap the same mic to stop
+                </Text>
+              </View>
+            </View>
+          )}
 
           {editable.map((it, idx) => (
             <View key={`${it.item_number}_${idx}`} style={styles.itemCard}>
@@ -786,6 +852,14 @@ export default function SurveySectionScreen() {
                   </View>
                 )}
               </View>
+
+              {it.id && (
+                <VoiceNotesPanel
+                  state={voiceNotesByItem[it.id]}
+                  onLoad={() => loadVoiceNotes(it.id!)}
+                  onOpenAudio={openVoiceAudio}
+                />
+              )}
 
               {showMoisture && (
                 <View style={{ marginTop: 10, flexDirection: "row", gap: 8 }}>
@@ -962,15 +1036,80 @@ function VoiceFieldHeader({
         ]}
       >
         {state === "transcribing" ? (
-          <ActivityIndicator color={GOLD} size="small" />
+          <>
+            <ActivityIndicator color={GOLD} size="small" />
+            <Text style={styles.voiceBtnText}>Transcribing</Text>
+          </>
         ) : (
-          <Feather
-            name={state === "recording" ? "square" : "mic"}
-            size={13}
-            color={active ? NAVY : GOLD}
-          />
+          <>
+            <Feather
+              name={state === "recording" ? "square" : "mic"}
+              size={13}
+              color={active ? NAVY : GOLD}
+            />
+            {state === "recording" && <Text style={styles.voiceBtnRecordingText}>REC</Text>}
+          </>
         )}
       </Pressable>
+    </View>
+  );
+}
+
+function VoiceNotesPanel({
+  state,
+  onLoad,
+  onOpenAudio,
+}: {
+  state?: VoiceNotesState;
+  onLoad: () => void;
+  onOpenAudio: (voiceNoteId: string) => void;
+}) {
+  const items = state?.items ?? [];
+  return (
+    <View style={styles.voiceNotesBox}>
+      <View style={styles.voiceNotesHead}>
+        <Text style={styles.fieldLabel}>Voice notes ({items.length})</Text>
+        <Pressable
+          onPress={onLoad}
+          disabled={state?.loading}
+          style={styles.voiceNotesLoadBtn}
+        >
+          {state?.loading ? (
+            <ActivityIndicator color={GOLD} size="small" />
+          ) : (
+            <>
+              <Feather name="refresh-cw" size={12} color={GOLD} />
+              <Text style={styles.voiceNotesLoadText}>Load</Text>
+            </>
+          )}
+        </Pressable>
+      </View>
+      {items.length > 0 && (
+        <View style={styles.voiceNotesList}>
+          {items.map((note) => (
+            <View key={note.id} style={styles.voiceNoteRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.voiceNoteMeta}>
+                  {note.language.toUpperCase()} · {note.field_key.replace("section_data.", "")}
+                  {note.duration_seconds ? ` · ${Math.round(note.duration_seconds)}s` : ""}
+                </Text>
+                <Text style={styles.voiceNoteText} numberOfLines={3}>
+                  {note.edited_text || note.raw_transcript || note.error_message || "No transcript"}
+                </Text>
+              </View>
+              {!!note.audio_url && (
+                <Pressable
+                  onPress={() => onOpenAudio(note.id)}
+                  hitSlop={8}
+                  style={styles.voiceNoteAudioBtn}
+                >
+                  <Feather name="play" size={13} color={GOLD} />
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -1296,11 +1435,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   voiceBtn: {
-    width: 28,
+    minWidth: 34,
     height: 28,
+    paddingHorizontal: 9,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(201,169,97,0.45)",
+    flexDirection: "row",
+    gap: 5,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(201,169,97,0.08)",
@@ -1312,6 +1454,107 @@ const styles = StyleSheet.create({
   voiceBtnBusy: {
     opacity: 0.7,
     backgroundColor: "rgba(201,169,97,0.12)",
+  },
+  voiceBtnText: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+  },
+  voiceBtnRecordingText: {
+    color: NAVY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+  },
+  recordingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(226,125,125,0.55)",
+    backgroundColor: "rgba(226,125,125,0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: RED_URGENT,
+  },
+  recordingTitle: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 12,
+  },
+  recordingText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  voiceNotesBox: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: "rgba(247,243,236,0.025)",
+    padding: 10,
+  },
+  voiceNotesHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  voiceNotesLoadBtn: {
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.35)",
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(201,169,97,0.06)",
+  },
+  voiceNotesLoadText: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+  },
+  voiceNotesList: { gap: 8, marginTop: 8 },
+  voiceNoteRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: DIVIDER,
+    paddingTop: 8,
+  },
+  voiceNoteMeta: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    textTransform: "uppercase",
+  },
+  voiceNoteText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  voiceNoteAudioBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(201,169,97,0.06)",
   },
   itemCard: {
     backgroundColor: NAVY_DEEP,

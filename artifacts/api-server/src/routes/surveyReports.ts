@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+﻿import { Router, type IRouter } from "express";
 import multer from "multer";
 import {
   CreateSurveyReportBody,
@@ -115,6 +115,21 @@ function getAudioExtension(mimeType: string, originalName: string): string {
   return "m4a";
 }
 
+function normalizeAudioMimeType(mimeType: string, ext: string): string {
+  const normalized = mimeType.toLowerCase().trim();
+  if (normalized === "audio/x-m4a" || normalized === "audio/m4a") {
+    return "audio/mp4";
+  }
+  if (normalized === "audio/mp3") return "audio/mpeg";
+  if (normalized === "audio/x-wav") return "audio/wav";
+  if (normalized) return normalized;
+  if (ext === "webm") return "audio/webm";
+  if (ext === "mp3") return "audio/mpeg";
+  if (ext === "wav") return "audio/wav";
+  if (ext === "3gp") return "audio/3gpp";
+  return "audio/mp4";
+}
+
 function parseOptionalNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -185,7 +200,7 @@ async function verifyOwnership(
   return !!data;
 }
 
-// ── LIST ─────────────────────────────────────────────────────────
+// â”€â”€ LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get(
   "/survey-reports",
   softClerkAuth(),
@@ -211,7 +226,7 @@ router.get(
   },
 );
 
-// ── CREATE ───────────────────────────────────────────────────────
+// â”€â”€ CREATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post(
   "/survey-reports",
   softClerkAuth(),
@@ -311,7 +326,7 @@ router.post(
   },
 );
 
-// ── GET DETAIL ────────────────────────────────────────────────────
+// â”€â”€ GET DETAIL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get(
   "/survey-reports/:id",
   softClerkAuth(),
@@ -354,7 +369,7 @@ router.get(
   },
 );
 
-// ── PATCH ─────────────────────────────────────────────────────────
+// â”€â”€ PATCH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.patch(
   "/survey-reports/:id",
   softClerkAuth(),
@@ -403,7 +418,7 @@ router.patch(
   },
 );
 
-// ── DELETE (cascades items + sea trial) ───────────────────────────
+// â”€â”€ DELETE (cascades items + sea trial) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.delete(
   "/survey-reports/:id",
   softClerkAuth(),
@@ -436,7 +451,7 @@ router.delete(
   },
 );
 
-// ── REPLACE ITEMS (atomic; recomputes recommendation counters) ────
+// â”€â”€ REPLACE ITEMS (atomic; recomputes recommendation counters) â”€â”€â”€â”€
 router.put(
   "/survey-reports/:id/items",
   softClerkAuth(),
@@ -597,7 +612,7 @@ router.put(
   },
 );
 
-// ── UPSERT SEA TRIAL ──────────────────────────────────────────────
+// â”€â”€ UPSERT SEA TRIAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.put(
   "/survey-reports/:id/sea-trial",
   softClerkAuth(),
@@ -658,7 +673,7 @@ router.put(
   },
 );
 
-// ── ITEM PHOTOS — UPLOAD ──────────────────────────────────────────
+// â”€â”€ ITEM PHOTOS â€” UPLOAD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post(
   "/surveyor-assets/logo",
   softClerkAuth(),
@@ -848,7 +863,7 @@ router.post(
     const objectPath = `${loaded.item.report_id}/${itemId}/${Date.now()}_${Math.random()
       .toString(36)
       .slice(2, 8)}.${ext}`;
-    const contentType = file.mimetype || "audio/m4a";
+    const contentType = normalizeAudioMimeType(file.mimetype || "", ext);
     const up = await sb.storage
       .from(SURVEY_VOICE_NOTES_BUCKET)
       .upload(objectPath, file.buffer, {
@@ -938,7 +953,93 @@ router.post(
   },
 );
 
-// ── ITEM PHOTOS — DELETE ──────────────────────────────────────────
+router.get(
+  "/survey-items/:itemId/voice-notes",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const itemId = req.params["itemId"] ?? "";
+    if (!isUuid(itemId)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const loaded = await loadOwnedItem(itemId, req.userId!);
+    if ("status" in loaded) {
+      res.status(loaded.status).json({ error: loaded.error });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Survey storage not configured" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(SURVEY_VOICE_NOTES_TABLE)
+      .select("id,field_key,language,transcription_status,audio_url,raw_transcript,edited_text,confidence,duration_seconds,error_message,created_at")
+      .eq("item_id", itemId)
+      .eq("clerk_user_id", req.userId!)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) {
+      req.log.error({ err: error.message }, "list survey voice notes failed");
+      res.status(503).json({ error: "Could not load voice notes" });
+      return;
+    }
+    res.json({ items: data ?? [] });
+  },
+);
+
+router.get(
+  "/survey-voice-notes/:voiceNoteId/audio-url",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const voiceNoteId = req.params["voiceNoteId"] ?? "";
+    if (!isUuid(voiceNoteId)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Survey storage not configured" });
+      return;
+    }
+    const { data: note, error } = await sb
+      .from(SURVEY_VOICE_NOTES_TABLE)
+      .select("id,report_id,audio_url,clerk_user_id")
+      .eq("id", voiceNoteId)
+      .eq("clerk_user_id", req.userId!)
+      .maybeSingle();
+    if (error) {
+      req.log.error({ err: error.message }, "load survey voice note failed");
+      res.status(503).json({ error: "Could not load voice note" });
+      return;
+    }
+    if (!note || !note.audio_url) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const owned = await verifyOwnership(sb, note.report_id as string, req.userId!);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const signed = await sb.storage
+      .from(SURVEY_VOICE_NOTES_BUCKET)
+      .createSignedUrl(note.audio_url as string, 60 * 10);
+    if (signed.error || !signed.data?.signedUrl) {
+      req.log.error(
+        { err: signed.error?.message },
+        "create survey voice signed URL failed",
+      );
+      res.status(503).json({ error: "Could not create audio link" });
+      return;
+    }
+    res.json({ url: signed.data.signedUrl, expires_in_seconds: 600 });
+  },
+);
+
+// â”€â”€ ITEM PHOTOS â€” DELETE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.delete(
   "/survey-items/:itemId/photos",
   softClerkAuth(),
@@ -972,7 +1073,7 @@ router.delete(
       return;
     }
     const sb = getSupabase()!;
-    // Atomic remove via RPC (migration 021) — avoids lost-update races
+    // Atomic remove via RPC (migration 021) â€” avoids lost-update races
     // where a concurrent append could resurrect the URL we just removed.
     const { data: removed, error: rpcErr } = await sb.rpc(
       "survey_item_remove_photo",

@@ -16,6 +16,12 @@ export type SurveyVoiceNoteResp = {
   created_at?: string;
 };
 
+export type SurveyVoiceNoteItem = Omit<SurveyVoiceNoteResp, "text" | "status"> & {
+  transcription_status: SurveyVoiceNoteResp["status"];
+  duration_seconds?: number | null;
+  error_message?: string | null;
+};
+
 async function buildHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = await getAuthToken();
@@ -77,4 +83,41 @@ export async function uploadSurveyVoiceNote(input: {
     );
   }
   return (await res.json()) as SurveyVoiceNoteResp;
+}
+
+export async function listSurveyItemVoiceNotes(
+  itemId: string,
+): Promise<SurveyVoiceNoteItem[]> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/survey-items/${itemId}/voice-notes`, {
+    method: "GET",
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Could not load voice notes (HTTP ${res.status}): ${text.slice(0, 200) || "no body"}`,
+    );
+  }
+  const json = (await res.json()) as { items?: SurveyVoiceNoteItem[] };
+  return Array.isArray(json.items) ? json.items : [];
+}
+
+export async function getSurveyVoiceNoteAudioUrl(
+  voiceNoteId: string,
+): Promise<string> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/survey-voice-notes/${voiceNoteId}/audio-url`, {
+    method: "GET",
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Could not open audio (HTTP ${res.status}): ${text.slice(0, 200) || "no body"}`,
+    );
+  }
+  const json = (await res.json()) as { url?: string };
+  if (!json.url) throw new Error("Server did not return an audio link.");
+  return json.url;
 }
