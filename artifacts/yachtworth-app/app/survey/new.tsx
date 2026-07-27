@@ -2,9 +2,11 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  getListYachtsQueryKey,
   getListSurveyReportsQueryKey,
   useCreateSurveyReport,
   useDeleteSurveyReport,
+  useListYachts,
   useReplaceSurveyItems,
 } from "@workspace/api-client-react";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -35,7 +37,7 @@ const MUTED = "rgba(247,243,236,0.6)";
 const FAINT = "rgba(247,243,236,0.4)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 
-type SectionKey = "vessel" | "client" | "surveyor" | "conditions";
+type SectionKey = "vessel" | "specification" | "client" | "surveyor" | "conditions";
 
 const VESSEL_TYPES = [
   "Motor Yacht",
@@ -55,6 +57,23 @@ const REPORT_TYPES = [
 ];
 const PURPOSES = ["Pre-purchase", "Insurance", "Annual", "Damage", "Other"];
 
+function numOrNull(value: string): number | null {
+  const n = Number(value.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+function strOrNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function yachtTypeLabel(value: string | null | undefined): string {
+  if (!value) return "";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function SurveyNewScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
@@ -64,6 +83,13 @@ export default function SurveyNewScreen() {
   const createM = useCreateSurveyReport();
   const replaceM = useReplaceSurveyItems();
   const deleteM = useDeleteSurveyReport();
+  const yachtsQ = useListYachts(undefined, {
+    query: {
+      queryKey: getListYachtsQueryKey(),
+      enabled: Boolean(isSignedIn),
+      staleTime: 30_000,
+    },
+  });
 
   const [open, setOpen] = useState<SectionKey>("vessel");
   useFocusEffect(useCallback(() => setOpen("vessel"), []));
@@ -96,6 +122,26 @@ export default function SurveyNewScreen() {
   const [surveyDate, setSurveyDate] = useState(""); // ISO YYYY-MM-DD
   const [reportType, setReportType] = useState("pre_purchase");
   const [purpose, setPurpose] = useState("Pre-purchase");
+  const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
+
+  // Specification
+  const [loaMeters, setLoaMeters] = useState("");
+  const [lwlMeters, setLwlMeters] = useState("");
+  const [beamMeters, setBeamMeters] = useState("");
+  const [draftMeters, setDraftMeters] = useState("");
+  const [displacementText, setDisplacementText] = useState("");
+  const [hullMaterial, setHullMaterial] = useState("");
+  const [deckMaterial, setDeckMaterial] = useState("");
+  const [keelType, setKeelType] = useState("");
+  const [enginesText, setEnginesText] = useState("");
+  const [transmissionsText, setTransmissionsText] = useState("");
+  const [fuelCapacityL, setFuelCapacityL] = useState("");
+  const [freshWaterL, setFreshWaterL] = useState("");
+  const [blackWaterL, setBlackWaterL] = useState("");
+  const [greyWaterL, setGreyWaterL] = useState("");
+  const [specificationSource, setSpecificationSource] = useState(
+    "Specifications are taken from the ship's papers, builder information and manuals. Unverified.",
+  );
 
   // Client
   const [clientName, setClientName] = useState("");
@@ -114,6 +160,47 @@ export default function SurveyNewScreen() {
   const [seaState, setSeaState] = useState("");
 
   const [saving, setSaving] = useState(false);
+  const yachts = (yachtsQ.data?.items ?? []).filter((y) => !y.is_archived);
+
+  const applyYachtPrefill = (yachtId: string) => {
+    const y = yachts.find((item) => item.id === yachtId);
+    if (!y) return;
+    const yExtra = y as unknown as Record<string, unknown>;
+    const extraText = (key: string): string => {
+      const value = yExtra[key];
+      return value == null ? "" : String(value);
+    };
+    const extraNum = (key: string): string => {
+      const value = yExtra[key];
+      return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+    };
+    setSelectedYachtId(y.id);
+    setVesselName(y.name ?? "");
+    setVesselType(yachtTypeLabel(y.yacht_type));
+    setManufacturer(y.brand ?? "");
+    setModel(y.model ?? "");
+    setYearBuilt(y.year_built != null ? String(y.year_built) : "");
+    setFlag(y.flag ?? "");
+    setHin(y.hull_id ?? "");
+    setLying(y.marina_location ?? y.home_port ?? "");
+    setLoaMeters(y.length_meters != null ? String(y.length_meters) : "");
+    setBeamMeters(y.beam_meters != null ? String(y.beam_meters) : "");
+    setDraftMeters(y.draft_meters != null ? String(y.draft_meters) : "");
+    setHullMaterial(extraText("hull_material"));
+    setEnginesText(
+      [
+        y.engine_count ? `${y.engine_count} x` : null,
+        y.engine_maker,
+        y.engine_model,
+        y.total_hp ? `${y.total_hp} hp total` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+    setFuelCapacityL(extraNum("fuel_capacity_l"));
+    setFreshWaterL(extraNum("water_capacity_l"));
+    setOpen("specification");
+  };
 
   const onSave = async () => {
     if (!isLoaded) return;
@@ -143,11 +230,27 @@ export default function SurveyNewScreen() {
       const created = await createM.mutateAsync({
         data: {
           report_type: reportType,
+          yacht_id: selectedYachtId,
           vessel_name: name,
           vessel_type: vesselType || null,
           manufacturer: manufacturer.trim() || null,
           model: model.trim() || null,
           year_built: Number.isFinite(yr) && yr > 1800 ? yr : null,
+          loa_meters: numOrNull(loaMeters),
+          lwl_meters: numOrNull(lwlMeters),
+          beam_meters: numOrNull(beamMeters),
+          draft_meters: numOrNull(draftMeters),
+          displacement_text: strOrNull(displacementText),
+          hull_material: strOrNull(hullMaterial),
+          deck_material: strOrNull(deckMaterial),
+          keel_type: strOrNull(keelType),
+          engines_text: strOrNull(enginesText),
+          transmissions_text: strOrNull(transmissionsText),
+          fuel_capacity_l: numOrNull(fuelCapacityL),
+          fresh_water_l: numOrNull(freshWaterL),
+          black_water_l: strOrNull(blackWaterL),
+          grey_water_l: strOrNull(greyWaterL),
+          specification_source: strOrNull(specificationSource),
           flag: flag.trim() || null,
           hin: hin.trim() || null,
           lying: lying.trim() || null,
@@ -264,10 +367,47 @@ export default function SurveyNewScreen() {
               Cover information. You can complete sections after saving.
             </Text>
 
+            {yachtsQ.isLoading ? (
+              <View style={styles.prefillCard}>
+                <ActivityIndicator color={GOLD} />
+              </View>
+            ) : yachts.length > 0 ? (
+              <View style={styles.prefillCard}>
+                <Text style={styles.sectionKicker}>PREFILL FROM MY YACHTS</Text>
+                {yachts.map((y, i) => {
+                  const active = y.id === selectedYachtId;
+                  return (
+                    <Pressable
+                      key={y.id}
+                      onPress={() => applyYachtPrefill(y.id)}
+                      style={({ pressed }) => [
+                        styles.prefillRow,
+                        i === yachts.length - 1 && { borderBottomWidth: 0 },
+                        active && styles.prefillRowActive,
+                        { opacity: pressed ? 0.85 : 1 },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.prefillTitle} numberOfLines={1}>
+                          {y.name ?? [y.brand, y.model].filter(Boolean).join(" ") ?? "Yacht"}
+                        </Text>
+                        <Text style={styles.prefillSub} numberOfLines={1}>
+                          {[y.brand, y.model, y.year_built ? String(y.year_built) : null]
+                            .filter(Boolean)
+                            .join(" · ") || "Saved yacht"}
+                        </Text>
+                      </View>
+                      <Feather name={active ? "check-circle" : "plus-circle"} size={17} color={GOLD} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
             <Section
               label="Vessel"
               isOpen={open === "vessel"}
-              onToggle={() => setOpen(open === "vessel" ? "client" : "vessel")}
+              onToggle={() => setOpen(open === "vessel" ? "specification" : "vessel")}
             >
               <PillRow
                 label="Report type"
@@ -341,6 +481,35 @@ export default function SurveyNewScreen() {
                 options={PURPOSES}
                 value={purpose}
                 onChange={setPurpose}
+              />
+            </Section>
+
+            <Section
+              label="Specification"
+              isOpen={open === "specification"}
+              onToggle={() =>
+                setOpen(open === "specification" ? "client" : "specification")
+              }
+            >
+              <Field label="LOA (m)" value={loaMeters} onChange={setLoaMeters} keyboardType="default" placeholder="26.10" />
+              <Field label="LWL (m)" value={lwlMeters} onChange={setLwlMeters} keyboardType="default" placeholder="22.14" />
+              <Field label="Beam (m)" value={beamMeters} onChange={setBeamMeters} keyboardType="default" placeholder="7.14" />
+              <Field label="Draft (m)" value={draftMeters} onChange={setDraftMeters} keyboardType="default" placeholder="3.32" />
+              <Field label="Displacement" value={displacementText} onChange={setDisplacementText} placeholder="72.6T" />
+              <Field label="Hull material" value={hullMaterial} onChange={setHullMaterial} placeholder="Glass reinforced polyester" />
+              <Field label="Deck material" value={deckMaterial} onChange={setDeckMaterial} placeholder="GRP gelcoat with sandwich core" />
+              <Field label="Keel" value={keelType} onChange={setKeelType} placeholder="Full length planing" />
+              <Field label="Engines" value={enginesText} onChange={setEnginesText} placeholder="2 x MAN D2676 LE 443 730HP" />
+              <Field label="Transmissions" value={transmissionsText} onChange={setTransmissionsText} placeholder="ZF 500.1IV i=3 x 2" />
+              <Field label="Fuel capacity (Ltrs)" value={fuelCapacityL} onChange={setFuelCapacityL} keyboardType="default" placeholder="9000" />
+              <Field label="Fresh water (Ltrs)" value={freshWaterL} onChange={setFreshWaterL} keyboardType="default" placeholder="2460" />
+              <Field label="Black water (Ltrs)" value={blackWaterL} onChange={setBlackWaterL} placeholder="Holding tank 950" />
+              <Field label="Grey water (Ltrs)" value={greyWaterL} onChange={setGreyWaterL} placeholder="Holding tank 950" />
+              <Field
+                label="Specification source / note"
+                value={specificationSource}
+                onChange={setSpecificationSource}
+                multiline
               />
             </Section>
 
@@ -485,6 +654,7 @@ function Field({
   placeholder,
   keyboardType,
   autoCapitalize,
+  multiline,
 }: {
   label: string;
   value: string;
@@ -492,6 +662,7 @@ function Field({
   placeholder?: string;
   keyboardType?: "default" | "number-pad" | "email-address" | "phone-pad";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  multiline?: boolean;
 }) {
   return (
     <View style={{ marginBottom: 12 }}>
@@ -503,7 +674,9 @@ function Field({
         placeholderTextColor={FAINT}
         keyboardType={keyboardType ?? "default"}
         autoCapitalize={autoCapitalize ?? "sentences"}
-        style={styles.input}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : undefined}
+        style={[styles.input, multiline && styles.inputMultiline]}
       />
     </View>
   );
@@ -585,6 +758,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 18,
   },
+  sectionKicker: {
+    color: GOLD,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    letterSpacing: 1.8,
+    marginBottom: 8,
+  },
+  prefillCard: {
+    backgroundColor: NAVY_DEEP,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    marginBottom: 12,
+    padding: 14,
+  },
+  prefillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: DIVIDER,
+  },
+  prefillRowActive: {
+    backgroundColor: "rgba(201,169,97,0.08)",
+    marginHorizontal: -8,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  prefillTitle: {
+    color: IVORY,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  prefillSub: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 3,
+  },
   emptyTitle: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 18 },
   emptyText: {
     color: MUTED,
@@ -646,6 +859,10 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 12 : 10,
     borderWidth: 1,
     borderColor: DIVIDER,
+  },
+  inputMultiline: {
+    minHeight: 86,
+    lineHeight: 20,
   },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pill: {

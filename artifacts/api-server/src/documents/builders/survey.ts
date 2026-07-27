@@ -89,17 +89,31 @@ function surveySpecificationRows(
   };
 
   push("Vessel", yacht.name);
-  push("Type", reportData.vesselType ?? (yacht.yacht_type ? humanize(String(yacht.yacht_type)) : null));
-  push("Builder", reportData.manufacturer ?? yacht.builder);
   push("Model", reportData.model ?? yacht.model);
+  push("Type", reportData.vesselType ?? (yacht.yacht_type ? humanize(String(yacht.yacht_type)) : null));
+  pushNum("LOA", reportData.loaMeters ?? yacht.length_meters, " m");
+  pushNum("LWL", reportData.lwlMeters, " m");
+  pushNum("Beam", reportData.beamMeters ?? yacht.beam_meters, " m");
+  pushNum("Draft", reportData.draftMeters ?? yacht.draft_meters, " m");
+  push("Displacement", reportData.displacementText ?? yachtExtra(yacht, "displacement_tonnes"));
   push("Year built", reportData.yearBuilt ?? yacht.year_built);
-  pushNum("Length overall", yacht.length_meters, " m");
-  pushNum("Beam", yacht.beam_meters, " m");
-  pushNum("Draft", yacht.draft_meters, " m");
-  pushNum("Gross tonnage", yachtExtra(yacht, "gross_tonnage"), " GT");
-  pushNum("Displacement", yachtExtra(yacht, "displacement_tonnes"), " t");
-  push("Hull material", yacht.hull_material);
-  push("Hull type", yacht.hull_type);
+  push("Hull material", reportData.hullMaterial ?? yacht.hull_material);
+  push("Deck material", reportData.deckMaterial);
+  push("Keel", reportData.keelType ?? yacht.hull_type);
+  push("Engines", reportData.enginesText);
+  if (!reportData.enginesText) {
+    push("Engine maker", yacht.engine_maker);
+    push("Engine model", yacht.engine_model);
+    push("Engines", yacht.engine_count);
+    pushNum("Total power", yacht.total_hp, " hp");
+  }
+  push("Transmissions", reportData.transmissionsText);
+  pushNum("Fuel capacity", reportData.fuelCapacityL ?? yacht.fuel_capacity_l, " L");
+  pushNum("Fresh water", reportData.freshWaterL ?? yacht.water_capacity_l, " L");
+  push("Black water", reportData.blackWaterL);
+  push("Grey water", reportData.greyWaterL);
+  push("Specification source", reportData.specificationSource);
+  push("Builder", reportData.manufacturer ?? yacht.builder);
   push("Flag", reportData.flag ?? yacht.flag);
   push("Home port", yacht.home_port);
   push("Lying", reportData.lying);
@@ -113,18 +127,12 @@ function surveySpecificationRows(
   push("Heads", yacht.heads);
   push("Crew", yacht.crew);
   push("Crew cabins", yacht.crew_cabins);
-  push("Engine maker", yacht.engine_maker);
-  push("Engine model", yacht.engine_model);
-  push("Engines", yacht.engine_count);
-  pushNum("Total power", yacht.total_hp, " hp");
   push("Engine hours", yacht.engine_hours);
   push("Port engine hours", yacht.engine_hours_port);
   push("Starboard engine hours", yacht.engine_hours_starboard);
   pushNum("Maximum speed", yacht.max_speed_knots, " kn");
   pushNum("Cruising speed", yacht.cruising_speed_knots, " kn");
   pushNum("Range", yacht.range_nm, " nm");
-  pushNum("Fuel capacity", yacht.fuel_capacity_l, " L");
-  pushNum("Water capacity", yacht.water_capacity_l, " L");
   return rows;
 }
 

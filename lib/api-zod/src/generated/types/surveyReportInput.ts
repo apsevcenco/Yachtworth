@@ -21,6 +21,36 @@ export interface SurveyReportInput {
   /** @nullable */
   year_built?: number | null;
   /** @nullable */
+  loa_meters?: number | null;
+  /** @nullable */
+  lwl_meters?: number | null;
+  /** @nullable */
+  beam_meters?: number | null;
+  /** @nullable */
+  draft_meters?: number | null;
+  /** @nullable */
+  displacement_text?: string | null;
+  /** @nullable */
+  hull_material?: string | null;
+  /** @nullable */
+  deck_material?: string | null;
+  /** @nullable */
+  keel_type?: string | null;
+  /** @nullable */
+  engines_text?: string | null;
+  /** @nullable */
+  transmissions_text?: string | null;
+  /** @nullable */
+  fuel_capacity_l?: number | null;
+  /** @nullable */
+  fresh_water_l?: number | null;
+  /** @nullable */
+  black_water_l?: string | null;
+  /** @nullable */
+  grey_water_l?: string | null;
+  /** @nullable */
+  specification_source?: string | null;
+  /** @nullable */
   flag?: string | null;
   /** @nullable */
   hin?: string | null;

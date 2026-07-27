@@ -4020,6 +4020,21 @@ components:
         manufacturer: { type: ["string", "null"] }
         model: { type: ["string", "null"] }
         year_built: { type: ["integer", "null"] }
+        loa_meters: { type: ["number", "null"] }
+        lwl_meters: { type: ["number", "null"] }
+        beam_meters: { type: ["number", "null"] }
+        draft_meters: { type: ["number", "null"] }
+        displacement_text: { type: ["string", "null"] }
+        hull_material: { type: ["string", "null"] }
+        deck_material: { type: ["string", "null"] }
+        keel_type: { type: ["string", "null"] }
+        engines_text: { type: ["string", "null"] }
+        transmissions_text: { type: ["string", "null"] }
+        fuel_capacity_l: { type: ["number", "null"] }
+        fresh_water_l: { type: ["number", "null"] }
+        black_water_l: { type: ["string", "null"] }
+        grey_water_l: { type: ["string", "null"] }
+        specification_source: { type: ["string", "null"] }
         flag: { type: ["string", "null"] }
         hin: { type: ["string", "null"] }
         lying: { type: ["string", "null"] }
@@ -4055,6 +4070,21 @@ components:
         manufacturer: { type: ["string", "null"] }
         model: { type: ["string", "null"] }
         year_built: { type: ["integer", "null"] }
+        loa_meters: { type: ["number", "null"] }
+        lwl_meters: { type: ["number", "null"] }
+        beam_meters: { type: ["number", "null"] }
+        draft_meters: { type: ["number", "null"] }
+        displacement_text: { type: ["string", "null"] }
+        hull_material: { type: ["string", "null"] }
+        deck_material: { type: ["string", "null"] }
+        keel_type: { type: ["string", "null"] }
+        engines_text: { type: ["string", "null"] }
+        transmissions_text: { type: ["string", "null"] }
+        fuel_capacity_l: { type: ["number", "null"] }
+        fresh_water_l: { type: ["number", "null"] }
+        black_water_l: { type: ["string", "null"] }
+        grey_water_l: { type: ["string", "null"] }
+        specification_source: { type: ["string", "null"] }
         flag: { type: ["string", "null"] }
         hin: { type: ["string", "null"] }
         lying: { type: ["string", "null"] }
@@ -4098,6 +4128,21 @@ components:
         manufacturer: { type: ["string", "null"] }
         model: { type: ["string", "null"] }
         year_built: { type: ["integer", "null"] }
+        loa_meters: { type: ["number", "null"] }
+        lwl_meters: { type: ["number", "null"] }
+        beam_meters: { type: ["number", "null"] }
+        draft_meters: { type: ["number", "null"] }
+        displacement_text: { type: ["string", "null"] }
+        hull_material: { type: ["string", "null"] }
+        deck_material: { type: ["string", "null"] }
+        keel_type: { type: ["string", "null"] }
+        engines_text: { type: ["string", "null"] }
+        transmissions_text: { type: ["string", "null"] }
+        fuel_capacity_l: { type: ["number", "null"] }
+        fresh_water_l: { type: ["number", "null"] }
+        black_water_l: { type: ["string", "null"] }
+        grey_water_l: { type: ["string", "null"] }
+        specification_source: { type: ["string", "null"] }
         flag: { type: ["string", "null"] }
         hin: { type: ["string", "null"] }
         lying: { type: ["string", "null"] }

@@ -891,9 +891,24 @@ export type SurveyDocumentInput = {
     vessel_name: string;
     vessel_type?: string | null;
     manufacturer?: string | null;
-    model?: string | null;
-    year_built?: number | null;
-    flag?: string | null;
+      model?: string | null;
+      year_built?: number | null;
+      loa_meters?: number | null;
+      lwl_meters?: number | null;
+      beam_meters?: number | null;
+      draft_meters?: number | null;
+      displacement_text?: string | null;
+      hull_material?: string | null;
+      deck_material?: string | null;
+      keel_type?: string | null;
+      engines_text?: string | null;
+      transmissions_text?: string | null;
+      fuel_capacity_l?: number | null;
+      fresh_water_l?: number | null;
+      black_water_l?: string | null;
+      grey_water_l?: string | null;
+      specification_source?: string | null;
+      flag?: string | null;
     hin?: string | null;
     lying?: string | null;
     survey_date?: string | null;
@@ -952,18 +967,39 @@ function buildSurveyBody(input: SurveyDocumentInput) {
       name: r.vessel_name || "Survey Report",
       builder: r.manufacturer ?? null,
       model: r.model ?? null,
-      yacht_type: r.vessel_type ?? null,
-      year_built: r.year_built ?? null,
-      flag: r.flag ?? null,
-      hull_id: r.hin ?? null,
-    },
+        yacht_type: r.vessel_type ?? null,
+        year_built: r.year_built ?? null,
+        length_meters: r.loa_meters ?? null,
+        beam_meters: r.beam_meters ?? null,
+        draft_meters: r.draft_meters ?? null,
+        hull_material: r.hull_material ?? null,
+        fuel_capacity_l: r.fuel_capacity_l ?? null,
+        water_capacity_l: r.fresh_water_l ?? null,
+        flag: r.flag ?? null,
+        hull_id: r.hin ?? null,
+      },
     reportData: {
       reportType: r.report_type ?? null,
       vesselType: r.vessel_type ?? null,
-      manufacturer: r.manufacturer ?? null,
-      model: r.model ?? null,
-      yearBuilt: r.year_built ?? null,
-      flag: r.flag ?? null,
+        manufacturer: r.manufacturer ?? null,
+        model: r.model ?? null,
+        yearBuilt: r.year_built ?? null,
+        loaMeters: r.loa_meters ?? null,
+        lwlMeters: r.lwl_meters ?? null,
+        beamMeters: r.beam_meters ?? null,
+        draftMeters: r.draft_meters ?? null,
+        displacementText: r.displacement_text ?? null,
+        hullMaterial: r.hull_material ?? null,
+        deckMaterial: r.deck_material ?? null,
+        keelType: r.keel_type ?? null,
+        enginesText: r.engines_text ?? null,
+        transmissionsText: r.transmissions_text ?? null,
+        fuelCapacityL: r.fuel_capacity_l ?? null,
+        freshWaterL: r.fresh_water_l ?? null,
+        blackWaterL: r.black_water_l ?? null,
+        greyWaterL: r.grey_water_l ?? null,
+        specificationSource: r.specification_source ?? null,
+        flag: r.flag ?? null,
       hin: r.hin ?? null,
       lying: r.lying ?? null,
       surveyDate: r.survey_date ?? null,
