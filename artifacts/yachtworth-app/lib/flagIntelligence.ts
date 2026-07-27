@@ -55,6 +55,15 @@ export type FlagRegistry = {
   advantages: string[];
   disadvantages: string[];
   official_website: string | null;
+  flag_code?: string | null;
+  flag_asset_key?: string | null;
+  flag_asset_path?: string | null;
+  flag_alt_text?: string | null;
+  registry_badge?: string | null;
+  flag_note?: string | null;
+  flag_asset_source?: string | null;
+  flag_asset_license?: string | null;
+  flag_asset_updated_at?: string | null;
   legal_partners: LegalPartner[];
   last_updated: string;
   advisor?: {

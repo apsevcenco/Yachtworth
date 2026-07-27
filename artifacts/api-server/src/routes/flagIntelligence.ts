@@ -117,6 +117,15 @@ function legacyCompatibleRegistry(row: Record<string, unknown>): FlagRegistry & 
     advantages: rowArray(row["advantages"]).length ? rowArray(row["advantages"]) : rowArrayFromText(row["objective_advantages"]),
     disadvantages: rowArray(row["disadvantages"]).length ? rowArray(row["disadvantages"]) : rowArrayFromText(row["limitations_and_risks"]),
     official_website: officialWebsite,
+    flag_code: asString(row["flag_code"]) ?? flagAssetFor(row)?.flag_code ?? null,
+    flag_asset_key: asString(row["flag_asset_key"]) ?? flagAssetFor(row)?.flag_asset_key ?? null,
+    flag_asset_path: asString(row["flag_asset_path"]) ?? flagAssetFor(row)?.flag_asset_path ?? null,
+    flag_alt_text: asString(row["flag_alt_text"]) ?? flagAssetFor(row)?.flag_alt_text ?? null,
+    registry_badge: asString(row["registry_badge"]) ?? flagAssetFor(row)?.registry_badge ?? null,
+    flag_note: asString(row["flag_note"]) ?? flagAssetFor(row)?.flag_note ?? null,
+    flag_asset_source: asString(row["flag_asset_source"]) ?? flagAssetFor(row)?.flag_asset_source ?? null,
+    flag_asset_license: asString(row["flag_asset_license"]) ?? flagAssetFor(row)?.flag_asset_license ?? null,
+    flag_asset_updated_at: asString(row["flag_asset_updated_at"]) ?? flagAssetFor(row)?.flag_asset_updated_at ?? null,
     legal_partners: Array.isArray(row["legal_partners"]) ? row["legal_partners"] : [],
     last_updated: String(row["last_updated"] ?? row["last_verified_at"] ?? "2026-07-27"),
     advisor: {
@@ -166,6 +175,68 @@ function rowArrayFromText(v: unknown): string[] {
   const text = asString(v);
   return text ? text.split(/[;\n]/).map((x) => x.trim()).filter(Boolean) : [];
 }
+
+function flagAssetFor(row: Record<string, unknown>) {
+  const key = slugify(String(row["slug"] ?? row["code"] ?? row["flag_name"] ?? ""));
+  return FLAG_ASSET_MAPPING[key] ?? null;
+}
+
+function slugify(value: string): string {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+const FLAG_ASSET_MAPPING: Record<string, {
+  flag_code: string;
+  flag_asset_key: string;
+  flag_asset_path: string;
+  flag_alt_text: string;
+  registry_badge?: string;
+  flag_note?: string;
+  flag_asset_source: string;
+  flag_asset_license: string;
+  flag_asset_updated_at: string;
+}> = Object.fromEntries(
+  [
+    ["cayman-islands", "ky", "Flag of the Cayman Islands"],
+    ["cayman", "ky", "Flag of the Cayman Islands"],
+    ["malta", "mt", "Flag of Malta"],
+    ["marshall-islands", "mh", "Flag of the Marshall Islands"],
+    ["marshall", "mh", "Flag of the Marshall Islands"],
+    ["isle-of-man", "im", "Flag of the Isle of Man"],
+    ["jersey", "je", "Flag of Jersey"],
+    ["guernsey", "gg", "Flag of Guernsey"],
+    ["gibraltar", "gi", "Flag of Gibraltar"],
+    ["united-kingdom", "gb", "Flag of the United Kingdom"],
+    ["france", "fr", "Flag of France"],
+    ["italy", "it", "Flag of Italy"],
+    ["spain", "es", "Flag of Spain"],
+    ["netherlands", "nl", "Flag of the Netherlands"],
+    ["portugal", "pt", "Flag of Portugal"],
+    ["madeira", "pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."],
+    ["madeira-mar", "pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."],
+    ["cyprus", "cy", "Flag of Cyprus"],
+    ["panama", "pa", "Flag of Panama"],
+    ["belize", "bz", "Flag of Belize"],
+    ["jamaica", "jm", "Flag of Jamaica"],
+    ["cook-islands", "ck", "Flag of the Cook Islands"],
+    ["cook", "ck", "Flag of the Cook Islands"],
+    ["san-marino", "sm", "Flag of San Marino"],
+    ["luxembourg", "lu", "Flag of Luxembourg"],
+  ].map(([key, code, alt, badge, note]) => [
+    key,
+    {
+      flag_code: code,
+      flag_asset_key: code,
+      flag_asset_path: `/assets/flags/4x3/${code}.svg`,
+      flag_alt_text: alt,
+      registry_badge: badge,
+      flag_note: note,
+      flag_asset_source: "flag-icons@7.5.0",
+      flag_asset_license: "MIT",
+      flag_asset_updated_at: "2026-07-27",
+    },
+  ]),
+);
 
 async function loadRegistries(): Promise<FlagRegistry[]> {
   const supabase = getSupabase();

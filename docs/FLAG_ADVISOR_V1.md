@@ -23,6 +23,10 @@ V1 extends `flag_registries` and adds:
 - `flag_required_documents`: future document checklist structure.
 - `flag_change_log`: audit trail for future admin edits.
 - `flag_import_runs`: import-run metadata, workbook hash and report.
+- local flag asset metadata on `flag_registries`:
+  `flag_code`, `flag_asset_key`, `flag_asset_path`, `flag_alt_text`,
+  `registry_badge`, `flag_note`, `flag_asset_source`,
+  `flag_asset_license`, `flag_asset_updated_at`.
 
 Existing lightweight columns remain for backwards compatibility with the previous Flag Intelligence screen.
 
@@ -36,6 +40,48 @@ Source workbook: `Yachtworth_Flag_Registry_Base_v1.xlsx`.
 - `Overview` and `Field_Definitions` inform governance and UI/data policy.
 
 The importer preserves original rows as JSON and does not invent missing data.
+
+## Flag Assets
+
+Flag artwork uses the open-source `flag-icons@7.5.0` package, 4x3 SVG variants, under the MIT License.
+
+Only required SVG files are copied into the app bundle:
+
+`artifacts/yachtworth-app/assets/flags/4x3/`
+
+The UI renders them through the reusable `RegistryFlag` component. The component keeps a 4:3 rectangle, uses a subtle border and neutral background, and renders a neutral fallback if an asset is missing. It does not use flag emoji, circular masks, remote CDN images or hotlinked runtime assets.
+
+Exact mapping:
+
+- Cayman Islands: `ky.svg`
+- Malta: `mt.svg`
+- Marshall Islands: `mh.svg`
+- Isle of Man: `im.svg`
+- Jersey: `je.svg`
+- Guernsey: `gg.svg`
+- Gibraltar: `gi.svg`
+- United Kingdom: `gb.svg`
+- France: `fr.svg`
+- Italy: `it.svg`
+- Spain: `es.svg`
+- Netherlands: `nl.svg`
+- Portugal: `pt.svg`
+- Madeira (MAR): `pt.svg`
+- Cyprus: `cy.svg`
+- Panama: `pa.svg`
+- Belize: `bz.svg`
+- Jamaica: `jm.svg`
+- Cook Islands: `ck.svg`
+- San Marino: `sm.svg`
+- Luxembourg: `lu.svg`
+
+### Madeira Rule
+
+Madeira International Shipping Register is a Portuguese international register. Yachts registered in MAR fly the Portuguese national flag, so Yachtworth uses `pt.svg`, keeps the display name `Madeira (MAR)`, shows the `MAR` badge, and stores the clarification:
+
+`Yachts registered in MAR fly the Portuguese flag.`
+
+Do not replace this with a regional Madeira flag.
 
 ## Status Values
 
@@ -81,7 +127,10 @@ The importer:
 Apply order:
 
 1. Run `migrations/032_flag_advisor_foundation.sql`.
-2. Run generated `exports/flag_advisor/flag_advisor_import.sql`.
+2. Run `migrations/033_flag_registry_assets.sql`.
+3. Run generated `exports/flag_advisor/flag_advisor_import.sql`.
+
+The importer contains the same explicit flag mapping and will fail if a new registry has no configured asset. This is intentional: new flag data must be reviewed before production use.
 
 ## API
 
@@ -111,6 +160,7 @@ Modes:
 - `Registration Advice`: existing ranked guidance.
 - `Comparison`: side-by-side registry comparison.
 - `Fee Estimate`: preliminary confirmed registry-fee estimate.
+- `/flag-admin`: read-only administration view for registries, fees, sources, data quality and import history, including flag preview and stored flag asset fields.
 
 ## Data Quality
 

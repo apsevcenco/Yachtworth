@@ -21,6 +21,7 @@ import {
   type FlagFeeEstimateResponse,
   type FlagRegistry,
 } from "../lib/flagIntelligence";
+import { RegistryFlag } from "../components/RegistryFlag";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -358,8 +359,12 @@ function AllFlags({ flags, expandedCode, onToggle }: { flags: FlagRegistry[]; ex
         return (
           <View key={flag.code} style={styles.flagRowWrap}>
             <Pressable onPress={() => onToggle(flag.code)} style={[styles.flagRow, expanded && styles.flagRowActive]}>
+              <RegistryFlag registry={flag} size="sm" decorative />
               <View style={{ flex: 1 }}>
-                <Text style={styles.flagTitle}>{flag.flag_name}</Text>
+                <View style={styles.nameLine}>
+                  <Text style={styles.flagTitle}>{flag.flag_name}</Text>
+                  {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
+                </View>
                 <Text style={styles.flagMeta}>{flag.country} / {flag.registry_type} / {processing(flag)}</Text>
               </View>
               <Feather name={expanded ? "chevron-up" : "chevron-down"} size={20} color={MUTED} />
@@ -448,8 +453,12 @@ function Advice({
               return (
                 <Pressable key={flag.code} onPress={() => setSelectedCode(flag.code)} style={[styles.rankCard, active && styles.rankCardActive]}>
                   <Text style={styles.rankNumber}>{index + 1}</Text>
+                  <RegistryFlag registry={flag} size="sm" decorative />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.rankTitle}>{flag.flag_name}</Text>
+                    <View style={styles.nameLine}>
+                      <Text style={styles.rankTitle}>{flag.flag_name}</Text>
+                      {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
+                    </View>
                     <Text style={styles.rankSub}>{flag.fit_summary}</Text>
                   </View>
                   <Text style={[styles.score, { color: scoreColor(flag.score) }]}>{flag.score}</Text>
@@ -459,8 +468,12 @@ function Advice({
             {selected ? (
               <View style={styles.detailCard}>
                 <View style={styles.detailHeader}>
+                  <RegistryFlag registry={selected} size="lg" />
                   <View>
-                    <Text style={styles.detailTitle}>{selected.flag_name}</Text>
+                    <View style={styles.nameLine}>
+                      <Text style={styles.detailTitle}>{selected.flag_name}</Text>
+                      {selected.registry_badge ? <StatusBadge label={selected.registry_badge} tone="gold" /> : null}
+                    </View>
                     <Text style={styles.detailSub}>{selected.country} / {selected.recommendation.replace(/_/g, " ")}</Text>
                   </View>
                   <View style={styles.scoreBadge}>
@@ -496,6 +509,7 @@ function Comparison({
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
         {flags.map((flag) => (
           <Pressable key={flag.code} onPress={() => onToggle(flag.code)} style={[styles.compareChip, comparisonCodes.includes(flag.code) && styles.compareChipActive]}>
+            <RegistryFlag registry={flag} size="xs" decorative />
             <Text style={[styles.compareChipText, comparisonCodes.includes(flag.code) && styles.compareChipTextActive]}>{flag.flag_name}</Text>
           </Pressable>
         ))}
@@ -504,7 +518,16 @@ function Comparison({
       <View style={styles.comparisonGrid}>
         {comparisonFlags.map((flag) => (
           <View key={flag.code} style={styles.comparisonCard}>
-            <Text style={styles.compareTitle}>{flag.flag_name}</Text>
+            <View style={styles.compareHeader}>
+              <RegistryFlag registry={flag} size="md" />
+              <View style={{ flex: 1 }}>
+                <View style={styles.nameLine}>
+                  <Text style={styles.compareTitle}>{flag.flag_name}</Text>
+                  {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
+                </View>
+                {flag.flag_note ? <Text style={styles.flagNote}>{flag.flag_note}</Text> : null}
+              </View>
+            </View>
             <Fact label="Registration" value={money(flag.registration_cost_eur)} />
             <Fact label="Annual fee" value={money(flag.annual_fee_eur)} />
             <Fact label="Commercial use" value={yesNo(flag.commercial_available)} />
@@ -550,6 +573,7 @@ function FeeEstimate({
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
         {flags.map((flag) => (
           <Pressable key={flag.code} onPress={() => onSelect(flag.code)} style={[styles.compareChip, selectedCode === flag.code && styles.compareChipActive]}>
+            <RegistryFlag registry={flag} size="xs" decorative />
             <Text style={[styles.compareChipText, selectedCode === flag.code && styles.compareChipTextActive]}>{flag.flag_name}</Text>
           </Pressable>
         ))}
@@ -582,6 +606,17 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
   const advisor = flag.advisor;
   return (
     <View style={styles.flagCard}>
+      <View style={styles.flagCardHeader}>
+        <RegistryFlag registry={flag} size={Platform.OS === "web" ? "hero" : "lg"} />
+        <View style={{ flex: 1 }}>
+          <View style={styles.nameLine}>
+            <Text style={styles.detailTitle}>{flag.flag_name}</Text>
+            {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
+          </View>
+          {flag.registry_badge === "MAR" ? <Text style={styles.detailSub}>Portuguese International Shipping Register</Text> : null}
+          {flag.flag_note ? <Text style={styles.flagNote}>{flag.flag_note}</Text> : null}
+        </View>
+      </View>
       <View style={styles.statusRow}>
         <StatusBadge label={advisor?.is_eu_flag ? "EU flag" : "Non-EU flag"} tone={advisor?.is_eu_flag ? "green" : "gold"} />
         <StatusBadge label={statusLabel(advisor?.confidence_level)} tone="gold" />
@@ -724,8 +759,11 @@ const styles = StyleSheet.create({
   flagRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 14 },
   flagRowActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.09)" },
   flagTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
+  nameLine: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   flagMeta: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
   flagCard: { borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, borderTopWidth: 0, backgroundColor: "rgba(8,22,51,0.7)", padding: 14 },
+  flagCardHeader: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 14, alignItems: Platform.OS === "web" ? "center" : "flex-start", marginBottom: 14 },
+  flagNote: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, lineHeight: 18, marginTop: 5 },
   statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   statusBadge: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "rgba(8,22,51,0.75)" },
   statusBadgeText: { fontFamily: "Inter_800ExtraBold", fontSize: 10, textTransform: "capitalize" },
@@ -756,12 +794,13 @@ const styles = StyleSheet.create({
   scoreBadge: { borderRadius: 12, backgroundColor: "rgba(123,211,137,0.14)", paddingHorizontal: 10, paddingVertical: 8 },
   scoreBadgeText: { color: GREEN, fontFamily: "Inter_800ExtraBold", fontSize: 13 },
   compareSelectRow: { gap: 8, paddingBottom: 14 },
-  compareChip: { borderRadius: 999, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, paddingHorizontal: 12, paddingVertical: 9 },
+  compareChip: { borderRadius: 999, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, paddingHorizontal: 12, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 8 },
   compareChipActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
   compareChipText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
   compareChipTextActive: { color: GOLD },
   feeResult: { marginTop: 14, borderTopWidth: 1, borderTopColor: DIVIDER, paddingTop: 14 },
   comparisonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   comparisonCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? "31%" : "100%", borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, gap: 8 },
+  compareHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
   compareTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 17, marginBottom: 3 },
 });

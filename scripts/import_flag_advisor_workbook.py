@@ -84,6 +84,35 @@ FEE_COLUMNS = [
 
 SOURCE_COLUMNS = ["Flag", "Topic", "Source Type", "Official URL", "Last Checked"]
 
+FLAG_ASSET_SOURCE = "flag-icons@7.5.0"
+FLAG_ASSET_LICENSE = "MIT"
+FLAG_ASSET_UPDATED_AT = "2026-07-27"
+
+FLAG_ASSET_MAPPING = {
+    "cayman-islands": ("ky", "Flag of the Cayman Islands", None, None),
+    "malta": ("mt", "Flag of Malta", None, None),
+    "marshall-islands": ("mh", "Flag of the Marshall Islands", None, None),
+    "isle-of-man": ("im", "Flag of the Isle of Man", None, None),
+    "jersey": ("je", "Flag of Jersey", None, None),
+    "guernsey": ("gg", "Flag of Guernsey", None, None),
+    "gibraltar": ("gi", "Flag of Gibraltar", None, None),
+    "united-kingdom": ("gb", "Flag of the United Kingdom", None, None),
+    "france": ("fr", "Flag of France", None, None),
+    "italy": ("it", "Flag of Italy", None, None),
+    "spain": ("es", "Flag of Spain", None, None),
+    "netherlands": ("nl", "Flag of the Netherlands", None, None),
+    "portugal": ("pt", "Flag of Portugal", None, None),
+    "madeira": ("pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."),
+    "madeira-mar": ("pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."),
+    "cyprus": ("cy", "Flag of Cyprus", None, None),
+    "panama": ("pa", "Flag of Panama", None, None),
+    "belize": ("bz", "Flag of Belize", None, None),
+    "jamaica": ("jm", "Flag of Jamaica", None, None),
+    "cook-islands": ("ck", "Flag of the Cook Islands", None, None),
+    "san-marino": ("sm", "Flag of San Marino", None, None),
+    "luxembourg": ("lu", "Flag of Luxembourg", None, None),
+}
+
 
 def cell_text(cell: ET.Element, shared_strings: list[str]) -> str:
     value = cell.find("a:v", NS)
@@ -306,6 +335,10 @@ def registry_sql(row: dict[str, str], source_version: str) -> str:
     flag = row["Flag"].strip()
     slug = slugify(flag)
     score, quality = data_quality(row)
+    asset = FLAG_ASSET_MAPPING.get(slug)
+    if not asset:
+        raise ValueError(f"No flag asset mapping for registry: {flag}")
+    flag_code, flag_alt_text, registry_badge, flag_note = asset
     values = {
         "code": slug,
         "slug": slug,
@@ -346,6 +379,15 @@ def registry_sql(row: dict[str, str], source_version: str) -> str:
         "official_registry_url": row.get("Main Official Source"),
         "primary_fee_url": row.get("Fee Source"),
         "official_website": row.get("Main Official Source"),
+        "flag_code": flag_code,
+        "flag_asset_key": flag_code,
+        "flag_asset_path": f"/assets/flags/4x3/{flag_code}.svg",
+        "flag_alt_text": flag_alt_text,
+        "registry_badge": registry_badge,
+        "flag_note": flag_note,
+        "flag_asset_source": FLAG_ASSET_SOURCE,
+        "flag_asset_license": FLAG_ASSET_LICENSE,
+        "flag_asset_updated_at": FLAG_ASSET_UPDATED_AT,
         "vat_notes": row.get("VAT / Tax Note"),
         "crew_restrictions": row.get("Crew Note"),
         "advantages": csv_list(row.get("Objective Advantages", "")),

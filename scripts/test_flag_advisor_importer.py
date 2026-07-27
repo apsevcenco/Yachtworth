@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import importlib.util
+import re
 import tempfile
 import unittest
 import zipfile
@@ -59,6 +60,75 @@ def write_minimal_xlsx(path: Path, sheets: dict[str, list[list[str]]]) -> None:
 
 
 class FlagAdvisorImporterTests(unittest.TestCase):
+    def test_all_expected_flag_assets_exist(self) -> None:
+        expected = {
+            "ky",
+            "mt",
+            "mh",
+            "im",
+            "je",
+            "gg",
+            "gi",
+            "gb",
+            "fr",
+            "it",
+            "es",
+            "nl",
+            "pt",
+            "cy",
+            "pa",
+            "bz",
+            "jm",
+            "ck",
+            "sm",
+            "lu",
+        }
+        asset_dir = ROOT / "artifacts" / "yachtworth-app" / "assets" / "flags" / "4x3"
+        for code in expected:
+            self.assertTrue((asset_dir / f"{code}.svg").exists(), f"Missing {code}.svg")
+
+    def test_exact_flag_asset_mapping(self) -> None:
+        mapping = flag_importer.FLAG_ASSET_MAPPING
+        self.assertEqual(mapping["cayman-islands"][0], "ky")
+        self.assertEqual(mapping["malta"][0], "mt")
+        self.assertEqual(mapping["isle-of-man"][0], "im")
+        self.assertEqual(mapping["jersey"][0], "je")
+        self.assertEqual(mapping["guernsey"][0], "gg")
+        self.assertEqual(mapping["gibraltar"][0], "gi")
+        self.assertEqual(mapping["cook-islands"][0], "ck")
+        self.assertEqual(mapping["madeira-mar"][0], "pt")
+        self.assertEqual(mapping["madeira-mar"][2], "MAR")
+        self.assertNotIn("madeira.svg", str(mapping["madeira-mar"]))
+
+    def test_registry_sql_preserves_flag_asset_fields(self) -> None:
+        row = {col: "" for col in flag_importer.FLAG_COLUMNS}
+        row.update({
+            "Flag": "Madeira (MAR)",
+            "Country / Territory": "Portugal",
+            "Official Registry": "Madeira International Shipping Register",
+            "Registry Family": "International",
+            "EU Flag": "Yes",
+            "Private Registration": "Yes",
+            "Commercial Registration": "Yes",
+            "Main Official Source": "https://example.com",
+            "Confidence": "High",
+            "Coverage Status": "Verified",
+            "Last Verified": "2026-07-27",
+        })
+        sql = flag_importer.registry_sql(row, "test")
+        self.assertIn("flag_code", sql)
+        self.assertIn("/assets/flags/4x3/pt.svg", sql)
+        self.assertIn("'MAR'", sql)
+        self.assertIn("Yachts registered in MAR fly the Portuguese flag.", sql)
+
+    def test_flag_ui_uses_local_component_not_cdn_or_emoji(self) -> None:
+        app_file = ROOT / "artifacts" / "yachtworth-app" / "app" / "flag-intelligence.tsx"
+        admin_file = ROOT / "artifacts" / "yachtworth-app" / "app" / "flag-admin.tsx"
+        combined = app_file.read_text(encoding="utf-8") + admin_file.read_text(encoding="utf-8")
+        self.assertIn("<RegistryFlag", combined)
+        self.assertNotRegex(combined, re.compile(r"https?://.*flag", re.IGNORECASE))
+        self.assertNotRegex(combined, re.compile("[\U0001F1E6-\U0001F1FF]{2}"))
+
     def test_missing_worksheet_fails(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "bad.xlsx"

@@ -22,6 +22,7 @@ import {
   type FlagRegistry,
   type FlagSource,
 } from "../lib/flagIntelligence";
+import { RegistryFlag } from "../components/RegistryFlag";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -213,9 +214,16 @@ function Registries({ items }: { items: FlagRegistry[] }) {
       <Text style={styles.panelTitle}>Flag Registries</Text>
       {items.map((flag) => (
         <View key={flag.code} style={styles.rowCard}>
+          <RegistryFlag registry={flag} size="sm" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{flag.flag_name}</Text>
+            <View style={styles.nameLine}>
+              <Text style={styles.rowTitle}>{flag.flag_name}</Text>
+              {flag.registry_badge ? <Badge label={flag.registry_badge} /> : null}
+            </View>
             <Text style={styles.rowMeta}>{text(flag.advisor?.official_registry_name)} / {text(flag.advisor?.registry_family ?? flag.registry_type)}</Text>
+            <Text style={styles.rowMeta}>Flag code: {text(flag.flag_code)} / Asset: {text(flag.flag_asset_path)}</Text>
+            <Text style={styles.rowMeta}>Source: {text(flag.flag_asset_source)} / Licence: {text(flag.flag_asset_license)}</Text>
+            {flag.flag_note ? <Text style={styles.noteText}>{flag.flag_note}</Text> : null}
             <View style={styles.badgeRow}>
               <Badge label={flag.advisor?.is_eu_flag ? "EU" : "Non-EU"} tone={flag.advisor?.is_eu_flag ? "green" : "gold"} />
               <Badge label={`Private ${statusText(flag.advisor?.private_registration_status)}`} />
@@ -278,9 +286,14 @@ function Quality({ items, counts }: { items: FlagRegistry[]; counts: Record<stri
       </View>
       {items.map((flag) => (
         <View key={flag.code} style={styles.rowCard}>
+          <RegistryFlag registry={flag} size="sm" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{flag.flag_name}</Text>
+            <View style={styles.nameLine}>
+              <Text style={styles.rowTitle}>{flag.flag_name}</Text>
+              {flag.registry_badge ? <Badge label={flag.registry_badge} /> : null}
+            </View>
             <Text style={styles.rowMeta}>Score {flag.advisor?.data_quality_score ?? "-"} / {statusText(flag.advisor?.data_quality_status)}</Text>
+            <Text style={styles.rowMeta}>Flag asset: {text(flag.flag_code)} / {text(flag.flag_asset_path)}</Text>
             <Text style={styles.bodyText}>{text(flag.advisor?.missing_verification_notes)}</Text>
           </View>
           <Badge label={statusText(flag.advisor?.data_quality_status)} tone={qualityTone(flag.advisor?.data_quality_status)} />
@@ -340,7 +353,9 @@ const styles = StyleSheet.create({
   panelTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 18, marginBottom: 12 },
   rowCard: { flexDirection: "row", gap: 12, alignItems: "flex-start", backgroundColor: NAVY, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, padding: 12, marginBottom: 10 },
   rowTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 15, lineHeight: 20 },
+  nameLine: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   rowMeta: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, lineHeight: 17, marginTop: 3 },
+  noteText: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, lineHeight: 18, marginTop: 5 },
   bodyText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18, marginTop: 6 },
   linkText: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 12, lineHeight: 18, marginTop: 6 },
   dateText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 11, lineHeight: 16, textAlign: "right", maxWidth: 92 },
