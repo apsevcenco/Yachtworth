@@ -13,6 +13,7 @@ import surveyReportsRouter from "./surveyReports";
 import documentsRouter from "./documents";
 import flagIntelligenceRouter from "./flagIntelligence";
 import brokerOsRouter from "./brokerOs";
+import maintenanceRouter from "./maintenance";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(surveyReportsRouter);
 router.use(documentsRouter);
 router.use(flagIntelligenceRouter);
 router.use(brokerOsRouter);
+router.use(maintenanceRouter);
 
 export default router;

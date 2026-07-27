@@ -113,12 +113,13 @@ const TOOLS: Tool[] = [
     route: "/survey",
   },
   {
-    key: "maintenance_log",
-    icon: "book-open",
-    title: "Maintenance Log",
-    subtitle: "Service history & reminders",
+    key: "yachtworth_maintenance",
+    icon: "tool",
+    title: "Yachtworth Maintenance",
+    subtitle: "PMS / CMMS equipment, work orders & defects",
     roles: ["owner"],
-    status: "soon",
+    status: "live",
+    route: "/maintenance",
   },
   {
     key: "crm",
