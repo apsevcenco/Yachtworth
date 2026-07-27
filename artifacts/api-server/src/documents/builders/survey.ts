@@ -6,6 +6,7 @@ import type {
   YachtProfile,
 } from "../documentTypes";
 import { getTheme } from "../core/theme";
+import { photoList } from "../core/util";
 import type { ContentNode, CoverSpec, DocumentModel, TableCell } from "../model/types";
 
 const GLOSSARY_TEXT = `Excellent condition - The item described is in as-new or near as-new condition.
@@ -378,6 +379,7 @@ export function buildSurveyModel(input: {
   ];
   if (pictureImages.length) contentsEntries.push({ n: 25, title: "Pictures" });
   if (reportData.seaTrial && !sections.has(26)) contentsEntries.push({ n: 26, title: "Sea Trial" });
+  const coverPhotoUrl = photoList(yacht)[0] ?? pictureImages[0]?.url;
   const contentsRows: TableCell[][] = contentsEntries
     .sort((a, b) => a.n - b.n)
     .map((entry) => [{ text: String(entry.n) }, { text: entry.title }]);
@@ -626,6 +628,7 @@ export function buildSurveyModel(input: {
       subtitle: [reportData.manufacturer, reportData.model].filter(Boolean).join(" · "),
       date,
       cells,
+      photoUrl: coverPhotoUrl,
     },
     body,
   };

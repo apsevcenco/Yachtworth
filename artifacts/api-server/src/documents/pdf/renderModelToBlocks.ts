@@ -216,13 +216,13 @@ function paragraphHtml(node: ParagraphNode): string {
 }
 
 function surveyLineHeight(text: string): number {
-  return Math.max(3.6, Math.ceil(text.length / 118) * 3.8);
+  return Math.max(4.2, Math.ceil(text.length / 108) * 4.2);
 }
 
 function surveyTableLineCount(text: string | undefined, widthPct: number): number {
   const len = (text ?? "").length;
   if (!len) return 0;
-  const chars = Math.max(18, Math.floor((118 * widthPct) / 100));
+  const chars = Math.max(16, Math.floor((108 * widthPct) / 100));
   return Math.ceil(len / chars);
 }
 
@@ -233,9 +233,9 @@ function surveyMeasureTableRow(cells: TableCell[], columns: TableColumn[]): numb
     const main = Math.max(1, surveyTableLineCount(cell.text, widthPct));
     const sub = cell.sub ? Math.max(1, surveyTableLineCount(cell.sub, widthPct)) : 0;
     const source = cell.source ? Math.max(1, surveyTableLineCount(cell.source, widthPct)) : 0;
-    extra = Math.max(extra, (main - 1) * 3.8 + sub * 3.1 + source * 2.8);
+    extra = Math.max(extra, (main - 1) * 4.2 + sub * 3.5 + source * 3.2);
   });
-  return 6.5 + extra;
+  return 7.4 + extra;
 }
 
 function surveyMeasureTable(
@@ -243,8 +243,8 @@ function surveyMeasureTable(
   columns: TableColumn[],
   rows: TableCell[][],
 ): number {
-  const headingH = heading ? 8.5 : 0;
-  const headerH = columns.some((c) => c.header != null && c.header !== "") ? 7 : 0;
+  const headingH = heading ? 9.5 : 0;
+  const headerH = columns.some((c) => c.header != null && c.header !== "") ? 8 : 0;
   const body = rows.length
     ? rows.reduce((sum, row) => sum + surveyMeasureTableRow(row, columns), 0)
     : 4;
@@ -282,7 +282,7 @@ function surveyParagraphBlocks(node: ParagraphNode): DocBlock[] {
     {
       id: nextId("survey-item"),
       type: node.heading ? "survey-item" : "survey-line",
-      estimatedHeight: (node.heading ? 8.5 : 0) + surveyLineHeight(first),
+      estimatedHeight: (node.heading ? 9.5 : 0) + surveyLineHeight(first),
       html: `${eyebrow(node.heading)}<p${cls}>${esc(first)}</p>`,
     },
   ];
@@ -458,8 +458,9 @@ function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
   const isSurvey = docType === "survey_report";
   const measureCurrentTable = isSurvey ? surveyMeasureTable : measureTable;
   const measureCurrentRow = isSurvey ? surveyMeasureTableRow : measureTableRow;
-  const headingMm = isSurvey ? 8.5 : HEADING_MM;
-  const rowBaseMm = isSurvey ? 7 : ROW_BASE_MM;
+  const pageBudgetMm = isSurvey ? 251 : PACK_BUDGET_MM;
+  const headingMm = isSurvey ? 9.5 : HEADING_MM;
+  const rowBaseMm = isSurvey ? 8 : ROW_BASE_MM;
 
   if (!node.rows.length) {
     return [
@@ -472,13 +473,13 @@ function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
     ];
   }
   const full = measureCurrentTable(node.heading, node.columns, node.rows);
-  if (full <= PACK_BUDGET_MM) {
+  if (full <= pageBudgetMm) {
     return [{ id: nextId("table"), type: "table", estimatedHeight: full, html: leafHtml(node) }];
   }
   const headingH = node.heading ? headingMm : 0;
   const hasHeader = node.columns.some((c) => c.header != null && c.header !== "");
   const headerH = hasHeader ? rowBaseMm : 0;
-  const budget = PACK_BUDGET_MM - headingH - headerH;
+  const budget = pageBudgetMm - headingH - headerH;
 
   const chunks: TableCell[][][] = [];
   let current: TableCell[][] = [];
@@ -506,7 +507,7 @@ function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
     const block: DocBlock = { id: nextId("table"), type: "table", estimatedHeight, html };
     // A single row taller than a whole page (huge notes cell) cannot be packed
     // whole; let it flow across pages instead of overflowing into a near-empty one.
-    if (estimatedHeight > PACK_BUDGET_MM) block.splittable = true;
+    if (estimatedHeight > pageBudgetMm) block.splittable = true;
     return block;
   });
 }
