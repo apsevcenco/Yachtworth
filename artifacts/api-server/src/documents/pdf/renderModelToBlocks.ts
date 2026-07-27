@@ -215,6 +215,88 @@ function paragraphHtml(node: ParagraphNode): string {
   return `${eyebrow(node.heading)}${body}`;
 }
 
+function surveyLineHeight(text: string): number {
+  return Math.max(3.6, Math.ceil(text.length / 118) * 3.8);
+}
+
+function surveyTableLineCount(text: string | undefined, widthPct: number): number {
+  const len = (text ?? "").length;
+  if (!len) return 0;
+  const chars = Math.max(18, Math.floor((118 * widthPct) / 100));
+  return Math.ceil(len / chars);
+}
+
+function surveyMeasureTableRow(cells: TableCell[], columns: TableColumn[]): number {
+  let extra = 0;
+  cells.forEach((cell, i) => {
+    const widthPct = columns[i]?.widthPct ?? 100 / Math.max(1, cells.length);
+    const main = Math.max(1, surveyTableLineCount(cell.text, widthPct));
+    const sub = cell.sub ? Math.max(1, surveyTableLineCount(cell.sub, widthPct)) : 0;
+    const source = cell.source ? Math.max(1, surveyTableLineCount(cell.source, widthPct)) : 0;
+    extra = Math.max(extra, (main - 1) * 3.8 + sub * 3.1 + source * 2.8);
+  });
+  return 6.5 + extra;
+}
+
+function surveyMeasureTable(
+  heading: string | undefined,
+  columns: TableColumn[],
+  rows: TableCell[][],
+): number {
+  const headingH = heading ? 8.5 : 0;
+  const headerH = columns.some((c) => c.header != null && c.header !== "") ? 7 : 0;
+  const body = rows.length
+    ? rows.reduce((sum, row) => sum + surveyMeasureTableRow(row, columns), 0)
+    : 4;
+  return headingH + headerH + body;
+}
+
+function surveyParagraphBlocks(node: ParagraphNode): DocBlock[] {
+  if (node.panel) {
+    const h = measureNode(node);
+    return [
+      {
+        id: nextId("para"),
+        type: "paragraph",
+        estimatedHeight: h,
+        html: leafHtml(node),
+      },
+    ];
+  }
+  const raw = node.text ?? "";
+  const lines = raw.split(/\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) {
+    return [
+      {
+        id: nextId("para"),
+        type: "paragraph",
+        estimatedHeight: measureNode(node),
+        html: leafHtml(node),
+      },
+    ];
+  }
+
+  const cls = node.muted ? ` class="muted"` : "";
+  const first = lines[0]!;
+  const blocks: DocBlock[] = [
+    {
+      id: nextId("survey-item"),
+      type: node.heading ? "survey-item" : "survey-line",
+      estimatedHeight: (node.heading ? 8.5 : 0) + surveyLineHeight(first),
+      html: `${eyebrow(node.heading)}<p${cls}>${esc(first)}</p>`,
+    },
+  ];
+  for (const line of lines.slice(1)) {
+    blocks.push({
+      id: nextId("survey-line"),
+      type: "survey-line",
+      estimatedHeight: surveyLineHeight(line),
+      html: `<p${cls}>${esc(line)}</p>`,
+    });
+  }
+  return blocks;
+}
+
 function metricsHtml(node: MetricsNode): string {
   const cards = `<div class="val-row">${node.cards
     .map(
@@ -372,31 +454,37 @@ function nextId(prefix: string): string {
 }
 
 /** Split a table's rows greedily into page-sized chunks, header repeated. */
-function tableBlocks(node: TableNode): DocBlock[] {
+function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
+  const isSurvey = docType === "survey_report";
+  const measureCurrentTable = isSurvey ? surveyMeasureTable : measureTable;
+  const measureCurrentRow = isSurvey ? surveyMeasureTableRow : measureTableRow;
+  const headingMm = isSurvey ? 8.5 : HEADING_MM;
+  const rowBaseMm = isSurvey ? 7 : ROW_BASE_MM;
+
   if (!node.rows.length) {
     return [
       {
         id: nextId("table"),
         type: "table",
-        estimatedHeight: measureTable(node.heading, node.columns, node.rows),
+        estimatedHeight: measureCurrentTable(node.heading, node.columns, node.rows),
         html: leafHtml(node),
       },
     ];
   }
-  const full = measureTable(node.heading, node.columns, node.rows);
+  const full = measureCurrentTable(node.heading, node.columns, node.rows);
   if (full <= PACK_BUDGET_MM) {
     return [{ id: nextId("table"), type: "table", estimatedHeight: full, html: leafHtml(node) }];
   }
-  const headingH = node.heading ? HEADING_MM : 0;
+  const headingH = node.heading ? headingMm : 0;
   const hasHeader = node.columns.some((c) => c.header != null && c.header !== "");
-  const headerH = hasHeader ? ROW_BASE_MM : 0;
+  const headerH = hasHeader ? rowBaseMm : 0;
   const budget = PACK_BUDGET_MM - headingH - headerH;
 
   const chunks: TableCell[][][] = [];
   let current: TableCell[][] = [];
   let used = 0;
   for (const row of node.rows) {
-    const h = measureTableRow(row, node.columns);
+    const h = measureCurrentRow(row, node.columns);
     if (current.length && used + h > budget) {
       chunks.push(current);
       current = [];
@@ -414,7 +502,7 @@ function tableBlocks(node: TableNode): DocBlock[] {
         : node.heading;
     const html = `${eyebrow(heading)}${tableHtml(node.columns, rows)}`;
     const estimatedHeight =
-      headingH + headerH + rows.reduce((s, r) => s + measureTableRow(r, node.columns), 0);
+      headingH + headerH + rows.reduce((s, r) => s + measureCurrentRow(r, node.columns), 0);
     const block: DocBlock = { id: nextId("table"), type: "table", estimatedHeight, html };
     // A single row taller than a whole page (huge notes cell) cannot be packed
     // whole; let it flow across pages instead of overflowing into a near-empty one.
@@ -454,13 +542,14 @@ function galleryBlocks(node: GalleryNode): DocBlock[] {
   });
 }
 
-function renderNode(node: ContentNode): DocBlock[] {
+function renderNode(node: ContentNode, docType?: string): DocBlock[] {
   switch (node.kind) {
     case "table":
-      return tableBlocks(node);
+      return tableBlocks(node, docType);
     case "gallery":
       return galleryBlocks(node);
     case "paragraph": {
+      if (docType === "survey_report") return surveyParagraphBlocks(node);
       const h = measureNode(node);
       const block: DocBlock = {
         id: nextId("para"),
@@ -470,6 +559,12 @@ function renderNode(node: ContentNode): DocBlock[] {
       };
       if (h > 100) block.splittable = true;
       return [block];
+    }
+    case "signature": {
+      const h = docType === "survey_report" ? 18 : measureNode(node);
+      const html = leafHtml(node);
+      if (!html) return [];
+      return [{ id: nextId(node.kind), type: node.kind, estimatedHeight: h, html }];
     }
     default: {
       const h = measureNode(node);
@@ -486,7 +581,7 @@ export function renderModelToBlocks(model: DocumentModel): DocBlock[] {
   const blocks: DocBlock[] = [];
   if (model.cover) blocks.push(coverBlock(model.cover));
   for (const node of model.body) {
-    const produced = renderNode(node);
+    const produced = renderNode(node, model.meta.type);
     // Propagate a semantic group boundary onto the first block this node emits.
     const wantsBreak = (node as { breakBefore?: boolean }).breakBefore === true;
     if (wantsBreak && produced[0]) produced[0].breakBefore = true;

@@ -60,7 +60,7 @@ export function paginateBlocks(
       next &&
       !next.standalone &&
       !next.breakBefore &&
-      used + block.estimatedHeight + next.estimatedHeight > budgetMm
+      used + block.estimatedHeight + Math.min(next.estimatedHeight, 32) > budgetMm
     ) {
       flush();
     }

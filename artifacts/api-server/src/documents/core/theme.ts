@@ -98,6 +98,26 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .cover-page { padding: 0; min-height: 0; }
   .block { break-inside: avoid; page-break-inside: avoid; }
   .block + .block { margin-top: 16px; }
+  .doc-survey_report .block + .block { margin-top: 8px; }
+  .doc-survey_report p { margin: 0; }
+  .doc-survey_report .eyebrow {
+    padding-bottom: 4px;
+    margin-bottom: 7px;
+  }
+  .doc-survey_report .sec-h {
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+  }
+  .doc-survey_report table.tbl th { padding: 6px 8px; }
+  .doc-survey_report table.tbl td { padding: 6px 8px; }
+  .doc-survey_report table.kv-grid td { padding: 5px 7px; }
+  .doc-survey_report .block-survey-item + .block-survey-line,
+  .doc-survey_report .block-survey-line + .block-survey-line {
+    margin-top: 0;
+  }
+  .doc-survey_report .block-survey-line + .block-survey-item {
+    margin-top: 8px;
+  }
   .muted { color: ${t.textMuted}; }
   /* shared section label */
   .eyebrow {

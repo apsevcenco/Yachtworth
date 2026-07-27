@@ -27,8 +27,9 @@ export function renderBlocksToHtml(input: {
   watermarkText: string;
   /** Shared per-page footer content. Raw text — escaped here. */
   footer?: { brand: string; date: string; confidentialLabel: string };
+  docType?: string;
 }): string {
-  const { pages, theme, confidential, watermarkText, footer } = input;
+  const { pages, theme, confidential, watermarkText, footer, docType } = input;
 
   // Footer numbers only the content (non-cover) pages: "Page 1 of N".
   const contentTotal = pages.filter((p) => !p.standalone).length;
@@ -54,7 +55,7 @@ export function renderBlocksToHtml(input: {
         : `<section class="${p.blocks.some((b) => b.splittable) ? "page-flow" : "page"}">${p.blocks
             .map(
               (b) =>
-                `<div class="${b.splittable ? "block-flow" : "block"}">${b.html}</div>`,
+                `<div class="${b.splittable ? "block-flow" : "block"} block-${b.type}">${b.html}</div>`,
             )
             .join("")}${footerHtml()}</section>`,
     )
@@ -62,7 +63,7 @@ export function renderBlocksToHtml(input: {
 
   return `<!doctype html>
 <html><head><meta charset="utf-8" /><style>${adaptiveCss(theme, confidential)}</style></head>
-<body>
+<body class="${docType ? `doc-${escFooter(docType)}` : ""}">
   ${confidential ? `<div class="watermark">${watermarkText}</div>` : ""}
   ${body}
 </body></html>`;
