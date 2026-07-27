@@ -442,6 +442,10 @@ function RootLayoutNav() {
               options={{ headerShown: false, presentation: "card" }}
             />
             <Stack.Screen
+              name="flag-admin"
+              options={{ headerShown: false, presentation: "card" }}
+            />
+            <Stack.Screen
               name="history"
               options={{ headerShown: false, presentation: "card" }}
             />

@@ -157,6 +157,15 @@ const TOOLS: Tool[] = [
     route: "/flag-intelligence",
   },
   {
+    key: "flag_admin",
+    icon: "database",
+    title: "Flag Admin",
+    subtitle: "Registries, fees & source quality",
+    roles: ["broker"],
+    status: "live",
+    route: "/flag-admin",
+  },
+  {
     key: "marina_database",
     icon: "map-pin",
     title: "Marina Database",

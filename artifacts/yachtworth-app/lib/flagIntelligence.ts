@@ -141,6 +141,60 @@ export type FlagFeeEstimateResponse = {
   missing_data: string[];
 };
 
+export type FlagFeeRule = {
+  id: string;
+  flag_registry_id: string;
+  registration_type: string | null;
+  fee_component: string;
+  amount: number | null;
+  currency: string | null;
+  formula_text: string | null;
+  notes: string | null;
+  official_source_url: string | null;
+  confidence_level: string | null;
+  last_verified_at: string | null;
+  is_active: boolean;
+  flag_registries?: {
+    flag_name?: string | null;
+    slug?: string | null;
+    code?: string | null;
+  } | null;
+};
+
+export type FlagSource = {
+  id: string;
+  flag_registry_id: string | null;
+  topic: string;
+  source_type: string | null;
+  source_title: string | null;
+  official_url: string;
+  checked_at: string | null;
+  effective_date: string | null;
+  notes: string | null;
+  is_official: boolean;
+  is_active: boolean;
+  flag_registries?: {
+    flag_name?: string | null;
+    slug?: string | null;
+    code?: string | null;
+  } | null;
+};
+
+export type FlagImportRun = {
+  id: string;
+  filename: string;
+  file_hash: string;
+  source_version: string;
+  started_at: string;
+  completed_at: string | null;
+  imported_rows: number;
+  updated_rows: number;
+  skipped_rows: number;
+  failed_rows: number;
+  status: string;
+  report: unknown;
+};
+
 async function buildHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -189,4 +243,43 @@ export async function estimateFlagFees(input: FlagFeeEstimateInput): Promise<Fla
     throw new Error(`Flag fee estimate failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
   }
   return (await res.json()) as FlagFeeEstimateResponse;
+}
+
+export async function getFlagFeeRules(flag?: string): Promise<{ items: FlagFeeRule[] }> {
+  const base = getBaseUrl() ?? "";
+  const qs = new URLSearchParams();
+  if (flag) qs.set("flag", flag);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await fetch(`${base}/api/flag-advisor/fee-rules${suffix}`, {
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Flag fee rules failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
+  }
+  return (await res.json()) as { items: FlagFeeRule[] };
+}
+
+export async function getFlagSources(): Promise<{ items: FlagSource[] }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/flag-advisor/sources`, {
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Flag sources failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
+  }
+  return (await res.json()) as { items: FlagSource[] };
+}
+
+export async function getFlagImportHistory(): Promise<{ items: FlagImportRun[] }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/flag-advisor/import-history`, {
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Flag import history failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
+  }
+  return (await res.json()) as { items: FlagImportRun[] };
 }
