@@ -276,10 +276,7 @@ export default function FlagIntelligenceScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: (isWeb ? 62 : insets.top) + 64 }]}>
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 42 }, isWeb && styles.webScroll]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.headerShell, isWeb && styles.webShell]}>
         <View style={styles.topbar}>
           <Pressable onPress={() => router.back()} style={styles.iconButton}>
             <Feather name="arrow-left" size={22} color={IVORY} />
@@ -290,7 +287,11 @@ export default function FlagIntelligenceScreen() {
             <Text style={styles.subtitle}>Registry cards, advisory ranking and side-by-side comparison.</Text>
           </View>
         </View>
-
+      </View>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 42 }, isWeb && styles.webScroll]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.modeList}>
           {MODES.map((item) => (
             <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.modeRow, mode === item.key && styles.modeRowActive]}>
@@ -717,14 +718,16 @@ function InfoList({ title, items, icon }: { title: string; items: string[]; icon
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
+  headerShell: { paddingHorizontal: 22, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: DIVIDER, backgroundColor: NAVY },
+  webShell: { maxWidth: 1240, width: "100%", alignSelf: "center" },
   scroll: { paddingHorizontal: 22 },
   webScroll: { maxWidth: 1240, width: "100%", alignSelf: "center" },
-  topbar: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 },
+  topbar: { flexDirection: "row", alignItems: "center", gap: 14 },
   iconButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: NAVY_DEEP, alignItems: "center", justifyContent: "center" },
   kicker: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 2.4 },
   title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 32, marginTop: 4 },
   subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 4 },
-  modeList: { gap: 10, marginBottom: 14 },
+  modeList: { gap: 10, marginTop: 16, marginBottom: 14 },
   modeRow: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY_DEEP, padding: 14 },
   modeRowActive: { borderColor: "rgba(201,169,97,0.55)", backgroundColor: NAVY_ELEV },
   modeIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: NAVY, alignItems: "center", justifyContent: "center" },

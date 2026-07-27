@@ -31,7 +31,11 @@ export function RegistryFlag({
 }) {
   const resolved = resolveFlagAsset(registry ?? { flag_code: code, flag_name: name });
   const dimensions = SIZE[size];
-  const source = resolved?.code ? (FLAG_ASSETS[resolved.code as keyof typeof FLAG_ASSETS] as ImageSourcePropType | undefined) : undefined;
+  const source = resolved?.code
+    ? Platform.OS === "web"
+      ? (FLAG_ASSETS[resolved.code as keyof typeof FLAG_ASSETS] as ImageSourcePropType | undefined)
+      : ({ uri: `https://flagcdn.com/w160/${resolved.code}.png` } as ImageSourcePropType)
+    : undefined;
 
   if (!source) {
     if (__DEV__ && resolved?.code) {
