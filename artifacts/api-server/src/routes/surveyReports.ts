@@ -13,6 +13,7 @@ import {
   SURVEY_ITEMS_TABLE,
   SURVEY_SEA_TRIAL_TABLE,
   SURVEY_ITEM_PHOTOS_BUCKET,
+  SURVEYOR_ASSETS_BUCKET,
 } from "../lib/supabase";
 import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
@@ -21,10 +22,16 @@ const router: IRouter = Router();
 
 const MAX_PHOTOS_PER_ITEM = 10;
 const PHOTO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+const LOGO_UPLOAD_MAX_BYTES = 3 * 1024 * 1024;
 
 const itemPhotoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: PHOTO_UPLOAD_MAX_BYTES, files: 1 },
+});
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LOGO_UPLOAD_MAX_BYTES, files: 1 },
 });
 
 const itemPhotoMw: import("express").RequestHandler = (req, res, next) => {
@@ -34,6 +41,23 @@ const itemPhotoMw: import("express").RequestHandler = (req, res, next) => {
       if (err.code === "LIMIT_FILE_SIZE") {
         res.status(413).json({
           error: `File too large. Max ${PHOTO_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
+        });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    next(err);
+  });
+};
+
+const logoUploadMw: import("express").RequestHandler = (req, res, next) => {
+  logoUpload.single("file")(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: `File too large. Max ${LOGO_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
         });
         return;
       }
@@ -579,6 +603,55 @@ router.put(
 );
 
 // ── ITEM PHOTOS — UPLOAD ──────────────────────────────────────────
+router.post(
+  "/surveyor-assets/logo",
+  softClerkAuth(),
+  requireAuth(),
+  logoUploadMw,
+  async (req, res): Promise<void> => {
+    const file = req.file;
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      res.status(400).json({ error: "Missing file" });
+      return;
+    }
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.mimetype)) {
+      res.status(400).json({ error: "Only JPEG, PNG, or WebP images are allowed." });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Survey storage not configured" });
+      return;
+    }
+    const ext =
+      file.mimetype === "image/png"
+        ? "png"
+        : file.mimetype === "image/webp"
+          ? "webp"
+          : "jpg";
+    const safeUserId = req.userId!.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const objectPath = `${safeUserId}/logo/${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}.${ext}`;
+    const up = await sb.storage
+      .from(SURVEYOR_ASSETS_BUCKET)
+      .upload(objectPath, file.buffer, {
+        contentType: file.mimetype || "image/jpeg",
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (up.error) {
+      req.log.error({ err: up.error.message }, "surveyor logo upload failed");
+      res.status(502).json({ error: up.error.message });
+      return;
+    }
+    const { data: pub } = sb.storage
+      .from(SURVEYOR_ASSETS_BUCKET)
+      .getPublicUrl(objectPath);
+    res.json({ url: pub.publicUrl });
+  },
+);
+
 router.post(
   "/survey-items/:itemId/photos",
   softClerkAuth(),

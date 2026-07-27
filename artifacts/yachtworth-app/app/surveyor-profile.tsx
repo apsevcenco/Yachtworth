@@ -1,7 +1,11 @@
 import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActionSheetIOS,
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +24,7 @@ import {
   saveSurveyorProfile,
   type SurveyorProfile,
 } from "../lib/surveyorProfile";
+import { uploadSurveyorLogo } from "../lib/surveyorAssetUpload";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -35,6 +40,7 @@ export default function SurveyorProfileScreen() {
   const [profile, setProfile] = useState<SurveyorProfile>(EMPTY_PROFILE);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     loadSurveyorProfile().then((p) => {
@@ -45,6 +51,72 @@ export default function SurveyorProfileScreen() {
 
   const set = <K extends keyof SurveyorProfile>(k: K, v: SurveyorProfile[K]) =>
     setProfile((prev) => ({ ...prev, [k]: v }));
+
+  const uploadLogoFromUri = async (uri: string) => {
+    setUploadingLogo(true);
+    try {
+      const uploaded = await uploadSurveyorLogo(uri);
+      set("logoUrl", uploaded.url);
+    } catch (e) {
+      Alert.alert("Upload failed", e instanceof Error ? e.message : "Please try again.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const pickLogo = async () => {
+    const fromLibrary = async () => {
+      if (Platform.OS !== "web") {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Photo access needed", "Enable photo library in Settings.");
+          return;
+        }
+      }
+      const r = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 1,
+      });
+      if (r.canceled || !r.assets?.[0]) return;
+      await uploadLogoFromUri(r.assets[0].uri);
+    };
+    const fromCamera = async () => {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Camera access needed", "Enable camera in Settings.");
+        return;
+      }
+      const r = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+      if (r.canceled || !r.assets?.[0]) return;
+      await uploadLogoFromUri(r.assets[0].uri);
+    };
+    if (Platform.OS === "web") {
+      await fromLibrary();
+      return;
+    }
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Take photo", "Choose from library"],
+          cancelButtonIndex: 0,
+        },
+        (i) => {
+          if (i === 1) void fromCamera();
+          else if (i === 2) void fromLibrary();
+        },
+      );
+      return;
+    }
+    Alert.alert("Upload logo", undefined, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Take photo", onPress: fromCamera },
+      { text: "Choose from library", onPress: fromLibrary },
+    ]);
+  };
 
   const onSave = async () => {
     setSaving(true);
@@ -107,6 +179,32 @@ export default function SurveyorProfileScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        <View style={styles.logoCard}>
+          {profile.logoUrl ? (
+            <Image source={{ uri: profile.logoUrl }} style={styles.logoPreview} contentFit="contain" />
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <Feather name="image" size={22} color={GOLD} />
+            </View>
+          )}
+          <Pressable
+            onPress={pickLogo}
+            disabled={uploadingLogo}
+            style={({ pressed }) => [
+              styles.logoBtn,
+              { opacity: pressed || uploadingLogo ? 0.8 : 1 },
+            ]}
+          >
+            {uploadingLogo ? (
+              <ActivityIndicator color={NAVY} />
+            ) : (
+              <>
+                <Feather name="upload" size={15} color={NAVY} />
+                <Text style={styles.logoBtnText}>Upload logo</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
         <Field
           label="Logo URL"
           value={profile.logoUrl}
@@ -211,6 +309,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     borderColor: DIVIDER,
+  },
+  logoCard: {
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    padding: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  logoPreview: {
+    width: "100%",
+    height: 96,
+    borderRadius: 8,
+    backgroundColor: "rgba(247,243,236,0.96)",
+  },
+  logoPlaceholder: {
+    height: 96,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(201,169,97,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoBtn: {
+    backgroundColor: GOLD,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  logoBtnText: {
+    color: NAVY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
   },
   bar: {
     position: "absolute",

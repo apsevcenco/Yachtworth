@@ -12,6 +12,7 @@ import {
 import { useRouter, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -23,9 +24,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SECTION_TEMPLATES } from "../../lib/surveyTemplates";
+import { uploadSurveyorLogo } from "../../lib/surveyorAssetUpload";
 import { loadSurveyorProfile } from "../../lib/surveyorProfile";
 
 const NAVY = "#0B1E3F";
@@ -171,6 +175,7 @@ export default function SurveyNewScreen() {
   const [seaState, setSeaState] = useState("");
 
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const yachts = (yachtsQ.data?.items ?? []).filter((y) => !y.is_archived);
 
   const applyYachtPrefill = (yachtId: string) => {
@@ -211,6 +216,73 @@ export default function SurveyNewScreen() {
     setFuelCapacityL(extraNum("fuel_capacity_l"));
     setFreshWaterL(extraNum("water_capacity_l"));
     setOpen("specification");
+  };
+
+  const uploadLogoFromUri = async (uri: string) => {
+    setUploadingLogo(true);
+    try {
+      const uploaded = await uploadSurveyorLogo(uri);
+      setSurveyorLogoUrl(uploaded.url);
+      setBrandingMode("surveyor");
+    } catch (e) {
+      Alert.alert("Upload failed", e instanceof Error ? e.message : "Please try again.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const pickLogo = async () => {
+    const fromLibrary = async () => {
+      if (Platform.OS !== "web") {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Photo access needed", "Enable photo library in Settings.");
+          return;
+        }
+      }
+      const r = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 1,
+      });
+      if (r.canceled || !r.assets?.[0]) return;
+      await uploadLogoFromUri(r.assets[0].uri);
+    };
+    const fromCamera = async () => {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Camera access needed", "Enable camera in Settings.");
+        return;
+      }
+      const r = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+      if (r.canceled || !r.assets?.[0]) return;
+      await uploadLogoFromUri(r.assets[0].uri);
+    };
+    if (Platform.OS === "web") {
+      await fromLibrary();
+      return;
+    }
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Take photo", "Choose from library"],
+          cancelButtonIndex: 0,
+        },
+        (i) => {
+          if (i === 1) void fromCamera();
+          else if (i === 2) void fromLibrary();
+        },
+      );
+      return;
+    }
+    Alert.alert("Upload logo", undefined, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Take photo", onPress: fromCamera },
+      { text: "Choose from library", onPress: fromLibrary },
+    ]);
   };
 
   const onSave = async () => {
@@ -570,14 +642,42 @@ export default function SurveyNewScreen() {
                 }}
               />
               {brandingMode === "surveyor" ? (
-                <Field
-                  label="Surveyor logo URL"
-                  value={surveyorLogoUrl}
-                  onChange={setSurveyorLogoUrl}
-                  placeholder="https://..."
-                  keyboardType="url"
-                  autoCapitalize="none"
-                />
+                <>
+                  <View style={styles.logoCard}>
+                    {surveyorLogoUrl ? (
+                      <Image source={{ uri: surveyorLogoUrl }} style={styles.logoPreview} contentFit="contain" />
+                    ) : (
+                      <View style={styles.logoPlaceholder}>
+                        <Feather name="image" size={20} color={GOLD} />
+                      </View>
+                    )}
+                    <Pressable
+                      onPress={pickLogo}
+                      disabled={uploadingLogo}
+                      style={({ pressed }) => [
+                        styles.logoBtn,
+                        { opacity: pressed || uploadingLogo ? 0.8 : 1 },
+                      ]}
+                    >
+                      {uploadingLogo ? (
+                        <ActivityIndicator color={NAVY} />
+                      ) : (
+                        <>
+                          <Feather name="upload" size={15} color={NAVY} />
+                          <Text style={styles.logoBtnText}>Upload logo</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                  <Field
+                    label="Surveyor logo URL"
+                    value={surveyorLogoUrl}
+                    onChange={setSurveyorLogoUrl}
+                    placeholder="https://..."
+                    keyboardType="url"
+                    autoCapitalize="none"
+                  />
+                </>
               ) : null}
             </Section>
 
@@ -917,6 +1017,44 @@ const styles = StyleSheet.create({
   pillActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
   pillText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12 },
   pillTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
+  logoCard: {
+    backgroundColor: NAVY_ELEV,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    padding: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  logoPreview: {
+    width: "100%",
+    height: 88,
+    borderRadius: 8,
+    backgroundColor: "rgba(247,243,236,0.96)",
+  },
+  logoPlaceholder: {
+    height: 88,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(201,169,97,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoBtn: {
+    backgroundColor: GOLD,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  logoBtnText: {
+    color: NAVY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+  },
   note: {
     color: FAINT,
     fontFamily: "Inter_400Regular",
