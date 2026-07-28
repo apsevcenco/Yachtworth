@@ -575,6 +575,36 @@ export function compareFlagRegistries(
         positives.push("Guernsey can be a low-maintenance Red Ensign option for private yachts below 150 GT.");
       }
 
+      if (flag.code === "portugal_madeira" && wantsEu) {
+        score += 7;
+        positives.push("Madeira MAR combines EU flag status with international-registry flexibility.");
+      }
+
+      if (flag.code === "portugal_madeira" && wantsCommercial && (text.includes("vat refund") || text.includes("zero vat"))) {
+        score += 7;
+        positives.push("Madeira MAR can be strong for commercial yachts because VAT refund / zero VAT operating advantages are documented.");
+      }
+
+      if (flag.code === "portugal_madeira" && isLikelyNonEuOwner && text.includes("no nationality restrictions")) {
+        score += 6;
+        positives.push("Madeira MAR has no owner nationality restrictions, which helps non-EU owners seeking an EU flag.");
+      }
+
+      if (flag.code === "cyprus" && wantsEu) {
+        score += 6;
+        positives.push("Cyprus is a full EU flag with strong Mediterranean and international registry acceptance.");
+      }
+
+      if (flag.code === "cyprus" && wantsCommercial && text.includes("tonnage tax")) {
+        score += 5;
+        positives.push("Cyprus provides a mature tonnage tax framework for qualifying commercial shipping activities.");
+      }
+
+      if (flag.code === "cyprus" && isLikelyNonEuOwner && (text.includes("50%") || text.includes("eu/eea"))) {
+        score -= 7;
+        risks.push("Cyprus requires an EU/EEA ownership or qualifying control structure for non-EU owners.");
+      }
+
       if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
         score += 6;
         positives.push("French flag profile is strong for France-focused local market access and reputation.");
