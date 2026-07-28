@@ -511,6 +511,25 @@ export function compareFlagRegistries(
         risks.push("Cayman is non-EU; EU VAT, customs and Temporary Admission planning must be handled separately.");
       }
 
+      if (flag.code === "marshall" && (text.includes("pylc") || text.includes("yet"))) {
+        score += 5;
+        positives.push("Marshall Islands supports limited charter routes through PYLC/YET when eligibility is met.");
+      }
+
+      if (flag.code === "marshall" && text.includes("cost-effective")) {
+        score += 4;
+        positives.push("Marshall Islands can be a cost-effective alternative to premium Red Ensign structures.");
+      }
+
+      if (flag.code === "marshall" && text.includes("entity")) {
+        risks.push("Marshall Islands yacht registration is entity-only; personal ownership is not the direct route.");
+      }
+
+      if (flag.code === "marshall" && wantsEu) {
+        score -= 3;
+        risks.push("Marshall Islands is non-EU; EU VAT, customs and Temporary Admission planning remain separate.");
+      }
+
       if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
         score += 6;
         positives.push("French flag profile is strong for France-focused local market access and reputation.");
