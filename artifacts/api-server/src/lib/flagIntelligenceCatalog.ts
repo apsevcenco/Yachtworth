@@ -496,6 +496,21 @@ export function compareFlagRegistries(
         positives.push("Maltese company ownership is a standard route for non-EU owners.");
       }
 
+      if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
+        score += 6;
+        positives.push("French flag profile is strong for France-focused local market access and reputation.");
+      }
+
+      if (flag.code === "france" && wantsCommercial && (text.includes("25%") || text.includes("no tonnage tax"))) {
+        score -= 8;
+        risks.push("French RIF is not a tax-optimisation route for commercial yacht charter compared with Malta or Madeira.");
+      }
+
+      if (flag.code === "france" && wantsCommercial && (text.includes("181 days") || text.includes("social security"))) {
+        score -= 4;
+        risks.push("Crew social security exposure can be material if the yacht is based in France for extended periods.");
+      }
+
       if (isLikelyNonEuOwner && text.includes("non-eu individuals no")) {
         score -= 8;
         risks.push("Non-EU individual personal registration is not the direct route; a company or recognised legal entity structure is required.");
