@@ -137,30 +137,40 @@ router.get("/maintenance/yachts/:yachtId/dashboard", async (req, res) => {
   const yachtId = req.params["yachtId"]!;
   if (!(await assertYacht(req, res, yachtId))) return;
   const sb = getSupabase()!;
-  const [assets, tasks, defects, workOrders, events, parts] = await Promise.all([
+  const [systems, assets, tasks, defects, workOrders, events, parts] = await Promise.all([
+    sb.from(MAINTENANCE_SYSTEMS_TABLE).select("id").eq("yacht_id", yachtId).eq("is_active", true),
     sb.from(EQUIPMENT_ASSETS_TABLE).select("id,criticality,operational_status").eq("yacht_id", yachtId).eq("is_active", true),
-    sb.from(MAINTENANCE_TASKS_TABLE).select("id,status,priority,due_at,due_counter_value,equipment_asset_id").eq("yacht_id", yachtId).limit(500),
-    sb.from(DEFECTS_TABLE).select("id,status,severity").eq("yacht_id", yachtId).limit(500),
+    sb.from(MAINTENANCE_TASKS_TABLE).select("id,title,status,priority,due_at,due_counter_value,equipment_asset_id").eq("yacht_id", yachtId).limit(500),
+    sb.from(DEFECTS_TABLE).select("id,title,status,severity,equipment_asset_id").eq("yacht_id", yachtId).limit(500),
     sb.from(WORK_ORDERS_TABLE).select("id,status,priority,safety_critical").eq("yacht_id", yachtId).limit(500),
     sb.from(SERVICE_EVENTS_TABLE).select("id,completed_at,cost,currency").eq("yacht_id", yachtId).order("completed_at", { ascending: false }).limit(10),
     sb.from(SPARE_PARTS_TABLE).select("id,quantity_on_hand,minimum_stock,expiry_date").eq("yacht_id", yachtId).limit(500),
   ]);
   const rawTasks = tasks.data ?? [];
   const normalizedTasks = rawTasks.map((t) => ({ ...t, status: statusForTask(t as Record<string, unknown>) }));
+  const overdueTasks = normalizedTasks.filter((t) => t.status === "overdue");
+  const dueSoonTasks = normalizedTasks.filter((t) => t.status === "due");
   const openDefects = (defects.data ?? []).filter((d) => !["closed", "verified", "rejected", "duplicate"].includes(String(d.status)));
   res.json({
+    yachtId,
     counts: {
+      systems: systems.data?.length ?? 0,
       assets: assets.data?.length ?? 0,
       critical_assets: (assets.data ?? []).filter((a) => ["critical", "safety_critical"].includes(String(a.criticality))).length,
-      tasks_due: normalizedTasks.filter((t) => t.status === "due").length,
-      tasks_overdue: normalizedTasks.filter((t) => t.status === "overdue").length,
+      tasks_due: dueSoonTasks.length,
+      tasks_overdue: overdueTasks.length,
       open_defects: openDefects.length,
       critical_defects: openDefects.filter((d) => d.severity === "critical").length,
       open_work_orders: (workOrders.data ?? []).filter((w) => !["closed", "cancelled"].includes(String(w.status))).length,
       low_stock: (parts.data ?? []).filter((p) => Number(p.quantity_on_hand ?? 0) <= Number(p.minimum_stock ?? 0)).length,
     },
+    overdue_tasks: overdueTasks.slice(0, 20),
+    due_soon_tasks: dueSoonTasks.slice(0, 20),
+    open_defects: openDefects.slice(0, 20),
+    open_work_orders: (workOrders.data ?? []).filter((w) => !["closed", "cancelled"].includes(String(w.status))).slice(0, 20),
     recent_service_events: events.data ?? [],
-    errors: [assets.error, tasks.error, defects.error, workOrders.error, events.error, parts.error].filter(Boolean).map((e) => e?.message),
+    low_stock_parts: (parts.data ?? []).filter((p) => Number(p.quantity_on_hand ?? 0) <= Number(p.minimum_stock ?? 0)).slice(0, 20),
+    errors: [systems.error, assets.error, tasks.error, defects.error, workOrders.error, events.error, parts.error].filter(Boolean).map((e) => e?.message),
   });
 });
 
@@ -779,6 +789,7 @@ router.post("/maintenance/yachts/:yachtId/service-events", async (req, res) => {
     defect_description: s(p["defect_description"]),
     root_cause_summary: s(p["root_cause_summary"]),
     work_performed: workPerformed,
+    technician_id: s(p["technician_id"]) ?? s(p["performed_by_name"]),
     vendor_id: s(p["vendor_id"]),
     authorised_dealer: b(p["authorised_dealer"]),
     labour_hours: n(p["labour_hours"]),

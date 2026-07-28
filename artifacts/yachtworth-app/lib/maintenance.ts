@@ -10,12 +10,18 @@ export type YachtOption = {
 export type MaintenanceDashboard = {
   yachtId: string;
   counts: Record<string, number>;
-  overdueTasks: MaintenanceTask[];
-  dueSoonTasks: MaintenanceTask[];
-  openDefects: Defect[];
-  openWorkOrders: WorkOrder[];
-  recentServiceEvents: ServiceEvent[];
-  lowStockParts: SparePart[];
+  overdueTasks?: MaintenanceTask[];
+  dueSoonTasks?: MaintenanceTask[];
+  openDefects?: Defect[];
+  openWorkOrders?: WorkOrder[];
+  recentServiceEvents?: ServiceEvent[];
+  lowStockParts?: SparePart[];
+  overdue_tasks?: MaintenanceTask[];
+  due_soon_tasks?: MaintenanceTask[];
+  open_defects?: Defect[];
+  open_work_orders?: WorkOrder[];
+  recent_service_events?: ServiceEvent[];
+  low_stock_parts?: SparePart[];
 };
 
 export type MaintenanceSystemTemplate = {
@@ -36,6 +42,7 @@ export type MaintenanceSystem = {
 export type EquipmentAsset = {
   id: string;
   yacht_id: string;
+  vessel_system_id?: string | null;
   maintenance_system_id?: string | null;
   parent_asset_id?: string | null;
   name: string;
@@ -68,6 +75,7 @@ export type MaintenanceTask = {
   due_at?: string | null;
   due_counter_value?: number | null;
   estimated_hours?: number | null;
+  description?: string | null;
   equipment_assets?: EquipmentAsset | null;
 };
 
@@ -99,11 +107,26 @@ export type ServiceEvent = {
   id: string;
   yacht_id: string;
   equipment_asset_id?: string | null;
+  work_order_id?: string | null;
+  maintenance_task_id?: string | null;
   service_event_number: string;
   title: string;
-  performed_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  performed_at?: string | null;
   performed_by_name?: string | null;
+  technician_id?: string | null;
   service_type?: string | null;
+  work_performed?: string | null;
+  counter_value_before?: number | null;
+  counter_value_after?: number | null;
+  labour_hours?: number | null;
+  downtime_hours?: number | null;
+  cost?: number | null;
+  currency?: string | null;
+  test_result?: string | null;
+  next_due_at?: string | null;
+  equipment_assets?: EquipmentAsset | null;
 };
 
 export type SparePart = {
@@ -206,7 +229,7 @@ export async function createEquipmentCounter(
 export async function recordCounterReading(yachtId: string, counterId: string, value: number): Promise<unknown> {
   return request(`/api/maintenance/yachts/${yachtId}/counters/${counterId}/readings`, {
     method: "POST",
-    body: JSON.stringify({ reading_value: value }),
+    body: JSON.stringify({ value }),
   });
 }
 
@@ -219,10 +242,12 @@ export async function createMaintenancePlan(
   yachtId: string,
   input: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  return request(`/api/maintenance/yachts/${yachtId}/plans`, {
+  const data = await request<{ item?: Record<string, unknown> } | Record<string, unknown>>(`/api/maintenance/yachts/${yachtId}/plans`, {
     method: "POST",
     body: JSON.stringify(input),
   });
+  const maybeWrapped = data as { item?: Record<string, unknown> };
+  return maybeWrapped.item ?? (data as Record<string, unknown>);
 }
 
 export async function generateMaintenanceTask(

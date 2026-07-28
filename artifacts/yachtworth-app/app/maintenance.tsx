@@ -323,11 +323,14 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
   const metrics = [
     ["Systems", counts.systems ?? 0],
     ["Assets", counts.assets ?? 0],
-    ["Overdue", counts.overdueTasks ?? 0],
-    ["Due 30d", counts.dueSoonTasks ?? 0],
-    ["Open W/O", counts.openWorkOrders ?? 0],
-    ["Defects", counts.openDefects ?? 0],
+    ["Overdue", counts.tasks_overdue ?? counts.overdueTasks ?? 0],
+    ["Due 30d", counts.tasks_due ?? counts.dueSoonTasks ?? 0],
+    ["Open W/O", counts.open_work_orders ?? counts.openWorkOrders ?? 0],
+    ["Defects", counts.open_defects ?? counts.openDefects ?? 0],
   ];
+  const overdueTasks = dashboard?.overdue_tasks ?? dashboard?.overdueTasks ?? [];
+  const dueSoonTasks = dashboard?.due_soon_tasks ?? dashboard?.dueSoonTasks ?? [];
+  const openDefects = dashboard?.open_defects ?? dashboard?.openDefects ?? [];
   return (
     <View>
       <View style={styles.metrics}>
@@ -342,10 +345,10 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
         <Feather name="layers" size={18} color={NAVY} />
         <Text style={styles.primaryButtonText}>Seed professional system taxonomy</Text>
       </Pressable>
-      <SectionList title="Overdue / due soon" items={[...(dashboard?.overdueTasks ?? []), ...(dashboard?.dueSoonTasks ?? [])]} render={(item: MaintenanceTask) => (
+      <SectionList title="Overdue / due soon" items={[...overdueTasks, ...dueSoonTasks]} render={(item: MaintenanceTask) => (
         <Row title={item.title} meta={item.equipment_assets?.name ?? item.due_at ?? "No due date"} status={item.status} />
       )} />
-      <SectionList title="Open defects" items={dashboard?.openDefects ?? []} render={(item: Defect) => (
+      <SectionList title="Open defects" items={openDefects} render={(item: Defect) => (
         <Row title={item.title} meta={item.equipment_assets?.name ?? "Unassigned"} status={item.severity} />
       )} />
     </View>
@@ -368,7 +371,7 @@ function Equipment({ systems, assets, onCreate }: { systems: MaintenanceSystem[]
         <Field label="Serial number" value={serial} onChangeText={setSerial} />
         <ChipSelect items={systems.map((s) => ({ id: s.id, label: s.name }))} selected={currentSystemId} onSelect={setSystemId} />
         <Button label="Save asset" icon="save" onPress={() => {
-          onCreate({ name, manufacturer, model, serial_number: serial, maintenance_system_id: currentSystemId });
+          onCreate({ name, manufacturer, model, serial_number: serial, vessel_system_id: currentSystemId });
           setName(""); setManufacturer(""); setModel(""); setSerial("");
         }} disabled={!name || !currentSystemId} />
       </Form>
@@ -390,9 +393,9 @@ function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; task
         <Field label="Interval days" value={days} onChangeText={setDays} placeholder="365" />
         <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={assetId ?? assets[0]?.id ?? null} onSelect={setAssetId} />
         <Button label="Create plan" icon="repeat" onPress={() => onCreatePlan({
-          title,
+          name: title,
           equipment_asset_id: assetId ?? assets[0]?.id,
-          intervals: [{ interval_type: "calendar", every_days: Number(days) || 365 }],
+          intervals: [{ interval_type: "calendar", calendar_value: Number(days) || 365, calendar_unit: "days" }],
         })} disabled={!title || !(assetId ?? assets[0]?.id)} />
       </Form>
       <SectionList title="Maintenance tasks" items={tasks} empty="No generated tasks yet." render={(item: MaintenanceTask) => (
@@ -441,17 +444,75 @@ function Defects({ assets, defects, onCreate }: { assets: EquipmentAsset[]; defe
 function History({ assets, events, onCreate }: { assets: EquipmentAsset[]; events: ServiceEvent[]; onCreate: (input: Partial<ServiceEvent>) => void }) {
   const [title, setTitle] = useState("");
   const [performedBy, setPerformedBy] = useState("");
+  const [completedAt, setCompletedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [workPerformed, setWorkPerformed] = useState("");
+  const [counterBefore, setCounterBefore] = useState("");
+  const [counterAfter, setCounterAfter] = useState("");
+  const [labourHours, setLabourHours] = useState("");
+  const [downtimeHours, setDowntimeHours] = useState("");
+  const [cost, setCost] = useState("");
+  const [testResult, setTestResult] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
+  const reset = () => {
+    setTitle("");
+    setPerformedBy("");
+    setCompletedAt(new Date().toISOString().slice(0, 10));
+    setWorkPerformed("");
+    setCounterBefore("");
+    setCounterAfter("");
+    setLabourHours("");
+    setDowntimeHours("");
+    setCost("");
+    setTestResult("");
+  };
   return (
     <View>
       <Form title="Complete service event">
         <Field label="Title" value={title} onChangeText={setTitle} placeholder="Port engine annual service" />
+        <Field label="Completed date" value={completedAt} onChangeText={setCompletedAt} placeholder="YYYY-MM-DD" />
         <Field label="Performed by" value={performedBy} onChangeText={setPerformedBy} />
+        <Field label="Work performed" value={workPerformed} onChangeText={setWorkPerformed} multiline />
+        <Field label="Counter before" value={counterBefore} onChangeText={setCounterBefore} placeholder="Engine/generator hours before" />
+        <Field label="Counter after" value={counterAfter} onChangeText={setCounterAfter} placeholder="Engine/generator hours after" />
+        <Field label="Labour hours" value={labourHours} onChangeText={setLabourHours} />
+        <Field label="Downtime hours" value={downtimeHours} onChangeText={setDowntimeHours} />
+        <Field label="Cost EUR" value={cost} onChangeText={setCost} />
+        <Field label="Test result" value={testResult} onChangeText={setTestResult} multiline />
         <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={assetId ?? assets[0]?.id ?? null} onSelect={setAssetId} />
-        <Button label="Save service event" icon="check-circle" onPress={() => { onCreate({ title, performed_by_name: performedBy, equipment_asset_id: assetId ?? assets[0]?.id }); setTitle(""); setPerformedBy(""); }} disabled={!title} />
+        <Button
+          label="Save service event"
+          icon="check-circle"
+          onPress={() => {
+            onCreate({
+              title,
+              technician_id: performedBy,
+              equipment_asset_id: assetId ?? assets[0]?.id,
+              completed_at: completedAt ? new Date(`${completedAt}T12:00:00.000Z`).toISOString() : undefined,
+              work_performed: workPerformed,
+              counter_value_before: counterBefore ? Number(counterBefore) : undefined,
+              counter_value_after: counterAfter ? Number(counterAfter) : undefined,
+              labour_hours: labourHours ? Number(labourHours) : undefined,
+              downtime_hours: downtimeHours ? Number(downtimeHours) : undefined,
+              cost: cost ? Number(cost) : undefined,
+              currency: "EUR",
+              test_result: testResult,
+            });
+            reset();
+          }}
+          disabled={!title || !workPerformed || !(assetId ?? assets[0]?.id)}
+        />
       </Form>
       <SectionList title="Immutable service history" items={events} empty="No service events yet." render={(item: ServiceEvent) => (
-        <Row title={`${item.service_event_number} - ${item.title}`} meta={[item.performed_at?.slice(0, 10), item.performed_by_name].filter(Boolean).join(" - ")} status={item.service_type} />
+        <Row
+          title={`${item.service_event_number} - ${item.title}`}
+          meta={[
+            (item.completed_at ?? item.performed_at)?.slice(0, 10),
+            item.equipment_assets?.name,
+            item.technician_id ?? item.performed_by_name,
+            item.cost != null ? `€${Number(item.cost).toLocaleString("en-US")}` : null,
+          ].filter(Boolean).join(" - ")}
+          status={item.service_type}
+        />
       )} />
     </View>
   );
