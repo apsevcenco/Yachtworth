@@ -1120,6 +1120,7 @@ export default function CharterFormScreen() {
               <Text style={styles.subLabel}>Start</Text>
               <DateField
                 value={form.start_date}
+                onChangeText={(v) => set("start_date", v)}
                 onPress={() => setDateField("start_date")}
               />
             </View>
@@ -1127,6 +1128,7 @@ export default function CharterFormScreen() {
               <Text style={styles.subLabel}>End</Text>
               <DateField
                 value={form.end_date}
+                onChangeText={(v) => set("end_date", v)}
                 onPress={() => setDateField("end_date")}
               />
             </View>
@@ -1200,6 +1202,7 @@ export default function CharterFormScreen() {
           <Text style={styles.subLabel}>Contract date</Text>
           <DateField
             value={form.contract_date}
+            onChangeText={(v) => set("contract_date", v)}
             onPress={() => setDateField("contract_date")}
           />
         </Section>
@@ -1598,6 +1601,7 @@ export default function CharterFormScreen() {
               <Text style={styles.fieldLabel}>Date</Text>
               <DateField
                 value={form.deposit_date}
+                onChangeText={(v) => set("deposit_date", v)}
                 onPress={() => setDateField("deposit_date")}
               />
             </View>
@@ -1625,6 +1629,7 @@ export default function CharterFormScreen() {
               <Text style={styles.fieldLabel}>Date</Text>
               <DateField
                 value={form.final_payment_date}
+                onChangeText={(v) => set("final_payment_date", v)}
                 onPress={() => setDateField("final_payment_date")}
               />
             </View>
@@ -2435,6 +2440,7 @@ export default function CharterFormScreen() {
 
       {/* Date picker */}
       {dateField !== null &&
+        Platform.OS !== "web" &&
         (Platform.OS === "ios" ? (
           <Modal
             visible
@@ -2740,11 +2746,28 @@ function Field({
 
 function DateField({
   value,
+  onChangeText,
   onPress,
 }: {
   value: string;
+  onChangeText: (value: string) => void;
   onPress: () => void;
 }) {
+  if (Platform.OS === "web") {
+    return (
+      <View style={[styles.input, styles.dateFieldBtn, styles.webDateField]}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={MUTED}
+          style={styles.webDateInput}
+          {...({ type: "date" } as Record<string, unknown>)}
+        />
+        <Feather name="calendar" size={16} color={GOLD} />
+      </View>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
@@ -3040,6 +3063,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  webDateField: {
+    paddingVertical: 0,
+    paddingRight: 12,
+  },
+  webDateInput: {
+    flex: 1,
+    height: 48,
+    color: IVORY,
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   stepperRow: {
     flexDirection: "row",
