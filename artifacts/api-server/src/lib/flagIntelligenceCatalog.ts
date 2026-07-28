@@ -663,6 +663,76 @@ export function compareFlagRegistries(
         risks.push("Dutch registration can require a nationality test and Dutch/EU connection for non-EU owners.");
       }
 
+      if (flag.code === "panama" && !wantsEu) {
+        score += 5;
+        positives.push("Panama is one of the most accessible open registries with no nationality or local-company requirement.");
+      }
+
+      if (flag.code === "panama" && (input.year_built ?? 0) >= new Date().getFullYear() - 20) {
+        score += 4;
+        positives.push("Panama is attractive for private yachts under 20 years old because the guide indicates no survey is required.");
+      }
+
+      if (flag.code === "panama" && wantsEu) {
+        score -= 4;
+        risks.push("Panama is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
+      }
+
+      if (flag.code === "belize" && !wantsEu) {
+        score += 3;
+        positives.push("Belize is a low-barrier open registry with no nationality restrictions and fast provisional registration.");
+      }
+
+      if (flag.code === "belize" && (input.year_built ?? new Date().getFullYear()) < new Date().getFullYear() - 20) {
+        score -= 4;
+        risks.push("Belize has a 20-year age policy with exceptions; older yachts need pre-clearance and inspection review.");
+      }
+
+      if (flag.code === "san-marino" && (input.loa_m ?? 0) >= 10 && (input.loa_m ?? 100) <= 24 && !wantsCommercial) {
+        score += 6;
+        positives.push("San Marino has a transparent private 10-24 m tariff and lifetime-registration option.");
+      }
+
+      if (flag.code === "san-marino" && wantsCommercial) {
+        score -= 4;
+        risks.push("San Marino commercial and >24 m fee schedules still require direct confirmation.");
+      }
+
+      if (flag.code === "cook-islands" && text.includes("dual")) {
+        score += 5;
+        positives.push("Cook Islands is useful where dual registration or Pacific flexibility is specifically needed.");
+      }
+
+      if (flag.code === "cook-islands" && wantsEu) {
+        score -= 4;
+        risks.push("Cook Islands is non-EU and Pacific-focused; Mediterranean EU VAT/customs planning remains separate.");
+      }
+
+      if (flag.code === "jamaica" && textIncludes(input, ["caribbean", "jamaica"])) {
+        score += 5;
+        positives.push("Jamaica fits better for Caribbean-oriented operations and English-language administration.");
+      }
+
+      if (flag.code === "jamaica" && wantsEu) {
+        score -= 5;
+        risks.push("Jamaica is a niche Caribbean registry and is usually weaker for Mediterranean/EU operation.");
+      }
+
+      if (flag.code === "luxembourg" && wantsEu) {
+        score += 2;
+        positives.push("Luxembourg is a full EU flag with strong legal and commercial-shipping reputation.");
+      }
+
+      if (flag.code === "luxembourg" && isLikelyNonEuOwner) {
+        score -= 10;
+        risks.push("Luxembourg has major residence/substance eligibility barriers for non-EU or non-resident owners.");
+      }
+
+      if (flag.code === "luxembourg" && wantsCommercial) {
+        score -= 6;
+        risks.push("Luxembourg is not yacht-focused and has high tax/substance costs for commercial operation.");
+      }
+
       if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
         score += 6;
         positives.push("French flag profile is strong for France-focused local market access and reputation.");
