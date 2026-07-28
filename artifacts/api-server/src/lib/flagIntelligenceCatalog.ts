@@ -496,6 +496,21 @@ export function compareFlagRegistries(
         positives.push("Maltese company ownership is a standard route for non-EU owners.");
       }
 
+      if (flag.code === "cayman" && highValue) {
+        score += 6;
+        positives.push("Cayman is a premium Category 1 Red Ensign option for high-value and financed yachts.");
+      }
+
+      if (flag.code === "cayman" && wantsCommercial && text.includes("yet")) {
+        score += 4;
+        positives.push("YET can support limited charter activity without full commercial conversion when eligible.");
+      }
+
+      if (flag.code === "cayman" && wantsEu) {
+        score -= 4;
+        risks.push("Cayman is non-EU; EU VAT, customs and Temporary Admission planning must be handled separately.");
+      }
+
       if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
         score += 6;
         positives.push("French flag profile is strong for France-focused local market access and reputation.");
