@@ -301,7 +301,10 @@ function buildValuationBody(
       weight: result.condition_adjustment_pct,
       notes:
         typeof result.condition_baseline_eur === "number"
-          ? `Baseline € ${Math.round(result.condition_baseline_eur).toLocaleString("en-US")}`
+          ? `Baseline € ${Math.round(result.condition_baseline_eur).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
           : null,
     });
   if (result.sanity_adjusted)

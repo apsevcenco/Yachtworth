@@ -41,7 +41,10 @@ function moneyOf(currency: string | null | undefined): (v: unknown) => string {
   return (v: unknown) => {
     const n = num(v);
     if (n == null) return "";
-    const amount = Math.round(n).toLocaleString("en-US");
+    const amount = Math.round(n).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     // `code` is raw here; the renderer escapes the cell text it lands in.
     return sym ? `${sym}${amount}` : `${amount} ${code}`;
   };

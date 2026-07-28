@@ -2754,16 +2754,28 @@ function DateField({
   onPress: () => void;
 }) {
   if (Platform.OS === "web") {
+    const openPicker = (event: unknown) => {
+      const input = (event as { currentTarget?: { showPicker?: () => void } })
+        .currentTarget;
+      try {
+        input?.showPicker?.();
+      } catch {
+        // Some browsers only allow showPicker from a direct user gesture.
+      }
+    };
+
     return (
       <View style={[styles.input, styles.dateFieldBtn, styles.webDateField]}>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={MUTED}
-          style={styles.webDateInput}
-          {...({ type: "date" } as Record<string, unknown>)}
-        />
+        {React.createElement("input", {
+          type: "date",
+          value,
+          placeholder: "YYYY-MM-DD",
+          onChange: (event: { currentTarget?: { value?: string } }) =>
+            onChangeText(event.currentTarget?.value ?? ""),
+          onClick: openPicker,
+          onFocus: openPicker,
+          style: webDateInputStyle,
+        })}
         <Feather name="calendar" size={16} color={GOLD} />
       </View>
     );
@@ -2782,6 +2794,19 @@ function DateField({
     </Pressable>
   );
 }
+
+const webDateInputStyle = {
+  flex: 1,
+  height: 48,
+  minWidth: 0,
+  color: IVORY,
+  fontFamily: "Inter_500Medium",
+  fontSize: 15,
+  backgroundColor: "transparent",
+  border: "none",
+  outline: "none",
+  colorScheme: "dark",
+} as const;
 
 function Stepper({
   value,
@@ -3067,15 +3092,6 @@ const styles = StyleSheet.create({
   webDateField: {
     paddingVertical: 0,
     paddingRight: 12,
-  },
-  webDateInput: {
-    flex: 1,
-    height: 48,
-    color: IVORY,
-    fontFamily: "Inter_500Medium",
-    fontSize: 15,
-    backgroundColor: "transparent",
-    borderWidth: 0,
   },
   stepperRow: {
     flexDirection: "row",

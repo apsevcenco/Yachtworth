@@ -47,7 +47,13 @@ const CONFIDENCE_META: Record<
 };
 
 function formatEur(n: number): string {
-  return "€ " + Math.round(n).toLocaleString("en-US");
+  return (
+    "€ " +
+    Math.round(n).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 function sourceDomain(url: string | null | undefined): string | null {
