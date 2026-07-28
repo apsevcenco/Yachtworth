@@ -55,6 +55,18 @@ export const FLAG_ASSET_MAP: Record<string, FlagAssetMapping> = {
   spain: flag("Spain", "es"),
   netherlands: flag("Netherlands", "nl"),
   portugal: flag("Portugal", "pt"),
+  portugal_madeira: flag("Madeira (MAR)", "pt", {
+    badge: "MAR",
+    subtitle: "Portuguese International Shipping Register",
+    note: "Yachts registered in MAR fly the Portuguese flag.",
+    altText: "Portuguese flag - Madeira International Shipping Register",
+  }),
+  "portugal-madeira": flag("Madeira (MAR)", "pt", {
+    badge: "MAR",
+    subtitle: "Portuguese International Shipping Register",
+    note: "Yachts registered in MAR fly the Portuguese flag.",
+    altText: "Portuguese flag - Madeira International Shipping Register",
+  }),
   madeira: flag("Madeira (MAR)", "pt", {
     badge: "MAR",
     subtitle: "Portuguese International Shipping Register",
@@ -83,6 +95,7 @@ export function isFlagAssetCode(value: string | null | undefined): value is Flag
 
 export function resolveFlagAsset(registry: {
   code?: string | null;
+  slug?: string | null;
   flag_name?: string | null;
   flag_code?: string | null;
   flag_asset_key?: string | null;
@@ -90,8 +103,9 @@ export function resolveFlagAsset(registry: {
   flag_alt_text?: string | null;
   registry_badge?: string | null;
   flag_note?: string | null;
+  advisor?: { slug?: string | null } | null;
 }): FlagAssetMapping | null {
-  const storedCode = registry.flag_asset_key ?? registry.flag_code;
+  const storedCode = normalizeCode(registry.flag_asset_key ?? registry.flag_code);
   if (isFlagAssetCode(storedCode)) {
     return {
       displayLabel: registry.flag_name ?? storedCode.toUpperCase(),
@@ -104,8 +118,30 @@ export function resolveFlagAsset(registry: {
     };
   }
 
-  const key = slugify(registry.code ?? registry.flag_name ?? "");
-  return FLAG_ASSET_MAP[key] ?? null;
+  const pathCode = normalizeCode(registry.flag_asset_path?.match(/\/([a-z]{2})\.svg$/i)?.[1]);
+  if (isFlagAssetCode(pathCode)) {
+    return flag(registry.flag_name ?? pathCode.toUpperCase(), pathCode, {
+      badge: registry.registry_badge ?? undefined,
+      note: registry.flag_note ?? undefined,
+      altText: registry.flag_alt_text ?? undefined,
+    });
+  }
+
+  const keys = [
+    registry.code,
+    registry.slug,
+    registry.advisor?.slug,
+    registry.flag_name,
+  ]
+    .map((value) => slugify(value ?? ""))
+    .filter(Boolean);
+
+  for (const key of keys) {
+    const resolved = FLAG_ASSET_MAP[key];
+    if (resolved) return resolved;
+  }
+
+  return null;
 }
 
 function flag(
@@ -127,4 +163,8 @@ function flag(
 
 function slugify(value: string): string {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function normalizeCode(value: string | null | undefined): string | null {
+  return value ? value.trim().toLowerCase() : null;
 }

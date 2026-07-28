@@ -213,6 +213,8 @@ const FLAG_ASSET_MAPPING: Record<string, {
     ["spain", "es", "Flag of Spain"],
     ["netherlands", "nl", "Flag of the Netherlands"],
     ["portugal", "pt", "Flag of Portugal"],
+    ["portugal-madeira", "pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."],
+    ["portugal_madeira", "pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."],
     ["madeira", "pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."],
     ["madeira-mar", "pt", "Portuguese flag - Madeira International Shipping Register", "MAR", "Yachts registered in MAR fly the Portuguese flag."],
     ["cyprus", "cy", "Flag of Cyprus"],
