@@ -605,6 +605,64 @@ export function compareFlagRegistries(
         risks.push("Cyprus requires an EU/EEA ownership or qualifying control structure for non-EU owners.");
       }
 
+      if (flag.code === "gibraltar" && highValue) {
+        score += 5;
+        positives.push("Gibraltar is a Category 1 Red Ensign flag with strong mortgage and Mediterranean positioning.");
+      }
+
+      if (flag.code === "gibraltar" && text.includes("annual tonnage tax")) {
+        risks.push("Gibraltar annual tonnage tax can dominate cost for larger yachts and should be modelled.");
+      }
+
+      if (flag.code === "united-kingdom" && highValue) {
+        score += 4;
+        positives.push("The UK Part 1 register is a prestige Red Ensign route with strong legal title and mortgage recognition.");
+      }
+
+      if (flag.code === "united-kingdom" && wantsEu) {
+        score -= 5;
+        risks.push("The UK is non-EU after Brexit; EU VAT/customs and Temporary Admission planning remain separate.");
+      }
+
+      if (flag.code === "italy" && wantsEu) {
+        score += 4;
+        positives.push("Italy is a strong EU flag with full EU waters access and high Paris MoU standing.");
+      }
+
+      if (flag.code === "italy" && wantsCommercial) {
+        score -= 6;
+        risks.push("Italian commercial yacht operation is administratively heavy and does not have a dedicated yacht code equivalent to Malta/Madeira.");
+      }
+
+      if (flag.code === "spain" && wantsCommercial && text.includes("lista 6")) {
+        score += 4;
+        positives.push("Spain Lista 6 provides a clear charter route with registration-tax exemption and VAT deduction.");
+      }
+
+      if (flag.code === "spain" && !wantsCommercial && text.includes("12%")) {
+        score -= 8;
+        risks.push("Spain Lista 7 private use can trigger 12% registration tax on vessel value.");
+      }
+
+      if (flag.code === "spain" && wantsCommercial && text.includes("4 years")) {
+        risks.push("Spain Lista 6 requires dedicated commercial use and owner-use restrictions for the first 4 years.");
+      }
+
+      if (flag.code === "netherlands" && wantsEu) {
+        score += 4;
+        positives.push("The Netherlands is a highly respected EU flag with transparent Kadaster/ILT registration.");
+      }
+
+      if (flag.code === "netherlands" && wantsCommercial && text.includes("seabrief")) {
+        score -= 6;
+        risks.push("Dutch Seabrief is strictly non-commercial; charter requires the full merchant register route.");
+      }
+
+      if (flag.code === "netherlands" && isLikelyNonEuOwner && text.includes("nationality test")) {
+        score -= 5;
+        risks.push("Dutch registration can require a nationality test and Dutch/EU connection for non-EU owners.");
+      }
+
       if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
         score += 6;
         positives.push("French flag profile is strong for France-focused local market access and reputation.");
