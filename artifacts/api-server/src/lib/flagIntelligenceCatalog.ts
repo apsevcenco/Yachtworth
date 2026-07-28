@@ -530,6 +530,51 @@ export function compareFlagRegistries(
         risks.push("Marshall Islands is non-EU; EU VAT, customs and Temporary Admission planning remain separate.");
       }
 
+      if (flag.code === "iom" && text.includes("flat annual")) {
+        score += 6;
+        positives.push("Isle of Man has a predictable flat annual yacht fee structure, useful for larger yachts.");
+      }
+
+      if (flag.code === "iom" && (text.includes("yet") || text.includes("pycr"))) {
+        score += 5;
+        positives.push("Isle of Man supports YET/PYCR routes for eligible 24 m+ yachts with commercial compliance.");
+      }
+
+      if (flag.code === "iom" && highValue) {
+        score += 5;
+        positives.push("Isle of Man combines Red Ensign prestige with strong mortgage and insurance acceptance.");
+      }
+
+      if (flag.code === "jersey" && gt != null && gt > 399) {
+        score -= 45;
+        risks.push("Jersey is a Category 2 Red Ensign register with a hard 399 GT ceiling.");
+      }
+
+      if (flag.code === "jersey" && wantsCommercial && !text.includes("yet")) {
+        score -= 5;
+        risks.push("Jersey does not provide a YET-style limited charter route; full commercial coding is required.");
+      }
+
+      if (flag.code === "jersey" && gt != null && gt <= 399) {
+        score += 4;
+        positives.push("Jersey is viable for sub-399 GT yachts that want Red Ensign credibility.");
+      }
+
+      if (flag.code === "guernsey" && gt != null && gt > 150) {
+        score -= 50;
+        risks.push("Guernsey has a hard 150 GT ceiling and is not viable above that threshold.");
+      }
+
+      if (flag.code === "guernsey" && wantsCommercial) {
+        score -= 8;
+        risks.push("Guernsey has no YET/PYLC route; charter requires full commercial coding and is limited in scope.");
+      }
+
+      if (flag.code === "guernsey" && gt != null && gt <= 150 && !wantsCommercial) {
+        score += 6;
+        positives.push("Guernsey can be a low-maintenance Red Ensign option for private yachts below 150 GT.");
+      }
+
       if (flag.code === "france" && textIncludes(input, ["france", "french riviera", "cote d'azur", "côte d'azur", "monaco", "corsica"])) {
         score += 6;
         positives.push("French flag profile is strong for France-focused local market access and reputation.");
