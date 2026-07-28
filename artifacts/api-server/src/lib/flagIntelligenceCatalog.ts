@@ -376,7 +376,7 @@ export const FALLBACK_FLAG_REGISTRIES: FlagRegistry[] = [
   },
 ];
 
-const EU_CODES = new Set(["malta", "france", "italy", "spain", "portugal_madeira", "cyprus", "netherlands", "luxembourg"]);
+const EU_CODES = new Set(["malta", "france", "italy", "spain", "portugal_madeira", "cyprus", "netherlands", "luxembourg", "poland"]);
 
 function textIncludes(input: FlagComparisonInput, words: string[]): boolean {
   const haystack = [
@@ -676,6 +676,66 @@ export function compareFlagRegistries(
       if (flag.code === "panama" && wantsEu) {
         score -= 4;
         risks.push("Panama is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
+      }
+
+      if (flag.code === "british-virgin-islands" && highValue) {
+        score += 5;
+        positives.push("BVI is a Category 1 Red Ensign option with strong mortgage and insurance perception at a lower cost point than some premium alternatives.");
+      }
+
+      if (flag.code === "british-virgin-islands" && wantsCommercial) {
+        score += 3;
+        positives.push("BVI supports commercial yacht registration with MCA/LY3 coding routes where applicable.");
+      }
+
+      if (flag.code === "british-virgin-islands" && wantsEu) {
+        score -= 3;
+        risks.push("BVI is non-EU; EU VAT, customs and Temporary Admission planning remain separate.");
+      }
+
+      if (flag.code === "bahamas" && wantsCommercial) {
+        score += 6;
+        positives.push("Bahamas has a strong charter framework and Passenger Yacht Code route for eligible yachts carrying more than 12 passengers.");
+      }
+
+      if (flag.code === "bahamas" && textIncludes(input, ["caribbean", "bahamas"])) {
+        score += 5;
+        positives.push("Bahamas is especially strong for Caribbean-oriented operation and Bahamas cruising/charter planning.");
+      }
+
+      if (flag.code === "bahamas" && wantsEu) {
+        score -= 3;
+        risks.push("Bahamas is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
+      }
+
+      if (flag.code === "poland" && wantsEu && (input.loa_m ?? 999) <= 24) {
+        score += 8;
+        positives.push("Poland is a full EU flag with lifetime registration, no annual renewal fee and a simplified route for yachts up to 24 m.");
+      }
+
+      if (flag.code === "poland" && !wantsCommercial && (input.loa_m ?? 999) <= 24) {
+        score += 5;
+        positives.push("Poland is highly cost-efficient for private yachts under 24 m because no registration survey is required under the simplified route.");
+      }
+
+      if (flag.code === "poland" && (input.loa_m ?? 0) > 24) {
+        score -= 10;
+        risks.push("Poland's simplified Reja24 route ends at 24 m; larger yachts require the full Polish Shipping Register/class route.");
+      }
+
+      if (flag.code === "bermuda" && highValue) {
+        score += 7;
+        positives.push("Bermuda is a premium Category 1 Red Ensign register with very strong lender, mortgage and insurance acceptance.");
+      }
+
+      if (flag.code === "bermuda" && !highValue && (input.loa_m ?? 0) < 24) {
+        score -= 4;
+        risks.push("Bermuda is usually a premium/high-value route; smaller budget yachts may find BVI, Poland or Bahamas more efficient.");
+      }
+
+      if (flag.code === "bermuda" && wantsEu) {
+        score -= 4;
+        risks.push("Bermuda is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
       }
 
       if (flag.code === "belize" && !wantsEu) {

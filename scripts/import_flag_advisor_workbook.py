@@ -111,6 +111,12 @@ FLAG_ASSET_MAPPING = {
     "cook-islands": ("ck", "Flag of the Cook Islands", None, None),
     "san-marino": ("sm", "Flag of San Marino", None, None),
     "luxembourg": ("lu", "Flag of Luxembourg", None, None),
+    "british-virgin-islands": ("vg", "Flag of the British Virgin Islands", None, None),
+    "bvi": ("vg", "Flag of the British Virgin Islands", None, None),
+    "bahamas": ("bs", "Flag of The Bahamas", None, None),
+    "the-bahamas": ("bs", "Flag of The Bahamas", None, None),
+    "poland": ("pl", "Flag of Poland", None, None),
+    "bermuda": ("bm", "Flag of Bermuda", None, None),
 }
 
 

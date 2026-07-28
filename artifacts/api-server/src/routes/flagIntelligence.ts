@@ -225,6 +225,12 @@ const FLAG_ASSET_MAPPING: Record<string, {
     ["cook", "ck", "Flag of the Cook Islands"],
     ["san-marino", "sm", "Flag of San Marino"],
     ["luxembourg", "lu", "Flag of Luxembourg"],
+    ["british-virgin-islands", "vg", "Flag of the British Virgin Islands"],
+    ["bvi", "vg", "Flag of the British Virgin Islands"],
+    ["bahamas", "bs", "Flag of The Bahamas"],
+    ["the-bahamas", "bs", "Flag of The Bahamas"],
+    ["poland", "pl", "Flag of Poland"],
+    ["bermuda", "bm", "Flag of Bermuda"],
   ].map(([key, code, alt, badge, note]) => [
     key,
     {

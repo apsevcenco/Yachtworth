@@ -15,6 +15,8 @@ export const FLAG_ASSET_SOURCE = "flag-icons@7.5.0";
 export const FLAG_ASSET_LICENSE = "MIT";
 
 export const FLAG_ASSETS = {
+  bm: require("../assets/flags/4x3/bm.svg"),
+  bs: require("../assets/flags/4x3/bs.svg"),
   bz: require("../assets/flags/4x3/bz.svg"),
   ck: require("../assets/flags/4x3/ck.svg"),
   cy: require("../assets/flags/4x3/cy.svg"),
@@ -33,8 +35,10 @@ export const FLAG_ASSETS = {
   mt: require("../assets/flags/4x3/mt.svg"),
   nl: require("../assets/flags/4x3/nl.svg"),
   pa: require("../assets/flags/4x3/pa.svg"),
+  pl: require("../assets/flags/4x3/pl.svg"),
   pt: require("../assets/flags/4x3/pt.svg"),
   sm: require("../assets/flags/4x3/sm.svg"),
+  vg: require("../assets/flags/4x3/vg.svg"),
 } as const;
 
 export type FlagAssetCode = keyof typeof FLAG_ASSETS;
@@ -87,6 +91,12 @@ export const FLAG_ASSET_MAP: Record<string, FlagAssetMapping> = {
   cook: flag("Cook Islands", "ck"),
   "san-marino": flag("San Marino", "sm"),
   luxembourg: flag("Luxembourg", "lu"),
+  "british-virgin-islands": flag("British Virgin Islands", "vg"),
+  bvi: flag("British Virgin Islands", "vg"),
+  bahamas: flag("The Bahamas", "bs"),
+  "the-bahamas": flag("The Bahamas", "bs"),
+  poland: flag("Poland", "pl"),
+  bermuda: flag("Bermuda", "bm"),
 };
 
 export function isFlagAssetCode(value: string | null | undefined): value is FlagAssetCode {
