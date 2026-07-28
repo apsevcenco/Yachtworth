@@ -391,6 +391,32 @@ function textIncludes(input: FlagComparisonInput, words: string[]): boolean {
   return words.some((w) => haystack.includes(w));
 }
 
+function flagText(flag: FlagRegistry & Record<string, unknown>): string {
+  const advisor = typeof flag["advisor"] === "object" && flag["advisor"] ? flag["advisor"] as Record<string, unknown> : {};
+  return [
+    flag.flag_name,
+    flag.country,
+    flag.owner_nationality_restrictions,
+    flag.company_restrictions,
+    flag.crew_restrictions,
+    flag.vat_notes,
+    flag.insurance_notes,
+    ...flag.advantages,
+    ...flag.disadvantages,
+    advisor["registry_family"],
+    advisor["commercial_yacht_code"],
+    advisor["owner_eligibility"],
+    advisor["foreign_company_ownership"],
+    advisor["local_agent_requirement"],
+    advisor["mortgage_registration_status"],
+    advisor["vat_tax_note"],
+    advisor["minimum_safe_manning"],
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 export function compareFlagRegistries(
   input: FlagComparisonInput,
   registries = FALLBACK_FLAG_REGISTRIES,
@@ -399,17 +425,27 @@ export function compareFlagRegistries(
   const wantsEu = textIncludes(input, ["eu", "europe", "med", "france", "italy", "spain", "greece", "croatia", "malta"]);
   const highValue = (input.value_eur ?? 0) >= 1_000_000 || Boolean(input.mortgage_needed);
   const gt = input.gt ?? null;
+  const ownerText = [input.owner_nationality, input.owner_residency].filter(Boolean).join(" ").toLowerCase();
+  const companyCountry = (input.company_country ?? "").toLowerCase();
+  const isLikelyNonEuOwner =
+    Boolean(ownerText) &&
+    !/(eu|eea|swiss|switzerland|uk|united kingdom|british|malta|maltese|france|french|italy|italian|spain|spanish|germany|german|netherlands|dutch|portugal|portuguese|cyprus|cypriot)/i.test(ownerText);
 
   return registries
     .map((flag) => {
       let score = 55;
       const positives: string[] = [];
       const risks: string[] = [];
+      const text = flagText(flag as FlagRegistry & Record<string, unknown>);
 
       if (wantsCommercial) {
         if (flag.commercial_available) {
           score += 16;
           positives.push("Commercial registration is available.");
+          if (text.includes("commercial yacht code") || text.includes("commercial yacht")) {
+            score += 5;
+            positives.push("Commercial yacht code / commercial yacht pathway is documented.");
+          }
         } else {
           score -= 35;
           risks.push("Commercial registration is not supported for this profile.");
@@ -422,6 +458,10 @@ export function compareFlagRegistries(
       if (highValue && flag.mortgage_available) {
         score += 10;
         positives.push("Mortgage registration is available.");
+        if (text.includes("executive title") || text.includes("mortgagee")) {
+          score += 3;
+          positives.push("Mortgage protections are documented for finance discussions.");
+        }
       } else if (highValue) {
         score -= 10;
         risks.push("Mortgage support should be confirmed before finance discussions.");
@@ -441,10 +481,24 @@ export function compareFlagRegistries(
         if (EU_CODES.has(flag.code)) {
           score += 10;
           positives.push("EU flag profile fits the intended cruising/charter area.");
+          if (text.includes("vat") && text.includes("charter")) {
+            score += 4;
+            positives.push("EU VAT / charter framework is documented.");
+          }
         } else {
           score -= 3;
           risks.push("EU VAT, cabotage and charter rules require separate legal review.");
         }
+      }
+
+      if (flag.code === "malta" && companyCountry.includes("malta")) {
+        score += 5;
+        positives.push("Maltese company ownership is a standard route for non-EU owners.");
+      }
+
+      if (isLikelyNonEuOwner && text.includes("non-eu individuals no")) {
+        score -= 8;
+        risks.push("Non-EU individual personal registration is not the direct route; a company or recognised legal entity structure is required.");
       }
 
       if (gt != null && flag.max_gt != null && gt > flag.max_gt) {

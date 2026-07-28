@@ -29,6 +29,13 @@ export type LegalPartner = {
   sponsored?: boolean;
 };
 
+export type FlagAdvisorSection = {
+  title: string;
+  body?: string | null;
+  items?: string[] | null;
+  rows?: Array<Record<string, string | number | boolean | null>> | null;
+};
+
 export type FlagRegistry = {
   code: string;
   flag_name: string;
@@ -103,6 +110,7 @@ export type FlagRegistry = {
     primary_fee_url?: string | null;
     last_verified_at?: string | null;
     source_version?: string | null;
+    advisor_sections?: FlagAdvisorSection[] | null;
     data_quality_status?: string | null;
     data_quality_score?: number | null;
   };

@@ -651,15 +651,12 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
       <TextBlock title="Required documents" text={textOrVerify(advisor?.required_documents_summary)} />
       <TextBlock title="VAT / tax" text={textOrVerify(advisor?.vat_tax_note ?? flag.vat_notes)} />
       <TextBlock title="Insurance" text={textOrVerify(flag.insurance_notes)} />
+      <AdvisorSections sections={advisor?.advisor_sections ?? []} />
       <InfoList title="Advantages" items={flag.advantages} icon="check" />
       <InfoList title="Disadvantages" items={flag.disadvantages} icon="alert-circle" />
       {advisor?.missing_verification_notes ? <TextBlock title="Missing / next verification" text={advisor.missing_verification_notes} /> : null}
 
-      <Text style={styles.sectionHeading}>Official / legal contacts</Text>
-      {advisor?.last_verified_at ? <Text style={styles.sourceText}>Last verified: {advisor.last_verified_at}</Text> : null}
-      {advisor?.source_version ? <Text style={styles.sourceText}>Source version: {advisor.source_version}</Text> : null}
-      {advisor?.official_registry_url ?? flag.official_website ? <Text style={styles.linkText}>{advisor?.official_registry_url ?? flag.official_website}</Text> : null}
-      {advisor?.primary_fee_url ? <Text style={styles.linkText}>{advisor.primary_fee_url}</Text> : null}
+      <Text style={styles.sectionHeading}>Legal / registration partners</Text>
       {flag.legal_partners.length ? (
         flag.legal_partners.map((partner) => (
           <View key={partner.name} style={styles.partnerCard}>
@@ -670,6 +667,48 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
       ) : (
         <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
       )}
+    </View>
+  );
+}
+
+function AdvisorSections({ sections }: { sections: NonNullable<NonNullable<FlagRegistry["advisor"]>["advisor_sections"]> }) {
+  if (!sections.length) return null;
+  return (
+    <View style={styles.advisorSections}>
+      {sections.map((section, index) => (
+        <View key={`${section.title}-${index}`} style={styles.advisorSection}>
+          <Text style={styles.sectionHeading}>{section.title}</Text>
+          {section.body ? <Text style={styles.bodyText}>{section.body}</Text> : null}
+          {section.items?.length ? (
+            <View style={styles.advisorList}>
+              {section.items.map((item) => (
+                <View key={item} style={styles.listRow}>
+                  <Feather name="chevron-right" size={14} color={GOLD} />
+                  <Text style={styles.bodyText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {section.rows?.length ? <AdvisorRows rows={section.rows} /> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function AdvisorRows({ rows }: { rows: Array<Record<string, string | number | boolean | null>> }) {
+  return (
+    <View style={styles.advisorRows}>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.advisorRow}>
+          {Object.entries(row).map(([key, value]) => (
+            <View key={key} style={styles.advisorCell}>
+              <Text style={styles.factLabel}>{key.replace(/_/g, " ")}</Text>
+              <Text style={styles.factValue}>{value == null || value === "" ? "To verify" : String(value)}</Text>
+            </View>
+          ))}
+        </View>
+      ))}
     </View>
   );
 }
@@ -781,6 +820,12 @@ const styles = StyleSheet.create({
   sourceText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12, lineHeight: 17, marginBottom: 4 },
   warningText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13, lineHeight: 19, marginTop: 14, marginBottom: 10 },
   listRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 7 },
+  advisorSections: { marginTop: 4 },
+  advisorSection: { marginTop: 14 },
+  advisorList: { marginTop: 4 },
+  advisorRows: { gap: 8, marginTop: 4 },
+  advisorRow: { borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY_ELEV, padding: 10, gap: 8 },
+  advisorCell: { gap: 3 },
   partnerCard: { borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, padding: 10, marginBottom: 8 },
   partnerName: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13 },
   partnerText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 4, lineHeight: 17 },

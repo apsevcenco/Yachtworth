@@ -165,6 +165,7 @@ function legacyCompatibleRegistry(row: Record<string, unknown>): FlagRegistry & 
       primary_fee_url: row["primary_fee_url"],
       last_verified_at: row["last_verified_at"],
       source_version: row["source_version"],
+      advisor_sections: Array.isArray(row["advisor_sections"]) ? row["advisor_sections"] : [],
       data_quality_status: qualityStatus(row),
       data_quality_score: row["data_quality_score"],
     },
