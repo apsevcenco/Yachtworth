@@ -17,7 +17,7 @@ alter table public.flag_registries
   add constraint flag_registries_flag_code_check
     check (
       flag_code is null
-      or flag_code in ('ky','mt','mh','im','je','gg','gi','gb','fr','it','es','nl','pt','cy','pa','bz','jm','ck','sm','lu')
+      or flag_code in ('ky','mt','mh','im','je','gg','gi','gb','fr','it','es','nl','pt','cy','pa','bz','jm','ck','sm','lu','vg','bs','pl','bm')
     );
 
 with mapping(slug, flag_name, flag_code, display_label, registry_badge, flag_note) as (
@@ -46,7 +46,13 @@ with mapping(slug, flag_name, flag_code, display_label, registry_badge, flag_not
     ('cook-islands','Cook Islands','ck','Cook Islands',null,null),
     ('cook','Cook Islands','ck','Cook Islands',null,null),
     ('san-marino','San Marino','sm','San Marino',null,null),
-    ('luxembourg','Luxembourg','lu','Luxembourg',null,null)
+    ('luxembourg','Luxembourg','lu','Luxembourg',null,null),
+    ('british-virgin-islands','British Virgin Islands','vg','British Virgin Islands',null,null),
+    ('bvi','British Virgin Islands','vg','British Virgin Islands',null,null),
+    ('bahamas','The Bahamas','bs','The Bahamas',null,null),
+    ('the-bahamas','The Bahamas','bs','The Bahamas',null,null),
+    ('poland','Poland','pl','Poland',null,null),
+    ('bermuda','Bermuda','bm','Bermuda',null,null)
 )
 update public.flag_registries fr
    set flag_code = m.flag_code,

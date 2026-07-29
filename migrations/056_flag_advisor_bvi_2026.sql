@@ -3,6 +3,14 @@
 alter table public.flag_registries
   add column if not exists advisor_sections jsonb not null default '[]'::jsonb;
 
+alter table public.flag_registries
+  drop constraint if exists flag_registries_flag_code_check,
+  add constraint flag_registries_flag_code_check
+    check (
+      flag_code is null
+      or flag_code in ('ky','mt','mh','im','je','gg','gi','gb','fr','it','es','nl','pt','cy','pa','bz','jm','ck','sm','lu','vg','bs','pl','bm')
+    );
+
 insert into public.flag_registries (
   code, slug, import_key, flag_name, country, country_or_territory, registry_type,
   registry_family, is_eu_flag, private_available, commercial_available,
