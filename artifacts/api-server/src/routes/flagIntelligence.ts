@@ -7,6 +7,9 @@ import {
 } from "../lib/flagIntelligenceCatalog";
 import {
   FLAG_CHANGE_LOG_TABLE,
+  FLAG_ADVISOR_SCENARIOS_TABLE,
+  FLAG_ADVISOR_SCENARIO_SCORES_TABLE,
+  FLAG_COMPARISON_FACTS_TABLE,
   FLAG_FEE_RULES_TABLE,
   FLAG_IMPORT_RUNS_TABLE,
   FLAG_REGISTRIES_TABLE,
@@ -347,6 +350,69 @@ router.get("/flag-advisor/import-history", async (_req, res) => {
     return;
   }
   res.json({ items: data ?? [] });
+});
+
+router.get("/flag-advisor/scenario-rankings", async (req, res) => {
+  const supabase = getSupabase();
+  if (!supabase) {
+    res.json({ scenario: null, items: [] });
+    return;
+  }
+  const scenarioKey =
+    asString(req.query["scenario_key"]) ?? "budget_300k_south_france_renovation_zero_french";
+  const { data: scenario, error: scenarioError } = await supabase
+    .from(FLAG_ADVISOR_SCENARIOS_TABLE)
+    .select("*")
+    .eq("scenario_key", scenarioKey)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (scenarioError) {
+    res.json({ scenario: null, items: [], warning: scenarioError.message });
+    return;
+  }
+  if (!scenario) {
+    res.json({ scenario: null, items: [] });
+    return;
+  }
+
+  const { data: scores, error: scoresError } = await supabase
+    .from(FLAG_ADVISOR_SCENARIO_SCORES_TABLE)
+    .select("*,flag_registries(*)")
+    .eq("scenario_id", scenario.id)
+    .order("rank", { ascending: true, nullsFirst: false });
+
+  if (scoresError) {
+    res.json({ scenario, items: [], warning: scoresError.message });
+    return;
+  }
+
+  const flagIds = (scores ?? [])
+    .map((score) => String(score["flag_registry_id"] ?? ""))
+    .filter(Boolean);
+  const { data: facts } = flagIds.length
+    ? await supabase
+        .from(FLAG_COMPARISON_FACTS_TABLE)
+        .select("*")
+        .in("flag_registry_id", flagIds)
+        .eq("source_version", "flag-registry-base-v2-2026-07-29")
+    : { data: [] };
+  const factsByFlagId = new Map(
+    (facts ?? []).map((fact) => [String(fact["flag_registry_id"]), fact]),
+  );
+
+  const items = (scores ?? []).map((score) => {
+    const registryRow = score["flag_registries"];
+    return {
+      ...score,
+      registry: registryRow
+        ? legacyCompatibleRegistry(registryRow as Record<string, unknown>)
+        : null,
+      comparison_facts: factsByFlagId.get(String(score["flag_registry_id"])) ?? null,
+    };
+  });
+
+  res.json({ scenario, items });
 });
 
 router.get("/flag-advisor/change-history", async (req, res) => {

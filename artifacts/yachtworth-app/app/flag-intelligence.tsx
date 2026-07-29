@@ -16,10 +16,12 @@ import {
   compareFlags,
   estimateFlagFees,
   getFlagRegistries,
+  getFlagScenarioRanking,
   type FlagComparisonInput,
   type FlagComparisonResult,
   type FlagFeeEstimateResponse,
   type FlagRegistry,
+  type FlagScenarioRankingResponse,
 } from "../lib/flagIntelligence";
 import { RegistryFlag } from "../components/RegistryFlag";
 
@@ -193,6 +195,8 @@ export default function FlagIntelligenceScreen() {
   const [feeResult, setFeeResult] = useState<FlagFeeEstimateResponse | null>(null);
   const [feeLoading, setFeeLoading] = useState(false);
   const [feeError, setFeeError] = useState<string | null>(null);
+  const [scenarioRanking, setScenarioRanking] = useState<FlagScenarioRankingResponse | null>(null);
+  const [scenarioRankingError, setScenarioRankingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,12 +204,19 @@ export default function FlagIntelligenceScreen() {
       setFlagsLoading(true);
       setFlagsError(null);
       try {
-        const response = await getFlagRegistries();
+        const [response, ranking] = await Promise.all([
+          getFlagRegistries(),
+          getFlagScenarioRanking().catch((err) => {
+            setScenarioRankingError(err instanceof Error ? err.message : String(err));
+            return null;
+          }),
+        ]);
         if (cancelled) return;
         setFlags(response.registries);
         setExpandedCode(response.registries[0]?.code ?? null);
         setComparisonCodes(response.registries.slice(0, 3).map((f) => f.code));
         setFeeFlag(response.registries[0]?.code ?? "");
+        setScenarioRanking(ranking);
       } catch (err) {
         if (!cancelled) setFlagsError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -333,7 +344,14 @@ export default function FlagIntelligenceScreen() {
           />
         ) : (
           mode === "comparison" ? (
-          <Comparison flags={flags} comparisonFlags={comparisonFlags} comparisonCodes={comparisonCodes} onToggle={toggleComparison} />
+          <Comparison
+            flags={flags}
+            comparisonFlags={comparisonFlags}
+            comparisonCodes={comparisonCodes}
+            scenarioRanking={scenarioRanking}
+            scenarioRankingError={scenarioRankingError}
+            onToggle={toggleComparison}
+          />
           ) : (
             <FeeEstimate
               flags={flags}
@@ -496,17 +514,62 @@ function Comparison({
   flags,
   comparisonFlags,
   comparisonCodes,
+  scenarioRanking,
+  scenarioRankingError,
   onToggle,
 }: {
   flags: FlagRegistry[];
   comparisonFlags: FlagRegistry[];
   comparisonCodes: string[];
+  scenarioRanking: FlagScenarioRankingResponse | null;
+  scenarioRankingError: string | null;
   onToggle: (code: string) => void;
 }) {
+  const rankingItems = scenarioRanking?.items ?? [];
   return (
     <View style={styles.panel}>
       <Text style={styles.panelTitle}>Comparison</Text>
       <Text style={styles.panelCopy}>Select up to four flags to compare the core commercial and ownership criteria.</Text>
+      {scenarioRankingError ? <Text style={styles.warningText}>Scenario ranking is not loaded yet: {scenarioRankingError}</Text> : null}
+      {rankingItems.length ? (
+        <View style={styles.scenarioPanel}>
+          <View style={styles.scenarioHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionHeading}>Scenario ranking</Text>
+              <Text style={styles.bodyText}>{scenarioRanking?.scenario?.scenario_name ?? "Budget profile ranking"}</Text>
+            </View>
+            <StatusBadge label="needs review" tone="gold" />
+          </View>
+          <View style={styles.scenarioGrid}>
+            {rankingItems.slice(0, 8).map((item) => {
+              const registry = item.registry;
+              return (
+                <View key={item.id} style={styles.scenarioCard}>
+                  <View style={styles.scenarioRankLine}>
+                    <Text style={styles.rankNumber}>{item.rank ?? "-"}</Text>
+                    {registry ? <RegistryFlag registry={registry} size="sm" decorative /> : null}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rankTitle}>{registry?.flag_name ?? "Unknown flag"}</Text>
+                      <Text style={styles.rankSub}>{item.overall_label ?? item.recommendation_label ?? "Scenario fit to review"}</Text>
+                    </View>
+                    <Text style={[styles.score, { color: scoreColor(item.score ?? 0) }]}>{item.score ?? "-"}</Text>
+                  </View>
+                  <View style={styles.scenarioFactRow}>
+                    <Fact label="1st year" value={money(item.first_year_cost_eur_est)} />
+                    <Fact label="EU VAT" value={textOrVerify(item.eu_vat_exposure_rating)} />
+                    <Fact label="France base" value={textOrVerify(item.france_base_compatibility)} />
+                    <Fact label="Language" value={textOrVerify(item.language_fit)} />
+                  </View>
+                  <View style={styles.statusRow}>
+                    <StatusBadge label={item.recommended ? "recommended" : "not preferred"} tone={item.recommended ? "green" : "red"} />
+                    <StatusBadge label={statusLabel(item.validation_status)} tone="gold" />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
         {flags.map((flag) => (
           <Pressable key={flag.code} onPress={() => onToggle(flag.code)} style={[styles.compareChip, comparisonCodes.includes(flag.code) && styles.compareChipActive]}>
@@ -847,6 +910,12 @@ const styles = StyleSheet.create({
   compareChipText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
   compareChipTextActive: { color: GOLD },
   feeResult: { marginTop: 14, borderTopWidth: 1, borderTopColor: DIVIDER, paddingTop: 14 },
+  scenarioPanel: { borderRadius: 14, borderWidth: 1, borderColor: "rgba(201,169,97,0.32)", backgroundColor: "rgba(201,169,97,0.07)", padding: 12, marginBottom: 14 },
+  scenarioHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 12 },
+  scenarioGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  scenarioCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? "48%" : "100%", borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, gap: 10 },
+  scenarioRankLine: { flexDirection: "row", alignItems: "center", gap: 10 },
+  scenarioFactRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   comparisonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   comparisonCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? "31%" : "100%", borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, gap: 8 },
   compareHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },

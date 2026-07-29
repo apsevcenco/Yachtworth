@@ -158,6 +158,46 @@ export type FlagFeeEstimateResponse = {
   missing_data: string[];
 };
 
+export type FlagScenarioRankingItem = {
+  id: string;
+  rank: number | null;
+  score: number | null;
+  first_year_cost_eur_est: number | null;
+  eu_vat_exposure_rating: string | null;
+  france_base_compatibility: string | null;
+  language_fit: string | null;
+  renovation_fit: string | null;
+  overall_label: string | null;
+  recommended: boolean;
+  recommendation_label: string | null;
+  validation_status: string;
+  registry: FlagRegistry | null;
+  comparison_facts?: {
+    fee_currency?: string | null;
+    initial_private_24m?: number | null;
+    annual_private_24m?: number | null;
+    paris_mou_status?: string | null;
+    eu_vat_exposure?: string | null;
+    agent_required?: boolean | null;
+    survey_private_under_24m_required?: boolean | null;
+    detention_rate_pct?: number | null;
+    insurance_perception?: string | null;
+    finance_market?: string | null;
+  } | null;
+};
+
+export type FlagScenarioRankingResponse = {
+  scenario: {
+    id: string;
+    scenario_key: string;
+    scenario_name: string;
+    description: string | null;
+    source_version: string | null;
+  } | null;
+  items: FlagScenarioRankingItem[];
+  warning?: string;
+};
+
 export type FlagFeeRule = {
   id: string;
   flag_registry_id: string;
@@ -260,6 +300,21 @@ export async function estimateFlagFees(input: FlagFeeEstimateInput): Promise<Fla
     throw new Error(`Flag fee estimate failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
   }
   return (await res.json()) as FlagFeeEstimateResponse;
+}
+
+export async function getFlagScenarioRanking(scenarioKey?: string): Promise<FlagScenarioRankingResponse> {
+  const base = getBaseUrl() ?? "";
+  const qs = new URLSearchParams();
+  if (scenarioKey) qs.set("scenario_key", scenarioKey);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await fetch(`${base}/api/flag-advisor/scenario-rankings${suffix}`, {
+    headers: await buildHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Flag scenario ranking failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
+  }
+  return (await res.json()) as FlagScenarioRankingResponse;
 }
 
 export async function getFlagFeeRules(flag?: string): Promise<{ items: FlagFeeRule[] }> {
