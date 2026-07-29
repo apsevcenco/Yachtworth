@@ -425,6 +425,11 @@ export function compareFlagRegistries(
   const wantsEu = textIncludes(input, ["eu", "europe", "med", "france", "italy", "spain", "greece", "croatia", "malta"]);
   const highValue = (input.value_eur ?? 0) >= 1_000_000 || Boolean(input.mortgage_needed);
   const gt = input.gt ?? null;
+  const loa = input.loa_m ?? null;
+  const estimatedFirstYearCost = (flag: FlagRegistry): number | null => {
+    if (flag.registration_cost_eur == null && flag.annual_fee_eur == null) return null;
+    return (flag.registration_cost_eur ?? 0) + (flag.annual_fee_eur ?? 0);
+  };
   const ownerText = [input.owner_nationality, input.owner_residency].filter(Boolean).join(" ").toLowerCase();
   const companyCountry = (input.company_country ?? "").toLowerCase();
   const isLikelyNonEuOwner =
@@ -433,21 +438,22 @@ export function compareFlagRegistries(
 
   return registries
     .map((flag) => {
-      let score = 55;
+      let score = 40;
       const positives: string[] = [];
       const risks: string[] = [];
       const text = flagText(flag as FlagRegistry & Record<string, unknown>);
+      const firstYearCost = estimatedFirstYearCost(flag);
 
       if (wantsCommercial) {
         if (flag.commercial_available) {
-          score += 16;
+          score += 12;
           positives.push("Commercial registration is available.");
           if (text.includes("commercial yacht code") || text.includes("commercial yacht")) {
-            score += 5;
+            score += 4;
             positives.push("Commercial yacht code / commercial yacht pathway is documented.");
           }
         } else {
-          score -= 35;
+          score -= 40;
           risks.push("Commercial registration is not supported for this profile.");
         }
       } else if (flag.private_available) {
@@ -456,58 +462,73 @@ export function compareFlagRegistries(
       }
 
       if (highValue && flag.mortgage_available) {
-        score += 10;
+        score += 6;
         positives.push("Mortgage registration is available.");
         if (text.includes("executive title") || text.includes("mortgagee")) {
-          score += 3;
+          score += 2;
           positives.push("Mortgage protections are documented for finance discussions.");
         }
       } else if (highValue) {
-        score -= 10;
+        score -= 12;
         risks.push("Mortgage support should be confirmed before finance discussions.");
       }
 
       if (flag.processing_time_days_max != null && flag.processing_time_days_max <= 10) {
-        score += 6;
+        score += 4;
         positives.push("Fast provisional registration is usually possible.");
       }
 
       if (flag.insurance_notes?.toLowerCase().includes("widely") || flag.insurance_notes?.toLowerCase().includes("strong")) {
-        score += 5;
+        score += 3;
         positives.push("Good bank and insurance market acceptance.");
       }
 
       if (wantsEu) {
         if (EU_CODES.has(flag.code)) {
-          score += 10;
+          score += 8;
           positives.push("EU flag profile fits the intended cruising/charter area.");
           if (text.includes("vat") && text.includes("charter")) {
-            score += 4;
+            score += 3;
             positives.push("EU VAT / charter framework is documented.");
           }
         } else {
-          score -= 3;
+          score -= wantsCommercial ? 10 : 7;
           risks.push("EU VAT, cabotage and charter rules require separate legal review.");
         }
       }
 
+      if (firstYearCost != null) {
+        if (firstYearCost <= 700) {
+          score += 5;
+          positives.push("Low first-year registry cost for the profile.");
+        } else if (firstYearCost <= 1_500) {
+          score += 2;
+        } else if (firstYearCost >= 3_000) {
+          score -= 8;
+          risks.push("First-year registry cost is relatively high versus lower-cost alternatives.");
+        } else if (firstYearCost >= 2_000) {
+          score -= 4;
+          risks.push("Registry cost should be compared against lower-cost alternatives.");
+        }
+      }
+
       if (flag.code === "malta" && companyCountry.includes("malta")) {
-        score += 5;
+        score += 4;
         positives.push("Maltese company ownership is a standard route for non-EU owners.");
       }
 
       if (flag.code === "cayman" && highValue) {
-        score += 6;
+        score += 5;
         positives.push("Cayman is a premium Category 1 Red Ensign option for high-value and financed yachts.");
       }
 
       if (flag.code === "cayman" && wantsCommercial && text.includes("yet")) {
-        score += 4;
+        score += 3;
         positives.push("YET can support limited charter activity without full commercial conversion when eligible.");
       }
 
       if (flag.code === "cayman" && wantsEu) {
-        score -= 4;
+        score -= 8;
         risks.push("Cayman is non-EU; EU VAT, customs and Temporary Admission planning must be handled separately.");
       }
 
@@ -526,7 +547,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "marshall" && wantsEu) {
-        score -= 3;
+        score -= 8;
         risks.push("Marshall Islands is non-EU; EU VAT, customs and Temporary Admission planning remain separate.");
       }
 
@@ -576,12 +597,12 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "portugal_madeira" && wantsEu) {
-        score += 7;
+        score += 6;
         positives.push("Madeira MAR combines EU flag status with international-registry flexibility.");
       }
 
       if (flag.code === "portugal_madeira" && wantsCommercial && (text.includes("vat refund") || text.includes("zero vat"))) {
-        score += 7;
+        score += 5;
         positives.push("Madeira MAR can be strong for commercial yachts because VAT refund / zero VAT operating advantages are documented.");
       }
 
@@ -591,7 +612,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "cyprus" && wantsEu) {
-        score += 6;
+        score += 5;
         positives.push("Cyprus is a full EU flag with strong Mediterranean and international registry acceptance.");
       }
 
@@ -620,7 +641,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "united-kingdom" && wantsEu) {
-        score -= 5;
+        score -= 10;
         risks.push("The UK is non-EU after Brexit; EU VAT/customs and Temporary Admission planning remain separate.");
       }
 
@@ -674,7 +695,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "panama" && wantsEu) {
-        score -= 4;
+        score -= 10;
         risks.push("Panama is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
       }
 
@@ -689,7 +710,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "british-virgin-islands" && wantsEu) {
-        score -= 3;
+        score -= 8;
         risks.push("BVI is non-EU; EU VAT, customs and Temporary Admission planning remain separate.");
       }
 
@@ -704,7 +725,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "bahamas" && wantsEu) {
-        score -= 3;
+        score -= 8;
         risks.push("Bahamas is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
       }
 
@@ -719,7 +740,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "poland" && (input.loa_m ?? 0) > 24) {
-        score -= 10;
+        score -= wantsCommercial ? 18 : 12;
         risks.push("Poland's simplified Reja24 route ends at 24 m; larger yachts require the full Polish Shipping Register/class route.");
       }
 
@@ -734,7 +755,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "bermuda" && wantsEu) {
-        score -= 4;
+        score -= 8;
         risks.push("Bermuda is non-EU; EU VAT/customs and Temporary Admission planning remain separate.");
       }
 
@@ -764,7 +785,7 @@ export function compareFlagRegistries(
       }
 
       if (flag.code === "cook-islands" && wantsEu) {
-        score -= 4;
+        score -= 10;
         risks.push("Cook Islands is non-EU and Pacific-focused; Mediterranean EU VAT/customs planning remains separate.");
       }
 
@@ -818,6 +839,11 @@ export function compareFlagRegistries(
         risks.push(`GT exceeds the registry profile limit of ${flag.max_gt}.`);
       }
 
+      if (wantsCommercial && loa != null && loa >= 24 && !flag.classification_required) {
+        score -= 4;
+        risks.push("Large commercial yacht class requirements should be confirmed for this registry.");
+      }
+
       if (flag.classification_required && (input.loa_m ?? 0) >= 24) {
         positives.push("Large-yacht class/survey workflow is supported.");
       }
@@ -827,7 +853,15 @@ export function compareFlagRegistries(
         positives.push("Temporary registration can support a reflag transition.");
       }
 
-      const finalScore = Math.max(0, Math.min(100, Math.round(score)));
+      let finalScore = Math.max(0, Math.min(100, Math.round(score - risks.length)));
+      if (wantsCommercial && !flag.commercial_available) finalScore = Math.min(finalScore, 45);
+      if (gt != null && flag.max_gt != null && gt > flag.max_gt) finalScore = Math.min(finalScore, 35);
+      if (wantsEu && !EU_CODES.has(flag.code)) finalScore = Math.min(finalScore, wantsCommercial ? 82 : 86);
+      if (wantsCommercial && EU_CODES.has(flag.code) && /high|20%|21%|22%|23%|25%/.test(flag.vat_notes?.toLowerCase() ?? "")) {
+        finalScore = Math.min(finalScore, 86);
+      }
+      if (wantsCommercial && risks.length >= 3) finalScore = Math.min(finalScore, 82);
+      if (risks.length >= 5) finalScore = Math.min(finalScore, 74);
       const recommendation: FlagComparisonResult["recommendation"] =
         finalScore >= 88
           ? "recommended"
