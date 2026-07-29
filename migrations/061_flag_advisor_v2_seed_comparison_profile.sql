@@ -1,0 +1,230 @@
+-- Yachtworth Flag Advisor V2 seed: comparison facts and scenario ranking.
+--
+-- Source attachments: Yachtworth Flag Registry Base V2 / Comparison Matrix,
+-- dated 2026-07-29. Rows are stored as needs_review because the matrix is useful
+-- for comparison UX, but some cost/PSC values still need registry/source checks.
+
+with raw_facts(
+  code, source_label, imo_member, paris_mou_status, tokyo_mou_status, uscg_qualship21,
+  processing_min, processing_max, individual_eligible, corporate_eligible,
+  eu_citizens_eligible, non_eu_eligible, agent_required, residency_required,
+  preferred_structure, private_min_loa_m, private_max_loa_m, commercial_min_loa_m,
+  commercial_max_loa_m, passenger_limit_commercial, passenger_limit_pyc,
+  bareboat_permitted, fee_currency, initial_private_24m, initial_commercial_24m,
+  annual_private_24m, annual_commercial_24m, mortgage_registration_fee,
+  corporate_tax_pct, capital_gains_tax_pct, vat_pct, withholding_tax_pct,
+  eu_vat_exposure, tonnage_tax_regime, stcw_required, mlc_required,
+  crew_nationality_restrictions, safe_manning_document,
+  survey_private_under_24m_required, survey_commercial_required,
+  enhanced_survey_age_years, recognized_organizations, coding_standard,
+  mortgage_available, mortgage_priority_rule, mortgage_legal_framework,
+  charter_permitted, coding_required, cabotage_rights, eu_charter_license,
+  detention_rate_pct, insurance_perception, finance_market, verification_notes
+) as (
+  values
+    ('malta','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Malta Holding Company + VAT-registered yacht company',null,null,12,null,12,36,true,'EUR',2300,2800,850,1200,350,35,0,18,0,'Low with proper structuring',true,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS","ClassNK"]'::jsonb,'MCA LY3 / Malta Yacht Code',true,'First registered','EU / UK hybrid',true,true,true,true,0.8,'Excellent','Excellent','Needs fee/tax source verification before canonical use.'),
+    ('france','Flag Registry Base V2',true,'White List','White List',true,4,8,true,true,true,true,false,false,'Individual or French SAS/SARL',null,null,null,null,12,null,true,'EUR',150,250,150,250,100,25,19,20,0,'High - VAT due on hull if imported',false,true,true,false,true,true,true,15,'["BV","LR","DNV","RINA","ABS"]'::jsonb,'French Yacht Code / DIV 224',true,'First registered','French Civil Code',true,true,true,true,1.2,'Excellent','Good','Needs alignment with verified RIF/Division 240/241/242 guide.'),
+    ('cayman','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Cayman Exempt Company',null,null,12,null,12,36,true,'USD',1200,1800,600,1200,500,0,0,0,0,'Medium - Temporary Admission rules apply',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / Cayman Yacht Code',true,'First registered','UK-based',true,true,false,false,0.5,'Excellent','Excellent','Comparison row only; canonical Cayman profile remains source of truth.'),
+    ('marshall','Flag Registry Base V2',true,'White List','White List',true,3,5,true,true,true,true,true,false,'Marshall Islands Non-Resident Corporation (NRC)',null,null,12,null,12,null,true,'USD',1500,2500,800,1500,500,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS","ClassNK"]'::jsonb,'MISR Yacht Code / MCA LY3',true,'First registered','US-influenced maritime law',true,true,false,false,0.7,'Excellent','Good','Comparison row only; verify fee assumptions.'),
+    ('iom','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Isle of Man Company',null,null,12,null,12,36,true,'GBP',800,1200,400,800,250,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / IOM Yacht Code',true,'First registered','UK-based',true,true,false,false,0.3,'Excellent','Excellent','Comparison row only; verify Category 1/fee values.'),
+    ('jersey','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Jersey Company or Trust',null,null,12,null,12,36,true,'GBP',900,1400,450,900,300,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / Jersey Yacht Code',true,'First registered','UK-based',true,true,false,false,0.4,'Excellent','Excellent','Comparison row only; verify GT/category constraints from guide.'),
+    ('guernsey','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Guernsey Company',null,null,12,null,12,36,true,'GBP',850,1300,420,850,280,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / Guernsey Yacht Code',true,'First registered','UK-based',true,true,false,false,0.4,'Excellent','Excellent','Comparison row only; verify GT/category constraints from guide.'),
+    ('gibraltar','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Gibraltar Company',null,null,12,null,12,36,true,'GBP',700,1100,350,700,200,12.5,0,0,0,'Low',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / Gibraltar Yacht Code',true,'First registered','UK-based',true,true,false,false,0.6,'Excellent','Good','Comparison row only; tax/fee values need direct validation.'),
+    ('united-kingdom','Flag Registry Base V2',true,'White List','White List',true,3,6,true,true,true,true,true,false,'UK Company or Individual',null,null,12,null,12,36,true,'GBP',1000,1500,500,1000,300,25,20,20,0,'High',true,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / UK Yacht Code',true,'First registered','UK-based',true,true,true,true,0.5,'Excellent','Excellent','Comparison row only; post-Brexit EU flag wording must be handled carefully.'),
+    ('italy','Flag Registry Base V2',true,'White List','White List',true,4,8,true,true,true,true,true,false,'Italian SRL / SPA or EU company',null,null,null,null,12,null,true,'EUR',500,800,200,400,200,24,26,22,26,'High',true,true,true,false,true,true,true,15,'["RINA","LR","BV","DNV","ABS"]'::jsonb,'Italian Yacht Code / MCA LY3',true,'First registered','Italian Civil Code',true,true,true,true,1.5,'Good','Good','Comparison row only; language/tax assumptions need guide validation.'),
+    ('spain','Flag Registry Base V2',true,'White List','White List',true,4,8,true,true,true,true,true,false,'Spanish SL or EU company',null,null,null,null,12,null,true,'EUR',400,600,150,300,150,25,19,21,19,'High',true,true,true,false,true,true,true,15,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Spanish Yacht Code / MCA LY3',true,'First registered','Spanish Civil Code',true,true,true,true,1.8,'Good','Good','Comparison row only; Lista 6/7 details remain canonical in guide profile.'),
+    ('netherlands','Flag Registry Base V2',true,'White List','White List',true,3,6,true,true,true,true,true,false,'Dutch BV or EU company',null,null,null,null,12,null,true,'EUR',600,900,250,450,200,25.8,0,21,15,'High',true,true,true,false,true,true,true,15,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Dutch Yacht Code / MCA LY3',true,'First registered','Dutch Civil Code',true,true,true,true,1.0,'Good','Good','Comparison row only; commercial Seabrief/merchant route must be preserved.'),
+    ('portugal','Flag Registry Base V2',true,'White List','White List',true,3,6,true,true,true,true,true,false,'Portuguese LDA or EU company',null,null,null,null,12,null,true,'EUR',350,550,150,250,100,21,28,23,25,'High',true,true,true,false,true,true,true,15,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Portuguese Yacht Code / MCA LY3',true,'First registered','Portuguese Civil Code',true,true,true,true,1.2,'Good','Good','Portugal national register row; separate from Madeira MAR.'),
+    ('portugal_madeira','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Madeira IFTZ Company (MIBC)',null,null,null,null,12,null,true,'EUR',500,800,200,400,150,5,0,0,0,'Low',true,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / Madeira Yacht Code',true,'First registered','Portuguese/EU',true,true,true,true,0.8,'Excellent','Excellent','Comparison row only; canonical Madeira guide has richer tax detail.'),
+    ('cyprus','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Cyprus Company',null,null,null,null,12,null,true,'EUR',800,1200,400,700,250,12.5,0,19,0,'Medium',true,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS","ClassNK"]'::jsonb,'MCA LY3 / Cyprus Yacht Code',true,'First registered','Cyprus/EU',true,true,true,true,1.0,'Good','Good','Comparison row only; ownership control requirements need guide validation.'),
+    ('panama','Flag Registry Base V2',true,'Grey List','White List',false,1,3,true,true,true,true,true,false,'Panama Corporation (SA)',null,null,null,null,12,null,true,'USD',1500,2500,500,1000,200,0,0,7,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS","ClassNK"]'::jsonb,'Panama Yacht Code',true,'First registered','Panamanian',true,true,false,false,4.5,'Moderate','Moderate','Needs PSC/current status validation before showing as fact.'),
+    ('belize','Flag Registry Base V2',true,'Grey List','White List',false,1,3,true,true,true,true,true,false,'Belize IBC',null,null,null,null,12,null,true,'USD',800,1500,400,800,150,0,0,12.5,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Belize Yacht Code',true,'First registered','Belizean',true,true,false,false,5.2,'Low','Low','Needs PSC/current status validation before showing as fact.'),
+    ('jamaica','Flag Registry Base V2',true,'White List','White List',true,3,6,true,true,true,true,true,false,'Jamaica Company or Individual',null,null,null,null,12,null,true,'USD',1200,2000,600,1000,300,25,0,15,15,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Jamaica Yacht Code / MCA LY3',true,'First registered','UK-based',true,true,false,false,1.5,'Good','Moderate','Comparison row only; fee opacity remains warning.'),
+    ('cook-islands','Flag Registry Base V2',true,'White List','White List',false,2,4,true,true,true,true,true,false,'Cook Islands Company or Trust',null,null,null,null,12,null,true,'NZD',1500,2500,700,1200,300,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Cook Islands Yacht Code',true,'First registered','New Zealand-based',true,true,false,false,1.0,'Good','Moderate','Comparison row only; Pacific niche caveat remains.'),
+    ('san-marino','Flag Registry Base V2',false,'Not applicable','Not applicable',false,2,4,true,true,true,true,true,false,'San Marino Company',null,null,null,null,12,null,true,'EUR',1000,1800,500,900,200,17,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'San Marino Yacht Code',true,'First registered','San Marino Civil Law',true,true,false,false,null,'Moderate','Low','Matrix row appears simplified; keep needs_review.'),
+    ('luxembourg','Flag Registry Base V2',true,'White List','White List',true,3,6,true,true,true,true,true,false,'Luxembourg S.a r.l. or EU company',null,null,null,null,12,null,true,'EUR',800,1200,300,600,200,24.94,0,17,15,'High',true,true,true,false,true,true,true,15,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'Luxembourg Yacht Code / MCA LY3',true,'First registered','Luxembourg Civil Code',true,true,true,true,0.8,'Good','Good','Comparison row only; eligibility/substance barriers remain canonical warning.'),
+    ('british-virgin-islands','Flag Registry Base V2',true,'White List','White List',true,2,6,true,true,true,true,true,false,'BVI Business Company (IBC)',null,null,12,null,12,36,true,'USD',600,900,100,400,160,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / BVI Yacht Code',true,'First registered','UK-based',true,true,false,false,0.5,'Excellent','Excellent','Comparison row only; use BVI guide for official fee tiers.'),
+    ('bahamas','Flag Registry Base V2',true,'White List','White List',true,4,6,true,true,true,true,true,false,'Bahamas IBC or Individual',12,null,12,null,12,36,true,'USD',0,0,700,1000,500,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS","ClassNK"]'::jsonb,'BMA Yacht Code / MCA LY3',true,'First registered','UK-based',true,true,false,false,0.6,'Excellent','Excellent','Initial fee zero is promotional/needs direct confirmation.'),
+    ('poland','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Individual (all nationalities) or Polish/EU Company',null,24,null,24,12,null,true,'EUR',395,595,0,0,50,19,19,23,19,'Low',false,true,true,false,false,false,true,20,'["PRS","LR","BV","DNV","RINA","ABS"]'::jsonb,'Polish Maritime Safety Code',true,'First registered','Polish/EU',true,true,true,true,1.0,'Good','Good','Comparison row only; non-EU personal ownership policy requires periodic recheck.'),
+    ('bermuda','Flag Registry Base V2',true,'White List','White List',true,2,4,true,true,true,true,true,false,'Bermuda Exempt Company',null,null,12,null,12,36,true,'USD',0,0,350,950,160,0,0,0,0,'Medium',false,true,true,false,true,false,true,20,'["LR","BV","DNV","RINA","ABS"]'::jsonb,'MCA LY3 / Bermuda Yacht Code',true,'First registered','UK-based',true,true,false,false,0.3,'Excellent','Excellent','Initial fee zero is not canonical; exact first-year costs require registry/agent quotation.')
+)
+insert into public.flag_comparison_facts (
+  flag_registry_id, source_version, source_label,
+  imo_member, paris_mou_status, tokyo_mou_status, uscg_qualship21, detention_rate_pct,
+  processing_time_min_days, processing_time_max_days,
+  individual_eligible, corporate_eligible, eu_citizens_eligible, non_eu_eligible,
+  agent_required, residency_required, preferred_structure,
+  private_min_loa_m, private_max_loa_m, commercial_min_loa_m, commercial_max_loa_m,
+  passenger_limit_commercial, passenger_limit_pyc, bareboat_permitted,
+  fee_currency, initial_private_24m, initial_commercial_24m, annual_private_24m,
+  annual_commercial_24m, mortgage_registration_fee,
+  corporate_tax_pct, capital_gains_tax_pct, vat_pct, withholding_tax_pct,
+  eu_vat_exposure, tonnage_tax_regime,
+  stcw_required, mlc_required, crew_nationality_restrictions, safe_manning_document,
+  survey_private_under_24m_required, survey_commercial_required, enhanced_survey_age_years,
+  recognized_organizations, coding_standard,
+  mortgage_available, mortgage_priority_rule, mortgage_legal_framework,
+  charter_permitted, coding_required, cabotage_rights, eu_charter_license,
+  insurance_perception, finance_market,
+  validation_status, verification_notes, original_payload
+)
+select
+  fr.id, 'flag-registry-base-v2-2026-07-29', rf.source_label,
+  rf.imo_member, rf.paris_mou_status, rf.tokyo_mou_status, rf.uscg_qualship21, rf.detention_rate_pct,
+  rf.processing_min, rf.processing_max,
+  rf.individual_eligible, rf.corporate_eligible, rf.eu_citizens_eligible, rf.non_eu_eligible,
+  rf.agent_required, rf.residency_required, rf.preferred_structure,
+  rf.private_min_loa_m, rf.private_max_loa_m, rf.commercial_min_loa_m, rf.commercial_max_loa_m,
+  rf.passenger_limit_commercial, rf.passenger_limit_pyc, rf.bareboat_permitted,
+  rf.fee_currency, rf.initial_private_24m, rf.initial_commercial_24m, rf.annual_private_24m,
+  rf.annual_commercial_24m, rf.mortgage_registration_fee,
+  rf.corporate_tax_pct, rf.capital_gains_tax_pct, rf.vat_pct, rf.withholding_tax_pct,
+  rf.eu_vat_exposure, rf.tonnage_tax_regime,
+  rf.stcw_required, rf.mlc_required, rf.crew_nationality_restrictions, rf.safe_manning_document,
+  rf.survey_private_under_24m_required, rf.survey_commercial_required, rf.enhanced_survey_age_years,
+  rf.recognized_organizations, rf.coding_standard,
+  rf.mortgage_available, rf.mortgage_priority_rule, rf.mortgage_legal_framework,
+  rf.charter_permitted, rf.coding_required, rf.cabotage_rights, rf.eu_charter_license,
+  rf.insurance_perception, rf.finance_market,
+  'needs_review', rf.verification_notes,
+  jsonb_build_object(
+    'source_id', rf.code,
+    'source_version', 'flag-registry-base-v2-2026-07-29',
+    'note', 'Seeded from V2 comparison matrix; not canonical until verified.'
+  )
+from raw_facts rf
+join public.flag_registries fr on fr.code = rf.code
+on conflict (flag_registry_id, source_version) do update set
+  source_label = excluded.source_label,
+  imo_member = excluded.imo_member,
+  paris_mou_status = excluded.paris_mou_status,
+  tokyo_mou_status = excluded.tokyo_mou_status,
+  uscg_qualship21 = excluded.uscg_qualship21,
+  detention_rate_pct = excluded.detention_rate_pct,
+  processing_time_min_days = excluded.processing_time_min_days,
+  processing_time_max_days = excluded.processing_time_max_days,
+  individual_eligible = excluded.individual_eligible,
+  corporate_eligible = excluded.corporate_eligible,
+  eu_citizens_eligible = excluded.eu_citizens_eligible,
+  non_eu_eligible = excluded.non_eu_eligible,
+  agent_required = excluded.agent_required,
+  residency_required = excluded.residency_required,
+  preferred_structure = excluded.preferred_structure,
+  private_min_loa_m = excluded.private_min_loa_m,
+  private_max_loa_m = excluded.private_max_loa_m,
+  commercial_min_loa_m = excluded.commercial_min_loa_m,
+  commercial_max_loa_m = excluded.commercial_max_loa_m,
+  passenger_limit_commercial = excluded.passenger_limit_commercial,
+  passenger_limit_pyc = excluded.passenger_limit_pyc,
+  bareboat_permitted = excluded.bareboat_permitted,
+  fee_currency = excluded.fee_currency,
+  initial_private_24m = excluded.initial_private_24m,
+  initial_commercial_24m = excluded.initial_commercial_24m,
+  annual_private_24m = excluded.annual_private_24m,
+  annual_commercial_24m = excluded.annual_commercial_24m,
+  mortgage_registration_fee = excluded.mortgage_registration_fee,
+  corporate_tax_pct = excluded.corporate_tax_pct,
+  capital_gains_tax_pct = excluded.capital_gains_tax_pct,
+  vat_pct = excluded.vat_pct,
+  withholding_tax_pct = excluded.withholding_tax_pct,
+  eu_vat_exposure = excluded.eu_vat_exposure,
+  tonnage_tax_regime = excluded.tonnage_tax_regime,
+  stcw_required = excluded.stcw_required,
+  mlc_required = excluded.mlc_required,
+  crew_nationality_restrictions = excluded.crew_nationality_restrictions,
+  safe_manning_document = excluded.safe_manning_document,
+  survey_private_under_24m_required = excluded.survey_private_under_24m_required,
+  survey_commercial_required = excluded.survey_commercial_required,
+  enhanced_survey_age_years = excluded.enhanced_survey_age_years,
+  recognized_organizations = excluded.recognized_organizations,
+  coding_standard = excluded.coding_standard,
+  mortgage_available = excluded.mortgage_available,
+  mortgage_priority_rule = excluded.mortgage_priority_rule,
+  mortgage_legal_framework = excluded.mortgage_legal_framework,
+  charter_permitted = excluded.charter_permitted,
+  coding_required = excluded.coding_required,
+  cabotage_rights = excluded.cabotage_rights,
+  eu_charter_license = excluded.eu_charter_license,
+  insurance_perception = excluded.insurance_perception,
+  finance_market = excluded.finance_market,
+  validation_status = 'needs_review',
+  verification_notes = excluded.verification_notes,
+  original_payload = excluded.original_payload,
+  updated_at = now();
+
+with scenario as (
+  select id
+  from public.flag_advisor_scenarios
+  where scenario_key = 'budget_300k_south_france_renovation_zero_french'
+),
+raw_scores(code, rank, score, first_year_cost_eur_est, eu_vat_exposure_rating, france_base_compatibility, language_fit, renovation_fit, overall_label, recommended) as (
+  values
+    ('poland',1,100,395,'Low','Excellent','English via agent','Excellent','Best EU value flag',true),
+    ('portugal_madeira',2,92,700,'Low','Excellent','English/Portuguese','Favorable','Excellent EU tax-optimized flag',true),
+    ('bermuda',3,84,322,'Medium','Good (TA)','English','Favorable','Premium Red Ensign',false),
+    ('gibraltar',4,82,1249,'Low','Good (TA)','English','Favorable','Strong Red Ensign, EU-adjacent',true),
+    ('portugal',5,82,500,'High','Excellent','Portuguese/English','Favorable','Good EU flag, low fees',true),
+    ('cyprus',6,79,1200,'Medium','Excellent','English/Greek','Favorable','Good EU flag with tax benefits',true),
+    ('british-virgin-islands',7,79,644,'Medium','Good (TA)','English','Favorable','Best value Red Ensign',true),
+    ('bahamas',8,79,644,'Medium','Good (TA)','English','Favorable','Top open registry',true),
+    ('netherlands',9,77,850,'High','Excellent','Dutch/English','Favorable','Good EU flag',true),
+    ('iom',10,74,1428,'Medium','Good (TA)','English','Favorable','Strong Red Ensign',true),
+    ('jersey',11,74,1606,'Medium','Good (TA)','English','Favorable','Strong Red Ensign',true),
+    ('guernsey',12,74,1511,'Medium','Good (TA)','English','Favorable','Strong Red Ensign',true),
+    ('jamaica',13,74,1656,'Medium','Good (TA)','English','Favorable','Solid Caribbean option',true),
+    ('cayman',14,72,1656,'Medium','Good (TA rules)','English only','Favorable','Premium Red Ensign choice',true),
+    ('marshall',15,69,2116,'Medium','Good (TA)','English','Favorable','Solid open registry',true),
+    ('malta',16,67,3150,'Low with proper structuring','Excellent','English accepted','Favorable','Strong EU candidate',true),
+    ('united-kingdom',17,67,1785,'High','Good (TA)','English','Favorable','Premier but VAT-heavy',false),
+    ('panama',18,67,1840,'Medium','Moderate (TA)','Spanish/English','Favorable','Budget-friendly but PSC risk',false),
+    ('belize',19,67,1104,'Medium','Moderate (TA)','English','Favorable','Low cost, high PSC risk',false),
+    ('luxembourg',20,67,1100,'High','Excellent','French/German/English','Favorable','Good EU flag',true),
+    ('italy',21,65,700,'High','Excellent','Italian required','Favorable','Good EU flag, language barrier',false),
+    ('spain',22,65,550,'High','Excellent','Spanish required','Favorable','Good EU flag, language barrier',false),
+    ('cook-islands',23,62,2200,'Medium','Moderate (TA)','English','Favorable','Pacific niche option',false),
+    ('france',24,58,300,'High - VAT due on hull if imported','Perfect','French required for procedures','Favorable','Best for France-based EU operation',true),
+    ('san-marino',25,55,1500,'Medium','Moderate (TA)','Italian','Favorable','Niche microstate flag',false)
+)
+insert into public.flag_advisor_scenario_scores (
+  scenario_id, flag_registry_id, rank, score, first_year_cost_eur_est,
+  eu_vat_exposure_rating, france_base_compatibility, language_fit,
+  renovation_fit, overall_label, recommended, recommendation_label,
+  rationale, validation_status, source_version, original_payload
+)
+select
+  s.id, fr.id, rs.rank, rs.score, rs.first_year_cost_eur_est,
+  rs.eu_vat_exposure_rating, rs.france_base_compatibility, rs.language_fit,
+  rs.renovation_fit, rs.overall_label, rs.recommended,
+  case when rs.recommended then 'Recommended' else 'Not recommended for this scenario' end,
+  jsonb_build_object(
+    'rank_source', 'User supplied V2 profile ranking table',
+    'profile', 'Budget 300k / South of France / renovation / zero French',
+    'needs_review', true
+  ),
+  'needs_review',
+  'flag-registry-base-v2-profile-ranking-2026-07-29',
+  jsonb_build_object(
+    'source_code', rs.code,
+    'rank', rs.rank,
+    'score', rs.score,
+    'note', 'Scenario score imported as needs_review; canonical recommendation engine remains separate.'
+  )
+from raw_scores rs
+join public.flag_registries fr on fr.code = rs.code
+cross join scenario s
+on conflict (scenario_id, flag_registry_id) do update set
+  rank = excluded.rank,
+  score = excluded.score,
+  first_year_cost_eur_est = excluded.first_year_cost_eur_est,
+  eu_vat_exposure_rating = excluded.eu_vat_exposure_rating,
+  france_base_compatibility = excluded.france_base_compatibility,
+  language_fit = excluded.language_fit,
+  renovation_fit = excluded.renovation_fit,
+  overall_label = excluded.overall_label,
+  recommended = excluded.recommended,
+  recommendation_label = excluded.recommendation_label,
+  rationale = excluded.rationale,
+  validation_status = 'needs_review',
+  source_version = excluded.source_version,
+  original_payload = excluded.original_payload,
+  updated_at = now();
