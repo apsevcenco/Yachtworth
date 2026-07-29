@@ -681,55 +681,123 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
           {flag.flag_note ? <Text style={styles.flagNote}>{flag.flag_note}</Text> : null}
         </View>
       </View>
-      <View style={styles.statusRow}>
-        <StatusBadge label={advisor?.is_eu_flag ? "EU flag" : "Non-EU flag"} tone={advisor?.is_eu_flag ? "green" : "gold"} />
-        <StatusBadge label={statusLabel(advisor?.confidence_level)} tone="gold" />
-        <StatusBadge label={statusLabel(advisor?.coverage_status)} tone={advisor?.data_quality_status === "research_required" ? "red" : "green"} />
-        <StatusBadge label={statusLabel(advisor?.data_quality_status)} tone={advisor?.data_quality_status === "research_required" ? "red" : "green"} />
-      </View>
-      <View style={styles.factGrid}>
-        <Fact label="Private" value={yesNo(flag.private_available)} />
-        <Fact label="Commercial" value={yesNo(flag.commercial_available)} />
-        <Fact label="Private status" value={statusLabel(advisor?.private_registration_status)} />
-        <Fact label="Commercial status" value={statusLabel(advisor?.commercial_registration_status)} />
-        <Fact label="Registration cost" value={money(flag.registration_cost_eur)} />
-        <Fact label="Annual fees" value={money(flag.annual_fee_eur)} />
-        <Fact label="Processing" value={processing(flag)} />
-        <Fact label="Mortgage" value={yesNo(flag.mortgage_available)} />
-        <Fact label="Temporary registration" value={yesNo(flag.temporary_registration)} />
-        <Fact label="Permanent registration" value={yesNo(flag.permanent_registration)} />
-        <Fact label="Radio license" value={yesNo(flag.radio_license)} />
-        <Fact label="Survey" value={flag.survey_required ? "Required" : "Case by case"} />
-        <Fact label="Classification" value={flag.classification_required ? "Required" : "Case by case"} />
-        <Fact label="Accepted class" value={flag.accepted_class.length ? flag.accepted_class.join(", ") : "To verify"} />
-      </View>
+      <DossierSection title="Snapshot">
+        <View style={styles.statusRow}>
+          <StatusBadge label={advisor?.is_eu_flag ? "EU flag" : "Non-EU flag"} tone={advisor?.is_eu_flag ? "green" : "gold"} />
+          <StatusBadge label={statusLabel(advisor?.confidence_level)} tone="gold" />
+          <StatusBadge label={statusLabel(advisor?.coverage_status)} tone={advisor?.data_quality_status === "research_required" ? "red" : "green"} />
+          <StatusBadge label={statusLabel(advisor?.data_quality_status)} tone={advisor?.data_quality_status === "research_required" ? "red" : "green"} />
+        </View>
+        <View style={styles.factGrid}>
+          <Fact label="Private" value={yesNo(flag.private_available)} />
+          <Fact label="Commercial" value={yesNo(flag.commercial_available)} />
+          <Fact label="Registration cost" value={money(flag.registration_cost_eur)} />
+          <Fact label="Annual fees" value={money(flag.annual_fee_eur)} />
+          <Fact label="Processing" value={processing(flag)} />
+          <Fact label="Mortgage" value={yesNo(flag.mortgage_available)} />
+        </View>
+      </DossierSection>
 
-      <TextBlock title="Official registry" text={textOrVerify(advisor?.official_registry_name)} />
-      <TextBlock title="Eligibility" text={textOrVerify(advisor?.owner_eligibility ?? flag.owner_nationality_restrictions)} />
-      <TextBlock title="Foreign company ownership" text={textOrVerify(advisor?.foreign_company_ownership ?? flag.company_restrictions)} />
-      <TextBlock title="Local / resident agent" text={textOrVerify(advisor?.local_agent_requirement)} />
-      <TextBlock title="Provisional registration" text={`${statusLabel(advisor?.provisional_registration_status)} / ${textOrVerify(advisor?.provisional_validity)}`} />
-      <TextBlock title="Permanent validity" text={textOrVerify(advisor?.permanent_validity)} />
-      <TextBlock title="Crew / safe manning" text={`${textOrVerify(advisor?.crew_note ?? flag.crew_restrictions)} / ${textOrVerify(advisor?.minimum_safe_manning)}`} />
-      <TextBlock title="Required documents" text={textOrVerify(advisor?.required_documents_summary)} />
-      <TextBlock title="VAT / tax" text={textOrVerify(advisor?.vat_tax_note ?? flag.vat_notes)} />
-      <TextBlock title="Insurance" text={textOrVerify(flag.insurance_notes)} />
-      <AdvisorSections sections={advisor?.advisor_sections ?? []} />
-      <InfoList title="Advantages" items={flag.advantages} icon="check" />
-      <InfoList title="Disadvantages" items={flag.disadvantages} icon="alert-circle" />
-      {advisor?.missing_verification_notes ? <TextBlock title="Missing / next verification" text={advisor.missing_verification_notes} /> : null}
+      <DossierSection title="Registry / legal framework">
+        <TextBlock title="Official registry" text={textOrVerify(advisor?.official_registry_name)} />
+        <View style={styles.factGrid}>
+          <Fact label="Country / territory" value={textOrVerify(advisor?.country_or_territory ?? flag.country)} />
+          <Fact label="Registry family" value={textOrVerify(advisor?.registry_family ?? flag.registry_type)} />
+          <Fact label="Max LOA / GT" value={textOrVerify(advisor?.maximum_loa_gt_notes)} />
+          <Fact label="Last verified" value={textOrVerify(advisor?.last_verified_at ?? flag.last_updated)} />
+        </View>
+      </DossierSection>
 
-      <Text style={styles.sectionHeading}>Legal / registration partners</Text>
-      {flag.legal_partners.length ? (
-        flag.legal_partners.map((partner) => (
-          <View key={partner.name} style={styles.partnerCard}>
-            <Text style={styles.partnerName}>{partner.name}</Text>
-            <Text style={styles.partnerText}>{partner.notes ?? partner.contact_url ?? partner.email ?? partner.phone ?? "Contact details to verify."}</Text>
-          </View>
-        ))
-      ) : (
-        <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
-      )}
+      <DossierSection title="Eligibility">
+        <TextBlock title="Owner eligibility" text={textOrVerify(advisor?.owner_eligibility ?? flag.owner_nationality_restrictions)} />
+        <TextBlock title="Foreign company ownership" text={textOrVerify(advisor?.foreign_company_ownership ?? flag.company_restrictions)} />
+        <TextBlock title="Local / resident agent" text={textOrVerify(advisor?.local_agent_requirement)} />
+      </DossierSection>
+
+      <DossierSection title="Registration / use">
+        <View style={styles.factGrid}>
+          <Fact label="Private status" value={statusLabel(advisor?.private_registration_status)} />
+          <Fact label="Commercial status" value={statusLabel(advisor?.commercial_registration_status)} />
+          <Fact label="Private minimum LOA" value={textOrVerify(advisor?.private_minimum_loa)} />
+          <Fact label="Commercial minimum LOA" value={textOrVerify(advisor?.commercial_minimum_loa)} />
+          <Fact label="Temporary registration" value={yesNo(flag.temporary_registration)} />
+          <Fact label="Permanent registration" value={yesNo(flag.permanent_registration)} />
+          <Fact label="Radio license" value={yesNo(flag.radio_license)} />
+          <Fact label="Passenger limit" value={textOrVerify(advisor?.passenger_limit_notes)} />
+        </View>
+        <TextBlock title="Provisional registration" text={`${statusLabel(advisor?.provisional_registration_status)} / ${textOrVerify(advisor?.provisional_validity)}`} />
+        <TextBlock title="Permanent validity" text={textOrVerify(advisor?.permanent_validity)} />
+        <TextBlock title="Required documents" text={textOrVerify(advisor?.required_documents_summary)} />
+      </DossierSection>
+
+      <DossierSection title="Tax / VAT">
+        <TextBlock title="VAT / tax note" text={textOrVerify(advisor?.vat_tax_note ?? flag.vat_notes)} />
+      </DossierSection>
+
+      <DossierSection title="Operations">
+        <View style={styles.factGrid}>
+          <Fact label="Survey" value={flag.survey_required ? "Required" : "Case by case"} />
+          <Fact label="Classification" value={flag.classification_required ? "Required" : "Case by case"} />
+          <Fact label="Accepted class" value={flag.accepted_class.length ? flag.accepted_class.join(", ") : "To verify"} />
+          <Fact label="Safe manning" value={textOrVerify(advisor?.minimum_safe_manning)} />
+        </View>
+        <TextBlock title="Crew" text={textOrVerify(advisor?.crew_note ?? flag.crew_restrictions)} />
+        <TextBlock title="Classification requirement" text={textOrVerify(advisor?.classification_requirement)} />
+        <TextBlock title="Survey / inspection requirement" text={textOrVerify(advisor?.survey_inspection_requirement)} />
+        <TextBlock title="Commercial yacht code" text={textOrVerify(advisor?.commercial_yacht_code)} />
+      </DossierSection>
+
+      <DossierSection title="Banking / insurance">
+        <View style={styles.factGrid}>
+          <Fact label="Mortgage" value={yesNo(flag.mortgage_available)} />
+          <Fact label="Mortgage status" value={textOrVerify(advisor?.mortgage_registration_status)} />
+        </View>
+        <TextBlock title="Insurance" text={textOrVerify(flag.insurance_notes)} />
+      </DossierSection>
+
+      {advisor?.advisor_sections?.length ? (
+        <DossierSection title="Detailed guide">
+          <AdvisorSections sections={advisor.advisor_sections} />
+        </DossierSection>
+      ) : null}
+
+      <DossierSection title="Advantages">
+        <InfoList items={flag.advantages} icon="check" />
+      </DossierSection>
+
+      <DossierSection title="Risks">
+        <InfoList items={flag.disadvantages} icon="alert-circle" />
+      </DossierSection>
+
+      {advisor?.missing_verification_notes ? (
+        <DossierSection title="Verification">
+          <TextBlock title="Missing / next verification" text={advisor.missing_verification_notes} />
+        </DossierSection>
+      ) : null}
+
+      <DossierSection title="Legal / registration partners">
+        {flag.legal_partners.length ? (
+          flag.legal_partners.map((partner) => (
+            <View key={partner.name} style={styles.partnerCard}>
+              <Text style={styles.partnerName}>{partner.name}</Text>
+              <Text style={styles.partnerText}>{partner.notes ?? partner.contact_url ?? partner.email ?? partner.phone ?? "Contact details to verify."}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
+        )}
+      </DossierSection>
+    </View>
+  );
+}
+
+function DossierSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.dossierSection}>
+      <View style={styles.dossierSectionHeader}>
+        <Text style={styles.dossierSectionTitle}>{title}</Text>
+      </View>
+      <View style={styles.dossierSectionBody}>{children}</View>
     </View>
   );
 }
@@ -803,11 +871,11 @@ function TextBlock({ title, text }: { title: string; text: string }) {
   );
 }
 
-function InfoList({ title, items, icon }: { title: string; items: string[]; icon: React.ComponentProps<typeof Feather>["name"] }) {
+function InfoList({ title, items, icon }: { title?: string; items: string[]; icon: React.ComponentProps<typeof Feather>["name"] }) {
   if (!items.length) return null;
   return (
     <View style={styles.textBlock}>
-      <Text style={styles.sectionHeading}>{title}</Text>
+      {title ? <Text style={styles.sectionHeading}>{title}</Text> : null}
       {items.map((item) => (
         <View key={item} style={styles.listRow}>
           <Feather name={icon} size={14} color={GOLD} />
@@ -866,7 +934,7 @@ const styles = StyleSheet.create({
   flagTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   flagMeta: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
-  flagCard: { borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, borderTopWidth: 0, backgroundColor: "rgba(8,22,51,0.7)", padding: 14 },
+  flagCard: { borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, borderTopWidth: 0, backgroundColor: "rgba(8,22,51,0.7)", padding: 14, gap: 12 },
   flagCardHeader: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 14, alignItems: Platform.OS === "web" ? "center" : "flex-start", marginBottom: 14 },
   flagNote: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, lineHeight: 18, marginTop: 5 },
   statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
@@ -876,6 +944,10 @@ const styles = StyleSheet.create({
   fact: { width: Platform.OS === "web" ? "31.5%" : "48%", borderRadius: 10, backgroundColor: NAVY_ELEV, padding: 10 },
   factLabel: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase" },
   factValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13, lineHeight: 18, marginTop: 5 },
+  dossierSection: { borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, backgroundColor: "rgba(11,30,63,0.62)", overflow: "hidden" },
+  dossierSectionHeader: { minHeight: 42, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: DIVIDER, backgroundColor: "rgba(20,42,82,0.72)", paddingHorizontal: 12 },
+  dossierSectionTitle: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" },
+  dossierSectionBody: { padding: 12 },
   textBlock: { marginTop: 14 },
   sectionHeading: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 13, marginBottom: 8 },
   bodyText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, flex: 1 },
