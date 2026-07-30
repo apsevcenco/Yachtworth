@@ -23,6 +23,7 @@ export const CREW_POSITIONS: { key: string; label: string; countable?: boolean }
   { key: "first_officer", label: "First officer / Mate" },
   { key: "engineer", label: "Chief engineer" },
   { key: "chef", label: "Chef" },
+  { key: "chief_stewardess", label: "Chief stewardess" },
   { key: "stewardess", label: "Stewardess", countable: true },
   { key: "deckhand", label: "Deckhand", countable: true },
 ];

@@ -328,9 +328,13 @@ function buildMethodology(args: {
   } else {
     lines.push("• No management fee was applied (none set on the yacht).");
   }
-  lines.push(
-    `• Charter broker commission = ${args.charterCommissionPct}% of gross charter income.`,
-  );
+  if (args.charterCommissionPct > 0) {
+    lines.push(
+      `• Charter broker commission = ${args.charterCommissionPct}% of gross charter income.`,
+    );
+  } else {
+    lines.push("• No charter broker commission was applied (none entered).");
+  }
   if (args.hasLoan) {
     lines.push(
       "• Loan repayment is an annuity computed from your loan amount, interest rate and term.",

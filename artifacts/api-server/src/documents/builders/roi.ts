@@ -87,8 +87,10 @@ function expenseRows(
   money: (v: unknown) => string,
 ): TableCell[][] {
   return items.map((e) => {
-    const nameCell: TableCell = { text: e.category ? String(e.category) : L.none };
-    if (e.formula) nameCell.sub = String(e.formula);
+    const category = e.category ? String(e.category).trim() : "";
+    const formula = e.formula ? String(e.formula).trim() : "";
+    const nameCell: TableCell = { text: category || L.none };
+    if (formula) nameCell.sub = formula;
     const amount = num(e.amount_eur);
     const amountCell: TableCell = {
       text: amount != null ? money(amount) : L.none,
@@ -97,6 +99,15 @@ function expenseRows(
     };
     return [nameCell, amountCell];
   });
+}
+
+function isMeaningfulExpense(e: RoiExpenseLine): boolean {
+  const category = e.category ? String(e.category).trim() : "";
+  if (!category) return false;
+  const amount = num(e.amount_eur);
+  if (amount == null || amount === 0) return false;
+  const formula = e.formula ? String(e.formula).trim().toLowerCase() : "";
+  return formula !== "not applicable";
 }
 
 function yearlyRows(
@@ -116,19 +127,7 @@ function yearlyRows(
 
 function methodologyBlocks(text: string): ContentNode[] {
   const trimmed = text.trim();
-  const sections = trimmed
-    .split(/\n(?=\d+\.\s)/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (sections.length <= 1) {
-    return [{ kind: "paragraph", heading: L.methodology, panel: true, text: trimmed }];
-  }
-  return sections.map((section, idx) => ({
-    kind: "paragraph",
-    ...(idx === 0 ? { heading: L.methodology } : {}),
-    panel: true,
-    text: section,
-  }));
+  return [{ kind: "paragraph", heading: L.methodology, text: trimmed }];
 }
 
 function comparableRows(
@@ -290,7 +289,9 @@ export function buildRoiModel(input: {
   }
 
   let detailStarted = false;
-  const expenseList = Array.isArray(reportData.expenses) ? reportData.expenses : [];
+  const expenseList = Array.isArray(reportData.expenses)
+    ? reportData.expenses.filter(isMeaningfulExpense)
+    : [];
   if (expenseList.length) {
     body.push({
       kind: "table",
@@ -385,7 +386,6 @@ export function buildRoiModel(input: {
             {
               kind: "paragraph",
               heading: L.analysis,
-              panel: true,
               text: analysisText,
             },
           ],
@@ -406,7 +406,6 @@ export function buildRoiModel(input: {
     body.push({
       kind: "paragraph",
       heading: L.analysis,
-      panel: true,
       text: analysisText,
     });
     detailStarted = true;

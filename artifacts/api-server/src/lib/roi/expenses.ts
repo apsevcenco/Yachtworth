@@ -208,33 +208,33 @@ export function buildExpenses(args: BuildExpensesArgs): {
     managementFeeOverridePct != null ? managementFeeOverridePct : 0;
   let mgmtAnnual = 0;
   let mgmtFormula = "";
-  if (ownerOverride != null && isFinite(ownerOverride)) {
+  if (ownerOverride != null && isFinite(ownerOverride) && ownerOverride > 0) {
     mgmtAnnual = ownerOverride;
     mgmtFormula = `Owner-provided: €${Math.round(ownerOverride / 12)}/mo × 12`;
   } else if (managementFeePct > 0) {
     mgmtAnnual = annualGrossRevenueEur * (managementFeePct / 100);
     mgmtFormula = `${managementFeePct}% of gross charter revenue`;
-  } else {
-    mgmtFormula = "Not applicable";
   }
-  lines.push({
-    category: "Management fee",
-    amount_eur: Math.round(mgmtAnnual),
-    formula: mgmtFormula,
-  });
+  if (mgmtAnnual > 0) {
+    lines.push({
+      category: "Management fee",
+      amount_eur: Math.round(mgmtAnnual),
+      formula: mgmtFormula,
+    });
+  }
 
   // Charter broker commission
   const ccPct = yacht.charter_commission_pct != null
     ? Number(yacht.charter_commission_pct)
-    : 15;
+    : 0;
   const charterCommission = annualGrossRevenueEur * (ccPct / 100);
-  lines.push({
-    category: "Charter broker commission",
-    amount_eur: Math.round(charterCommission),
-    formula: `${ccPct}% of gross charter revenue${
-      yacht.charter_commission_pct != null ? "" : " (default 15%)"
-    }`,
-  });
+  if (isFinite(ccPct) && ccPct > 0 && charterCommission > 0) {
+    lines.push({
+      category: "Charter broker commission",
+      amount_eur: Math.round(charterCommission),
+      formula: `${ccPct}% of gross charter revenue`,
+    });
+  }
 
   const annualTotalEur = lines.reduce((sum, l) => sum + l.amount_eur, 0);
   return { lines, annualTotalEur, charterCommissionPct: ccPct, managementFeePct };

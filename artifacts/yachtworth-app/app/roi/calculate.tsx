@@ -1140,9 +1140,8 @@ export default function RoiCalculateScreen() {
             <View style={styles.collapseBody}>
               <Text style={styles.lead}>
                 Specs come from your yacht. Fill in the running costs below for an
-                accurate ROI. A blank line is left out of the calculation —
-                except maintenance, management and broker commission, which
-                always use a sensible default.
+                accurate ROI. A blank line is left out of the calculation.
+                Routine maintenance may still use a regional estimate when blank.
               </Text>
 
               <Text style={styles.subLabel}>CREW · BY POSITION</Text>
