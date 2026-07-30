@@ -10,6 +10,7 @@
  * How the charter rate is determined:
 * manual_daily  — user provides daily rate + number of charter days
 * manual_weekly — user provides weekly rate + number of charter weeks
+* manual_monthly — user provides monthly rate + number of charter months
 * ai            — engine asks AI (web-search) for plausible rate + weeks
 
  */
@@ -18,5 +19,6 @@ export type PricingMode = (typeof PricingMode)[keyof typeof PricingMode];
 export const PricingMode = {
   manual_daily: "manual_daily",
   manual_weekly: "manual_weekly",
+  manual_monthly: "manual_monthly",
   ai: "ai",
 } as const;

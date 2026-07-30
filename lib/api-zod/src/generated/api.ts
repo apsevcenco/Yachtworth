@@ -1645,15 +1645,15 @@ export const CalculateRoiBody = zod.object({
     .optional()
     .describe("Hint for AI mode; ignored in manual modes"),
   pricing_mode: zod
-    .enum(["manual_daily", "manual_weekly", "ai"])
+    .enum(["manual_daily", "manual_weekly", "manual_monthly", "ai"])
     .describe(
-      "How the charter rate is determined:\n\* manual_daily  — user provides daily rate + number of charter days\n\* manual_weekly — user provides weekly rate + number of charter weeks\n\* ai            — engine asks AI (web-search) for plausible rate + weeks\n",
+      "How the charter rate is determined:\n\* manual_daily  — user provides daily rate + number of charter days\n\* manual_weekly — user provides weekly rate + number of charter weeks\n\* manual_monthly — user provides monthly rate + number of charter months\n\* ai            — engine asks AI (web-search) for plausible rate + weeks\n",
     ),
   manual_rate_eur: zod
     .number()
     .min(calculateRoiBodyManualRateEurMin)
     .nullish()
-    .describe("Per-day rate for manual_daily, per-week rate for manual_weekly"),
+    .describe("Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly"),
   manual_charter_units: zod
     .number()
     .min(calculateRoiBodyManualCharterUnitsMin)
@@ -1732,7 +1732,7 @@ export const CalculateRoiBody = zod.object({
     ])
     .optional()
     .describe(
-      "AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions.",
+      "Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). In AI mode each region is estimated separately; in manual mode region 1 and region 2 use the owner-entered manual rates and units. null = single-region. Max 2 regions.",
     ),
   season_2: zod
     .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
@@ -1764,30 +1764,30 @@ export const CalculateRoiBody = zod.object({
     .min(calculateRoiBodyRepositioningCostEurMin)
     .nullish()
     .describe(
-      "AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
+      "Dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
     ),
   marina_region_1_monthly_eur: zod
     .number()
     .min(calculateRoiBodyMarinaRegion1MonthlyEurMin)
     .nullish()
-    .describe("AI dual-region only. Monthly mooring rate for region 1."),
+    .describe("Dual-region only. Monthly mooring rate for region 1."),
   marina_region_1_months: zod
     .number()
     .min(calculateRoiBodyMarinaRegion1MonthsMin)
     .max(calculateRoiBodyMarinaRegion1MonthsMax)
     .nullish()
-    .describe("AI dual-region only. Months per year in the region 1 marina."),
+    .describe("Dual-region only. Months per year in the region 1 marina."),
   marina_region_2_monthly_eur: zod
     .number()
     .min(calculateRoiBodyMarinaRegion2MonthlyEurMin)
     .nullish()
-    .describe("AI dual-region only. Monthly mooring rate for region 2."),
+    .describe("Dual-region only. Monthly mooring rate for region 2."),
   marina_region_2_months: zod
     .number()
     .min(calculateRoiBodyMarinaRegion2MonthsMin)
     .max(calculateRoiBodyMarinaRegion2MonthsMax)
     .nullish()
-    .describe("AI dual-region only. Months per year in the region 2 marina."),
+    .describe("Dual-region only. Months per year in the region 2 marina."),
   overrides: zod
     .union([
       zod
@@ -2022,7 +2022,7 @@ export const CalculateRoiResponse = zod.object({
             .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
             .optional(),
           charter_type: zod
-            .enum(["weekly", "daily"])
+            .enum(["weekly", "daily", "monthly"])
             .describe("Effective charter basis used for this region."),
           income_eur: zod
             .number()
@@ -2048,7 +2048,7 @@ export const CalculateRoiResponse = zod.object({
             .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
             .optional(),
           charter_type: zod
-            .enum(["weekly", "daily"])
+            .enum(["weekly", "daily", "monthly"])
             .describe("Effective charter basis used for this region."),
           income_eur: zod
             .number()
@@ -3157,16 +3157,16 @@ export const GetRoiCalculationResponse = zod.object({
       .optional()
       .describe("Hint for AI mode; ignored in manual modes"),
     pricing_mode: zod
-      .enum(["manual_daily", "manual_weekly", "ai"])
+      .enum(["manual_daily", "manual_weekly", "manual_monthly", "ai"])
       .describe(
-        "How the charter rate is determined:\n\* manual_daily  — user provides daily rate + number of charter days\n\* manual_weekly — user provides weekly rate + number of charter weeks\n\* ai            — engine asks AI (web-search) for plausible rate + weeks\n",
+        "How the charter rate is determined:\n\* manual_daily  — user provides daily rate + number of charter days\n\* manual_weekly — user provides weekly rate + number of charter weeks\n\* manual_monthly — user provides monthly rate + number of charter months\n\* ai            — engine asks AI (web-search) for plausible rate + weeks\n",
       ),
     manual_rate_eur: zod
       .number()
       .min(getRoiCalculationResponseInputManualRateEurMin)
       .nullish()
       .describe(
-        "Per-day rate for manual_daily, per-week rate for manual_weekly",
+        "Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly",
       ),
     manual_charter_units: zod
       .number()
@@ -3246,7 +3246,7 @@ export const GetRoiCalculationResponse = zod.object({
       ])
       .optional()
       .describe(
-        "AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions.",
+        "Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). In AI mode each region is estimated separately; in manual mode region 1 and region 2 use the owner-entered manual rates and units. null = single-region. Max 2 regions.",
       ),
     season_2: zod
       .union([zod.enum(["high", "shoulder", "low", "mixed"]), zod.null()])
@@ -3281,30 +3281,30 @@ export const GetRoiCalculationResponse = zod.object({
       .min(getRoiCalculationResponseInputRepositioningCostEurMin)
       .nullish()
       .describe(
-        "AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
+        "Dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.",
       ),
     marina_region_1_monthly_eur: zod
       .number()
       .min(getRoiCalculationResponseInputMarinaRegion1MonthlyEurMin)
       .nullish()
-      .describe("AI dual-region only. Monthly mooring rate for region 1."),
+      .describe("Dual-region only. Monthly mooring rate for region 1."),
     marina_region_1_months: zod
       .number()
       .min(getRoiCalculationResponseInputMarinaRegion1MonthsMin)
       .max(getRoiCalculationResponseInputMarinaRegion1MonthsMax)
       .nullish()
-      .describe("AI dual-region only. Months per year in the region 1 marina."),
+      .describe("Dual-region only. Months per year in the region 1 marina."),
     marina_region_2_monthly_eur: zod
       .number()
       .min(getRoiCalculationResponseInputMarinaRegion2MonthlyEurMin)
       .nullish()
-      .describe("AI dual-region only. Monthly mooring rate for region 2."),
+      .describe("Dual-region only. Monthly mooring rate for region 2."),
     marina_region_2_months: zod
       .number()
       .min(getRoiCalculationResponseInputMarinaRegion2MonthsMin)
       .max(getRoiCalculationResponseInputMarinaRegion2MonthsMax)
       .nullish()
-      .describe("AI dual-region only. Months per year in the region 2 marina."),
+      .describe("Dual-region only. Months per year in the region 2 marina."),
     overrides: zod
       .union([
         zod
@@ -3555,7 +3555,7 @@ export const GetRoiCalculationResponse = zod.object({
               ])
               .optional(),
             charter_type: zod
-              .enum(["weekly", "daily"])
+              .enum(["weekly", "daily", "monthly"])
               .describe("Effective charter basis used for this region."),
             income_eur: zod
               .number()
@@ -3586,7 +3586,7 @@ export const GetRoiCalculationResponse = zod.object({
               ])
               .optional(),
             charter_type: zod
-              .enum(["weekly", "daily"])
+              .enum(["weekly", "daily", "monthly"])
               .describe("Effective charter basis used for this region."),
             income_eur: zod
               .number()

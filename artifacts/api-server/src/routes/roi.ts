@@ -186,9 +186,15 @@ router.post(
     }
     if (
       input.pricing_mode === "manual_daily" ||
-      input.pricing_mode === "manual_weekly"
+      input.pricing_mode === "manual_weekly" ||
+      input.pricing_mode === "manual_monthly"
     ) {
-      const maxUnits = input.pricing_mode === "manual_daily" ? 366 : 52;
+      const maxUnits =
+        input.pricing_mode === "manual_daily"
+          ? 366
+          : input.pricing_mode === "manual_monthly"
+            ? 12
+            : 52;
       const seasonal = [
         {
           rate: input.manual_high_rate_eur,
@@ -251,7 +257,7 @@ router.post(
         }
       }
     }
-    if (input.pricing_mode === "ai" && input.region_2) {
+    if (input.region_2) {
       const marinaRows = [
         {
           rate: input.marina_region_1_monthly_eur,

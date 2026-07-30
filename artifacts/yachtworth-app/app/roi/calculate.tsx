@@ -119,7 +119,7 @@ const REGION_MONTHS: Record<
 type Region = (typeof REGION_OPTS)[number]["v"];
 type Occ = (typeof OCC_OPTS)[number]["v"];
 type Season = (typeof SEASON_OPTS)[number]["v"];
-type PricingMode = "manual_daily" | "manual_weekly" | "ai";
+type PricingMode = "manual_daily" | "manual_weekly" | "manual_monthly" | "ai";
 
 function parseNum(v: string) {
   const n = parseFloat(v.replace(",", "."));
@@ -276,7 +276,15 @@ export default function RoiCalculateScreen() {
     if (REGION_OPTS.some((o) => o.v === inp.region)) {
       setRegion(inp.region as Region);
     }
-    setPricingMode(inp.pricing_mode as PricingMode);
+    const savedPricingMode = String(inp.pricing_mode ?? "");
+    if (
+      savedPricingMode === "manual_daily" ||
+      savedPricingMode === "manual_weekly" ||
+      savedPricingMode === "manual_monthly" ||
+      savedPricingMode === "ai"
+    ) {
+      setPricingMode(savedPricingMode as PricingMode);
+    }
     if (inp.occupancy_target && OCC_OPTS.some((o) => o.v === inp.occupancy_target)) {
       setOcc(inp.occupancy_target as Occ);
     }
@@ -357,11 +365,37 @@ export default function RoiCalculateScreen() {
   const deleteMutation = useDeleteRoiCalculation();
 
   const isManual = pricingMode !== "ai";
-  const dualMarinaLocksMooring = dualRegion && pricingMode === "ai";
-  const unitLabel = pricingMode === "manual_daily" ? "days" : "weeks";
-  const rateSuffix = pricingMode === "manual_daily" ? "€ / day" : "€ / week";
-  const ratePlaceholder = pricingMode === "manual_daily" ? "5000" : "35000";
-  const unitPlaceholder = pricingMode === "manual_daily" ? "30" : "6";
+  const dualMarinaLocksMooring = dualRegion;
+  const unitLabel =
+    pricingMode === "manual_daily"
+      ? "days"
+      : pricingMode === "manual_monthly"
+        ? "months"
+        : "weeks";
+  const rateSuffix =
+    pricingMode === "manual_daily"
+      ? "€ / day"
+      : pricingMode === "manual_monthly"
+        ? "€ / month"
+        : "€ / week";
+  const ratePlaceholder =
+    pricingMode === "manual_daily"
+      ? "5000"
+      : pricingMode === "manual_monthly"
+        ? "120000"
+        : "35000";
+  const unitPlaceholder =
+    pricingMode === "manual_daily"
+      ? "30"
+      : pricingMode === "manual_monthly"
+        ? "3"
+        : "6";
+  const manualMaxUnits =
+    pricingMode === "manual_daily"
+      ? 366
+      : pricingMode === "manual_monthly"
+        ? 12
+        : 52;
 
   // AI-mode charter config for the selected region (charter-basis toggle).
   const regionCharter = REGION_CHARTER[region];
@@ -450,18 +484,18 @@ export default function RoiCalculateScreen() {
       else if (!INT_RE.test(units)) e.units = "Whole number";
       else {
         const n = parseInt10(units)!;
-        const max = pricingMode === "manual_daily" ? 366 : 52;
+        const max = manualMaxUnits;
         if (n <= 0 || n > max) e.units = `1–${max}`;
       }
     }
     return e;
-  }, [isManual, rate, units, pricingMode]);
+  }, [isManual, rate, units, manualMaxUnits]);
   void legacyErrors;
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
     if (isManual) {
-      const max = pricingMode === "manual_daily" ? 366 : 52;
+      const max = manualMaxUnits;
       const rows = [
         { season: "high", rate: highRate, units: highUnits },
         { season: "low", rate: lowRate, units: lowUnits },
@@ -490,13 +524,19 @@ export default function RoiCalculateScreen() {
           }
         }
       }
-      if (completed === 0) {
+      if (dualRegion) {
+        if (!highRate.trim()) e.highRate = "Region 1 rate required";
+        if (!highUnits.trim()) e.highUnits = "Region 1 units required";
+        if (!lowRate.trim()) e.lowRate = "Region 2 rate required";
+        if (!lowUnits.trim()) e.lowUnits = "Region 2 units required";
+        if (totalUnits > max) e.lowUnits = `Total max ${max} ${unitLabel}`;
+      } else if (completed === 0) {
         e.highRate = "Enter at least one season";
       } else if (totalUnits > max) {
         e.lowUnits = `Total max ${max} ${unitLabel}`;
       }
     }
-    if (dualRegion && pricingMode === "ai") {
+    if (dualRegion) {
       const rows = [
         {
           key: "marinaRegion1",
@@ -534,6 +574,7 @@ export default function RoiCalculateScreen() {
     marinaRegion1Months,
     marinaRegion2Monthly,
     marinaRegion2Months,
+    manualMaxUnits,
     pricingMode,
     unitLabel,
   ]);
@@ -573,9 +614,9 @@ export default function RoiCalculateScreen() {
       );
       const manualAvgRate =
         manualUnits > 0 ? Math.round(manualGross / manualUnits) : null;
-      // Dual-region is additive and AI-only. When off (or in manual mode) these
+      // Dual-region is additive. When off these
       // keys are omitted entirely so the request stays byte-identical.
-      const useDual = dualRegion && pricingMode === "ai";
+      const useDual = dualRegion;
       const dualFields = useDual
         ? {
             region_2: region2,
@@ -817,6 +858,7 @@ export default function RoiCalculateScreen() {
                 { v: "ai", l: "AI market estimate" },
                 { v: "manual_weekly", l: "Manual · per week" },
                 { v: "manual_daily", l: "Manual · per day" },
+                { v: "manual_monthly", l: "Manual · per month" },
               ]}
               value={pricingMode}
               onChange={(v) => setPricingMode(v as PricingMode)}
@@ -825,7 +867,7 @@ export default function RoiCalculateScreen() {
 
           {isManual ? (
             <>
-              {yachtId ? (
+              {yachtId && pricingMode !== "manual_monthly" ? (
                 <AIRateEstimator
                   yachtId={yachtId}
                   region={region}
@@ -844,22 +886,42 @@ export default function RoiCalculateScreen() {
                   }}
                 />
               ) : null}
-              <Text style={styles.subLabel}>HIGH SEASON</Text>
+              <Text style={styles.subLabel}>
+                {dualRegion ? "REGION 1 CHARTER" : "HIGH SEASON"}
+              </Text>
               <Field
-                label={pricingMode === "manual_daily" ? "High-season rate per day (€)" : "High-season rate per week (€)"}
+                label={
+                  dualRegion
+                    ? `Region 1 charter rate per ${
+                        pricingMode === "manual_daily"
+                          ? "day"
+                          : pricingMode === "manual_monthly"
+                            ? "month"
+                            : "week"
+                      } (€)`
+                    : pricingMode === "manual_daily"
+                      ? "High-season rate per day (€)"
+                      : pricingMode === "manual_monthly"
+                        ? "High-season rate per month (€)"
+                        : "High-season rate per week (€)"
+                }
                 error={showErrors ? errors.highRate : undefined}
               >
                 <MoneyInput
                   value={highRate}
                   onChangeText={setHighRate}
-                  suffix={pricingMode === "manual_daily" ? "€ / day" : "€ / week"}
-                  placeholder={pricingMode === "manual_daily" ? "5000" : "35000"}
+                  suffix={rateSuffix}
+                  placeholder={ratePlaceholder}
                 />
               </Field>
               <Field
-                label={`High-season charter ${unitLabel}`}
+                label={dualRegion ? `Region 1 charter ${unitLabel}` : `High-season charter ${unitLabel}`}
                 error={showErrors ? errors.highUnits : undefined}
-                hint={`How many high-season charter ${unitLabel} you expect to book this year.`}
+                hint={
+                  dualRegion
+                    ? `How many charter ${unitLabel} you expect in region 1.`
+                    : `How many high-season charter ${unitLabel} you expect to book this year.`
+                }
               >
                 <MoneyInput
                   value={highUnits}
@@ -868,9 +930,25 @@ export default function RoiCalculateScreen() {
                   placeholder={unitPlaceholder}
                 />
               </Field>
-              <Text style={styles.subLabel}>LOW SEASON</Text>
+              <Text style={styles.subLabel}>
+                {dualRegion ? "REGION 2 CHARTER" : "LOW SEASON"}
+              </Text>
               <Field
-                label={pricingMode === "manual_daily" ? "Low-season rate per day (€)" : "Low-season rate per week (€)"}
+                label={
+                  dualRegion
+                    ? `Region 2 charter rate per ${
+                        pricingMode === "manual_daily"
+                          ? "day"
+                          : pricingMode === "manual_monthly"
+                            ? "month"
+                            : "week"
+                      } (€)`
+                    : pricingMode === "manual_daily"
+                      ? "Low-season rate per day (€)"
+                      : pricingMode === "manual_monthly"
+                        ? "Low-season rate per month (€)"
+                        : "Low-season rate per week (€)"
+                }
                 error={showErrors ? errors.lowRate : undefined}
               >
                 <MoneyInput
@@ -881,9 +959,13 @@ export default function RoiCalculateScreen() {
                 />
               </Field>
               <Field
-                label={`Low-season charter ${unitLabel}`}
+                label={dualRegion ? `Region 2 charter ${unitLabel}` : `Low-season charter ${unitLabel}`}
                 error={showErrors ? errors.lowUnits : undefined}
-                hint={`How many low-season charter ${unitLabel} you expect to book this year.`}
+                hint={
+                  dualRegion
+                    ? `How many charter ${unitLabel} you expect in region 2.`
+                    : `How many low-season charter ${unitLabel} you expect to book this year.`
+                }
               >
                 <MoneyInput
                   value={lowUnits}
@@ -903,9 +985,8 @@ export default function RoiCalculateScreen() {
             </Section>
           )}
 
-          {/* ── Dual-region (AI mode only) ─────────────────────────── */}
-          {pricingMode === "ai" ? (
-            <>
+          {/* ── Dual-region ───────────────────────────────────────── */}
+          <>
               <View style={styles.dualToggleRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.dualToggleTitle}>Add second region</Text>
@@ -939,52 +1020,56 @@ export default function RoiCalculateScreen() {
                     />
                   </Section>
 
-                  <Section
-                    label="SECOND REGION · SEASON"
-                    sublabel="Which part of the second region's charter window to model. Region 1 always uses its full window."
-                  >
-                    <PillGroup
-                      options={SEASON_OPTS}
-                      value={season2}
-                      onChange={(v) => setSeason2(v as Season)}
-                    />
-                  </Section>
+                  {pricingMode === "ai" ? (
+                    <>
+                      <Section
+                        label="SECOND REGION · SEASON"
+                        sublabel="Which part of the second region's charter window to model. Region 1 always uses its full window."
+                      >
+                        <PillGroup
+                          options={SEASON_OPTS}
+                          value={season2}
+                          onChange={(v) => setSeason2(v as Season)}
+                        />
+                      </Section>
 
-                  <Section
-                    label="SECOND REGION · CHARTER BASIS"
-                    sublabel={
-                      availableBases2.length > 1
-                        ? "Charter the second region by the week or by the day."
-                        : "This region is chartered by the day."
-                    }
-                  >
-                    {availableBases2.length > 1 ? (
-                      <PillGroup
-                        options={CHARTER_TYPE_OPTS.filter((o) =>
-                          availableBases2.includes(o.v),
+                      <Section
+                        label="SECOND REGION · CHARTER BASIS"
+                        sublabel={
+                          availableBases2.length > 1
+                            ? "Charter the second region by the week or by the day."
+                            : "This region is chartered by the day."
+                        }
+                      >
+                        {availableBases2.length > 1 ? (
+                          <PillGroup
+                            options={CHARTER_TYPE_OPTS.filter((o) =>
+                              availableBases2.includes(o.v),
+                            )}
+                            value={charterType2}
+                            onChange={(v) => setCharterType2(v as CharterType)}
+                          />
+                        ) : (
+                          <View style={styles.basisNote}>
+                            <Text style={styles.basisNoteText}>
+                              Daily charters only
+                            </Text>
+                          </View>
                         )}
-                        value={charterType2}
-                        onChange={(v) => setCharterType2(v as CharterType)}
-                      />
-                    ) : (
-                      <View style={styles.basisNote}>
-                        <Text style={styles.basisNoteText}>
-                          Daily charters only
-                        </Text>
-                      </View>
-                    )}
-                  </Section>
+                      </Section>
 
-                  <Section
-                    label="SECOND REGION · OCCUPANCY POSTURE"
-                    sublabel="How busy should the AI assume the yacht will be in the second region?"
-                  >
-                    <PillGroup
-                      options={OCC_OPTS}
-                      value={occ2}
-                      onChange={(v) => setOcc2(v as Occ)}
-                    />
-                  </Section>
+                      <Section
+                        label="SECOND REGION · OCCUPANCY POSTURE"
+                        sublabel="How busy should the AI assume the yacht will be in the second region?"
+                      >
+                        <PillGroup
+                          options={OCC_OPTS}
+                          value={occ2}
+                          onChange={(v) => setOcc2(v as Occ)}
+                        />
+                      </Section>
+                    </>
+                  ) : null}
 
                   <Section
                     label="DUAL-REGION MARINA COSTS"
@@ -1043,8 +1128,7 @@ export default function RoiCalculateScreen() {
                   ) : null}
                 </>
               ) : null}
-            </>
-          ) : null}
+          </>
 
           {/* ── Crew & operating expenses ─────────────────────────── */}
           <CollapsibleHeader

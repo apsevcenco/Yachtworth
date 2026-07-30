@@ -394,8 +394,10 @@ function regionModelRevenue(
   };
 }
 
+export type ManualPricingMode = "manual_daily" | "manual_weekly" | "manual_monthly";
+
 interface ManualArgs {
-  mode: "manual_daily" | "manual_weekly";
+  mode: ManualPricingMode;
   rateEur: number;
   units: number;
 }
@@ -414,6 +416,10 @@ export function computeManualRevenue({ mode, rateEur, units }: ManualArgs): Comp
     dailyRate = rateEur;
     weeklyRate = rateEur * 7;
     weeks = units / 7;
+  } else if (mode === "manual_monthly") {
+    weeklyRate = rateEur / (52 / 12);
+    dailyRate = rateEur / (365 / 12);
+    weeks = units * (52 / 12);
   } else {
     weeklyRate = rateEur;
     dailyRate = rateEur / 7;
@@ -439,7 +445,7 @@ export function computeManualRevenue({ mode, rateEur, units }: ManualArgs): Comp
 }
 
 export function computeManualSeasonalRevenue(
-  mode: "manual_daily" | "manual_weekly",
+  mode: ManualPricingMode,
   seasons: ManualSeasonInput[],
 ): ComputedRevenue {
   const valid = seasons.filter((s) => s.rateEur > 0 && s.units > 0);
@@ -453,20 +459,39 @@ export function computeManualSeasonalRevenue(
   const weeks =
     mode === "manual_daily"
       ? totalUnits / 7
+      : mode === "manual_monthly"
+        ? totalUnits * (52 / 12)
       : totalUnits;
   const avgUnitRate = gross / totalUnits;
-  const dailyRate = mode === "manual_daily" ? avgUnitRate : avgUnitRate / 7;
-  const weeklyRate = mode === "manual_daily" ? avgUnitRate * 7 : avgUnitRate;
+  const dailyRate =
+    mode === "manual_daily"
+      ? avgUnitRate
+      : mode === "manual_monthly"
+        ? avgUnitRate / (365 / 12)
+        : avgUnitRate / 7;
+  const weeklyRate =
+    mode === "manual_daily"
+      ? avgUnitRate * 7
+      : mode === "manual_monthly"
+        ? avgUnitRate / (52 / 12)
+        : avgUnitRate;
   const rateForSeason = (season: "high" | "low"): number | null => {
     const row = valid.find((s) => s.season === season);
     if (!row) return null;
-    return mode === "manual_daily" ? row.rateEur : row.rateEur / 7;
+    if (mode === "manual_daily") return row.rateEur;
+    if (mode === "manual_monthly") return row.rateEur / (365 / 12);
+    return row.rateEur / 7;
   };
   const occupancyPct = Math.max(0, Math.min(100, Math.round((weeks / 52) * 100)));
   const details = valid
     .map((s) => {
       const label = s.season === "high" ? "high season" : "low season";
-      const unit = mode === "manual_daily" ? "days" : "weeks";
+      const unit =
+        mode === "manual_daily"
+          ? "days"
+          : mode === "manual_monthly"
+            ? "months"
+            : "weeks";
       return `${label}: €${Math.round(s.rateEur).toLocaleString("en-US")} × ${s.units} ${unit}`;
     })
     .join("; ");
@@ -995,7 +1020,7 @@ const fmt = (n: number): string => Math.round(n).toLocaleString("en-US");
  */
 export function describeRevenueMethod(
   args: {
-    pricingMode: "manual_daily" | "manual_weekly" | "ai";
+    pricingMode: ManualPricingMode | "ai";
     region: string;
     occupancyTarget: string | null;
     charterType: string | null;
@@ -1007,7 +1032,12 @@ export function describeRevenueMethod(
   const out: string[] = [];
 
   if (args.pricingMode !== "ai") {
-    const basisWord = args.pricingMode === "manual_daily" ? "day" : "week";
+    const basisWord =
+      args.pricingMode === "manual_daily"
+        ? "day"
+        : args.pricingMode === "manual_monthly"
+          ? "month"
+          : "week";
     out.push(
       `Pricing mode: manual. Your own charter rate of €${fmt(revenue.weekly_rate_eur)}/week (€${fmt(revenue.daily_rate_eur)}/day) was used directly — no market analysis was performed.`,
     );

@@ -14,6 +14,7 @@ import {
   dedupeRevenueComparables,
   charterBasis,
   type ComputedRevenue,
+  type ManualPricingMode,
 } from "./revenue";
 import { loadRoiRates } from "./rates";
 
@@ -54,7 +55,7 @@ export interface RoiInput {
   yacht_id: string;
   region: string;
   occupancy_target?: string | null;
-  pricing_mode: "manual_daily" | "manual_weekly" | "ai";
+  pricing_mode: ManualPricingMode | "ai";
   charter_type?: string | null;
   manual_rate_eur?: number | null;
   manual_charter_units?: number | null;
@@ -64,9 +65,9 @@ export interface RoiInput {
   manual_low_charter_units?: number | null;
   management_fee_pct?: number | null;
   target_weeks?: number | null;
-  // Dual-region (AI mode only, additive). When region_2 is set the engine
+  // Dual-region (additive). When region_2 is set the engine
   // computes a second region's charter income and sums it. All ignored unless
-  // pricing_mode === "ai" AND region_2 is a non-empty region.
+  // region_2 is a non-empty region.
   region_2?: string | null;
   season_2?: string | null;
   charter_type_2?: string | null;
@@ -81,7 +82,7 @@ export interface RoiInput {
 export interface RoiRegionIncome {
   region: string;
   season: string | null;
-  charter_type: "weekly" | "daily";
+  charter_type: "weekly" | "daily" | "monthly";
   income_eur: number;
   expected_charter_weeks: number;
   expected_charter_days: number | null;
@@ -220,12 +221,20 @@ const seasonName = (s: string | null): string =>
 /** One human-readable charter-income line for a region in the dual breakdown. */
 function regionIncomeLine(label: string, ri: RoiRegionIncome): string {
   const units =
-    ri.charter_type === "daily"
+    ri.charter_type === "monthly"
+      ? `${Math.round((ri.expected_charter_weeks / (52 / 12)) * 10) / 10} charter months`
+      : ri.charter_type === "daily"
       ? `${ri.expected_charter_days ?? Math.round(ri.expected_charter_weeks * 7)} charter days`
       : `${ri.expected_charter_weeks} charter weeks`;
+  const rateText =
+    ri.charter_type === "monthly"
+      ? `a manual equivalent rate ≈ €${money(ri.weekly_rate_eur)}/week (€${money(ri.avg_daily_rate_eur)}/day)`
+      : ri.charter_type === "daily"
+        ? `a daily rate ≈ €${money(ri.avg_daily_rate_eur)}/day`
+        : `a weekly rate ≈ €${money(ri.weekly_rate_eur)}/week`;
   return (
     `${label} (${regionName(ri.region)}, ${seasonName(ri.season)}): ${units} ` +
-    `at an AI base rate ≈ €${money(ri.weekly_rate_eur)}/week (€${money(ri.avg_daily_rate_eur)}/day) ` +
+    `at ${rateText} ` +
     `→ €${money(ri.income_eur)}/yr.`
   );
 }
@@ -381,13 +390,6 @@ function buildAnalysis(args: {
   payback: number;
   dual: RoiDualRegionBreakdown | null;
 }): string {
-  if (args.input.pricing_mode !== "ai") {
-    return (
-      `This scenario uses the owner-entered charter rate and booking volume, producing annual charter revenue of €${money(args.revenue.annual_gross_eur)}. ` +
-      `After annual expenses of €${money(args.totalExpenses)}, the projected net result is €${money(args.net)} and ROI is ${args.roiPct.toFixed(1)}%.`
-    );
-  }
-
   const range = comparableRateRange(args.revenue.comparables);
   const compText = range
     ? `Comparable weekly charter rates in this cohort range from €${money(range.low)} to €${money(range.high)}. `
@@ -402,11 +404,21 @@ function buildAnalysis(args: {
       d.repositioning_cost_eur > 0
         ? `, including €${money(d.repositioning_cost_eur)} repositioning,`
         : ",";
+    const pricingText =
+      args.input.pricing_mode === "ai"
+        ? compText + registrationText
+        : "This scenario uses owner-entered charter rates and booking volumes for each region. ";
     return (
-      compText +
-      registrationText +
+      pricingText +
       `The dual-region scenario combines ${regionName(d.region_1.region)} income of €${money(d.region_1.income_eur)} with ${regionName(d.region_2.region)} income of €${money(d.region_2.income_eur)}, for total charter revenue of €${money(args.revenue.annual_gross_eur)}. ` +
       `After annual expenses of €${money(args.totalExpenses)}${repositioningText} projected net profit is €${money(args.net)}, ROI is ${args.roiPct.toFixed(1)}%, and payback is ${args.payback >= 999 || args.net <= 0 ? "not reached" : `${args.payback.toFixed(1)} years`}.`
+    );
+  }
+
+  if (args.input.pricing_mode !== "ai") {
+    return (
+      `This scenario uses the owner-entered charter rate and booking volume, producing annual charter revenue of €${money(args.revenue.annual_gross_eur)}. ` +
+      `After annual expenses of €${money(args.totalExpenses)}, the projected net result is €${money(args.net)} and ROI is ${args.roiPct.toFixed(1)}%.`
     );
   }
 
@@ -471,7 +483,7 @@ function combineRevenue(a: ComputedRevenue, b: ComputedRevenue): ComputedRevenue
 function toRegionIncome(
   region: string,
   season: string | null,
-  basis: "weekly" | "daily",
+  basis: "weekly" | "daily" | "monthly",
   rev: ComputedRevenue,
 ): RoiRegionIncome {
   const weeks = Math.round(rev.expected_charter_weeks * 10) / 10;
@@ -486,6 +498,12 @@ function toRegionIncome(
     avg_daily_rate_eur: rev.daily_rate_eur,
     weekly_rate_eur: rev.weekly_rate_eur,
   };
+}
+
+function manualRegionBasis(mode: ManualPricingMode): "weekly" | "daily" | "monthly" {
+  if (mode === "manual_daily") return "daily";
+  if (mode === "manual_monthly") return "monthly";
+  return "weekly";
 }
 
 export async function calculateRoi(
@@ -582,10 +600,57 @@ export async function calculateRoi(
       revenue = await rev1Promise;
     }
   } else {
+    const region2 =
+      typeof input.region_2 === "string" && input.region_2.trim()
+        ? input.region_2
+        : null;
     const highRate = Number(input.manual_high_rate_eur);
     const highUnits = Number(input.manual_high_charter_units);
     const lowRate = Number(input.manual_low_rate_eur);
     const lowUnits = Number(input.manual_low_charter_units);
+    if (
+      region2 &&
+      isFinite(highRate) &&
+      highRate > 0 &&
+      isFinite(highUnits) &&
+      highUnits > 0 &&
+      isFinite(lowRate) &&
+      lowRate > 0 &&
+      isFinite(lowUnits) &&
+      lowUnits > 0
+    ) {
+      const rev1 = computeManualRevenue({
+        mode: input.pricing_mode,
+        rateEur: highRate,
+        units: highUnits,
+      });
+      const rev2 = computeManualRevenue({
+        mode: input.pricing_mode,
+        rateEur: lowRate,
+        units: lowUnits,
+      });
+      revenue = combineRevenue(rev1, rev2);
+      let reposition: number;
+      if (
+        input.repositioning_cost_eur != null &&
+        input.repositioning_cost_eur > 0
+      ) {
+        reposition = Math.round(input.repositioning_cost_eur);
+      } else {
+        reposition = defaultRepositioningCost(input.region, region2);
+        repositioningWasEstimated = true;
+      }
+      const income1 = Math.round(rev1.annual_gross_eur);
+      const income2 = Math.round(rev2.annual_gross_eur);
+      const basis = manualRegionBasis(input.pricing_mode);
+      dualBreakdown = {
+        region_1: toRegionIncome(input.region, "mixed", basis, rev1),
+        region_2: toRegionIncome(region2, "mixed", basis, rev2),
+        total_gross_income_eur: income1 + income2,
+        repositioning_cost_eur: reposition,
+        net_charter_income_eur: income1 + income2 - reposition,
+      };
+    } else {
     const hasSeasonalManual =
       (isFinite(highRate) && highRate > 0 && isFinite(highUnits) && highUnits > 0) ||
       (isFinite(lowRate) && lowRate > 0 && isFinite(lowUnits) && lowUnits > 0);
@@ -607,6 +672,7 @@ export async function calculateRoi(
         rateEur: rate,
         units,
       });
+    }
     }
   }
 

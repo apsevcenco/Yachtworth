@@ -396,7 +396,7 @@ paths:
       summary: Compute charter ROI for a yacht
       description: |
         Runs the Charter ROI engine for the user's yacht. Pricing is set by
-        `pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
+        `pricing_mode` — manual_daily / manual_weekly / manual_monthly require manual rate inputs
         and `manual_charter_units`; ai mode estimates rate via web search and
         falls back to a deterministic regional heuristic if the AI call fails.
         Result is persisted to roi_calculations.
@@ -1713,11 +1713,12 @@ components:
       enum: [conservative, realistic, optimistic]
     PricingMode:
       type: string
-      enum: [manual_daily, manual_weekly, ai]
+      enum: [manual_daily, manual_weekly, manual_monthly, ai]
       description: |
         How the charter rate is determined:
         * manual_daily  — user provides daily rate + number of charter days
         * manual_weekly — user provides weekly rate + number of charter weeks
+        * manual_monthly — user provides monthly rate + number of charter months
         * ai            — engine asks AI (web-search) for plausible rate + weeks
     CharterType:
       type: string
@@ -2201,7 +2202,7 @@ components:
         manual_rate_eur:
           type: ["number", "null"]
           minimum: 0
-          description: Per-day rate for manual_daily, per-week rate for manual_weekly
+          description: Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly
         manual_charter_units:
           type: ["integer", "null"]
           minimum: 0
@@ -2251,11 +2252,11 @@ components:
             - $ref: "#/components/schemas/CharterRegion"
             - type: "null"
           description: >-
-            AI mode only. Optional SECOND charter region for a dual-region
-            scenario (e.g. Mediterranean summer + Caribbean winter). When set
-            (and pricing_mode=ai), charter income is computed for BOTH regions
-            and summed. null = single-region, which is byte-identical to the
-            previous behaviour. Manual modes ignore this field. Max 2 regions.
+            Optional SECOND charter region for a dual-region scenario (e.g.
+            Mediterranean summer + Caribbean winter). In AI mode each region is
+            estimated separately; in manual mode region 1 and region 2 use the
+            owner-entered manual rates and units. null = single-region. Max 2
+            regions.
         season_2:
           oneOf:
             - $ref: "#/components/schemas/CharterSeason"
@@ -2283,27 +2284,27 @@ components:
           type: ["number", "null"]
           minimum: 0
           description: >-
-            AI dual-region only. Annual cost of repositioning the yacht between
+            Dual-region only. Annual cost of repositioning the yacht between
             the two regions (both ways combined). Added as a single expense
             line. Ignored when region_2 is null.
         marina_region_1_monthly_eur:
           type: ["number", "null"]
           minimum: 0
-          description: AI dual-region only. Monthly mooring rate for region 1.
+          description: Dual-region only. Monthly mooring rate for region 1.
         marina_region_1_months:
           type: ["integer", "null"]
           minimum: 1
           maximum: 12
-          description: AI dual-region only. Months per year in the region 1 marina.
+          description: Dual-region only. Months per year in the region 1 marina.
         marina_region_2_monthly_eur:
           type: ["number", "null"]
           minimum: 0
-          description: AI dual-region only. Monthly mooring rate for region 2.
+          description: Dual-region only. Monthly mooring rate for region 2.
         marina_region_2_months:
           type: ["integer", "null"]
           minimum: 1
           maximum: 12
-          description: AI dual-region only. Months per year in the region 2 marina.
+          description: Dual-region only. Months per year in the region 2 marina.
         overrides:
           oneOf:
             - $ref: "#/components/schemas/RoiExpenseOverrides"
@@ -2689,7 +2690,7 @@ components:
             - type: "null"
         charter_type:
           type: string
-          enum: [weekly, daily]
+          enum: [weekly, daily, monthly]
           description: Effective charter basis used for this region.
         income_eur:
           type: number
