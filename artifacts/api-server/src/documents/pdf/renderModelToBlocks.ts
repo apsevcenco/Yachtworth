@@ -221,6 +221,66 @@ function surveyLineHeight(text: string): number {
   return Math.max(4.2, Math.ceil(text.length / 108) * 4.2);
 }
 
+function flowLineHeight(text: string): number {
+  return Math.max(4.6, Math.ceil(text.length / 112) * 4.6);
+}
+
+function flowParagraphLines(raw: string): string[] {
+  const lines = raw.split(/\n/).map((line) => line.trim()).filter(Boolean);
+  const out: string[] = [];
+  for (const line of lines) {
+    if (line.length <= 520) {
+      out.push(line);
+      continue;
+    }
+    let buffer = "";
+    for (const part of line.split(/(?<=[.!?])\s+/)) {
+      const next = buffer ? `${buffer} ${part}` : part;
+      if (next.length > 520 && buffer) {
+        out.push(buffer);
+        buffer = part;
+      } else {
+        buffer = next;
+      }
+    }
+    if (buffer) out.push(buffer);
+  }
+  return out;
+}
+
+function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[] {
+  if (node.panel) {
+    const h = measureNode(node);
+    return [
+      {
+        id: nextId("para"),
+        type: "paragraph",
+        estimatedHeight: h,
+        html: leafHtml(node),
+      },
+    ];
+  }
+  const lines = flowParagraphLines(node.text ?? "");
+  if (!lines.length) {
+    return [
+      {
+        id: nextId("para"),
+        type: "paragraph",
+        estimatedHeight: measureNode(node),
+        html: leafHtml(node),
+      },
+    ];
+  }
+
+  const cls = node.muted ? ` class="muted"` : "";
+  return lines.map((line, idx) => ({
+    id: nextId(`${typePrefix}-line`),
+    type: idx === 0 && node.heading ? `${typePrefix}-item` : `${typePrefix}-line`,
+    estimatedHeight: (idx === 0 && node.heading ? 9.5 : 0) + flowLineHeight(line),
+    html: `${idx === 0 ? eyebrow(node.heading) : ""}<p${cls}>${esc(line)}</p>`,
+  }));
+}
+
 function surveyTableLineCount(text: string | undefined, widthPct: number): number {
   const len = (text ?? "").length;
   if (!len) return 0;
@@ -553,6 +613,7 @@ function renderNode(node: ContentNode, docType?: string): DocBlock[] {
       return galleryBlocks(node);
     case "paragraph": {
       if (docType === "survey_report") return surveyParagraphBlocks(node);
+      if (docType === "roi_report") return flowParagraphBlocks(node, "roi");
       const h = measureNode(node);
       const block: DocBlock = {
         id: nextId("para"),

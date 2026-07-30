@@ -98,6 +98,15 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   .cover-page { padding: 0; min-height: 0; }
   .block { break-inside: avoid; page-break-inside: avoid; }
   .block + .block { margin-top: 16px; }
+  .doc-roi_report .block + .block { margin-top: 10px; }
+  .doc-roi_report .block-roi-item + .block-roi-line,
+  .doc-roi_report .block-roi-line + .block-roi-line {
+    margin-top: 0;
+  }
+  .doc-roi_report .block-roi-line + .block-roi-item {
+    margin-top: 10px;
+  }
+  .doc-roi_report p { margin: 0; }
   .doc-survey_report .block + .block { margin-top: 8px; }
   .doc-survey_report p { margin: 0; }
   .doc-survey_report .eyebrow {
