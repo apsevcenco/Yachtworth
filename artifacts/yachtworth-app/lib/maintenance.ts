@@ -147,7 +147,25 @@ export type Defect = {
   description?: string | null;
   status: string;
   severity?: string | null;
+  priority?: string | null;
   risk_level?: string | null;
+  operational_limitation?: string | null;
+  safety_impact?: string | null;
+  environmental_impact?: string | null;
+  reported_by?: string | null;
+  reported_at?: string | null;
+  counter_value_at_report?: number | null;
+  detected_during_type?: string | null;
+  detected_during_id?: string | null;
+  temporary_repair?: string | null;
+  temporary_repair_expiry?: string | null;
+  work_order_id?: string | null;
+  warranty_claim_id?: string | null;
+  resolved_at?: string | null;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  closed_at?: string | null;
+  photo_urls?: string[] | null;
   equipment_assets?: EquipmentAsset | null;
 };
 
@@ -364,6 +382,17 @@ export async function getDefects(yachtId: string): Promise<Defect[]> {
 export async function createDefect(yachtId: string, input: Partial<Defect>): Promise<Defect> {
   return request(`/api/maintenance/yachts/${yachtId}/defects`, {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateDefect(
+  yachtId: string,
+  defectId: string,
+  input: Partial<Defect>,
+): Promise<Defect> {
+  return request(`/api/maintenance/yachts/${yachtId}/defects/${defectId}`, {
+    method: "PATCH",
     body: JSON.stringify(input),
   });
 }

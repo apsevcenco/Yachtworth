@@ -37,6 +37,7 @@ import {
   recordCounterReading,
   seedMaintenanceSystems,
   updateEquipmentAsset,
+  updateDefect,
   updateWorkOrder,
   type Defect,
   type EquipmentCounter,
@@ -114,6 +115,30 @@ const WORK_ORDER_STATUS_OPTIONS = [
   { id: "completed", label: "Completed" },
   { id: "pending_verification", label: "Verify" },
   { id: "cancelled", label: "Cancelled" },
+];
+
+const DEFECT_SEVERITY_OPTIONS = [
+  { id: "observation", label: "Observation" },
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High" },
+  { id: "critical", label: "Critical" },
+];
+
+const DEFECT_STATUS_OPTIONS = [
+  { id: "reported", label: "Reported" },
+  { id: "acknowledged", label: "Acknowledged" },
+  { id: "diagnosing", label: "Diagnosing" },
+  { id: "temporary_repair", label: "Temporary" },
+  { id: "parts_ordered", label: "Parts" },
+  { id: "repair_scheduled", label: "Scheduled" },
+  { id: "under_repair", label: "Repair" },
+  { id: "testing", label: "Testing" },
+  { id: "resolved", label: "Resolved" },
+  { id: "verified", label: "Verified" },
+  { id: "closed", label: "Closed" },
+  { id: "rejected", label: "Rejected" },
+  { id: "duplicate", label: "Duplicate" },
 ];
 
 function yachtTitle(yacht: YachtOption | undefined): string {
@@ -348,6 +373,7 @@ export default function MaintenanceScreen() {
                   assets={assetsQ.data ?? []}
                   defects={defectsQ.data ?? []}
                   onCreate={(input) => run("Creating defect", () => createDefect(yachtId, input))}
+                  onUpdate={(defectId, input) => run("Updating defect", () => updateDefect(yachtId, defectId, input))}
                 />
               ) : null}
               {tab === "history" ? (
@@ -1004,21 +1030,155 @@ function workOrderAssets(item: WorkOrder): string | null {
   return names.length ? names.join(", ") : null;
 }
 
-function Defects({ assets, defects, onCreate }: { assets: EquipmentAsset[]; defects: Defect[]; onCreate: (input: Partial<Defect>) => void }) {
+function Defects({
+  assets,
+  defects,
+  onCreate,
+  onUpdate,
+}: {
+  assets: EquipmentAsset[];
+  defects: Defect[];
+  onCreate: (input: Partial<Defect>) => void;
+  onUpdate: (defectId: string, input: Partial<Defect>) => void;
+}) {
   const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
+  const [description, setDescription] = useState("");
+  const [severity, setSeverity] = useState("medium");
+  const [priority, setPriority] = useState("normal");
+  const [operationalLimitation, setOperationalLimitation] = useState("");
+  const [safetyImpact, setSafetyImpact] = useState("");
+  const [environmentalImpact, setEnvironmentalImpact] = useState("");
+  const [counterAtReport, setCounterAtReport] = useState("");
+  const [temporaryRepair, setTemporaryRepair] = useState("");
+  const [temporaryRepairExpiry, setTemporaryRepairExpiry] = useState("");
+  const [warrantyClaimId, setWarrantyClaimId] = useState("");
+  const [photoUrls, setPhotoUrls] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const selectedAsset = assetId ?? assets[0]?.id;
+
+  const reset = () => {
+    setTitle("");
+    setDescription("");
+    setSeverity("medium");
+    setPriority("normal");
+    setOperationalLimitation("");
+    setSafetyImpact("");
+    setEnvironmentalImpact("");
+    setCounterAtReport("");
+    setTemporaryRepair("");
+    setTemporaryRepairExpiry("");
+    setWarrantyClaimId("");
+    setPhotoUrls("");
+  };
+
   return (
     <View>
       <Form title="Report defect">
-        <Field label="Title" value={title} onChangeText={setTitle} />
-        <Field label="Description" value={notes} onChangeText={setNotes} multiline />
-        <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={assetId ?? assets[0]?.id ?? null} onSelect={setAssetId} />
-        <Button label="Create defect" icon="alert-triangle" onPress={() => { onCreate({ title, description: notes, equipment_asset_id: assetId ?? assets[0]?.id }); setTitle(""); setNotes(""); }} disabled={!title} />
+        <Field label="Title" value={title} onChangeText={setTitle} placeholder="Bilge pump intermittent alarm" />
+        <Field label="Description" value={description} onChangeText={setDescription} multiline />
+        <Text style={styles.label}>Severity</Text>
+        <ChipSelect items={DEFECT_SEVERITY_OPTIONS} selected={severity} onSelect={setSeverity} />
+        <Text style={styles.label}>Priority</Text>
+        <ChipSelect items={PRIORITY_OPTIONS} selected={priority} onSelect={setPriority} />
+        <Field label="Operational limitation" value={operationalLimitation} onChangeText={setOperationalLimitation} multiline />
+        <Field label="Safety impact" value={safetyImpact} onChangeText={setSafetyImpact} multiline />
+        <Field label="Environmental impact" value={environmentalImpact} onChangeText={setEnvironmentalImpact} multiline />
+        <Field label="Counter at report" value={counterAtReport} onChangeText={setCounterAtReport} placeholder="Hours/cycles, optional" />
+        <Field label="Temporary repair" value={temporaryRepair} onChangeText={setTemporaryRepair} multiline />
+        <Field label="Temporary repair expiry" value={temporaryRepairExpiry} onChangeText={setTemporaryRepairExpiry} placeholder="YYYY-MM-DD, optional" />
+        <Field label="Warranty claim ID" value={warrantyClaimId} onChangeText={setWarrantyClaimId} />
+        <Field label="Photo URLs" value={photoUrls} onChangeText={setPhotoUrls} placeholder="One URL per line" multiline />
+        <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={selectedAsset ?? null} onSelect={setAssetId} />
+        <Button
+          label="Create defect"
+          icon="alert-triangle"
+          onPress={() => {
+            onCreate({
+              title,
+              description,
+              equipment_asset_id: selectedAsset,
+              severity,
+              priority,
+              operational_limitation: operationalLimitation,
+              safety_impact: safetyImpact,
+              environmental_impact: environmentalImpact,
+              counter_value_at_report: counterAtReport ? Number(counterAtReport) : undefined,
+              temporary_repair: temporaryRepair,
+              temporary_repair_expiry: temporaryRepairExpiry ? new Date(`${temporaryRepairExpiry}T12:00:00.000Z`).toISOString() : undefined,
+              warranty_claim_id: warrantyClaimId,
+              photo_urls: csvToList(photoUrls),
+            });
+            reset();
+          }}
+          disabled={!title}
+        />
       </Form>
       <SectionList title="Open defects" items={defects} empty="No defects recorded." render={(item: Defect) => (
-        <Row title={`${item.defect_number} - ${item.title}`} meta={item.equipment_assets?.name ?? "Unassigned"} status={item.severity ?? item.status} />
+        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+          <Row
+            title={`${item.defect_number} - ${item.title}`}
+            meta={[
+              item.equipment_assets?.name,
+              item.reported_at?.slice(0, 10),
+              item.priority,
+              item.counter_value_at_report != null ? `At ${item.counter_value_at_report}` : null,
+            ].filter(Boolean).join(" - ") || "Unassigned"}
+            status={item.severity ?? item.status}
+          />
+          {expandedId === item.id ? <DefectDetail defect={item} onUpdate={(input) => onUpdate(item.id, input)} /> : null}
+        </Pressable>
       )} />
+    </View>
+  );
+}
+
+function DefectDetail({ defect, onUpdate }: { defect: Defect; onUpdate: (input: Partial<Defect>) => void }) {
+  const [description, setDescription] = useState(defect.description ?? "");
+  const [operationalLimitation, setOperationalLimitation] = useState(defect.operational_limitation ?? "");
+  const [safetyImpact, setSafetyImpact] = useState(defect.safety_impact ?? "");
+  const [environmentalImpact, setEnvironmentalImpact] = useState(defect.environmental_impact ?? "");
+  const [temporaryRepair, setTemporaryRepair] = useState(defect.temporary_repair ?? "");
+  const [temporaryRepairExpiry, setTemporaryRepairExpiry] = useState(defect.temporary_repair_expiry?.slice(0, 10) ?? "");
+  const [photoUrls, setPhotoUrls] = useState((defect.photo_urls ?? []).join("\n"));
+  return (
+    <View style={styles.subPanel}>
+      <View style={styles.detailGrid}>
+        <Detail label="Status" value={defect.status} />
+        <Detail label="Severity" value={defect.severity} />
+        <Detail label="Priority" value={defect.priority} />
+        <Detail label="Equipment" value={defect.equipment_assets?.name} />
+        <Detail label="Reported" value={defect.reported_at?.slice(0, 10)} />
+        <Detail label="Warranty claim" value={defect.warranty_claim_id} />
+        <Detail label="Resolved" value={defect.resolved_at?.slice(0, 10)} />
+        <Detail label="Verified" value={defect.verified_at?.slice(0, 10)} />
+      </View>
+      <Text style={styles.label}>Move status</Text>
+      <ChipSelect items={DEFECT_STATUS_OPTIONS} selected={defect.status} onSelect={(status) => onUpdate({ status })} />
+      <Text style={styles.label}>Severity</Text>
+      <ChipSelect items={DEFECT_SEVERITY_OPTIONS} selected={defect.severity ?? "medium"} onSelect={(severity) => onUpdate({ severity })} />
+      <Text style={styles.label}>Priority</Text>
+      <ChipSelect items={PRIORITY_OPTIONS} selected={defect.priority ?? "normal"} onSelect={(priority) => onUpdate({ priority })} />
+      <Field label="Description" value={description} onChangeText={setDescription} multiline />
+      <Field label="Operational limitation" value={operationalLimitation} onChangeText={setOperationalLimitation} multiline />
+      <Field label="Safety impact" value={safetyImpact} onChangeText={setSafetyImpact} multiline />
+      <Field label="Environmental impact" value={environmentalImpact} onChangeText={setEnvironmentalImpact} multiline />
+      <Field label="Temporary repair" value={temporaryRepair} onChangeText={setTemporaryRepair} multiline />
+      <Field label="Temporary repair expiry" value={temporaryRepairExpiry} onChangeText={setTemporaryRepairExpiry} placeholder="YYYY-MM-DD" />
+      <Field label="Photo URLs" value={photoUrls} onChangeText={setPhotoUrls} multiline />
+      <Button
+        label="Save defect update"
+        icon="save"
+        onPress={() => onUpdate({
+          description,
+          operational_limitation: operationalLimitation,
+          safety_impact: safetyImpact,
+          environmental_impact: environmentalImpact,
+          temporary_repair: temporaryRepair,
+          temporary_repair_expiry: temporaryRepairExpiry ? new Date(`${temporaryRepairExpiry}T12:00:00.000Z`).toISOString() : undefined,
+          photo_urls: csvToList(photoUrls),
+        })}
+      />
     </View>
   );
 }

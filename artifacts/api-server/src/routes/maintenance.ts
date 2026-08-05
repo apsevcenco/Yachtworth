@@ -48,6 +48,11 @@ function b(v: unknown): boolean {
   return v === true;
 }
 
+function uuid(v: unknown): string | null {
+  const value = s(v);
+  return value && isUuid(value) ? value : null;
+}
+
 function jsonArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
@@ -724,8 +729,12 @@ router.post("/maintenance/yachts/:yachtId/defects", async (req, res) => {
     environmental_impact: s(p["environmental_impact"]),
     reported_by: req.userId,
     counter_value_at_report: n(p["counter_value_at_report"]),
+    detected_during_type: s(p["detected_during_type"]),
+    detected_during_id: uuid(p["detected_during_id"]),
     temporary_repair: s(p["temporary_repair"]),
     temporary_repair_expiry: s(p["temporary_repair_expiry"]),
+    warranty_claim_id: uuid(p["warranty_claim_id"]),
+    photo_urls: jsonArray(p["photo_urls"]),
   };
   const { data, error } = await sb.from(DEFECTS_TABLE).insert(row).select("*").single();
   if (error) {
@@ -741,9 +750,14 @@ router.patch("/maintenance/yachts/:yachtId/defects/:defectId", async (req, res) 
   const defectId = req.params["defectId"]!;
   if (!(await assertYacht(req, res, yachtId))) return;
   const p = body(req);
-  const allowed = ["status", "priority", "severity", "description", "operational_limitation", "safety_impact", "environmental_impact", "temporary_repair", "temporary_repair_expiry", "work_order_id"];
+  const allowed = [
+    "status", "priority", "severity", "description", "operational_limitation", "safety_impact", "environmental_impact",
+    "temporary_repair", "temporary_repair_expiry", "work_order_id", "warranty_claim_id", "photo_urls",
+  ];
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   for (const key of allowed) if (key in p) patch[key] = p[key];
+  if ("work_order_id" in p) patch["work_order_id"] = uuid(p["work_order_id"]);
+  if ("warranty_claim_id" in p) patch["warranty_claim_id"] = uuid(p["warranty_claim_id"]);
   const status = s(p["status"]);
   if (status === "resolved") patch["resolved_at"] = new Date().toISOString();
   if (status === "verified") {
