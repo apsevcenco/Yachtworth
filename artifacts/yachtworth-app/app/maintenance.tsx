@@ -20,6 +20,7 @@ import {
   createDefect,
   createEquipmentAsset,
   createEquipmentCounter,
+  createMaintenanceDocument,
   createMaintenancePlan,
   createServiceEvent,
   createSparePart,
@@ -28,6 +29,7 @@ import {
   getDefects,
   getEquipmentAssets,
   getMaintenanceDashboard,
+  getMaintenanceDocuments,
   getMaintenanceSystems,
   getMaintenanceTasks,
   getServiceEvents,
@@ -45,6 +47,7 @@ import {
   type EquipmentCounter,
   type EquipmentAsset,
   type MaintenanceDashboard,
+  type MaintenanceDocument,
   type MaintenanceSystem,
   type MaintenanceTask,
   type ServiceEvent,
@@ -64,7 +67,7 @@ const LINE = "rgba(247,243,236,0.1)";
 const RED = "#F08A8A";
 const GREEN = "#7BD389";
 
-type Tab = "overview" | "equipment" | "tasks" | "work" | "defects" | "history" | "parts";
+type Tab = "overview" | "equipment" | "tasks" | "work" | "defects" | "history" | "parts" | "attachments";
 
 const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
   { key: "overview", label: "Overview", icon: "grid" },
@@ -74,6 +77,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather
   { key: "defects", label: "Defects", icon: "alert-triangle" },
   { key: "history", label: "History", icon: "clock" },
   { key: "parts", label: "Parts", icon: "package" },
+  { key: "attachments", label: "Attachments", icon: "paperclip" },
 ];
 
 const SERVICE_TYPE_OPTIONS = [
@@ -142,6 +146,16 @@ const DEFECT_STATUS_OPTIONS = [
   { id: "closed", label: "Closed" },
   { id: "rejected", label: "Rejected" },
   { id: "duplicate", label: "Duplicate" },
+];
+
+const ATTACHMENT_CATEGORY_OPTIONS = [
+  { id: "photo", label: "Photo" },
+  { id: "document", label: "Document" },
+  { id: "manual", label: "Manual" },
+  { id: "invoice", label: "Invoice" },
+  { id: "certificate", label: "Certificate" },
+  { id: "warranty", label: "Warranty" },
+  { id: "report", label: "Report" },
 ];
 
 function yachtTitle(yacht: YachtOption | undefined): string {
@@ -250,6 +264,11 @@ export default function MaintenanceScreen() {
     queryFn: () => getSpareParts(yachtId!),
     enabled: !!yachtId,
   });
+  const documentsQ = useQuery({
+    queryKey: ["maintenance-documents", yachtId],
+    queryFn: () => getMaintenanceDocuments(yachtId!),
+    enabled: !!yachtId,
+  });
 
   const invalidate = async () => {
     await Promise.all([
@@ -261,6 +280,7 @@ export default function MaintenanceScreen() {
       qc.invalidateQueries({ queryKey: ["maintenance-defects", yachtId] }),
       qc.invalidateQueries({ queryKey: ["maintenance-service-events", yachtId] }),
       qc.invalidateQueries({ queryKey: ["maintenance-parts", yachtId] }),
+      qc.invalidateQueries({ queryKey: ["maintenance-documents", yachtId] }),
     ]);
   };
 
@@ -393,6 +413,16 @@ export default function MaintenanceScreen() {
                   onCreate={(input) => run("Saving part", () => createSparePart(yachtId, input))}
                   onUpdate={(partId, input) => run("Updating part", () => updateSparePart(yachtId, partId, input))}
                   onMove={(partId, input) => run("Recording inventory movement", () => createInventoryMovement(yachtId, partId, input))}
+                />
+              ) : null}
+              {tab === "attachments" ? (
+                <Attachments
+                  assets={assetsQ.data ?? []}
+                  workOrders={workQ.data ?? []}
+                  defects={defectsQ.data ?? []}
+                  serviceEvents={historyQ.data ?? []}
+                  documents={documentsQ.data ?? []}
+                  onCreate={(input) => run("Saving attachment", () => createMaintenanceDocument(yachtId, input))}
                 />
               ) : null}
             </View>
@@ -1658,6 +1688,124 @@ function partStockStatus(part: SparePart): string {
   if (quantity <= minimum) return "low stock";
   if (reorder && quantity <= reorder) return "reorder";
   return "stock ok";
+}
+
+function Attachments({
+  assets,
+  workOrders,
+  defects,
+  serviceEvents,
+  documents,
+  onCreate,
+}: {
+  assets: EquipmentAsset[];
+  workOrders: WorkOrder[];
+  defects: Defect[];
+  serviceEvents: ServiceEvent[];
+  documents: MaintenanceDocument[];
+  onCreate: (input: Partial<MaintenanceDocument>) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("photo");
+  const [fileUrl, setFileUrl] = useState("");
+  const [mimeType, setMimeType] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [version, setVersion] = useState("1");
+  const [isPrivate, setIsPrivate] = useState(true);
+  const [linkType, setLinkType] = useState<"equipment" | "work_order" | "service_event" | "defect" | "none">("equipment");
+  const [linkedId, setLinkedId] = useState<string | null>(assets[0]?.id ?? null);
+
+  const linkOptions =
+    linkType === "equipment" ? assets.map((item) => ({ id: item.id, label: item.name })) :
+    linkType === "work_order" ? workOrders.map((item) => ({ id: item.id, label: `${item.work_order_number} - ${item.title}` })) :
+    linkType === "service_event" ? serviceEvents.map((item) => ({ id: item.id, label: `${item.service_event_number} - ${item.title}` })) :
+    linkType === "defect" ? defects.map((item) => ({ id: item.id, label: `${item.defect_number} - ${item.title}` })) :
+    [];
+
+  useEffect(() => {
+    setLinkedId(linkOptions[0]?.id ?? null);
+  }, [linkType]);
+
+  const reset = () => {
+    setTitle("");
+    setCategory("photo");
+    setFileUrl("");
+    setMimeType("");
+    setExpiresAt("");
+    setVersion("1");
+    setIsPrivate(true);
+  };
+
+  return (
+    <View>
+      <Form title="Add photo or document">
+        <Field label="Title" value={title} onChangeText={setTitle} placeholder="Main engine service invoice" />
+        <Text style={styles.label}>Category</Text>
+        <ChipSelect items={ATTACHMENT_CATEGORY_OPTIONS} selected={category} onSelect={setCategory} />
+        <Field label="File / photo URL" value={fileUrl} onChangeText={setFileUrl} placeholder="https://..." />
+        <Field label="MIME type" value={mimeType} onChangeText={setMimeType} placeholder="image/jpeg / application/pdf" />
+        <Field label="Expiry date" value={expiresAt} onChangeText={setExpiresAt} placeholder="YYYY-MM-DD, optional" />
+        <Field label="Version" value={version} onChangeText={setVersion} />
+        <View style={styles.toggleGrid}>
+          <FlagToggle label="Private" value={isPrivate} onPress={() => setIsPrivate((value) => !value)} />
+        </View>
+        <Text style={styles.label}>Attach to</Text>
+        <ChipSelect
+          items={[
+            { id: "equipment", label: "Equipment" },
+            { id: "work_order", label: "Work order" },
+            { id: "service_event", label: "Service event" },
+            { id: "defect", label: "Defect" },
+            { id: "none", label: "General" },
+          ]}
+          selected={linkType}
+          onSelect={(id) => setLinkType(id as typeof linkType)}
+        />
+        {linkOptions.length ? <ChipSelect items={linkOptions} selected={linkedId} onSelect={setLinkedId} /> : null}
+        <Button
+          label="Save attachment"
+          icon="paperclip"
+          onPress={() => {
+            onCreate({
+              title,
+              category,
+              file_url: fileUrl,
+              mime_type: mimeType,
+              expires_at: expiresAt ? new Date(`${expiresAt}T12:00:00.000Z`).toISOString() : undefined,
+              version: Number(version) || 1,
+              is_private: isPrivate,
+              equipment_asset_id: linkType === "equipment" ? linkedId : undefined,
+              work_order_id: linkType === "work_order" ? linkedId : undefined,
+              service_event_id: linkType === "service_event" ? linkedId : undefined,
+              defect_id: linkType === "defect" ? linkedId : undefined,
+            });
+            reset();
+          }}
+          disabled={!title || !fileUrl}
+        />
+      </Form>
+      <SectionList title="Attachment register" items={documents} empty="No attachments yet." render={(item: MaintenanceDocument) => (
+        <Row
+          title={item.title}
+          meta={[
+            item.category,
+            attachmentOwner(item),
+            item.expires_at ? `Expires ${item.expires_at.slice(0, 10)}` : null,
+            item.file_url,
+          ].filter(Boolean).join(" - ")}
+          status={item.category === "photo" ? "photo" : "document"}
+        />
+      )} />
+    </View>
+  );
+}
+
+function attachmentOwner(item: MaintenanceDocument): string | null {
+  if (item.equipment_assets?.name) return item.equipment_assets.name;
+  if (item.work_orders) return [item.work_orders.work_order_number, item.work_orders.title].filter(Boolean).join(" - ");
+  if (item.service_events) return [item.service_events.service_event_number, item.service_events.title].filter(Boolean).join(" - ");
+  if (item.defects) return [item.defects.defect_number, item.defects.title].filter(Boolean).join(" - ");
+  return null;
 }
 
 function Form({ title, children }: { title: string; children: React.ReactNode }) {

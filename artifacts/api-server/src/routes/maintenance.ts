@@ -1013,4 +1013,56 @@ router.post("/maintenance/yachts/:yachtId/parts/:partId/movements", async (req, 
   res.status(201).json(data);
 });
 
+router.get("/maintenance/yachts/:yachtId/documents", async (req, res) => {
+  const yachtId = req.params["yachtId"]!;
+  if (!(await assertYacht(req, res, yachtId))) return;
+  const sb = getSupabase()!;
+  const { data, error } = await sb
+    .from(MAINTENANCE_DOCUMENTS_TABLE)
+    .select("*,equipment_assets(name),work_orders(work_order_number,title),service_events(service_event_number,title),defects(defect_number,title)")
+    .eq("yacht_id", yachtId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  res.json({ items: data ?? [] });
+});
+
+router.post("/maintenance/yachts/:yachtId/documents", async (req, res) => {
+  const yachtId = req.params["yachtId"]!;
+  if (!(await assertYacht(req, res, yachtId))) return;
+  const p = body(req);
+  const title = s(p["title"]);
+  if (!title) {
+    res.status(400).json({ error: "title required" });
+    return;
+  }
+  const row = {
+    yacht_id: yachtId,
+    equipment_asset_id: uuid(p["equipment_asset_id"]),
+    work_order_id: uuid(p["work_order_id"]),
+    service_event_id: uuid(p["service_event_id"]),
+    defect_id: uuid(p["defect_id"]),
+    category: s(p["category"]) ?? "document",
+    title,
+    file_url: s(p["file_url"]),
+    file_path: s(p["file_path"]),
+    mime_type: s(p["mime_type"]),
+    expires_at: s(p["expires_at"]),
+    is_private: p["is_private"] !== false,
+    version: n(p["version"]) ?? 1,
+    uploaded_by: req.userId,
+  };
+  const sb = getSupabase()!;
+  const { data, error } = await sb.from(MAINTENANCE_DOCUMENTS_TABLE).insert(row).select("*").single();
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  await audit(yachtId, req.userId, "maintenance_document_created", "maintenance_document", data.id, data);
+  res.status(201).json(data);
+});
+
 export default router;

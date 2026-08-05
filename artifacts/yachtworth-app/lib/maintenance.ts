@@ -241,6 +241,29 @@ export type InventoryMovement = {
   created_at?: string | null;
 };
 
+export type MaintenanceDocument = {
+  id: string;
+  yacht_id: string;
+  equipment_asset_id?: string | null;
+  work_order_id?: string | null;
+  service_event_id?: string | null;
+  defect_id?: string | null;
+  category: string;
+  title: string;
+  file_url?: string | null;
+  file_path?: string | null;
+  mime_type?: string | null;
+  expires_at?: string | null;
+  is_private?: boolean | null;
+  version?: number | null;
+  uploaded_by?: string | null;
+  created_at?: string | null;
+  equipment_assets?: { name?: string | null } | null;
+  work_orders?: { work_order_number?: string | null; title?: string | null } | null;
+  service_events?: { service_event_number?: string | null; title?: string | null } | null;
+  defects?: { defect_number?: string | null; title?: string | null } | null;
+};
+
 async function headers(): Promise<Record<string, string>> {
   const token = await getAuthToken();
   return {
@@ -457,6 +480,18 @@ export async function createInventoryMovement(
   input: Partial<InventoryMovement>,
 ): Promise<InventoryMovement> {
   return request(`/api/maintenance/yachts/${yachtId}/parts/${partId}/movements`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getMaintenanceDocuments(yachtId: string): Promise<MaintenanceDocument[]> {
+  const data = await request<{ items: MaintenanceDocument[] }>(`/api/maintenance/yachts/${yachtId}/documents`);
+  return data.items;
+}
+
+export async function createMaintenanceDocument(yachtId: string, input: Partial<MaintenanceDocument>): Promise<MaintenanceDocument> {
+  return request(`/api/maintenance/yachts/${yachtId}/documents`, {
     method: "POST",
     body: JSON.stringify(input),
   });
