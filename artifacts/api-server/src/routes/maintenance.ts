@@ -296,6 +296,8 @@ router.post("/maintenance/yachts/:yachtId/assets", async (req, res) => {
     flag_relevant: b(p["flag_relevant"]),
     safety_relevant: b(p["safety_relevant"]),
     environmental_relevant: b(p["environmental_relevant"]),
+    photo_urls: jsonArray(p["photo_urls"]),
+    document_urls: jsonArray(p["document_urls"]),
     replacement_cost: n(p["replacement_cost"]),
     replacement_cost_currency: s(p["replacement_cost_currency"]) ?? "EUR",
     external_key: s(p["external_key"]),
@@ -363,7 +365,7 @@ router.patch("/maintenance/yachts/:yachtId/assets/:assetId", async (req, res) =>
     "vessel_system_id", "parent_asset_id", "asset_type", "name", "display_name", "asset_code", "manufacturer", "model",
     "serial_number", "part_number", "location_id", "criticality", "operational_status", "condition_status",
     "warranty_start", "warranty_end", "warranty_hours_limit", "class_relevant", "flag_relevant", "safety_relevant",
-    "environmental_relevant", "replacement_cost", "replacement_cost_currency",
+    "environmental_relevant", "photo_urls", "document_urls", "replacement_cost", "replacement_cost_currency",
   ];
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   for (const key of allowed) if (key in p) patch[key] = p[key];

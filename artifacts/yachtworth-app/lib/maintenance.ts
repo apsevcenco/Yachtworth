@@ -46,14 +46,33 @@ export type EquipmentAsset = {
   maintenance_system_id?: string | null;
   parent_asset_id?: string | null;
   name: string;
+  display_name?: string | null;
+  asset_code?: string | null;
   asset_type?: string | null;
   manufacturer?: string | null;
   model?: string | null;
   serial_number?: string | null;
+  part_number?: string | null;
   status?: string | null;
   criticality?: string | null;
+  operational_status?: string | null;
+  condition_status?: string | null;
   location_label?: string | null;
+  warranty_start?: string | null;
   warranty_expires_at?: string | null;
+  warranty_end?: string | null;
+  warranty_hours_limit?: number | null;
+  replacement_cost?: number | null;
+  replacement_cost_currency?: string | null;
+  class_relevant?: boolean | null;
+  flag_relevant?: boolean | null;
+  safety_relevant?: boolean | null;
+  environmental_relevant?: boolean | null;
+  photo_urls?: string[] | null;
+  document_urls?: string[] | null;
+  maintenance_systems?: { name?: string | null; code?: string | null } | null;
+  equipment_locations?: { name?: string | null; compartment?: string | null } | null;
+  equipment_counters?: EquipmentCounter[] | null;
 };
 
 export type EquipmentCounter = {
@@ -62,6 +81,8 @@ export type EquipmentCounter = {
   counter_type: string;
   unit: string;
   current_value: number;
+  is_primary?: boolean | null;
+  last_reading_at?: string | null;
 };
 
 export type MaintenanceTask = {
@@ -211,6 +232,17 @@ export async function getEquipmentAssets(yachtId: string): Promise<EquipmentAsse
 export async function createEquipmentAsset(yachtId: string, input: Partial<EquipmentAsset>): Promise<EquipmentAsset> {
   return request(`/api/maintenance/yachts/${yachtId}/assets`, {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateEquipmentAsset(
+  yachtId: string,
+  assetId: string,
+  input: Partial<EquipmentAsset>,
+): Promise<EquipmentAsset> {
+  return request(`/api/maintenance/yachts/${yachtId}/assets/${assetId}`, {
+    method: "PATCH",
     body: JSON.stringify(input),
   });
 }

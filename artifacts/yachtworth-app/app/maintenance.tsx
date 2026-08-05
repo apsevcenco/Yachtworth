@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   createDefect,
   createEquipmentAsset,
+  createEquipmentCounter,
   createMaintenancePlan,
   createServiceEvent,
   createSparePart,
@@ -33,8 +34,11 @@ import {
   getSpareParts,
   getWorkOrders,
   getYachts,
+  recordCounterReading,
   seedMaintenanceSystems,
+  updateEquipmentAsset,
   type Defect,
+  type EquipmentCounter,
   type EquipmentAsset,
   type MaintenanceDashboard,
   type MaintenanceSystem,
@@ -271,6 +275,9 @@ export default function MaintenanceScreen() {
                   systems={systemsQ.data ?? []}
                   assets={assetsQ.data ?? []}
                   onCreate={(input) => run("Saving asset", () => createEquipmentAsset(yachtId, input))}
+                  onUpdate={(assetId, input) => run("Updating asset", () => updateEquipmentAsset(yachtId, assetId, input))}
+                  onCreateCounter={(assetId, input) => run("Saving counter", () => createEquipmentCounter(yachtId, assetId, input))}
+                  onRecordReading={(counterId, value) => run("Recording reading", () => recordCounterReading(yachtId, counterId, value))}
                 />
               ) : null}
               {tab === "tasks" ? (
@@ -355,30 +362,292 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
   );
 }
 
-function Equipment({ systems, assets, onCreate }: { systems: MaintenanceSystem[]; assets: EquipmentAsset[]; onCreate: (input: Partial<EquipmentAsset>) => void }) {
+const CRITICALITY_OPTIONS = [
+  { id: "low", label: "Low" },
+  { id: "normal", label: "Normal" },
+  { id: "important", label: "Important" },
+  { id: "critical", label: "Critical" },
+  { id: "safety_critical", label: "Safety critical" },
+];
+
+const OPERATIONAL_OPTIONS = [
+  { id: "operational", label: "Operational" },
+  { id: "operational_with_limitations", label: "Limited" },
+  { id: "service_due", label: "Service due" },
+  { id: "maintenance_in_progress", label: "In maintenance" },
+  { id: "unavailable", label: "Unavailable" },
+  { id: "laid_up", label: "Laid up" },
+];
+
+const COUNTER_OPTIONS = [
+  { id: "running_hours", label: "Running hours" },
+  { id: "engine_hours", label: "Engine hours" },
+  { id: "operating_hours", label: "Operating hours" },
+  { id: "starts", label: "Starts" },
+  { id: "cycles", label: "Cycles" },
+  { id: "custom", label: "Custom" },
+];
+
+function csvToList(value: string): string[] {
+  return value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function Equipment({
+  systems,
+  assets,
+  onCreate,
+  onUpdate,
+  onCreateCounter,
+  onRecordReading,
+}: {
+  systems: MaintenanceSystem[];
+  assets: EquipmentAsset[];
+  onCreate: (input: Partial<EquipmentAsset>) => void;
+  onUpdate: (assetId: string, input: Partial<EquipmentAsset>) => void;
+  onCreateCounter: (assetId: string, input: Partial<EquipmentCounter>) => void;
+  onRecordReading: (counterId: string, value: number) => void;
+}) {
   const [name, setName] = useState("");
+  const [assetType, setAssetType] = useState("");
+  const [assetCode, setAssetCode] = useState("");
   const [manufacturer, setManufacturer] = useState("");
   const [model, setModel] = useState("");
   const [serial, setSerial] = useState("");
+  const [partNumber, setPartNumber] = useState("");
+  const [criticality, setCriticality] = useState("normal");
+  const [operational, setOperational] = useState("operational");
+  const [condition, setCondition] = useState("");
+  const [warrantyEnd, setWarrantyEnd] = useState("");
+  const [warrantyHours, setWarrantyHours] = useState("");
+  const [replacementCost, setReplacementCost] = useState("");
+  const [photoUrls, setPhotoUrls] = useState("");
+  const [documentUrls, setDocumentUrls] = useState("");
+  const [classRelevant, setClassRelevant] = useState(false);
+  const [flagRelevant, setFlagRelevant] = useState(false);
+  const [safetyRelevant, setSafetyRelevant] = useState(false);
+  const [environmentalRelevant, setEnvironmentalRelevant] = useState(false);
   const [systemId, setSystemId] = useState<string | null>(systems[0]?.id ?? null);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(assets[0]?.id ?? null);
   const currentSystemId = systemId ?? systems[0]?.id ?? null;
+  const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
+  const selectedCounter = selectedAsset?.equipment_counters?.[0];
+
+  const reset = () => {
+    setName("");
+    setAssetType("");
+    setAssetCode("");
+    setManufacturer("");
+    setModel("");
+    setSerial("");
+    setPartNumber("");
+    setCriticality("normal");
+    setOperational("operational");
+    setCondition("");
+    setWarrantyEnd("");
+    setWarrantyHours("");
+    setReplacementCost("");
+    setPhotoUrls("");
+    setDocumentUrls("");
+    setClassRelevant(false);
+    setFlagRelevant(false);
+    setSafetyRelevant(false);
+    setEnvironmentalRelevant(false);
+  };
+
   return (
     <View>
       <Form title="Add equipment asset">
         <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Port main engine" />
+        <Field label="Asset type" value={assetType} onChangeText={setAssetType} placeholder="Engine, generator, pump, charger..." />
+        <Field label="Asset code" value={assetCode} onChangeText={setAssetCode} placeholder="ME-P, GEN-S, AC-01..." />
         <Field label="Manufacturer" value={manufacturer} onChangeText={setManufacturer} placeholder="MAN, Kohler, Atlas..." />
         <Field label="Model" value={model} onChangeText={setModel} />
         <Field label="Serial number" value={serial} onChangeText={setSerial} />
+        <Field label="Part number" value={partNumber} onChangeText={setPartNumber} />
+        <Field label="Condition status" value={condition} onChangeText={setCondition} placeholder="Good, service due, monitor..." />
+        <Field label="Warranty end" value={warrantyEnd} onChangeText={setWarrantyEnd} placeholder="YYYY-MM-DD" />
+        <Field label="Warranty hours limit" value={warrantyHours} onChangeText={setWarrantyHours} />
+        <Field label="Replacement cost EUR" value={replacementCost} onChangeText={setReplacementCost} />
+        <Field label="Photo URLs" value={photoUrls} onChangeText={setPhotoUrls} placeholder="One or more URLs, comma or new line separated" multiline />
+        <Field label="Document URLs" value={documentUrls} onChangeText={setDocumentUrls} placeholder="Manuals, invoices, certificates" multiline />
+        <Text style={styles.label}>System</Text>
         <ChipSelect items={systems.map((s) => ({ id: s.id, label: s.name }))} selected={currentSystemId} onSelect={setSystemId} />
+        <Text style={styles.label}>Criticality</Text>
+        <ChipSelect items={CRITICALITY_OPTIONS} selected={criticality} onSelect={setCriticality} />
+        <Text style={styles.label}>Operational status</Text>
+        <ChipSelect items={OPERATIONAL_OPTIONS} selected={operational} onSelect={setOperational} />
+        <View style={styles.toggleGrid}>
+          <FlagToggle label="Class relevant" value={classRelevant} onPress={() => setClassRelevant((v) => !v)} />
+          <FlagToggle label="Flag relevant" value={flagRelevant} onPress={() => setFlagRelevant((v) => !v)} />
+          <FlagToggle label="Safety" value={safetyRelevant} onPress={() => setSafetyRelevant((v) => !v)} />
+          <FlagToggle label="Environmental" value={environmentalRelevant} onPress={() => setEnvironmentalRelevant((v) => !v)} />
+        </View>
         <Button label="Save asset" icon="save" onPress={() => {
-          onCreate({ name, manufacturer, model, serial_number: serial, vessel_system_id: currentSystemId });
-          setName(""); setManufacturer(""); setModel(""); setSerial("");
+          onCreate({
+            name,
+            asset_type: assetType,
+            asset_code: assetCode,
+            manufacturer,
+            model,
+            serial_number: serial,
+            part_number: partNumber,
+            vessel_system_id: currentSystemId,
+            criticality,
+            operational_status: operational,
+            condition_status: condition,
+            warranty_end: warrantyEnd || undefined,
+            warranty_hours_limit: warrantyHours ? Number(warrantyHours) : undefined,
+            replacement_cost: replacementCost ? Number(replacementCost) : undefined,
+            replacement_cost_currency: "EUR",
+            class_relevant: classRelevant,
+            flag_relevant: flagRelevant,
+            safety_relevant: safetyRelevant,
+            environmental_relevant: environmentalRelevant,
+            photo_urls: csvToList(photoUrls),
+            document_urls: csvToList(documentUrls),
+          });
+          reset();
         }} disabled={!name || !currentSystemId} />
       </Form>
       <SectionList title="Equipment register" items={assets} empty="No equipment assets yet." render={(item: EquipmentAsset) => (
-        <Row title={item.name} meta={[item.manufacturer, item.model, item.serial_number].filter(Boolean).join(" - ")} status={item.criticality ?? item.status} />
+        <Pressable onPress={() => setSelectedAssetId(item.id)}>
+          <Row
+            title={item.display_name ?? item.name}
+            meta={[item.maintenance_systems?.name, item.manufacturer, item.model, item.serial_number].filter(Boolean).join(" - ")}
+            status={item.criticality ?? item.operational_status ?? item.status}
+          />
+        </Pressable>
       )} />
+      {selectedAsset ? (
+        <EquipmentDetail
+          asset={selectedAsset}
+          systems={systems}
+          counter={selectedCounter}
+          onUpdate={(input) => onUpdate(selectedAsset.id, input)}
+          onCreateCounter={(input) => onCreateCounter(selectedAsset.id, input)}
+          onRecordReading={(value) => selectedCounter ? onRecordReading(selectedCounter.id, value) : undefined}
+        />
+      ) : null}
     </View>
+  );
+}
+
+function EquipmentDetail({
+  asset,
+  systems,
+  counter,
+  onUpdate,
+  onCreateCounter,
+  onRecordReading,
+}: {
+  asset: EquipmentAsset;
+  systems: MaintenanceSystem[];
+  counter?: EquipmentCounter | null;
+  onUpdate: (input: Partial<EquipmentAsset>) => void;
+  onCreateCounter: (input: Partial<EquipmentCounter>) => void;
+  onRecordReading: (value: number) => void | undefined;
+}) {
+  const [criticality, setCriticality] = useState(asset.criticality ?? "normal");
+  const [operational, setOperational] = useState(asset.operational_status ?? "operational");
+  const [condition, setCondition] = useState(asset.condition_status ?? "");
+  const [systemId, setSystemId] = useState(asset.vessel_system_id ?? systems[0]?.id ?? null);
+  const [counterType, setCounterType] = useState("running_hours");
+  const [counterValue, setCounterValue] = useState("");
+  const [readingValue, setReadingValue] = useState("");
+  useEffect(() => {
+    setCriticality(asset.criticality ?? "normal");
+    setOperational(asset.operational_status ?? "operational");
+    setCondition(asset.condition_status ?? "");
+    setSystemId(asset.vessel_system_id ?? systems[0]?.id ?? null);
+    setReadingValue("");
+    setCounterValue("");
+  }, [asset.id, asset.criticality, asset.operational_status, asset.condition_status, asset.vessel_system_id, systems]);
+  return (
+    <Form title="Equipment card">
+      <View style={styles.detailGrid}>
+        <Detail label="Name" value={asset.display_name ?? asset.name} />
+        <Detail label="System" value={asset.maintenance_systems?.name} />
+        <Detail label="Type" value={asset.asset_type} />
+        <Detail label="Code" value={asset.asset_code} />
+        <Detail label="Maker" value={asset.manufacturer} />
+        <Detail label="Model" value={asset.model} />
+        <Detail label="Serial" value={asset.serial_number} />
+        <Detail label="Part no." value={asset.part_number} />
+        <Detail label="Warranty" value={asset.warranty_end ?? asset.warranty_expires_at} />
+        <Detail label="Replacement" value={asset.replacement_cost != null ? `€${Number(asset.replacement_cost).toLocaleString("en-US")}` : undefined} />
+      </View>
+      <Text style={styles.label}>System</Text>
+      <ChipSelect items={systems.map((s) => ({ id: s.id, label: s.name }))} selected={systemId} onSelect={setSystemId} />
+      <Text style={styles.label}>Criticality</Text>
+      <ChipSelect items={CRITICALITY_OPTIONS} selected={criticality} onSelect={setCriticality} />
+      <Text style={styles.label}>Operational status</Text>
+      <ChipSelect items={OPERATIONAL_OPTIONS} selected={operational} onSelect={setOperational} />
+      <Field label="Condition status" value={condition} onChangeText={setCondition} />
+      <Button
+        label="Update equipment card"
+        icon="edit-3"
+        onPress={() => onUpdate({
+          vessel_system_id: systemId,
+          criticality,
+          operational_status: operational,
+          condition_status: condition,
+        })}
+      />
+
+      <View style={styles.subPanel}>
+        <Text style={styles.sectionTitle}>Counters</Text>
+        {counter ? (
+          <>
+            <Row title={`${counter.counter_type} · ${Number(counter.current_value ?? 0).toLocaleString("en-US")} ${counter.unit}`} meta={counter.last_reading_at?.slice(0, 10)} status={counter.is_primary ? "primary" : "counter"} />
+            <Field label="New reading" value={readingValue} onChangeText={setReadingValue} placeholder="Current hours / cycles" />
+            <Button label="Record reading" icon="activity" onPress={() => {
+              const value = Number(readingValue);
+              if (Number.isFinite(value)) {
+                onRecordReading(value);
+                setReadingValue("");
+              }
+            }} disabled={!readingValue} />
+          </>
+        ) : (
+          <>
+            <Text style={styles.muted}>No counter on this asset yet.</Text>
+            <Text style={styles.label}>Counter type</Text>
+            <ChipSelect items={COUNTER_OPTIONS} selected={counterType} onSelect={setCounterType} />
+            <Field label="Initial value" value={counterValue} onChangeText={setCounterValue} placeholder="0" />
+            <Button label="Create counter" icon="plus-circle" onPress={() => {
+              onCreateCounter({
+                counter_type: counterType,
+                unit: counterType.includes("hour") ? "hours" : "count",
+                current_value: Number(counterValue) || 0,
+                is_primary: true,
+              });
+              setCounterValue("");
+            }} />
+          </>
+        )}
+      </View>
+    </Form>
+  );
+}
+
+function Detail({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <View style={styles.detailItem}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value == null || value === "" ? "—" : String(value)}</Text>
+    </View>
+  );
+}
+
+function FlagToggle({ label, value, onPress }: { label: string; value: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={[styles.toggle, value && styles.toggleActive]} onPress={onPress}>
+      <Feather name={value ? "check-square" : "square"} size={16} color={value ? NAVY : GOLD} />
+      <Text style={[styles.toggleText, value && styles.toggleTextActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -632,6 +901,16 @@ const styles = StyleSheet.create({
   label: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", marginBottom: 7 },
   input: { borderWidth: 1, borderColor: "rgba(247,243,236,0.14)", borderRadius: 8, backgroundColor: PANEL, color: IVORY, fontFamily: "Inter_500Medium", fontSize: 15, minHeight: 48, paddingHorizontal: 14, paddingVertical: 10 },
   inputTall: { minHeight: 94, textAlignVertical: "top" },
+  toggleGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
+  toggle: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: PANEL, paddingHorizontal: 12, paddingVertical: 10 },
+  toggleActive: { backgroundColor: GOLD, borderColor: GOLD },
+  toggleText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  toggleTextActive: { color: NAVY },
+  detailGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
+  detailItem: { minWidth: 150, flexGrow: 1, flexBasis: "30%", borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: PANEL, padding: 12 },
+  detailLabel: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 5 },
+  detailValue: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 14, lineHeight: 19 },
+  subPanel: { borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 14, marginTop: 12, backgroundColor: "rgba(247,243,236,0.035)" },
   chips: { gap: 8, paddingBottom: 4, marginBottom: 8 },
   smallChip: { borderRadius: 8, borderWidth: 1, borderColor: LINE, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: PANEL },
   smallChipActive: { borderColor: GOLD },
