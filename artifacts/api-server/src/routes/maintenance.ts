@@ -911,12 +911,14 @@ router.post("/maintenance/yachts/:yachtId/parts", async (req, res) => {
   }
   const sb = getSupabase()!;
   const quantity = n(p["quantity_on_hand"]) ?? 0;
+  const assetId = uuid(p["equipment_asset_id"]);
   const { data, error } = await sb.from(SPARE_PARTS_TABLE).insert({
     yacht_id: yachtId,
-    equipment_asset_id: s(p["equipment_asset_id"]),
+    equipment_asset_id: assetId,
     part_number: s(p["part_number"]),
     name,
     manufacturer: s(p["manufacturer"]),
+    compatible_asset_ids: jsonArray(p["compatible_asset_ids"]).map(String).filter((id) => isUuid(id)),
     quantity_on_hand: quantity,
     minimum_stock: n(p["minimum_stock"]) ?? 0,
     reorder_level: n(p["reorder_level"]) ?? 0,
@@ -943,6 +945,71 @@ router.post("/maintenance/yachts/:yachtId/parts", async (req, res) => {
     });
   }
   await audit(yachtId, req.userId, "part_created", "spare_part", data.id, data);
+  res.status(201).json(data);
+});
+
+router.patch("/maintenance/yachts/:yachtId/parts/:partId", async (req, res) => {
+  const yachtId = req.params["yachtId"]!;
+  const partId = req.params["partId"]!;
+  if (!(await assertYacht(req, res, yachtId))) return;
+  const p = body(req);
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const allowed = ["part_number", "name", "manufacturer", "minimum_stock", "reorder_level", "unit", "unit_cost", "currency", "expiry_date", "notes"];
+  for (const key of allowed) if (key in p) patch[key] = p[key];
+  if ("equipment_asset_id" in p) patch["equipment_asset_id"] = uuid(p["equipment_asset_id"]);
+  if ("compatible_asset_ids" in p) patch["compatible_asset_ids"] = jsonArray(p["compatible_asset_ids"]).map(String).filter((id) => isUuid(id));
+  const sb = getSupabase()!;
+  const { data, error } = await sb.from(SPARE_PARTS_TABLE).update(patch).eq("id", partId).eq("yacht_id", yachtId).select("*").maybeSingle();
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  if (!data) {
+    res.status(404).json({ error: "Spare part not found" });
+    return;
+  }
+  await audit(yachtId, req.userId, "part_updated", "spare_part", partId, patch);
+  res.json(data);
+});
+
+router.post("/maintenance/yachts/:yachtId/parts/:partId/movements", async (req, res) => {
+  const yachtId = req.params["yachtId"]!;
+  const partId = req.params["partId"]!;
+  if (!(await assertYacht(req, res, yachtId))) return;
+  const p = body(req);
+  const quantity = n(p["quantity"]);
+  const movementType = s(p["movement_type"]) ?? "adjust";
+  if (quantity == null || quantity <= 0) {
+    res.status(400).json({ error: "positive quantity required" });
+    return;
+  }
+  const sb = getSupabase()!;
+  const { data: part, error: partError } = await sb.from(SPARE_PARTS_TABLE).select("*").eq("id", partId).eq("yacht_id", yachtId).maybeSingle();
+  if (partError || !part) {
+    res.status(partError ? 500 : 404).json({ error: partError?.message ?? "Spare part not found" });
+    return;
+  }
+  const previous = Number(part.quantity_on_hand ?? 0);
+  const direction = ["consume", "reserve", "scrap", "transfer"].includes(movementType) ? -1 : 1;
+  const next = Math.max(0, previous + direction * quantity);
+  const { data, error } = await sb.from(INVENTORY_MOVEMENTS_TABLE).insert({
+    yacht_id: yachtId,
+    spare_part_id: partId,
+    work_order_id: uuid(p["work_order_id"]),
+    service_event_id: uuid(p["service_event_id"]),
+    movement_type: movementType,
+    quantity,
+    previous_quantity: previous,
+    next_quantity: next,
+    notes: s(p["notes"]),
+    created_by: req.userId,
+  }).select("*").single();
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  await sb.from(SPARE_PARTS_TABLE).update({ quantity_on_hand: next, updated_at: new Date().toISOString() }).eq("id", partId).eq("yacht_id", yachtId);
+  await audit(yachtId, req.userId, "inventory_movement_created", "inventory_movement", data.id, data);
   res.status(201).json(data);
 });
 

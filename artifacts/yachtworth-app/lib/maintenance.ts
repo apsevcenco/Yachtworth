@@ -217,9 +217,28 @@ export type SparePart = {
   name: string;
   part_number?: string | null;
   manufacturer?: string | null;
+  compatible_asset_ids?: string[] | null;
+  location_id?: string | null;
   quantity_on_hand: number;
   minimum_stock: number;
+  reorder_level?: number | null;
   unit?: string | null;
+  unit_cost?: number | null;
+  currency?: string | null;
+  expiry_date?: string | null;
+  notes?: string | null;
+};
+
+export type InventoryMovement = {
+  id: string;
+  yacht_id: string;
+  spare_part_id: string;
+  movement_type: string;
+  quantity: number;
+  previous_quantity?: number | null;
+  next_quantity?: number | null;
+  notes?: string | null;
+  created_at?: string | null;
 };
 
 async function headers(): Promise<Record<string, string>> {
@@ -416,6 +435,28 @@ export async function getSpareParts(yachtId: string): Promise<SparePart[]> {
 
 export async function createSparePart(yachtId: string, input: Partial<SparePart>): Promise<SparePart> {
   return request(`/api/maintenance/yachts/${yachtId}/parts`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateSparePart(
+  yachtId: string,
+  partId: string,
+  input: Partial<SparePart>,
+): Promise<SparePart> {
+  return request(`/api/maintenance/yachts/${yachtId}/parts/${partId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createInventoryMovement(
+  yachtId: string,
+  partId: string,
+  input: Partial<InventoryMovement>,
+): Promise<InventoryMovement> {
+  return request(`/api/maintenance/yachts/${yachtId}/parts/${partId}/movements`, {
     method: "POST",
     body: JSON.stringify(input),
   });

@@ -38,7 +38,9 @@ import {
   seedMaintenanceSystems,
   updateEquipmentAsset,
   updateDefect,
+  updateSparePart,
   updateWorkOrder,
+  createInventoryMovement,
   type Defect,
   type EquipmentCounter,
   type EquipmentAsset,
@@ -46,6 +48,7 @@ import {
   type MaintenanceSystem,
   type MaintenanceTask,
   type ServiceEvent,
+  type InventoryMovement,
   type SparePart,
   type WorkOrder,
   type YachtOption,
@@ -388,6 +391,8 @@ export default function MaintenanceScreen() {
                   assets={assetsQ.data ?? []}
                   parts={partsQ.data ?? []}
                   onCreate={(input) => run("Saving part", () => createSparePart(yachtId, input))}
+                  onUpdate={(partId, input) => run("Updating part", () => updateSparePart(yachtId, partId, input))}
+                  onMove={(partId, input) => run("Recording inventory movement", () => createInventoryMovement(yachtId, partId, input))}
                 />
               ) : null}
             </View>
@@ -1475,25 +1480,184 @@ function History({ assets, events, onCreate }: { assets: EquipmentAsset[]; event
   );
 }
 
-function Parts({ assets, parts, onCreate }: { assets: EquipmentAsset[]; parts: SparePart[]; onCreate: (input: Partial<SparePart>) => void }) {
+function Parts({
+  assets,
+  parts,
+  onCreate,
+  onUpdate,
+  onMove,
+}: {
+  assets: EquipmentAsset[];
+  parts: SparePart[];
+  onCreate: (input: Partial<SparePart>) => void;
+  onUpdate: (partId: string, input: Partial<SparePart>) => void;
+  onMove: (partId: string, input: Partial<InventoryMovement>) => void;
+}) {
   const [name, setName] = useState("");
   const [partNumber, setPartNumber] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [minimumStock, setMinimumStock] = useState("1");
+  const [reorderLevel, setReorderLevel] = useState("1");
+  const [unit, setUnit] = useState("pcs");
+  const [unitCost, setUnitCost] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
+  const [compatibleAssetIds, setCompatibleAssetIds] = useState<string[]>(assets[0]?.id ? [assets[0].id] : []);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const toggleCompatible = (id: string) => {
+    setCompatibleAssetIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  };
+
+  const reset = () => {
+    setName("");
+    setPartNumber("");
+    setManufacturer("");
+    setQuantity("1");
+    setMinimumStock("1");
+    setReorderLevel("1");
+    setUnit("pcs");
+    setUnitCost("");
+    setExpiryDate("");
+    setNotes("");
+  };
+
   return (
     <View>
       <Form title="Add spare part">
         <Field label="Name" value={name} onChangeText={setName} />
         <Field label="Part number" value={partNumber} onChangeText={setPartNumber} />
-        <Field label="Quantity" value={quantity} onChangeText={setQuantity} />
+        <Field label="Manufacturer" value={manufacturer} onChangeText={setManufacturer} />
+        <Field label="Quantity on hand" value={quantity} onChangeText={setQuantity} />
+        <Field label="Minimum stock" value={minimumStock} onChangeText={setMinimumStock} />
+        <Field label="Reorder level" value={reorderLevel} onChangeText={setReorderLevel} />
+        <Field label="Unit" value={unit} onChangeText={setUnit} placeholder="pcs / L / set" />
+        <Field label="Unit cost EUR" value={unitCost} onChangeText={setUnitCost} />
+        <Field label="Expiry date" value={expiryDate} onChangeText={setExpiryDate} placeholder="YYYY-MM-DD, optional" />
+        <Field label="Notes" value={notes} onChangeText={setNotes} multiline />
+        <Text style={styles.label}>Primary equipment</Text>
         <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={assetId ?? assets[0]?.id ?? null} onSelect={setAssetId} />
-        <Button label="Save part" icon="package" onPress={() => { onCreate({ name, part_number: partNumber, quantity_on_hand: Number(quantity) || 0, equipment_asset_id: assetId ?? assets[0]?.id }); setName(""); setPartNumber(""); setQuantity("1"); }} disabled={!name} />
+        <Text style={styles.label}>Compatible equipment</Text>
+        <View style={styles.toggleGrid}>
+          {assets.map((asset) => (
+            <FlagToggle key={asset.id} label={asset.name} value={compatibleAssetIds.includes(asset.id)} onPress={() => toggleCompatible(asset.id)} />
+          ))}
+        </View>
+        <Button
+          label="Save part"
+          icon="package"
+          onPress={() => {
+            onCreate({
+              name,
+              part_number: partNumber,
+              manufacturer,
+              quantity_on_hand: Number(quantity) || 0,
+              minimum_stock: Number(minimumStock) || 0,
+              reorder_level: Number(reorderLevel) || 0,
+              unit,
+              unit_cost: unitCost ? Number(unitCost) : undefined,
+              currency: "EUR",
+              expiry_date: expiryDate || undefined,
+              notes,
+              equipment_asset_id: assetId ?? assets[0]?.id,
+              compatible_asset_ids: compatibleAssetIds,
+            });
+            reset();
+          }}
+          disabled={!name}
+        />
       </Form>
       <SectionList title="Inventory" items={parts} empty="No spare parts yet." render={(item: SparePart) => (
-        <Row title={item.name} meta={[item.part_number, `${item.quantity_on_hand} ${item.unit ?? "pcs"}`].filter(Boolean).join(" - ")} status={item.quantity_on_hand <= item.minimum_stock ? "low stock" : "stock ok"} />
+        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+          <Row
+            title={item.name}
+            meta={[
+              item.part_number,
+              item.manufacturer,
+              `${item.quantity_on_hand} ${item.unit ?? "pcs"}`,
+              item.unit_cost != null ? `EUR ${Number(item.unit_cost).toLocaleString("en-US")}` : null,
+            ].filter(Boolean).join(" - ")}
+            status={partStockStatus(item)}
+          />
+          {expandedId === item.id ? <PartDetail part={item} onUpdate={(input) => onUpdate(item.id, input)} onMove={(input) => onMove(item.id, input)} /> : null}
+        </Pressable>
       )} />
     </View>
   );
+}
+
+function PartDetail({ part, onUpdate, onMove }: { part: SparePart; onUpdate: (input: Partial<SparePart>) => void; onMove: (input: Partial<InventoryMovement>) => void }) {
+  const [minimumStock, setMinimumStock] = useState(String(part.minimum_stock ?? 0));
+  const [reorderLevel, setReorderLevel] = useState(String(part.reorder_level ?? 0));
+  const [unitCost, setUnitCost] = useState(part.unit_cost != null ? String(part.unit_cost) : "");
+  const [notes, setNotes] = useState(part.notes ?? "");
+  const [moveType, setMoveType] = useState("receive");
+  const [moveQuantity, setMoveQuantity] = useState("1");
+  const [moveNotes, setMoveNotes] = useState("");
+  return (
+    <View style={styles.subPanel}>
+      <View style={styles.detailGrid}>
+        <Detail label="Part number" value={part.part_number} />
+        <Detail label="Manufacturer" value={part.manufacturer} />
+        <Detail label="Stock" value={`${part.quantity_on_hand} ${part.unit ?? "pcs"}`} />
+        <Detail label="Minimum" value={part.minimum_stock} />
+        <Detail label="Reorder" value={part.reorder_level} />
+        <Detail label="Expiry" value={part.expiry_date} />
+      </View>
+      <Field label="Minimum stock" value={minimumStock} onChangeText={setMinimumStock} />
+      <Field label="Reorder level" value={reorderLevel} onChangeText={setReorderLevel} />
+      <Field label="Unit cost EUR" value={unitCost} onChangeText={setUnitCost} />
+      <Field label="Notes" value={notes} onChangeText={setNotes} multiline />
+      <Button
+        label="Save inventory settings"
+        icon="save"
+        onPress={() => onUpdate({
+          minimum_stock: Number(minimumStock) || 0,
+          reorder_level: Number(reorderLevel) || 0,
+          unit_cost: unitCost ? Number(unitCost) : undefined,
+          notes,
+        })}
+      />
+      <View style={styles.historyBlock}>
+        <Text style={styles.label}>Stock movement</Text>
+        <ChipSelect
+          items={[
+            { id: "receive", label: "Receive" },
+            { id: "consume", label: "Consume" },
+            { id: "reserve", label: "Reserve" },
+            { id: "adjust", label: "Adjust +" },
+            { id: "scrap", label: "Scrap" },
+            { id: "return", label: "Return" },
+          ]}
+          selected={moveType}
+          onSelect={setMoveType}
+        />
+        <Field label="Quantity" value={moveQuantity} onChangeText={setMoveQuantity} />
+        <Field label="Movement notes" value={moveNotes} onChangeText={setMoveNotes} />
+        <Button
+          label="Record movement"
+          icon="shuffle"
+          onPress={() => {
+            onMove({ movement_type: moveType, quantity: Number(moveQuantity) || 0, notes: moveNotes });
+            setMoveQuantity("1");
+            setMoveNotes("");
+          }}
+          disabled={!moveQuantity || Number(moveQuantity) <= 0}
+        />
+      </View>
+    </View>
+  );
+}
+
+function partStockStatus(part: SparePart): string {
+  const quantity = Number(part.quantity_on_hand ?? 0);
+  const minimum = Number(part.minimum_stock ?? 0);
+  const reorder = Number(part.reorder_level ?? 0);
+  if (quantity <= minimum) return "low stock";
+  if (reorder && quantity <= reorder) return "reorder";
+  return "stock ok";
 }
 
 function Form({ title, children }: { title: string; children: React.ReactNode }) {
