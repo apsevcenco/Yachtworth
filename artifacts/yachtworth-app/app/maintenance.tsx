@@ -71,6 +71,14 @@ const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather
   { key: "parts", label: "Parts", icon: "package" },
 ];
 
+const SERVICE_TYPE_OPTIONS = [
+  { id: "manual_service", label: "Manual service" },
+  { id: "scheduled_service", label: "Scheduled service" },
+  { id: "corrective_repair", label: "Corrective repair" },
+  { id: "inspection", label: "Inspection" },
+  { id: "warranty_work", label: "Warranty work" },
+];
+
 function yachtTitle(yacht: YachtOption | undefined): string {
   if (!yacht) return "Select yacht";
   return yacht.name ?? ([yacht.manufacturer, yacht.model].filter(Boolean).join(" ") || "Unnamed yacht");
@@ -304,7 +312,7 @@ export default function MaintenanceScreen() {
                 />
               ) : null}
               {tab === "history" ? (
-                <History
+                <ServiceHistory
                   assets={assetsQ.data ?? []}
                   events={historyQ.data ?? []}
                   onCreate={(input) => run("Saving service event", () => createServiceEvent(yachtId, input))}
@@ -710,6 +718,221 @@ function Defects({ assets, defects, onCreate }: { assets: EquipmentAsset[]; defe
   );
 }
 
+function ServiceHistory({ assets, events, onCreate }: { assets: EquipmentAsset[]; events: ServiceEvent[]; onCreate: (input: Partial<ServiceEvent>) => void }) {
+  const [title, setTitle] = useState("");
+  const [performedBy, setPerformedBy] = useState("");
+  const [completedAt, setCompletedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [startedAt, setStartedAt] = useState("");
+  const [serviceType, setServiceType] = useState("manual_service");
+  const [workPerformed, setWorkPerformed] = useState("");
+  const [defectDescription, setDefectDescription] = useState("");
+  const [rootCause, setRootCause] = useState("");
+  const [counterBefore, setCounterBefore] = useState("");
+  const [counterAfter, setCounterAfter] = useState("");
+  const [labourHours, setLabourHours] = useState("");
+  const [downtimeHours, setDowntimeHours] = useState("");
+  const [cost, setCost] = useState("");
+  const [measurementsBefore, setMeasurementsBefore] = useState("");
+  const [measurementsAfter, setMeasurementsAfter] = useState("");
+  const [partsUsed, setPartsUsed] = useState("");
+  const [fluidsUsed, setFluidsUsed] = useState("");
+  const [testResult, setTestResult] = useState("");
+  const [nextDueAt, setNextDueAt] = useState("");
+  const [nextDueCounter, setNextDueCounter] = useState("");
+  const [approvedBy, setApprovedBy] = useState("");
+  const [authorisedDealer, setAuthorisedDealer] = useState(false);
+  const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const selectedAsset = assetId ?? assets[0]?.id;
+
+  const reset = () => {
+    setTitle("");
+    setPerformedBy("");
+    setCompletedAt(new Date().toISOString().slice(0, 10));
+    setStartedAt("");
+    setServiceType("manual_service");
+    setWorkPerformed("");
+    setDefectDescription("");
+    setRootCause("");
+    setCounterBefore("");
+    setCounterAfter("");
+    setLabourHours("");
+    setDowntimeHours("");
+    setCost("");
+    setMeasurementsBefore("");
+    setMeasurementsAfter("");
+    setPartsUsed("");
+    setFluidsUsed("");
+    setTestResult("");
+    setNextDueAt("");
+    setNextDueCounter("");
+    setApprovedBy("");
+    setAuthorisedDealer(false);
+  };
+
+  return (
+    <View>
+      <Form title="Complete service event">
+        <Field label="Title" value={title} onChangeText={setTitle} placeholder="Port engine annual service" />
+        <ChipSelect items={SERVICE_TYPE_OPTIONS} selected={serviceType} onSelect={setServiceType} />
+        <Field label="Started date" value={startedAt} onChangeText={setStartedAt} placeholder="YYYY-MM-DD, optional" />
+        <Field label="Completed date" value={completedAt} onChangeText={setCompletedAt} placeholder="YYYY-MM-DD" />
+        <Field label="Performed by" value={performedBy} onChangeText={setPerformedBy} />
+        <Field label="Work performed" value={workPerformed} onChangeText={setWorkPerformed} multiline />
+        <Field label="Defect / reason for work" value={defectDescription} onChangeText={setDefectDescription} multiline />
+        <Field label="Root cause summary" value={rootCause} onChangeText={setRootCause} multiline />
+        <Field label="Counter before" value={counterBefore} onChangeText={setCounterBefore} placeholder="Engine/generator hours before" />
+        <Field label="Counter after" value={counterAfter} onChangeText={setCounterAfter} placeholder="Engine/generator hours after" />
+        <Field label="Labour hours" value={labourHours} onChangeText={setLabourHours} />
+        <Field label="Downtime hours" value={downtimeHours} onChangeText={setDowntimeHours} />
+        <Field label="Cost EUR" value={cost} onChangeText={setCost} />
+        <Field label="Measurements before" value={measurementsBefore} onChangeText={setMeasurementsBefore} placeholder={"Oil pressure: 4.2 bar\nCoolant temp: 82 C"} multiline />
+        <Field label="Measurements after" value={measurementsAfter} onChangeText={setMeasurementsAfter} placeholder={"Oil pressure: 4.4 bar\nCoolant temp: 80 C"} multiline />
+        <Field label="Parts used" value={partsUsed} onChangeText={setPartsUsed} placeholder={"Oil filter | 2 | MAN 51.05501-0009\nImpeller | 1"} multiline />
+        <Field label="Fluids used" value={fluidsUsed} onChangeText={setFluidsUsed} placeholder={"Engine oil | 38 | L\nCoolant | 5 | L"} multiline />
+        <Field label="Test result" value={testResult} onChangeText={setTestResult} multiline />
+        <Field label="Next due date" value={nextDueAt} onChangeText={setNextDueAt} placeholder="YYYY-MM-DD, optional" />
+        <Field label="Next due counter" value={nextDueCounter} onChangeText={setNextDueCounter} placeholder="Hours/cycles, optional" />
+        <Field label="Approved by" value={approvedBy} onChangeText={setApprovedBy} />
+        <View style={styles.toggleGrid}>
+          <FlagToggle label="Authorised dealer" value={authorisedDealer} onPress={() => setAuthorisedDealer((value) => !value)} />
+        </View>
+        <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={selectedAsset ?? null} onSelect={setAssetId} />
+        <Button
+          label="Save service event"
+          icon="check-circle"
+          onPress={() => {
+            onCreate({
+              title,
+              service_type: serviceType,
+              technician_id: performedBy,
+              equipment_asset_id: selectedAsset,
+              started_at: startedAt ? new Date(`${startedAt}T09:00:00.000Z`).toISOString() : undefined,
+              completed_at: completedAt ? new Date(`${completedAt}T12:00:00.000Z`).toISOString() : undefined,
+              work_performed: workPerformed,
+              defect_description: defectDescription,
+              root_cause_summary: rootCause,
+              counter_value_before: counterBefore ? Number(counterBefore) : undefined,
+              counter_value_after: counterAfter ? Number(counterAfter) : undefined,
+              labour_hours: labourHours ? Number(labourHours) : undefined,
+              downtime_hours: downtimeHours ? Number(downtimeHours) : undefined,
+              measurements_before: textToObject(measurementsBefore),
+              measurements_after: textToObject(measurementsAfter),
+              parts_used: partsOrFluids(partsUsed, "part"),
+              fluids_used: partsOrFluids(fluidsUsed, "fluid"),
+              cost: cost ? Number(cost) : undefined,
+              currency: "EUR",
+              test_result: testResult,
+              next_due_at: nextDueAt ? new Date(`${nextDueAt}T12:00:00.000Z`).toISOString() : undefined,
+              next_due_counter_value: nextDueCounter ? Number(nextDueCounter) : undefined,
+              approved_by: approvedBy,
+              authorised_dealer: authorisedDealer,
+            });
+            reset();
+          }}
+          disabled={!title || !workPerformed || !selectedAsset}
+        />
+      </Form>
+      <SectionList title="Immutable service history" items={events} empty="No service events yet." render={(item: ServiceEvent) => (
+        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+          <Row
+            title={`${item.service_event_number} - ${item.title}`}
+            meta={[
+              (item.completed_at ?? item.performed_at)?.slice(0, 10),
+              item.equipment_assets?.name,
+              item.technician_id ?? item.performed_by_name,
+              item.cost != null ? `EUR ${Number(item.cost).toLocaleString("en-US")}` : null,
+            ].filter(Boolean).join(" - ")}
+            status={item.service_type}
+          />
+          {expandedId === item.id ? <ServiceEventDetail event={item} /> : null}
+        </Pressable>
+      )} />
+    </View>
+  );
+}
+
+function textToObject(text: string): Record<string, string> {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .reduce<Record<string, string>>((acc, line, index) => {
+      const parts = line.split(":");
+      if (parts.length > 1) {
+        const key = parts.shift()!.trim();
+        acc[key || `measurement_${index + 1}`] = parts.join(":").trim();
+      } else {
+        acc[`measurement_${index + 1}`] = line;
+      }
+      return acc;
+    }, {});
+}
+
+function partsOrFluids(text: string, kind: "part" | "fluid"): Record<string, string | number | null>[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, quantity, unitOrPartNumber] = line.split("|").map((part) => part.trim());
+      return {
+        name,
+        quantity: quantity ? Number(quantity) || quantity : null,
+        [kind === "part" ? "part_number" : "unit"]: unitOrPartNumber || null,
+      };
+    });
+}
+
+function ServiceEventDetail({ event }: { event: ServiceEvent }) {
+  const parts = event.parts_used ?? [];
+  const fluids = event.fluids_used ?? [];
+  return (
+    <View style={styles.subPanel}>
+      <View style={styles.detailGrid}>
+        <Detail label="Equipment" value={event.equipment_assets?.name} />
+        <Detail label="Technician" value={event.technician_id ?? event.performed_by_name} />
+        <Detail label="Counter" value={[event.counter_value_before, event.counter_value_after].filter((v) => v != null).join(" -> ")} />
+        <Detail label="Labour" value={event.labour_hours != null ? `${event.labour_hours} h` : null} />
+        <Detail label="Downtime" value={event.downtime_hours != null ? `${event.downtime_hours} h` : null} />
+        <Detail label="Next due" value={[event.next_due_at?.slice(0, 10), event.next_due_counter_value != null ? `${event.next_due_counter_value}` : null].filter(Boolean).join(" / ")} />
+        <Detail label="Dealer" value={event.authorised_dealer ? "Authorised" : "Not marked"} />
+        <Detail label="Approved by" value={event.approved_by} />
+      </View>
+      {event.defect_description ? <DetailBlock title="Defect / reason" body={event.defect_description} /> : null}
+      {event.root_cause_summary ? <DetailBlock title="Root cause" body={event.root_cause_summary} /> : null}
+      {event.work_performed ? <DetailBlock title="Work performed" body={event.work_performed} /> : null}
+      {event.test_result ? <DetailBlock title="Test result" body={event.test_result} /> : null}
+      {Object.keys(event.measurements_before ?? {}).length ? <DetailBlock title="Measurements before" body={objectLines(event.measurements_before)} /> : null}
+      {Object.keys(event.measurements_after ?? {}).length ? <DetailBlock title="Measurements after" body={objectLines(event.measurements_after)} /> : null}
+      {parts.length ? <DetailBlock title="Parts used" body={itemLines(parts)} /> : null}
+      {fluids.length ? <DetailBlock title="Fluids used" body={itemLines(fluids)} /> : null}
+    </View>
+  );
+}
+
+function DetailBlock({ title, body }: { title: string; body?: string | null }) {
+  if (!body) return null;
+  return (
+    <View style={styles.historyBlock}>
+      <Text style={styles.detailLabel}>{title}</Text>
+      <Text style={styles.historyText}>{body}</Text>
+    </View>
+  );
+}
+
+function objectLines(value?: Record<string, unknown> | null): string {
+  return Object.entries(value ?? {}).map(([key, val]) => `${key}: ${String(val)}`).join("\n");
+}
+
+function itemLines(items: unknown[]): string {
+  return items.map((item) => {
+    if (typeof item !== "object" || item == null) return String(item);
+    const record = item as Record<string, unknown>;
+    return [record.name, record.quantity, record.part_number, record.unit].filter(Boolean).join(" - ");
+  }).join("\n");
+}
+
 function History({ assets, events, onCreate }: { assets: EquipmentAsset[]; events: ServiceEvent[]; onCreate: (input: Partial<ServiceEvent>) => void }) {
   const [title, setTitle] = useState("");
   const [performedBy, setPerformedBy] = useState("");
@@ -911,6 +1134,8 @@ const styles = StyleSheet.create({
   detailLabel: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 5 },
   detailValue: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 14, lineHeight: 19 },
   subPanel: { borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 14, marginTop: 12, backgroundColor: "rgba(247,243,236,0.035)" },
+  historyBlock: { borderTopWidth: 1, borderTopColor: LINE, paddingTop: 12, marginTop: 12 },
+  historyText: { color: IVORY, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
   chips: { gap: 8, paddingBottom: 4, marginBottom: 8 },
   smallChip: { borderRadius: 8, borderWidth: 1, borderColor: LINE, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: PANEL },
   smallChipActive: { borderColor: GOLD },

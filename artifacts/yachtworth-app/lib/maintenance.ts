@@ -141,12 +141,27 @@ export type ServiceEvent = {
   work_performed?: string | null;
   counter_value_before?: number | null;
   counter_value_after?: number | null;
+  cycle_value_before?: number | null;
+  cycle_value_after?: number | null;
+  defect_description?: string | null;
+  root_cause_summary?: string | null;
   labour_hours?: number | null;
   downtime_hours?: number | null;
+  measurements_before?: Record<string, unknown> | null;
+  measurements_after?: Record<string, unknown> | null;
+  parts_used?: unknown[] | null;
+  fluids_used?: unknown[] | null;
   cost?: number | null;
   currency?: string | null;
   test_result?: string | null;
   next_due_at?: string | null;
+  next_due_counter_value?: number | null;
+  authorised_dealer?: boolean | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  signed_off_by?: string | null;
+  signed_off_at?: string | null;
+  maintenance_vendors?: { name?: string | null } | null;
   equipment_assets?: EquipmentAsset | null;
 };
 
