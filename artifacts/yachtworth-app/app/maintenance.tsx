@@ -37,6 +37,7 @@ import {
   recordCounterReading,
   seedMaintenanceSystems,
   updateEquipmentAsset,
+  updateWorkOrder,
   type Defect,
   type EquipmentCounter,
   type EquipmentAsset,
@@ -92,6 +93,27 @@ const PRIORITY_OPTIONS = [
   { id: "normal", label: "Normal" },
   { id: "high", label: "High" },
   { id: "critical", label: "Critical" },
+];
+
+const WORK_ORDER_TYPE_OPTIONS = [
+  { id: "corrective_maintenance", label: "Corrective" },
+  { id: "preventive_maintenance", label: "Preventive" },
+  { id: "inspection", label: "Inspection" },
+  { id: "repair", label: "Repair" },
+  { id: "yard_work", label: "Yard work" },
+];
+
+const WORK_ORDER_STATUS_OPTIONS = [
+  { id: "requested", label: "Requested" },
+  { id: "approved", label: "Approved" },
+  { id: "planned", label: "Planned" },
+  { id: "scheduled", label: "Scheduled" },
+  { id: "in_progress", label: "In progress" },
+  { id: "waiting_for_parts", label: "Parts" },
+  { id: "waiting_for_vendor", label: "Vendor" },
+  { id: "completed", label: "Completed" },
+  { id: "pending_verification", label: "Verify" },
+  { id: "cancelled", label: "Cancelled" },
 ];
 
 function yachtTitle(yacht: YachtOption | undefined): string {
@@ -315,8 +337,10 @@ export default function MaintenanceScreen() {
               ) : null}
               {tab === "work" ? (
                 <WorkOrders
+                  assets={assetsQ.data ?? []}
                   workOrders={workQ.data ?? []}
                   onCreate={(input) => run("Creating work order", () => createWorkOrder(yachtId, input))}
+                  onUpdate={(workOrderId, input) => run("Updating work order", () => updateWorkOrder(yachtId, workOrderId, input))}
                 />
               ) : null}
               {tab === "defects" ? (
@@ -799,21 +823,185 @@ function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; task
   );
 }
 
-function WorkOrders({ workOrders, onCreate }: { workOrders: WorkOrder[]; onCreate: (input: Partial<WorkOrder>) => void }) {
+function WorkOrders({
+  assets,
+  workOrders,
+  onCreate,
+  onUpdate,
+}: {
+  assets: EquipmentAsset[];
+  workOrders: WorkOrder[];
+  onCreate: (input: Partial<WorkOrder>) => void;
+  onUpdate: (workOrderId: string, input: Partial<WorkOrder>) => void;
+}) {
   const [title, setTitle] = useState("");
-  const [assigned, setAssigned] = useState("");
+  const [description, setDescription] = useState("");
+  const [workOrderType, setWorkOrderType] = useState("corrective_maintenance");
+  const [priority, setPriority] = useState("normal");
+  const [riskLevel, setRiskLevel] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [plannedStart, setPlannedStart] = useState("");
+  const [plannedEnd, setPlannedEnd] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("");
+  const [estimatedCost, setEstimatedCost] = useState("");
+  const [quotationId, setQuotationId] = useState("");
+  const [purchaseOrderId, setPurchaseOrderId] = useState("");
+  const [safetyCritical, setSafetyCritical] = useState(false);
+  const [downtimeExpected, setDowntimeExpected] = useState(false);
+  const [permitRequired, setPermitRequired] = useState(false);
+  const [riskAssessmentRequired, setRiskAssessmentRequired] = useState(false);
+  const [lockoutRequired, setLockoutRequired] = useState(false);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(assets[0]?.id ? [assets[0].id] : []);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const toggleAsset = (id: string) => {
+    setSelectedAssetIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  };
+
+  const reset = () => {
+    setTitle("");
+    setDescription("");
+    setWorkOrderType("corrective_maintenance");
+    setPriority("normal");
+    setRiskLevel("");
+    setAssignedTo("");
+    setPlannedStart("");
+    setPlannedEnd("");
+    setEstimatedHours("");
+    setEstimatedCost("");
+    setQuotationId("");
+    setPurchaseOrderId("");
+    setSafetyCritical(false);
+    setDowntimeExpected(false);
+    setPermitRequired(false);
+    setRiskAssessmentRequired(false);
+    setLockoutRequired(false);
+    setSelectedAssetIds(assets[0]?.id ? [assets[0].id] : []);
+  };
+
   return (
     <View>
       <Form title="New work order">
-        <Field label="Title" value={title} onChangeText={setTitle} />
-        <Field label="Assigned to" value={assigned} onChangeText={setAssigned} />
-        <Button label="Create work order" icon="tool" onPress={() => { onCreate({ title, assigned_to_name: assigned }); setTitle(""); setAssigned(""); }} disabled={!title} />
+        <Field label="Title" value={title} onChangeText={setTitle} placeholder="Replace starboard generator impeller" />
+        <Field label="Description / scope" value={description} onChangeText={setDescription} multiline />
+        <Text style={styles.label}>Work order type</Text>
+        <ChipSelect items={WORK_ORDER_TYPE_OPTIONS} selected={workOrderType} onSelect={setWorkOrderType} />
+        <Text style={styles.label}>Priority</Text>
+        <ChipSelect items={PRIORITY_OPTIONS} selected={priority} onSelect={setPriority} />
+        <Field label="Risk level" value={riskLevel} onChangeText={setRiskLevel} placeholder="low / medium / high" />
+        <Field label="Assigned to" value={assignedTo} onChangeText={setAssignedTo} placeholder="Engineer / yard / contractor" />
+        <Field label="Planned start" value={plannedStart} onChangeText={setPlannedStart} placeholder="YYYY-MM-DD" />
+        <Field label="Planned end" value={plannedEnd} onChangeText={setPlannedEnd} placeholder="YYYY-MM-DD" />
+        <Field label="Estimated labour hours" value={estimatedHours} onChangeText={setEstimatedHours} />
+        <Field label="Estimated cost EUR" value={estimatedCost} onChangeText={setEstimatedCost} />
+        <Field label="Quotation ID" value={quotationId} onChangeText={setQuotationId} />
+        <Field label="Purchase order ID" value={purchaseOrderId} onChangeText={setPurchaseOrderId} />
+        <View style={styles.toggleGrid}>
+          <FlagToggle label="Safety critical" value={safetyCritical} onPress={() => setSafetyCritical((value) => !value)} />
+          <FlagToggle label="Downtime expected" value={downtimeExpected} onPress={() => setDowntimeExpected((value) => !value)} />
+          <FlagToggle label="Permit required" value={permitRequired} onPress={() => setPermitRequired((value) => !value)} />
+          <FlagToggle label="Risk assessment" value={riskAssessmentRequired} onPress={() => setRiskAssessmentRequired((value) => !value)} />
+          <FlagToggle label="Lockout/tagout" value={lockoutRequired} onPress={() => setLockoutRequired((value) => !value)} />
+        </View>
+        <Text style={styles.label}>Linked equipment</Text>
+        <View style={styles.toggleGrid}>
+          {assets.map((asset) => (
+            <FlagToggle key={asset.id} label={asset.name} value={selectedAssetIds.includes(asset.id)} onPress={() => toggleAsset(asset.id)} />
+          ))}
+        </View>
+        {!assets.length ? <Text style={styles.muted}>Add equipment before creating work orders.</Text> : null}
+        <Button
+          label="Create work order"
+          icon="tool"
+          onPress={() => {
+            onCreate({
+              title,
+              description,
+              work_order_type: workOrderType,
+              priority,
+              risk_level: riskLevel,
+              assigned_to_user_id: assignedTo,
+              planned_start: plannedStart ? new Date(`${plannedStart}T09:00:00.000Z`).toISOString() : undefined,
+              planned_end: plannedEnd ? new Date(`${plannedEnd}T17:00:00.000Z`).toISOString() : undefined,
+              estimated_labour_hours: estimatedHours ? Number(estimatedHours) : undefined,
+              estimated_cost: estimatedCost ? Number(estimatedCost) : undefined,
+              currency: "EUR",
+              quotation_id: quotationId,
+              purchase_order_id: purchaseOrderId,
+              safety_critical: safetyCritical,
+              downtime_expected: downtimeExpected,
+              permit_required: permitRequired,
+              risk_assessment_required: riskAssessmentRequired,
+              lockout_tagout_required: lockoutRequired,
+              asset_ids: selectedAssetIds,
+            });
+            reset();
+          }}
+          disabled={!title || !selectedAssetIds.length}
+        />
       </Form>
       <SectionList title="Work orders" items={workOrders} empty="No work orders yet." render={(item: WorkOrder) => (
-        <Row title={`${item.work_order_number} - ${item.title}`} meta={item.assigned_to_name ?? "Unassigned"} status={item.status} />
+        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+          <Row
+            title={`${item.work_order_number} - ${item.title}`}
+            meta={[
+              workOrderAssets(item),
+              item.assigned_to_user_id ?? item.assigned_to_name,
+              item.planned_start ? `Start ${item.planned_start.slice(0, 10)}` : null,
+              item.estimated_cost != null ? `EUR ${Number(item.estimated_cost).toLocaleString("en-US")}` : null,
+            ].filter(Boolean).join(" - ") || "Unassigned"}
+            status={item.status}
+          />
+          {expandedId === item.id ? <WorkOrderDetail item={item} onUpdate={(input) => onUpdate(item.id, input)} /> : null}
+        </Pressable>
       )} />
     </View>
   );
+}
+
+function WorkOrderDetail({ item, onUpdate }: { item: WorkOrder; onUpdate: (input: Partial<WorkOrder>) => void }) {
+  const [actualHours, setActualHours] = useState(item.actual_labour_hours != null ? String(item.actual_labour_hours) : "");
+  const [actualCost, setActualCost] = useState(item.actual_cost != null ? String(item.actual_cost) : "");
+  const [completionSummary, setCompletionSummary] = useState(item.completion_summary ?? "");
+  const [verificationNotes, setVerificationNotes] = useState(item.verification_notes ?? "");
+  return (
+    <View style={styles.subPanel}>
+      <View style={styles.detailGrid}>
+        <Detail label="Type" value={item.work_order_type} />
+        <Detail label="Priority" value={item.priority} />
+        <Detail label="Risk" value={item.risk_level} />
+        <Detail label="Equipment" value={workOrderAssets(item)} />
+        <Detail label="Planned start" value={item.planned_start?.slice(0, 10)} />
+        <Detail label="Planned end" value={item.planned_end?.slice(0, 10)} />
+        <Detail label="Estimate" value={item.estimated_cost != null ? `EUR ${Number(item.estimated_cost).toLocaleString("en-US")}` : null} />
+        <Detail label="Estimated hours" value={item.estimated_labour_hours} />
+      </View>
+      {item.description ? <DetailBlock title="Scope" body={item.description} /> : null}
+      <Text style={styles.label}>Move status</Text>
+      <ChipSelect items={WORK_ORDER_STATUS_OPTIONS} selected={item.status} onSelect={(status) => onUpdate({ status })} />
+      <Field label="Actual labour hours" value={actualHours} onChangeText={setActualHours} />
+      <Field label="Actual cost EUR" value={actualCost} onChangeText={setActualCost} />
+      <Field label="Completion summary" value={completionSummary} onChangeText={setCompletionSummary} multiline />
+      <Field label="Verification notes" value={verificationNotes} onChangeText={setVerificationNotes} multiline />
+      <Button
+        label="Save work order update"
+        icon="save"
+        onPress={() => onUpdate({
+          actual_labour_hours: actualHours ? Number(actualHours) : undefined,
+          actual_cost: actualCost ? Number(actualCost) : undefined,
+          completion_summary: completionSummary,
+          verification_notes: verificationNotes,
+        })}
+      />
+    </View>
+  );
+}
+
+function workOrderAssets(item: WorkOrder): string | null {
+  const names = (item.work_order_assets ?? [])
+    .map((link) => link.equipment_assets?.name)
+    .filter(Boolean);
+  return names.length ? names.join(", ") : null;
 }
 
 function Defects({ assets, defects, onCreate }: { assets: EquipmentAsset[]; defects: Defect[]; onCreate: (input: Partial<Defect>) => void }) {

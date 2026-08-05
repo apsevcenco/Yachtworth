@@ -612,12 +612,21 @@ router.post("/maintenance/yachts/:yachtId/work-orders", async (req, res) => {
     work_order_type: s(p["work_order_type"]) ?? "corrective_maintenance",
     status: s(p["status"]) ?? "requested",
     priority: s(p["priority"]) ?? "normal",
+    risk_level: s(p["risk_level"]),
     safety_critical: b(p["safety_critical"]),
     requested_by: req.userId,
+    assigned_to_user_id: s(p["assigned_to_user_id"]),
     planned_start: s(p["planned_start"]),
     planned_end: s(p["planned_end"]),
+    estimated_labour_hours: n(p["estimated_labour_hours"]),
     estimated_cost: n(p["estimated_cost"]),
     currency: s(p["currency"]) ?? "EUR",
+    downtime_expected: b(p["downtime_expected"]),
+    permit_required: b(p["permit_required"]),
+    risk_assessment_required: b(p["risk_assessment_required"]),
+    lockout_tagout_required: b(p["lockout_tagout_required"]),
+    quotation_id: s(p["quotation_id"]),
+    purchase_order_id: s(p["purchase_order_id"]),
   }).select("*").single();
   if (error) {
     res.status(500).json({ error: error.message });
@@ -647,7 +656,12 @@ router.patch("/maintenance/yachts/:yachtId/work-orders/:workOrderId", async (req
       return;
     }
   }
-  const allowed = ["status", "priority", "approved_by", "assigned_to_user_id", "assigned_vendor_id", "actual_start", "actual_end", "actual_labour_hours", "actual_cost", "completion_summary", "verification_notes"];
+  const allowed = [
+    "status", "priority", "approved_by", "assigned_to_user_id", "assigned_vendor_id", "actual_start", "actual_end",
+    "actual_labour_hours", "actual_cost", "completion_summary", "verification_notes", "risk_level", "planned_start",
+    "planned_end", "estimated_labour_hours", "estimated_cost", "downtime_expected", "permit_required",
+    "risk_assessment_required", "lockout_tagout_required", "quotation_id", "purchase_order_id",
+  ];
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   for (const key of allowed) if (key in p) patch[key] = p[key];
   if (nextStatus === "closed") {

@@ -106,10 +106,36 @@ export type WorkOrder = {
   yacht_id: string;
   work_order_number: string;
   title: string;
+  description?: string | null;
+  work_order_type?: string | null;
   status: string;
   priority?: string | null;
+  risk_level?: string | null;
+  safety_critical?: boolean | null;
+  requested_by?: string | null;
+  approved_by?: string | null;
+  assigned_to_user_id?: string | null;
   assigned_to_name?: string | null;
-  due_at?: string | null;
+  planned_start?: string | null;
+  planned_end?: string | null;
+  actual_start?: string | null;
+  actual_end?: string | null;
+  estimated_labour_hours?: number | null;
+  actual_labour_hours?: number | null;
+  estimated_cost?: number | null;
+  actual_cost?: number | null;
+  currency?: string | null;
+  downtime_expected?: boolean | null;
+  permit_required?: boolean | null;
+  risk_assessment_required?: boolean | null;
+  lockout_tagout_required?: boolean | null;
+  quotation_id?: string | null;
+  purchase_order_id?: string | null;
+  completion_summary?: string | null;
+  verification_notes?: string | null;
+  closed_at?: string | null;
+  asset_ids?: string[] | null;
+  work_order_assets?: { equipment_asset_id?: string | null; equipment_assets?: { name?: string | null } | null }[] | null;
 };
 
 export type Defect = {
@@ -315,6 +341,17 @@ export async function getWorkOrders(yachtId: string): Promise<WorkOrder[]> {
 export async function createWorkOrder(yachtId: string, input: Partial<WorkOrder>): Promise<WorkOrder> {
   return request(`/api/maintenance/yachts/${yachtId}/work-orders`, {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateWorkOrder(
+  yachtId: string,
+  workOrderId: string,
+  input: Partial<WorkOrder>,
+): Promise<WorkOrder> {
+  return request(`/api/maintenance/yachts/${yachtId}/work-orders/${workOrderId}`, {
+    method: "PATCH",
     body: JSON.stringify(input),
   });
 }
