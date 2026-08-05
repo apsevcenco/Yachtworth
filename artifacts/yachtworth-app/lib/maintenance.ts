@@ -96,6 +96,7 @@ export type MaintenanceTask = {
   due_at?: string | null;
   due_counter_value?: number | null;
   estimated_hours?: number | null;
+  assigned_to_role?: string | null;
   description?: string | null;
   equipment_assets?: EquipmentAsset | null;
 };

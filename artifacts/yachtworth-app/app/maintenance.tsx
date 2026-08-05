@@ -79,6 +79,21 @@ const SERVICE_TYPE_OPTIONS = [
   { id: "warranty_work", label: "Warranty work" },
 ];
 
+const PLAN_TYPE_OPTIONS = [
+  { id: "calendar", label: "Calendar" },
+  { id: "counter", label: "Counter" },
+  { id: "combined", label: "Combined" },
+  { id: "one_time", label: "One time" },
+  { id: "condition", label: "Condition" },
+];
+
+const PRIORITY_OPTIONS = [
+  { id: "low", label: "Low" },
+  { id: "normal", label: "Normal" },
+  { id: "high", label: "High" },
+  { id: "critical", label: "Critical" },
+];
+
 function yachtTitle(yacht: YachtOption | undefined): string {
   if (!yacht) return "Select yacht";
   return yacht.name ?? ([yacht.manufacturer, yacht.model].filter(Boolean).join(" ") || "Unnamed yacht");
@@ -661,22 +676,124 @@ function FlagToggle({ label, value, onPress }: { label: string; value: boolean; 
 
 function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; tasks: MaintenanceTask[]; onCreatePlan: (input: Record<string, unknown>) => void }) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
-  const [days, setDays] = useState("365");
+  const [planType, setPlanType] = useState("calendar");
+  const [priority, setPriority] = useState("normal");
+  const [criticality, setCriticality] = useState("normal");
+  const [assignedRole, setAssignedRole] = useState("");
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [calendarValue, setCalendarValue] = useState("365");
+  const [calendarUnit, setCalendarUnit] = useState("days");
+  const [counterInterval, setCounterInterval] = useState("");
+  const [nextDueAt, setNextDueAt] = useState("");
+  const [nextDueCounter, setNextDueCounter] = useState("");
+  const [warningThreshold, setWarningThreshold] = useState("30");
+  const [warningUnit, setWarningUnit] = useState("days");
+  const [verificationRequired, setVerificationRequired] = useState(true);
+  const selectedAsset = assetId ?? assets[0]?.id;
+  const selectedAssetItem = assets.find((asset) => asset.id === selectedAsset);
+  const primaryCounter = selectedAssetItem?.equipment_counters?.find((counter) => counter.is_primary) ?? selectedAssetItem?.equipment_counters?.[0];
+  const showCalendar = planType === "calendar" || planType === "combined" || planType === "one_time";
+  const showCounter = planType === "counter" || planType === "combined";
+
+  const reset = () => {
+    setTitle("");
+    setDescription("");
+    setPlanType("calendar");
+    setPriority("normal");
+    setCriticality("normal");
+    setAssignedRole("");
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setCalendarValue("365");
+    setCalendarUnit("days");
+    setCounterInterval("");
+    setNextDueAt("");
+    setNextDueCounter("");
+    setWarningThreshold("30");
+    setWarningUnit("days");
+    setVerificationRequired(true);
+  };
+
   return (
     <View>
       <Form title="Create plan and first task">
         <Field label="Plan title" value={title} onChangeText={setTitle} placeholder="Annual service" />
-        <Field label="Interval days" value={days} onChangeText={setDays} placeholder="365" />
-        <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={assetId ?? assets[0]?.id ?? null} onSelect={setAssetId} />
-        <Button label="Create plan" icon="repeat" onPress={() => onCreatePlan({
-          name: title,
-          equipment_asset_id: assetId ?? assets[0]?.id,
-          intervals: [{ interval_type: "calendar", calendar_value: Number(days) || 365, calendar_unit: "days" }],
-        })} disabled={!title || !(assetId ?? assets[0]?.id)} />
+        <Field label="Description / scope" value={description} onChangeText={setDescription} multiline />
+        <Text style={styles.label}>Plan type</Text>
+        <ChipSelect items={PLAN_TYPE_OPTIONS} selected={planType} onSelect={setPlanType} />
+        <Text style={styles.label}>Priority</Text>
+        <ChipSelect items={PRIORITY_OPTIONS} selected={priority} onSelect={setPriority} />
+        <Text style={styles.label}>Criticality</Text>
+        <ChipSelect items={CRITICALITY_OPTIONS} selected={criticality} onSelect={setCriticality} />
+        <Field label="Assigned role" value={assignedRole} onChangeText={setAssignedRole} placeholder="Engineer / captain / yard" />
+        <Field label="Start date" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" />
+        {showCalendar ? (
+          <>
+            <Field label="Calendar interval" value={calendarValue} onChangeText={setCalendarValue} placeholder="365" />
+            <Field label="Calendar unit" value={calendarUnit} onChangeText={setCalendarUnit} placeholder="days / months / years" />
+            <Field label="Next due date" value={nextDueAt} onChangeText={setNextDueAt} placeholder="YYYY-MM-DD, optional" />
+          </>
+        ) : null}
+        {showCounter ? (
+          <>
+            <Field label="Counter interval" value={counterInterval} onChangeText={setCounterInterval} placeholder="250" />
+            <Field label="Next due counter" value={nextDueCounter} onChangeText={setNextDueCounter} placeholder="1250" />
+            <Text style={styles.muted}>
+              {primaryCounter ? `Primary counter: ${primaryCounter.counter_type}, current ${primaryCounter.current_value} ${primaryCounter.unit}` : "Create an equipment counter first for counter-based plans."}
+            </Text>
+          </>
+        ) : null}
+        <Field label="Warning threshold" value={warningThreshold} onChangeText={setWarningThreshold} placeholder="30" />
+        <Field label="Warning unit" value={warningUnit} onChangeText={setWarningUnit} placeholder="days / hours" />
+        <View style={styles.toggleGrid}>
+          <FlagToggle label="Verification required" value={verificationRequired} onPress={() => setVerificationRequired((value) => !value)} />
+        </View>
+        <ChipSelect items={assets.map((a) => ({ id: a.id, label: a.name }))} selected={selectedAsset ?? null} onSelect={setAssetId} />
+        <Button
+          label="Create plan"
+          icon="repeat"
+          onPress={() => {
+            const interval = {
+              interval_type: planType,
+              calendar_value: showCalendar ? Number(calendarValue) || null : null,
+              calendar_unit: showCalendar ? calendarUnit : null,
+              counter_id: showCounter ? primaryCounter?.id : null,
+              counter_interval: showCounter ? Number(counterInterval) || null : null,
+              due_rule: planType === "combined" ? "whichever_occurs_first" : "manual_review",
+              warning_threshold: Number(warningThreshold) || null,
+              warning_unit: warningUnit,
+              next_due_at: nextDueAt ? new Date(`${nextDueAt}T12:00:00.000Z`).toISOString() : undefined,
+              next_due_counter_value: showCounter && nextDueCounter ? Number(nextDueCounter) : undefined,
+            };
+            onCreatePlan({
+              name: title,
+              description,
+              equipment_asset_id: selectedAsset,
+              plan_type: planType,
+              priority,
+              criticality,
+              start_date: startDate,
+              assigned_to_role: assignedRole,
+              verification_required: verificationRequired,
+              intervals: [interval],
+            });
+            reset();
+          }}
+          disabled={!title || !selectedAsset || (showCounter && !primaryCounter)}
+        />
       </Form>
       <SectionList title="Maintenance tasks" items={tasks} empty="No generated tasks yet." render={(item: MaintenanceTask) => (
-        <Row title={item.title} meta={item.equipment_assets?.name ?? item.due_at ?? "No due date"} status={item.status} />
+        <Row
+          title={item.title}
+          meta={[
+            item.equipment_assets?.name,
+            item.due_at ? `Due ${item.due_at.slice(0, 10)}` : null,
+            item.due_counter_value != null ? `Due at ${item.due_counter_value}` : null,
+            item.assigned_to_role,
+          ].filter(Boolean).join(" - ") || "No due trigger"}
+          status={item.status}
+        />
       )} />
     </View>
   );
