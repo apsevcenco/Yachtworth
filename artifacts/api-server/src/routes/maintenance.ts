@@ -194,20 +194,32 @@ router.get("/maintenance/yachts/:yachtId/dashboard", async (req, res) => {
   const yachtId = req.params["yachtId"]!;
   if (!(await assertYacht(req, res, yachtId))) return;
   const sb = getSupabase()!;
-  const [systems, assets, tasks, defects, workOrders, events, parts] = await Promise.all([
+  const [systems, assets, tasks, defects, workOrders, events, parts, documents] = await Promise.all([
     sb.from(MAINTENANCE_SYSTEMS_TABLE).select("id").eq("yacht_id", yachtId).eq("is_active", true),
     sb.from(EQUIPMENT_ASSETS_TABLE).select("id,criticality,operational_status").eq("yacht_id", yachtId).eq("is_active", true),
     sb.from(MAINTENANCE_TASKS_TABLE).select("id,title,status,priority,due_at,due_counter_value,equipment_asset_id").eq("yacht_id", yachtId).limit(500),
     sb.from(DEFECTS_TABLE).select("id,title,status,severity,equipment_asset_id").eq("yacht_id", yachtId).limit(500),
-    sb.from(WORK_ORDERS_TABLE).select("id,status,priority,safety_critical").eq("yacht_id", yachtId).limit(500),
+    sb.from(WORK_ORDERS_TABLE).select("id,work_order_number,title,status,priority,safety_critical,risk_level").eq("yacht_id", yachtId).limit(500),
     sb.from(SERVICE_EVENTS_TABLE).select("id,completed_at,cost,currency").eq("yacht_id", yachtId).order("completed_at", { ascending: false }).limit(10),
     sb.from(SPARE_PARTS_TABLE).select("id,quantity_on_hand,minimum_stock,expiry_date").eq("yacht_id", yachtId).limit(500),
+    sb.from(MAINTENANCE_DOCUMENTS_TABLE).select("id,title,category,expires_at").eq("yacht_id", yachtId).limit(500),
   ]);
   const rawTasks = tasks.data ?? [];
+  const now = new Date();
+  const soon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   const normalizedTasks = rawTasks.map((t) => ({ ...t, status: statusForTask(t as Record<string, unknown>) }));
   const overdueTasks = normalizedTasks.filter((t) => t.status === "overdue");
   const dueSoonTasks = normalizedTasks.filter((t) => t.status === "due");
   const openDefects = (defects.data ?? []).filter((d) => !["closed", "verified", "rejected", "duplicate"].includes(String(d.status)));
+  const lowStockParts = (parts.data ?? []).filter((p) => Number(p.quantity_on_hand ?? 0) <= Number(p.minimum_stock ?? 0));
+  const expiredParts = (parts.data ?? []).filter((p) => p.expiry_date && new Date(String(p.expiry_date)) < now);
+  const datedDocuments = (documents.data ?? []).filter((d) => d.expires_at);
+  const expiredDocuments = datedDocuments.filter((d) => new Date(String(d.expires_at)) < now);
+  const expiringDocuments = datedDocuments.filter((d) => {
+    const expires = new Date(String(d.expires_at));
+    return expires >= now && expires <= soon;
+  });
+  const openWorkOrders = (workOrders.data ?? []).filter((w) => !["closed", "cancelled"].includes(String(w.status)));
   res.json({
     yachtId,
     counts: {
@@ -218,16 +230,22 @@ router.get("/maintenance/yachts/:yachtId/dashboard", async (req, res) => {
       tasks_overdue: overdueTasks.length,
       open_defects: openDefects.length,
       critical_defects: openDefects.filter((d) => d.severity === "critical").length,
-      open_work_orders: (workOrders.data ?? []).filter((w) => !["closed", "cancelled"].includes(String(w.status))).length,
-      low_stock: (parts.data ?? []).filter((p) => Number(p.quantity_on_hand ?? 0) <= Number(p.minimum_stock ?? 0)).length,
+      open_work_orders: openWorkOrders.length,
+      low_stock: lowStockParts.length,
+      expired_parts: expiredParts.length,
+      expired_documents: expiredDocuments.length,
+      expiring_documents: expiringDocuments.length,
     },
     overdue_tasks: overdueTasks.slice(0, 20),
     due_soon_tasks: dueSoonTasks.slice(0, 20),
     open_defects: openDefects.slice(0, 20),
-    open_work_orders: (workOrders.data ?? []).filter((w) => !["closed", "cancelled"].includes(String(w.status))).slice(0, 20),
+    open_work_orders: openWorkOrders.slice(0, 20),
     recent_service_events: events.data ?? [],
-    low_stock_parts: (parts.data ?? []).filter((p) => Number(p.quantity_on_hand ?? 0) <= Number(p.minimum_stock ?? 0)).slice(0, 20),
-    errors: [systems.error, assets.error, tasks.error, defects.error, workOrders.error, events.error, parts.error].filter(Boolean).map((e) => e?.message),
+    low_stock_parts: lowStockParts.slice(0, 20),
+    expired_parts: expiredParts.slice(0, 20),
+    expired_documents: expiredDocuments.slice(0, 20),
+    expiring_documents: expiringDocuments.slice(0, 20),
+    errors: [systems.error, assets.error, tasks.error, defects.error, workOrders.error, events.error, parts.error, documents.error].filter(Boolean).map((e) => e?.message),
   });
 });
 

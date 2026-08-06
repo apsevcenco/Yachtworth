@@ -16,12 +16,18 @@ export type MaintenanceDashboard = {
   openWorkOrders?: WorkOrder[];
   recentServiceEvents?: ServiceEvent[];
   lowStockParts?: SparePart[];
+  expiredParts?: SparePart[];
+  expiredDocuments?: MaintenanceDocument[];
+  expiringDocuments?: MaintenanceDocument[];
   overdue_tasks?: MaintenanceTask[];
   due_soon_tasks?: MaintenanceTask[];
   open_defects?: Defect[];
   open_work_orders?: WorkOrder[];
   recent_service_events?: ServiceEvent[];
   low_stock_parts?: SparePart[];
+  expired_parts?: SparePart[];
+  expired_documents?: MaintenanceDocument[];
+  expiring_documents?: MaintenanceDocument[];
 };
 
 export type MaintenanceSystemTemplate = {

@@ -475,10 +475,17 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
     ["Due 30d", counts.tasks_due ?? counts.dueSoonTasks ?? 0],
     ["Open W/O", counts.open_work_orders ?? counts.openWorkOrders ?? 0],
     ["Defects", counts.open_defects ?? counts.openDefects ?? 0],
+    ["Low stock", counts.low_stock ?? 0],
+    ["Expiring", (counts.expired_documents ?? 0) + (counts.expiring_documents ?? 0)],
   ];
   const overdueTasks = dashboard?.overdue_tasks ?? dashboard?.overdueTasks ?? [];
   const dueSoonTasks = dashboard?.due_soon_tasks ?? dashboard?.dueSoonTasks ?? [];
   const openDefects = dashboard?.open_defects ?? dashboard?.openDefects ?? [];
+  const openWorkOrders = dashboard?.open_work_orders ?? dashboard?.openWorkOrders ?? [];
+  const lowStockParts = dashboard?.low_stock_parts ?? dashboard?.lowStockParts ?? [];
+  const expiredParts = dashboard?.expired_parts ?? dashboard?.expiredParts ?? [];
+  const expiredDocuments = dashboard?.expired_documents ?? dashboard?.expiredDocuments ?? [];
+  const expiringDocuments = dashboard?.expiring_documents ?? dashboard?.expiringDocuments ?? [];
   return (
     <View>
       <View style={styles.metrics}>
@@ -498,6 +505,18 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
       )} />
       <SectionList title="Open defects" items={openDefects} render={(item: Defect) => (
         <Row title={item.title} meta={item.equipment_assets?.name ?? "Unassigned"} status={item.severity} />
+      )} />
+      <SectionList title="Open work orders" items={openWorkOrders} render={(item: WorkOrder) => (
+        <Row title={item.title} meta={item.work_order_number ?? item.priority ?? "Work order"} status={item.status} />
+      )} />
+      <SectionList title="Low stock parts" items={lowStockParts} render={(item: SparePart) => (
+        <Row title={item.name} meta={[item.part_number, `Stock ${item.quantity_on_hand ?? 0}`].filter(Boolean).join(" - ")} status="low stock" />
+      )} />
+      <SectionList title="Expired parts" items={expiredParts} render={(item: SparePart) => (
+        <Row title={item.name} meta={[item.part_number, item.expiry_date ? `Expired ${item.expiry_date.slice(0, 10)}` : null].filter(Boolean).join(" - ")} status="expired" />
+      )} />
+      <SectionList title="Expired / expiring attachments" items={[...expiredDocuments, ...expiringDocuments]} render={(item: MaintenanceDocument) => (
+        <Row title={item.title} meta={[item.category, item.expires_at ? `Expires ${item.expires_at.slice(0, 10)}` : null].filter(Boolean).join(" - ")} status={item.expires_at && new Date(item.expires_at) < new Date() ? "expired" : "expiring"} />
       )} />
     </View>
   );
