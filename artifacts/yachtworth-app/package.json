@@ -67,6 +67,7 @@
     "expo-audio": "~1.1.1",
     "expo-clipboard": "~8.0.8",
     "expo-dev-client": "~6.0.21",
+    "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.22",
     "expo-image-manipulator": "^56.0.15",
     "expo-sharing": "~14.0.8",

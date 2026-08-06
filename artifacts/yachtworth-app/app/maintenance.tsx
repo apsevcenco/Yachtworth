@@ -1,10 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -29,6 +32,7 @@ import {
   getDefects,
   getEquipmentAssets,
   getMaintenanceDashboard,
+  getMaintenanceDocumentSignedUrl,
   getMaintenanceDocuments,
   getMaintenanceSystems,
   getMaintenanceTasks,
@@ -43,11 +47,13 @@ import {
   updateSparePart,
   updateWorkOrder,
   createInventoryMovement,
+  uploadMaintenanceDocumentFile,
   type Defect,
   type EquipmentCounter,
   type EquipmentAsset,
   type MaintenanceDashboard,
   type MaintenanceDocument,
+  type UploadMaintenanceDocumentInput,
   type MaintenanceSystem,
   type MaintenanceTask,
   type ServiceEvent,
@@ -423,6 +429,11 @@ export default function MaintenanceScreen() {
                   serviceEvents={historyQ.data ?? []}
                   documents={documentsQ.data ?? []}
                   onCreate={(input) => run("Saving attachment", () => createMaintenanceDocument(yachtId, input))}
+                  onUpload={(input) => run("Uploading attachment", () => uploadMaintenanceDocumentFile(yachtId, input))}
+                  onOpen={(documentId) => run("Opening attachment", async () => {
+                    const url = await getMaintenanceDocumentSignedUrl(yachtId, documentId);
+                    await Linking.openURL(url);
+                  })}
                 />
               ) : null}
             </View>
@@ -1697,6 +1708,8 @@ function Attachments({
   serviceEvents,
   documents,
   onCreate,
+  onUpload,
+  onOpen,
 }: {
   assets: EquipmentAsset[];
   workOrders: WorkOrder[];
@@ -1704,6 +1717,8 @@ function Attachments({
   serviceEvents: ServiceEvent[];
   documents: MaintenanceDocument[];
   onCreate: (input: Partial<MaintenanceDocument>) => void;
+  onUpload: (input: UploadMaintenanceDocumentInput) => void;
+  onOpen: (documentId: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("photo");
@@ -1736,12 +1751,103 @@ function Attachments({
     setIsPrivate(true);
   };
 
+  const linkPayload = () => ({
+    equipment_asset_id: linkType === "equipment" ? linkedId : undefined,
+    work_order_id: linkType === "work_order" ? linkedId : undefined,
+    service_event_id: linkType === "service_event" ? linkedId : undefined,
+    defect_id: linkType === "defect" ? linkedId : undefined,
+  });
+
+  const uploadPickedFile = (file: {
+    uri: string;
+    name?: string | null;
+    mimeType?: string | null;
+    category?: string | null;
+  }) => {
+    const pickedTitle = title || file.name?.replace(/\.[^.]+$/, "") || "Maintenance attachment";
+    onUpload({
+      localUri: file.uri,
+      fileName: file.name,
+      mimeType: file.mimeType,
+      title: pickedTitle,
+      category: file.category ?? category,
+      expires_at: expiresAt ? new Date(`${expiresAt}T12:00:00.000Z`).toISOString() : undefined,
+      version: Number(version) || 1,
+      is_private: isPrivate,
+      ...linkPayload(),
+    });
+    reset();
+  };
+
+  const pickPhoto = async () => {
+    if (Platform.OS !== "web") {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Photo library access needed", "Enable photo library access in Settings.");
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    uploadPickedFile({
+      uri: asset.uri,
+      name: asset.fileName ?? `maintenance_photo_${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? "image/jpeg",
+      category: "photo",
+    });
+  };
+
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Camera access needed", "Enable camera access in Settings.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    uploadPickedFile({
+      uri: asset.uri,
+      name: asset.fileName ?? `maintenance_photo_${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? "image/jpeg",
+      category: "photo",
+    });
+  };
+
+  const pickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+      type: "*/*",
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    uploadPickedFile({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? "application/octet-stream",
+      category: category === "photo" ? "document" : category,
+    });
+  };
+
   return (
     <View>
       <Form title="Add photo or document">
         <Field label="Title" value={title} onChangeText={setTitle} placeholder="Main engine service invoice" />
         <Text style={styles.label}>Category</Text>
         <ChipSelect items={ATTACHMENT_CATEGORY_OPTIONS} selected={category} onSelect={setCategory} />
+        <View style={styles.toggleGrid}>
+          <Button label="Choose photo" icon="image" onPress={() => void pickPhoto()} />
+          <Button label="Take photo" icon="camera" onPress={() => void takePhoto()} />
+          <Button label="Choose document" icon="file-plus" onPress={() => void pickDocument()} />
+        </View>
         <Field label="File / photo URL" value={fileUrl} onChangeText={setFileUrl} placeholder="https://..." />
         <Field label="MIME type" value={mimeType} onChangeText={setMimeType} placeholder="image/jpeg / application/pdf" />
         <Field label="Expiry date" value={expiresAt} onChangeText={setExpiresAt} placeholder="YYYY-MM-DD, optional" />
@@ -1785,16 +1891,18 @@ function Attachments({
         />
       </Form>
       <SectionList title="Attachment register" items={documents} empty="No attachments yet." render={(item: MaintenanceDocument) => (
-        <Row
-          title={item.title}
-          meta={[
-            item.category,
-            attachmentOwner(item),
-            item.expires_at ? `Expires ${item.expires_at.slice(0, 10)}` : null,
-            item.file_url,
-          ].filter(Boolean).join(" - ")}
-          status={item.category === "photo" ? "photo" : "document"}
-        />
+        <Pressable onPress={() => onOpen(item.id)}>
+          <Row
+            title={item.title}
+            meta={[
+              item.category,
+              attachmentOwner(item),
+              item.expires_at ? `Expires ${item.expires_at.slice(0, 10)}` : null,
+              item.file_path ? "stored privately" : item.file_url,
+            ].filter(Boolean).join(" - ")}
+            status={item.category === "photo" ? "photo" : "document"}
+          />
+        </Pressable>
       )} />
     </View>
   );

@@ -264,6 +264,21 @@ export type MaintenanceDocument = {
   defects?: { defect_number?: string | null; title?: string | null } | null;
 };
 
+export type UploadMaintenanceDocumentInput = {
+  localUri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+  title?: string | null;
+  category?: string | null;
+  expires_at?: string | null;
+  is_private?: boolean | null;
+  version?: number | null;
+  equipment_asset_id?: string | null;
+  work_order_id?: string | null;
+  service_event_id?: string | null;
+  defect_id?: string | null;
+};
+
 async function headers(): Promise<Record<string, string>> {
   const token = await getAuthToken();
   return {
@@ -495,4 +510,56 @@ export async function createMaintenanceDocument(yachtId: string, input: Partial<
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+async function multipartHeaders(): Promise<Record<string, string>> {
+  const token = await getAuthToken();
+  return {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function appendIfPresent(form: FormData, key: string, value: unknown): void {
+  if (value == null || value === "") return;
+  form.append(key, String(value));
+}
+
+export async function uploadMaintenanceDocumentFile(
+  yachtId: string,
+  input: UploadMaintenanceDocumentInput,
+): Promise<MaintenanceDocument> {
+  const form = new FormData();
+  appendIfPresent(form, "title", input.title);
+  appendIfPresent(form, "category", input.category);
+  appendIfPresent(form, "mime_type", input.mimeType);
+  appendIfPresent(form, "expires_at", input.expires_at);
+  appendIfPresent(form, "is_private", input.is_private ?? true);
+  appendIfPresent(form, "version", input.version ?? 1);
+  appendIfPresent(form, "equipment_asset_id", input.equipment_asset_id);
+  appendIfPresent(form, "work_order_id", input.work_order_id);
+  appendIfPresent(form, "service_event_id", input.service_event_id);
+  appendIfPresent(form, "defect_id", input.defect_id);
+  form.append("file", {
+    uri: input.localUri,
+    name: input.fileName || `maintenance_attachment_${Date.now()}`,
+    type: input.mimeType || "application/octet-stream",
+  } as unknown as Blob);
+
+  const res = await fetch(api(`/api/maintenance/yachts/${yachtId}/documents/upload`), {
+    method: "POST",
+    headers: await multipartHeaders(),
+    body: form,
+  });
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    throw new Error(json?.error ?? `Upload failed (HTTP ${res.status})`);
+  }
+  return json as MaintenanceDocument;
+}
+
+export async function getMaintenanceDocumentSignedUrl(yachtId: string, documentId: string): Promise<string> {
+  const data = await request<{ url: string }>(`/api/maintenance/yachts/${yachtId}/documents/${documentId}/signed-url`);
+  return data.url;
 }

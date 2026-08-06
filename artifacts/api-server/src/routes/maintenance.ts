@@ -1,4 +1,5 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type RequestHandler, type Response } from "express";
+import multer from "multer";
 import {
   COUNTER_READINGS_TABLE,
   DEFECTS_TABLE,
@@ -30,6 +31,31 @@ const router: IRouter = Router();
 
 router.use("/maintenance", softClerkAuth(), requireAuth());
 
+const ATTACHMENT_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+const MAINTENANCE_ATTACHMENTS_BUCKET = process.env.MAINTENANCE_ATTACHMENTS_BUCKET || "maintenance-attachments";
+
+const attachmentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: ATTACHMENT_UPLOAD_MAX_BYTES, files: 1 },
+});
+
+const attachmentUploadMw: RequestHandler = (req, res, next) => {
+  attachmentUpload.single("file")(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: `File too large. Max ${ATTACHMENT_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
+        });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    next(err);
+  });
+};
+
 function body(req: { body?: unknown }): Record<string, unknown> {
   return typeof req.body === "object" && req.body != null ? (req.body as Record<string, unknown>) : {};
 }
@@ -55,6 +81,32 @@ function uuid(v: unknown): string | null {
 
 function jsonArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
+}
+
+function fileExtension(originalName?: string, mimeType?: string): string {
+  const fromName = originalName?.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (fromName && fromName.length <= 8) return fromName;
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType?.startsWith("image/")) return "jpg";
+  return "bin";
+}
+
+function storageFileName(originalName?: string): string {
+  const base = originalName?.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60) || "attachment";
+  return base || "attachment";
+}
+
+async function ensureMaintenanceAttachmentsBucket(): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const existing = await sb.storage.getBucket(MAINTENANCE_ATTACHMENTS_BUCKET);
+  if (!existing.error) return;
+  await sb.storage.createBucket(MAINTENANCE_ATTACHMENTS_BUCKET, {
+    public: false,
+    fileSizeLimit: ATTACHMENT_UPLOAD_MAX_BYTES,
+  });
 }
 
 async function assertYacht(req: Request, res: Response, yachtId: string): Promise<boolean> {
@@ -1063,6 +1115,99 @@ router.post("/maintenance/yachts/:yachtId/documents", async (req, res) => {
   }
   await audit(yachtId, req.userId, "maintenance_document_created", "maintenance_document", data.id, data);
   res.status(201).json(data);
+});
+
+router.post("/maintenance/yachts/:yachtId/documents/upload", attachmentUploadMw, async (req, res) => {
+  const yachtId = String(req.params["yachtId"]);
+  if (!(await assertYacht(req, res, yachtId))) return;
+  if (!req.file) {
+    res.status(400).json({ error: "file required" });
+    return;
+  }
+
+  const p = body(req);
+  const mimeType = req.file.mimetype || s(p["mime_type"]) || "application/octet-stream";
+  const ext = fileExtension(req.file.originalname, mimeType);
+  const safeName = storageFileName(req.file.originalname);
+  const objectPath = `maintenance/${yachtId}/${Date.now()}_${Math.random().toString(36).slice(2, 10)}_${safeName}.${ext}`;
+  const sb = getSupabase()!;
+
+  await ensureMaintenanceAttachmentsBucket();
+  const { error: uploadError } = await sb.storage
+    .from(MAINTENANCE_ATTACHMENTS_BUCKET)
+    .upload(objectPath, req.file.buffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
+  if (uploadError) {
+    req.log.error({ err: uploadError.message }, "Maintenance attachment upload failed");
+    res.status(500).json({ error: uploadError.message });
+    return;
+  }
+
+  const row = {
+    yacht_id: yachtId,
+    equipment_asset_id: uuid(p["equipment_asset_id"]),
+    work_order_id: uuid(p["work_order_id"]),
+    service_event_id: uuid(p["service_event_id"]),
+    defect_id: uuid(p["defect_id"]),
+    category: s(p["category"]) ?? (mimeType.startsWith("image/") ? "photo" : "document"),
+    title: s(p["title"]) ?? req.file.originalname ?? "Maintenance attachment",
+    file_url: null,
+    file_path: objectPath,
+    mime_type: mimeType,
+    expires_at: s(p["expires_at"]),
+    is_private: p["is_private"] !== "false" && p["is_private"] !== false,
+    version: n(p["version"]) ?? 1,
+    uploaded_by: req.userId,
+  };
+  const { data, error } = await sb.from(MAINTENANCE_DOCUMENTS_TABLE).insert(row).select("*").single();
+  if (error) {
+    await sb.storage.from(MAINTENANCE_ATTACHMENTS_BUCKET).remove([objectPath]).catch(() => undefined);
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  await audit(yachtId, req.userId, "maintenance_document_uploaded", "maintenance_document", data.id, data);
+  res.status(201).json(data);
+});
+
+router.get("/maintenance/yachts/:yachtId/documents/:documentId/signed-url", async (req, res) => {
+  const yachtId = String(req.params["yachtId"]);
+  const documentId = String(req.params["documentId"]);
+  if (!(await assertYacht(req, res, yachtId))) return;
+  if (!isUuid(documentId)) {
+    res.status(404).json({ error: "Attachment not found" });
+    return;
+  }
+  const sb = getSupabase()!;
+  const { data: doc, error } = await sb
+    .from(MAINTENANCE_DOCUMENTS_TABLE)
+    .select("id,file_url,file_path")
+    .eq("id", documentId)
+    .eq("yacht_id", yachtId)
+    .maybeSingle();
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  if (!doc) {
+    res.status(404).json({ error: "Attachment not found" });
+    return;
+  }
+  if (doc.file_url && !doc.file_path) {
+    res.json({ url: doc.file_url });
+    return;
+  }
+  if (!doc.file_path) {
+    res.status(404).json({ error: "Attachment file is missing" });
+    return;
+  }
+  const signed = await sb.storage.from(MAINTENANCE_ATTACHMENTS_BUCKET).createSignedUrl(doc.file_path, 15 * 60);
+  if (signed.error) {
+    res.status(500).json({ error: signed.error.message });
+    return;
+  }
+  res.json({ url: signed.data.signedUrl });
 });
 
 export default router;
