@@ -15,7 +15,8 @@ V1 is intentionally a production-safe foundation:
 - Defects and risk metadata.
 - Immutable service events with correction records.
 - Spare parts and inventory movements.
-- Maintenance document metadata and private storage bucket.
+- Maintenance document/photo metadata and private storage bucket.
+- Attachment upload, signed private opening, edit and delete actions.
 - Audit events for key mutations.
 - Shared API for mobile and desktop clients.
 
@@ -68,6 +69,7 @@ The first UI is a working operations screen:
 - Defect reporting.
 - Service event creation.
 - Spare parts register.
+- Attachment register with manual links, direct file/photo upload, private signed-file access, edit and delete.
 
 The same route is available to the mobile Expo app and the desktop web build. It uses the existing Clerk token and Render backend base URL.
 
@@ -75,8 +77,7 @@ The same route is available to the mobile Expo app and the desktop web build. It
 
 The next iteration should add:
 
-- Document upload UI.
-- Asset photo capture.
+- Asset photo capture directly into equipment cards.
 - Vendor directory UI.
 - Offline queue for maintenance mutations.
 - Checklist templates from verified manuals.

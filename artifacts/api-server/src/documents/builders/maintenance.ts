@@ -98,10 +98,17 @@ export function buildMaintenanceModel(input: {
       { header: "Status", widthPct: 16 },
     ],
     rows(reportData.assets, (item) => [
-      { text: text(item.name), sub: [item.asset_code, item.display_name].filter(Boolean).join(" - ") },
+      {
+        text: text(item.name),
+        sub: [
+          item.asset_code,
+          item.display_name,
+          item.location_label ?? (item.equipment_locations as { name?: unknown } | null)?.name,
+        ].filter(Boolean).join(" - "),
+      },
       { text: text((item.maintenance_systems as { name?: unknown } | null)?.name ?? item.system_name) },
       { text: [item.manufacturer, item.model, item.serial_number].filter(Boolean).join(" - ") || "-" },
-      { text: titleCase(item.status) },
+      { text: titleCase(item.operational_status ?? item.status), sub: text(item.condition_status) },
     ]),
   );
 
@@ -115,8 +122,8 @@ export function buildMaintenanceModel(input: {
       { header: "Asset" },
     ],
     rows(reportData.tasks, (item) => [
-      { text: text(item.title), sub: text(item.task_type) },
-      { text: date(item.due_date) },
+      { text: text(item.title), sub: text(item.description ?? item.task_type) },
+      { text: date(item.due_at ?? item.due_date), sub: item.due_counter_value ? `${text(item.due_counter_value)} h` : undefined },
       { text: titleCase(item.priority ?? item.criticality) },
       { text: text((item.equipment_assets as { name?: unknown } | null)?.name ?? item.asset_name) },
     ]),
@@ -132,7 +139,7 @@ export function buildMaintenanceModel(input: {
       { header: "Cost", align: "right", widthPct: 18 },
     ],
     rows(reportData.workOrders, (item) => [
-      { text: text(item.title), sub: text(item.work_order_number) },
+      { text: text(item.title), sub: [item.work_order_number, item.description].filter(Boolean).join(" - ") },
       { text: titleCase(item.status) },
       { text: titleCase(item.risk_level ?? item.priority) },
       { text: money(item.estimated_cost ?? item.actual_cost ?? item.estimated_cost_eur ?? item.actual_cost_eur), align: "right" },
@@ -149,7 +156,7 @@ export function buildMaintenanceModel(input: {
       { header: "Reported", widthPct: 18 },
     ],
     rows(reportData.defects, (item) => [
-      { text: text(item.title), sub: text(item.defect_number) },
+      { text: text(item.title), sub: [item.defect_number, item.description].filter(Boolean).join(" - ") },
       { text: titleCase(item.severity) },
       { text: titleCase(item.status) },
       { text: date(item.reported_at) },
@@ -166,7 +173,7 @@ export function buildMaintenanceModel(input: {
       { header: "Cost", align: "right", widthPct: 16 },
     ],
     rows(reportData.serviceEvents, (item) => [
-      { text: text(item.title), sub: text(item.service_event_number) },
+      { text: text(item.title), sub: [item.service_event_number, item.work_performed].filter(Boolean).join(" - ") },
       { text: date(item.completed_at ?? item.performed_at) },
       { text: text(item.technician_id ?? item.performed_by_name) },
       { text: money(item.cost ?? item.cost_eur), align: "right" },
@@ -179,13 +186,13 @@ export function buildMaintenanceModel(input: {
     [
       { header: "Part", widthPct: 34 },
       { header: "Stock", widthPct: 16, align: "right" },
-      { header: "Location", widthPct: 22 },
+      { header: "Expiry", widthPct: 22 },
       { header: "Unit cost", align: "right", widthPct: 18 },
     ],
     rows(reportData.parts, (item) => [
-      { text: text(item.name), sub: text(item.part_number) },
-      { text: text(item.quantity_on_hand), align: "right" },
-      { text: text(item.storage_location) },
+      { text: text(item.name), sub: [item.part_number, item.manufacturer, item.notes].filter(Boolean).join(" - ") },
+      { text: `${text(item.quantity_on_hand)} ${text(item.unit)}`, sub: `Min ${text(item.minimum_stock)} / reorder ${text(item.reorder_level)}`, align: "right" },
+      { text: date(item.expiry_date) },
       { text: money(item.unit_cost ?? item.unit_cost_eur), align: "right" },
     ]),
   );
@@ -200,7 +207,15 @@ export function buildMaintenanceModel(input: {
       { header: "Storage", widthPct: 18 },
     ],
     rows(reportData.documents, (item) => [
-      { text: text(item.title) },
+      {
+        text: text(item.title),
+        sub: [
+          (item.equipment_assets as { name?: unknown } | null)?.name,
+          (item.work_orders as { work_order_number?: unknown; title?: unknown } | null)?.work_order_number,
+          (item.service_events as { service_event_number?: unknown; title?: unknown } | null)?.service_event_number,
+          (item.defects as { defect_number?: unknown; title?: unknown } | null)?.defect_number,
+        ].filter(Boolean).join(" - "),
+      },
       { text: titleCase(item.category) },
       { text: date(item.expires_at) },
       { text: item.file_path ? "Private file" : item.file_url ? "External URL" : "-" },

@@ -152,8 +152,18 @@ async function downloadDocument(
   if (!res.ok) {
     let detail = "";
     try {
-      const j = (await res.json()) as { error?: string };
+      const j = (await res.json()) as {
+        error?: string;
+        documentType?: string | null;
+        supportedDocumentTypes?: string[];
+      };
       detail = j?.error ?? "";
+      if (j?.documentType != null) {
+        detail += ` documentType=${j.documentType}`;
+      }
+      if (Array.isArray(j?.supportedDocumentTypes)) {
+        detail += ` supported=${j.supportedDocumentTypes.join(",")}`;
+      }
     } catch {
       detail = await res.text().catch(() => "");
     }

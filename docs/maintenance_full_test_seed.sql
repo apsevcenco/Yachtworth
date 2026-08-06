@@ -6,7 +6,7 @@
 
 do $maintenance_seed$
 declare
-  v_user_id text := 'user_3FRI-T9ilTWIvXnHsMtLx15uzdAp';
+  v_user_id text := 'user_3FRlT9iITWlvXnHsMtLx15uzdAp';
   v_yacht_id uuid;
   v_engine_system uuid;
   v_electrical_system uuid;
@@ -20,10 +20,14 @@ declare
   v_task_overdue uuid;
   v_task_due uuid;
   v_work_order uuid;
+  v_closed_work_order uuid;
   v_service_event uuid;
+  v_second_service_event uuid;
   v_defect uuid;
+  v_verified_defect uuid;
   v_part_filter uuid;
   v_part_belt uuid;
+  v_part_impeller uuid;
 begin
   select id
     into v_yacht_id
@@ -190,6 +194,31 @@ begin
   insert into public.work_order_assets (work_order_id, equipment_asset_id, relationship, notes)
   values (v_work_order, v_port_engine, 'primary', 'TEST PMS - linked to port main engine');
 
+  insert into public.work_orders (
+    yacht_id, work_order_number, title, description, work_order_type, status,
+    priority, risk_level, safety_critical, requested_by, approved_by, assigned_to_user_id,
+    planned_start, planned_end, actual_start, actual_end,
+    estimated_labour_hours, actual_labour_hours, estimated_cost, actual_cost, currency,
+    downtime_expected, permit_required, risk_assessment_required, lockout_tagout_required,
+    quotation_id, purchase_order_id, completion_summary, verification_notes, closed_by, closed_at
+  )
+  values (
+    v_yacht_id, 'TEST-PMS-WO-002', 'TEST PMS - Generator service completed and closed',
+    'Closed work order used to verify completed maintenance history and PDF output.',
+    'preventive_maintenance', 'closed', 'normal', 'low', false, v_user_id, 'Captain', 'Chief Engineer',
+    now() - interval '26 days', now() - interval '24 days', now() - interval '25 days', now() - interval '24 days',
+    6, 5.5, 2100, 1850, 'EUR',
+    false, false, false, false,
+    'TEST-PMS-Q-002', 'TEST-PMS-PO-002',
+    'Generator 3000h service completed; load test passed.',
+    'Voltage, frequency and coolant readings verified after service.',
+    'Captain', now() - interval '24 days'
+  )
+  returning id into v_closed_work_order;
+
+  insert into public.work_order_assets (work_order_id, equipment_asset_id, relationship, notes)
+  values (v_closed_work_order, v_generator, 'primary', 'TEST PMS - closed generator work order');
+
   update public.maintenance_tasks
      set work_order_id = v_work_order, status = 'assigned', updated_at = now()
    where id = v_task_overdue;
@@ -212,6 +241,28 @@ begin
     '["https://images.unsplash.com/photo-1581091226825-a6a2a5aee158"]'::jsonb
   )
   returning id into v_defect;
+
+  insert into public.defects (
+    yacht_id, equipment_asset_id, defect_number, title, description, severity,
+    priority, status, operational_limitation, safety_impact, environmental_impact,
+    reported_by, reported_at, counter_value_at_report, detected_during_type,
+    temporary_repair, temporary_repair_expiry, work_order_id,
+    resolved_at, verified_by, verified_at, photo_urls
+  )
+  values (
+    v_yacht_id, v_generator, 'TEST-PMS-DEF-002', 'TEST PMS - Generator seawater pump seal staining',
+    'Minor salt staining was observed at the generator seawater pump seal before service.',
+    'low', 'normal', 'verified',
+    'No operational limitation after cleaning and retest.',
+    'No safety impact after verification.',
+    'Minor local salt residue only.',
+    v_user_id, now() - interval '26 days', 3150, 'service_event',
+    'Pump base cleaned and monitored during load test.',
+    now() - interval '20 days', v_closed_work_order,
+    now() - interval '24 days', 'Chief Engineer', now() - interval '24 days',
+    '["https://images.unsplash.com/photo-1581092160562-40aa08e78837"]'::jsonb
+  )
+  returning id into v_verified_defect;
 
   insert into public.service_events (
     yacht_id, equipment_asset_id, work_order_id, maintenance_task_id,
@@ -239,6 +290,45 @@ begin
   )
   returning id into v_service_event;
 
+  insert into public.service_events (
+    yacht_id, equipment_asset_id, work_order_id, maintenance_task_id,
+    service_event_number, service_type, title, started_at, completed_at,
+    counter_value_before, counter_value_after, cycle_value_before, cycle_value_after,
+    defect_description, root_cause_summary, work_performed, technician_id,
+    authorised_dealer, labour_hours, downtime_hours, measurements_before,
+    measurements_after, parts_used, fluids_used, test_result, cost, currency,
+    next_due_at, next_due_counter_value, approved_by, approved_at, signed_off_by,
+    signed_off_at, created_by
+  )
+  values (
+    v_yacht_id, v_port_engine, v_work_order, v_task_overdue,
+    'TEST-PMS-SE-002', 'inspection', 'TEST PMS - Port engine pre-service inspection',
+    now() - interval '3 days', now() - interval '3 days',
+    1248, 1248, null, null,
+    'Alternator belt cracking observed before service.',
+    'Age-related belt cracking; no pulley damage observed.',
+    'Visual inspection completed; belt replacement added to the open work order; oil and filter service remains pending.',
+    'Chief Engineer', true, 1.2, 0,
+    '{"belt_condition":"cracked","oil_level":"normal","coolant_leaks":"none"}'::jsonb,
+    '{"belt_tension":"checked","spare_belt":"staged","leaks":"none"}'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb,
+    'Requires follow-up', 0, 'EUR',
+    now() - interval '5 days', 1250,
+    'Captain', now() - interval '3 days', 'Chief Engineer', now() - interval '3 days', v_user_id
+  )
+  returning id into v_second_service_event;
+
+  insert into public.service_event_corrections (
+    service_event_id, field_name, previous_value, corrected_value,
+    correction_reason, requested_by, approved_by
+  )
+  values (
+    v_service_event, 'cost', '2100'::jsonb, '1850'::jsonb,
+    'TEST PMS - supplier invoice reconciled after initial estimate.',
+    v_user_id, 'Captain'
+  );
+
   insert into public.spare_parts (
     yacht_id, equipment_asset_id, part_number, name, manufacturer,
     compatible_asset_ids, quantity_on_hand, minimum_stock, reorder_level,
@@ -250,10 +340,14 @@ begin
      'Minimum stock alert demo: reorder before next engine service.'),
     (v_yacht_id, v_port_engine, 'MAN-BELT-ALT-001', 'TEST PMS - Alternator belt',
      'MAN', array[v_port_engine], 1, 1, 2, 'pcs', 126, 'EUR', current_date - interval '10 days',
-     'Expired stock demo: replace onboard spare.');
+     'Expired stock demo: replace onboard spare.'),
+    (v_yacht_id, v_generator, 'KOH-IMP-055', 'TEST PMS - Generator raw water impeller',
+     'Kohler', array[v_generator], 3, 2, 3, 'pcs', 92, 'EUR', current_date + interval '16 months',
+     'Normal stock item linked to completed generator service.');
 
   select id into v_part_filter from public.spare_parts where yacht_id = v_yacht_id and part_number = 'MAN-OIL-FLT-001';
   select id into v_part_belt from public.spare_parts where yacht_id = v_yacht_id and part_number = 'MAN-BELT-ALT-001';
+  select id into v_part_impeller from public.spare_parts where yacht_id = v_yacht_id and part_number = 'KOH-IMP-055';
 
   insert into public.inventory_movements (
     yacht_id, spare_part_id, work_order_id, service_event_id, movement_type,
@@ -261,7 +355,8 @@ begin
   )
   values
     (v_yacht_id, v_part_filter, v_work_order, null, 'reserve', 2, 4, 2, 'TEST PMS - reserved for port engine service', v_user_id),
-    (v_yacht_id, v_part_belt, v_work_order, null, 'consume', 1, 1, 0, 'TEST PMS - belt allocated to scheduled repair', v_user_id);
+    (v_yacht_id, v_part_belt, v_work_order, null, 'consume', 1, 1, 0, 'TEST PMS - belt allocated to scheduled repair', v_user_id),
+    (v_yacht_id, v_part_impeller, v_closed_work_order, v_service_event, 'consume', 1, 4, 3, 'TEST PMS - impeller consumed during generator service', v_user_id);
 
   insert into public.maintenance_documents (
     yacht_id, equipment_asset_id, work_order_id, service_event_id, defect_id,
@@ -279,7 +374,19 @@ begin
     (v_yacht_id, v_generator, null, v_service_event, null,
      'invoice', 'TEST PMS - Generator service invoice',
      'https://example.com/test-generator-service-invoice.pdf', 'application/pdf',
-     null, true, 1, v_user_id);
+     null, true, 1, v_user_id),
+    (v_yacht_id, v_generator, v_closed_work_order, v_service_event, v_verified_defect,
+     'service_report', 'TEST PMS - Generator load-bank service report',
+     'https://example.com/test-generator-load-bank-report.pdf', 'application/pdf',
+     null, true, 1, v_user_id),
+    (v_yacht_id, v_port_engine, v_work_order, v_second_service_event, v_defect,
+     'photo', 'TEST PMS - Port engine inspection photo',
+     'https://images.unsplash.com/photo-1516937941344-00b4e0337589', 'image/jpeg',
+     null, true, 1, v_user_id),
+    (v_yacht_id, null, null, null, null,
+     'radio_license', 'TEST PMS - Radio licence stored in bridge cabinet',
+     'https://example.com/test-radio-license.pdf', 'application/pdf',
+     now() + interval '10 months', true, 1, v_user_id);
 
   raise notice 'Maintenance full test seed completed for yacht % and user %', v_yacht_id, v_user_id;
 end $maintenance_seed$;
