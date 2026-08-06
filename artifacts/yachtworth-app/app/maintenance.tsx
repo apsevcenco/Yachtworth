@@ -28,6 +28,7 @@ import {
   createServiceEvent,
   createSparePart,
   createWorkOrder,
+  deleteMaintenanceDocument,
   generateMaintenanceTask,
   getDefects,
   getEquipmentAssets,
@@ -47,6 +48,7 @@ import {
   updateSparePart,
   updateWorkOrder,
   createInventoryMovement,
+  updateMaintenanceDocument,
   uploadMaintenanceDocumentFile,
   type Defect,
   type EquipmentCounter,
@@ -430,6 +432,8 @@ export default function MaintenanceScreen() {
                   documents={documentsQ.data ?? []}
                   onCreate={(input) => run("Saving attachment", () => createMaintenanceDocument(yachtId, input))}
                   onUpload={(input) => run("Uploading attachment", () => uploadMaintenanceDocumentFile(yachtId, input))}
+                  onUpdate={(documentId, input) => run("Updating attachment", () => updateMaintenanceDocument(yachtId, documentId, input))}
+                  onDelete={(documentId) => run("Deleting attachment", () => deleteMaintenanceDocument(yachtId, documentId))}
                   onOpen={(documentId) => run("Opening attachment", async () => {
                     const url = await getMaintenanceDocumentSignedUrl(yachtId, documentId);
                     await Linking.openURL(url);
@@ -1709,6 +1713,8 @@ function Attachments({
   documents,
   onCreate,
   onUpload,
+  onUpdate,
+  onDelete,
   onOpen,
 }: {
   assets: EquipmentAsset[];
@@ -1718,6 +1724,8 @@ function Attachments({
   documents: MaintenanceDocument[];
   onCreate: (input: Partial<MaintenanceDocument>) => void;
   onUpload: (input: UploadMaintenanceDocumentInput) => void;
+  onUpdate: (documentId: string, input: Partial<MaintenanceDocument>) => void;
+  onDelete: (documentId: string) => void;
   onOpen: (documentId: string) => void;
 }) {
   const [title, setTitle] = useState("");
@@ -1729,6 +1737,16 @@ function Attachments({
   const [isPrivate, setIsPrivate] = useState(true);
   const [linkType, setLinkType] = useState<"equipment" | "work_order" | "service_event" | "defect" | "none">("equipment");
   const [linkedId, setLinkedId] = useState<string | null>(assets[0]?.id ?? null);
+  const [editing, setEditing] = useState<MaintenanceDocument | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("document");
+  const [editFileUrl, setEditFileUrl] = useState("");
+  const [editMimeType, setEditMimeType] = useState("");
+  const [editExpiresAt, setEditExpiresAt] = useState("");
+  const [editVersion, setEditVersion] = useState("1");
+  const [editIsPrivate, setEditIsPrivate] = useState(true);
+  const [editLinkType, setEditLinkType] = useState<"equipment" | "work_order" | "service_event" | "defect" | "none">("none");
+  const [editLinkedId, setEditLinkedId] = useState<string | null>(null);
 
   const linkOptions =
     linkType === "equipment" ? assets.map((item) => ({ id: item.id, label: item.name })) :
@@ -1736,10 +1754,26 @@ function Attachments({
     linkType === "service_event" ? serviceEvents.map((item) => ({ id: item.id, label: `${item.service_event_number} - ${item.title}` })) :
     linkType === "defect" ? defects.map((item) => ({ id: item.id, label: `${item.defect_number} - ${item.title}` })) :
     [];
+  const editLinkOptions =
+    editLinkType === "equipment" ? assets.map((item) => ({ id: item.id, label: item.name })) :
+    editLinkType === "work_order" ? workOrders.map((item) => ({ id: item.id, label: `${item.work_order_number} - ${item.title}` })) :
+    editLinkType === "service_event" ? serviceEvents.map((item) => ({ id: item.id, label: `${item.service_event_number} - ${item.title}` })) :
+    editLinkType === "defect" ? defects.map((item) => ({ id: item.id, label: `${item.defect_number} - ${item.title}` })) :
+    [];
 
   useEffect(() => {
     setLinkedId(linkOptions[0]?.id ?? null);
   }, [linkType]);
+
+  useEffect(() => {
+    if (!editLinkOptions.length) {
+      setEditLinkedId(null);
+      return;
+    }
+    if (!editLinkedId || !editLinkOptions.some((item) => item.id === editLinkedId)) {
+      setEditLinkedId(editLinkOptions[0]?.id ?? null);
+    }
+  }, [editLinkType, editLinkedId, editLinkOptions]);
 
   const reset = () => {
     setTitle("");
@@ -1757,6 +1791,54 @@ function Attachments({
     service_event_id: linkType === "service_event" ? linkedId : undefined,
     defect_id: linkType === "defect" ? linkedId : undefined,
   });
+
+  const editLinkPayload = () => ({
+    equipment_asset_id: editLinkType === "equipment" ? editLinkedId : null,
+    work_order_id: editLinkType === "work_order" ? editLinkedId : null,
+    service_event_id: editLinkType === "service_event" ? editLinkedId : null,
+    defect_id: editLinkType === "defect" ? editLinkedId : null,
+  });
+
+  const startEdit = (item: MaintenanceDocument) => {
+    setEditing(item);
+    setEditTitle(item.title ?? "");
+    setEditCategory(item.category ?? "document");
+    setEditFileUrl(item.file_url ?? "");
+    setEditMimeType(item.mime_type ?? "");
+    setEditExpiresAt(item.expires_at ? item.expires_at.slice(0, 10) : "");
+    setEditVersion(String(item.version ?? 1));
+    setEditIsPrivate(item.is_private !== false);
+    if (item.equipment_asset_id) {
+      setEditLinkType("equipment");
+      setEditLinkedId(item.equipment_asset_id);
+    } else if (item.work_order_id) {
+      setEditLinkType("work_order");
+      setEditLinkedId(item.work_order_id);
+    } else if (item.service_event_id) {
+      setEditLinkType("service_event");
+      setEditLinkedId(item.service_event_id);
+    } else if (item.defect_id) {
+      setEditLinkType("defect");
+      setEditLinkedId(item.defect_id);
+    } else {
+      setEditLinkType("none");
+      setEditLinkedId(null);
+    }
+  };
+
+  const confirmDelete = (item: MaintenanceDocument) => {
+    Alert.alert("Delete attachment?", item.title, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          if (editing?.id === item.id) setEditing(null);
+          onDelete(item.id);
+        },
+      },
+    ]);
+  };
 
   const uploadPickedFile = (file: {
     uri: string;
@@ -1890,7 +1972,60 @@ function Attachments({
           disabled={!title || !fileUrl}
         />
       </Form>
+      {editing ? (
+        <Form title="Edit attachment">
+          <Field label="Title" value={editTitle} onChangeText={setEditTitle} placeholder="Main engine service invoice" />
+          <Text style={styles.label}>Category</Text>
+          <ChipSelect items={ATTACHMENT_CATEGORY_OPTIONS} selected={editCategory} onSelect={setEditCategory} />
+          {editing.file_path ? (
+            <Detail label="Stored file" value={editing.file_path} />
+          ) : (
+            <Field label="File / photo URL" value={editFileUrl} onChangeText={setEditFileUrl} placeholder="https://..." />
+          )}
+          <Field label="MIME type" value={editMimeType} onChangeText={setEditMimeType} placeholder="image/jpeg / application/pdf" />
+          <Field label="Expiry date" value={editExpiresAt} onChangeText={setEditExpiresAt} placeholder="YYYY-MM-DD, optional" />
+          <Field label="Version" value={editVersion} onChangeText={setEditVersion} />
+          <View style={styles.toggleGrid}>
+            <FlagToggle label="Private" value={editIsPrivate} onPress={() => setEditIsPrivate((value) => !value)} />
+          </View>
+          <Text style={styles.label}>Attach to</Text>
+          <ChipSelect
+            items={[
+              { id: "equipment", label: "Equipment" },
+              { id: "work_order", label: "Work order" },
+              { id: "service_event", label: "Service event" },
+              { id: "defect", label: "Defect" },
+              { id: "none", label: "General" },
+            ]}
+            selected={editLinkType}
+            onSelect={(id) => setEditLinkType(id as typeof editLinkType)}
+          />
+          {editLinkOptions.length ? <ChipSelect items={editLinkOptions} selected={editLinkedId} onSelect={setEditLinkedId} /> : null}
+          <View style={styles.toggleGrid}>
+            <Button
+              label="Save changes"
+              icon="save"
+              onPress={() => {
+                onUpdate(editing.id, {
+                  title: editTitle,
+                  category: editCategory,
+                  file_url: editing.file_path ? undefined : editFileUrl,
+                  mime_type: editMimeType,
+                  expires_at: editExpiresAt ? new Date(`${editExpiresAt}T12:00:00.000Z`).toISOString() : null,
+                  version: Number(editVersion) || 1,
+                  is_private: editIsPrivate,
+                  ...editLinkPayload(),
+                });
+                setEditing(null);
+              }}
+              disabled={!editTitle}
+            />
+            <Button label="Cancel" icon="x" onPress={() => setEditing(null)} />
+          </View>
+        </Form>
+      ) : null}
       <SectionList title="Attachment register" items={documents} empty="No attachments yet." render={(item: MaintenanceDocument) => (
+        <View style={styles.attachmentCard}>
         <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={item.title}
@@ -1903,6 +2038,12 @@ function Attachments({
             status={item.category === "photo" ? "photo" : "document"}
           />
         </Pressable>
+          <View style={styles.toggleGrid}>
+            <Button label="Open" icon="external-link" onPress={() => onOpen(item.id)} />
+            <Button label="Edit" icon="edit-3" onPress={() => startEdit(item)} />
+            <Button label="Delete" icon="trash-2" onPress={() => confirmDelete(item)} />
+          </View>
+        </View>
       )} />
     </View>
   );
@@ -2030,6 +2171,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1 },
   rowTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 15 },
   rowMeta: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 18 },
+  attachmentCard: { borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: NAVY_DEEP, padding: 10, marginBottom: 10 },
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   pillText: { fontFamily: "Inter_700Bold", fontSize: 11, textTransform: "uppercase" },
   empty: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 14 },

@@ -563,3 +563,20 @@ export async function getMaintenanceDocumentSignedUrl(yachtId: string, documentI
   const data = await request<{ url: string }>(`/api/maintenance/yachts/${yachtId}/documents/${documentId}/signed-url`);
   return data.url;
 }
+
+export async function updateMaintenanceDocument(
+  yachtId: string,
+  documentId: string,
+  input: Partial<MaintenanceDocument>,
+): Promise<MaintenanceDocument> {
+  return request(`/api/maintenance/yachts/${yachtId}/documents/${documentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteMaintenanceDocument(yachtId: string, documentId: string): Promise<void> {
+  await request(`/api/maintenance/yachts/${yachtId}/documents/${documentId}`, {
+    method: "DELETE",
+  });
+}

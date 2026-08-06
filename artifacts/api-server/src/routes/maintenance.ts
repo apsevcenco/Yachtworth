@@ -1210,4 +1210,90 @@ router.get("/maintenance/yachts/:yachtId/documents/:documentId/signed-url", asyn
   res.json({ url: signed.data.signedUrl });
 });
 
+router.patch("/maintenance/yachts/:yachtId/documents/:documentId", async (req, res) => {
+  const yachtId = String(req.params["yachtId"]);
+  const documentId = String(req.params["documentId"]);
+  if (!(await assertYacht(req, res, yachtId))) return;
+  if (!isUuid(documentId)) {
+    res.status(404).json({ error: "Attachment not found" });
+    return;
+  }
+  const p = body(req);
+  const title = s(p["title"]);
+  if (!title) {
+    res.status(400).json({ error: "title required" });
+    return;
+  }
+  const update = {
+    equipment_asset_id: uuid(p["equipment_asset_id"]),
+    work_order_id: uuid(p["work_order_id"]),
+    service_event_id: uuid(p["service_event_id"]),
+    defect_id: uuid(p["defect_id"]),
+    category: s(p["category"]) ?? "document",
+    title,
+    file_url: s(p["file_url"]),
+    mime_type: s(p["mime_type"]),
+    expires_at: s(p["expires_at"]),
+    is_private: p["is_private"] !== false,
+    version: n(p["version"]) ?? 1,
+  };
+  const sb = getSupabase()!;
+  const { data, error } = await sb
+    .from(MAINTENANCE_DOCUMENTS_TABLE)
+    .update(update)
+    .eq("id", documentId)
+    .eq("yacht_id", yachtId)
+    .select("*")
+    .maybeSingle();
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  if (!data) {
+    res.status(404).json({ error: "Attachment not found" });
+    return;
+  }
+  await audit(yachtId, req.userId, "maintenance_document_updated", "maintenance_document", data.id, data);
+  res.json(data);
+});
+
+router.delete("/maintenance/yachts/:yachtId/documents/:documentId", async (req, res) => {
+  const yachtId = String(req.params["yachtId"]);
+  const documentId = String(req.params["documentId"]);
+  if (!(await assertYacht(req, res, yachtId))) return;
+  if (!isUuid(documentId)) {
+    res.status(404).json({ error: "Attachment not found" });
+    return;
+  }
+  const sb = getSupabase()!;
+  const { data: doc, error: readError } = await sb
+    .from(MAINTENANCE_DOCUMENTS_TABLE)
+    .select("id,file_path")
+    .eq("id", documentId)
+    .eq("yacht_id", yachtId)
+    .maybeSingle();
+  if (readError) {
+    res.status(500).json({ error: readError.message });
+    return;
+  }
+  if (!doc) {
+    res.status(404).json({ error: "Attachment not found" });
+    return;
+  }
+  const { error } = await sb
+    .from(MAINTENANCE_DOCUMENTS_TABLE)
+    .delete()
+    .eq("id", documentId)
+    .eq("yacht_id", yachtId);
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  if (doc.file_path) {
+    await sb.storage.from(MAINTENANCE_ATTACHMENTS_BUCKET).remove([doc.file_path]).catch(() => undefined);
+  }
+  await audit(yachtId, req.userId, "maintenance_document_deleted", "maintenance_document", documentId, { id: documentId });
+  res.status(204).send();
+});
+
 export default router;
