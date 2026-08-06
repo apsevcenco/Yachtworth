@@ -1,8 +1,10 @@
 -- Yachtworth Maintenance Log full demo seed.
 -- Run manually in Supabase SQL editor.
 -- Change v_user_id if you need to seed another Clerk user.
+-- Important: paste this file exactly as-is. Do not add Supabase-generated
+-- "ALTER TABLE ... ENABLE ROW LEVEL SECURITY" lines to the bottom of this block.
 
-do $$
+do $maintenance_seed$
 declare
   v_user_id text := 'user_3FRI-T9ilTWIvXnHsMtLx15uzdAp';
   v_yacht_id uuid;
@@ -280,4 +282,4 @@ begin
      null, true, 1, v_user_id);
 
   raise notice 'Maintenance full test seed completed for yacht % and user %', v_yacht_id, v_user_id;
-end $$;
+end $maintenance_seed$;
