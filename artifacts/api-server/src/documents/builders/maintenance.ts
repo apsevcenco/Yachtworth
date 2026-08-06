@@ -135,7 +135,7 @@ export function buildMaintenanceModel(input: {
       { text: text(item.title), sub: text(item.work_order_number) },
       { text: titleCase(item.status) },
       { text: titleCase(item.risk_level ?? item.priority) },
-      { text: money(item.estimated_cost_eur ?? item.actual_cost_eur), align: "right" },
+      { text: money(item.estimated_cost ?? item.actual_cost ?? item.estimated_cost_eur ?? item.actual_cost_eur), align: "right" },
     ]),
   );
 
@@ -169,7 +169,7 @@ export function buildMaintenanceModel(input: {
       { text: text(item.title), sub: text(item.service_event_number) },
       { text: date(item.completed_at ?? item.performed_at) },
       { text: text(item.technician_id ?? item.performed_by_name) },
-      { text: money(item.cost_eur), align: "right" },
+      { text: money(item.cost ?? item.cost_eur), align: "right" },
     ]),
   );
 
@@ -186,7 +186,7 @@ export function buildMaintenanceModel(input: {
       { text: text(item.name), sub: text(item.part_number) },
       { text: text(item.quantity_on_hand), align: "right" },
       { text: text(item.storage_location) },
-      { text: money(item.unit_cost_eur), align: "right" },
+      { text: money(item.unit_cost ?? item.unit_cost_eur), align: "right" },
     ]),
   );
 
