@@ -2,6 +2,7 @@ import { buildProposalModel } from "./builders/proposal";
 import { buildCharterModel, buildFleetCharterModel } from "./builders/charter";
 import { buildCostModel } from "./builders/cost";
 import { buildListingModel } from "./builders/listing";
+import { buildMaintenanceModel } from "./builders/maintenance";
 import { buildRoiModel } from "./builders/roi";
 import { buildSurveyModel } from "./builders/survey";
 import { buildValuationModel } from "./builders/valuation";
@@ -18,6 +19,7 @@ import {
   type CostReportData,
   type FleetCharterReportData,
   type ListingReportData,
+  type MaintenanceReportData,
   type ProposalReportData,
   type RoiReportData,
   type SurveyReportData,
@@ -45,7 +47,8 @@ export async function generateDocument(
     req.documentType !== "listing_report" &&
     req.documentType !== "charter_report" &&
     req.documentType !== "fleet_charter_report" &&
-    req.documentType !== "survey_report"
+    req.documentType !== "survey_report" &&
+    req.documentType !== "maintenance_report"
   ) {
     throw Object.assign(new Error(`Unsupported documentType: ${req.documentType}`), {
       statusCode: 501,
@@ -191,6 +194,20 @@ export async function generateDocument(
       buffer,
       contentType: PDF_CONTENT_TYPE,
       fileName: `${fileBase}_survey.pdf`,
+    };
+  }
+
+  if (req.documentType === "maintenance_report") {
+    const reportData = (req.reportData ?? {}) as MaintenanceReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "maintenance", "maintenance");
+    const html = renderModelToPdfHtml(
+      buildMaintenanceModel({ yacht, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_maintenance.pdf`,
     };
   }
 

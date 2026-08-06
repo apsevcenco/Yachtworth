@@ -18,7 +18,8 @@ export type DocumentType =
   | "listing_report"
   | "charter_report"
   | "fleet_charter_report"
-  | "survey_report";
+  | "survey_report"
+  | "maintenance_report";
 export type DocumentFormat = "pdf";
 
 export type DocumentEngine = "adaptive";
@@ -447,6 +448,18 @@ export interface SurveyReportData {
   seaTrial?: SurveySeaTrialData | null;
 }
 
+export interface MaintenanceReportData {
+  generatedLabel?: string | null;
+  counts?: Record<string, number> | null;
+  assets?: Record<string, unknown>[] | null;
+  tasks?: Record<string, unknown>[] | null;
+  workOrders?: Record<string, unknown>[] | null;
+  defects?: Record<string, unknown>[] | null;
+  serviceEvents?: Record<string, unknown>[] | null;
+  parts?: Record<string, unknown>[] | null;
+  documents?: Record<string, unknown>[] | null;
+}
+
 export interface GenerateDocumentRequest {
   documentType: DocumentType;
   format: DocumentFormat;
@@ -460,7 +473,8 @@ export interface GenerateDocumentRequest {
     | ListingReportData
     | CharterReportData
     | FleetCharterReportData
-    | SurveyReportData;
+    | SurveyReportData
+    | MaintenanceReportData;
   exportSettings?: ExportSettings;
 }
 

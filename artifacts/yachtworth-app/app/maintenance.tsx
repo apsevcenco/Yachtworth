@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { exportMaintenanceDocument } from "@/lib/documentExport";
 import {
   createDefect,
   createEquipmentAsset,
@@ -364,6 +365,23 @@ export default function MaintenanceScreen() {
 
             <View style={styles.content}>
               <Text style={styles.yachtName}>{yachtTitle(yacht)}</Text>
+              <Pressable
+                style={styles.primaryButton}
+                onPress={() => run("Exporting maintenance report", () => exportMaintenanceDocument({
+                  yacht,
+                  dashboard: dashboardQ.data ?? null,
+                  assets: assetsQ.data ?? [],
+                  tasks: tasksQ.data ?? [],
+                  workOrders: workQ.data ?? [],
+                  defects: defectsQ.data ?? [],
+                  serviceEvents: historyQ.data ?? [],
+                  parts: partsQ.data ?? [],
+                  documents: documentsQ.data ?? [],
+                }))}
+              >
+                <Feather name="download" size={18} color={NAVY} />
+                <Text style={styles.primaryButtonText}>Export maintenance report</Text>
+              </Pressable>
               {busy ? <Text style={styles.busy}>{busy}...</Text> : null}
               {tab === "overview" ? (
                 <Overview

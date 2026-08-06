@@ -25,6 +25,17 @@ import {
   type SubAgent,
   type SubAgentType,
 } from "./charterCalc";
+import type {
+  Defect,
+  EquipmentAsset,
+  MaintenanceDashboard,
+  MaintenanceDocument,
+  MaintenanceTask,
+  ServiceEvent,
+  SparePart,
+  WorkOrder,
+  YachtOption,
+} from "./maintenance";
 
 export type DocumentFormat = "pdf";
 
@@ -1048,4 +1059,62 @@ export async function exportSurveyDocument(input: SurveyDocumentInput): Promise<
       .replace(/\s+/g, "_")
       .slice(0, 60) || "survey";
   await downloadDocument(buildSurveyBody(input), "pdf", `${base}_survey.pdf`);
+}
+
+export type MaintenanceDocumentExportInput = {
+  yacht: YachtOption;
+  dashboard?: MaintenanceDashboard | null;
+  assets: EquipmentAsset[];
+  tasks: MaintenanceTask[];
+  workOrders: WorkOrder[];
+  defects: Defect[];
+  serviceEvents: ServiceEvent[];
+  parts: SparePart[];
+  documents: MaintenanceDocument[];
+};
+
+export async function exportMaintenanceDocument(input: MaintenanceDocumentExportInput): Promise<void> {
+  const yacht = input.yacht;
+  const base =
+    (yacht.name || "maintenance")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60) || "maintenance";
+  await downloadDocument(
+    {
+      documentType: "maintenance_report",
+      format: "pdf",
+      template: "premium",
+      yachtProfile: {
+        name: yacht.name || "Maintenance Report",
+        builder: yacht.manufacturer ?? null,
+        model: yacht.model ?? null,
+      },
+      reportData: {
+        generatedLabel: new Date().toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        counts: input.dashboard?.counts ?? null,
+        assets: input.assets,
+        tasks: input.tasks,
+        workOrders: input.workOrders,
+        defects: input.defects,
+        serviceEvents: input.serviceEvents,
+        parts: input.parts,
+        documents: input.documents,
+      },
+      exportSettings: {
+        template: "premium",
+        language: "english",
+        branding: "Yachtworth",
+        confidential: true,
+        engine: "adaptive",
+      },
+    },
+    "pdf",
+    `${base}_maintenance.pdf`,
+  );
 }
