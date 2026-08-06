@@ -8,6 +8,24 @@ import {
 
 const router: IRouter = Router();
 
+const SUPPORTED_DOCUMENT_TYPES = [
+  "proposal",
+  "valuation_report",
+  "roi_report",
+  "cost_report",
+  "listing_report",
+  "charter_report",
+  "fleet_charter_report",
+  "survey_report",
+  "maintenance_report",
+] as const satisfies readonly GenerateDocumentRequest["documentType"][];
+
+function isSupportedDocumentType(
+  value: unknown,
+): value is GenerateDocumentRequest["documentType"] {
+  return typeof value === "string" && (SUPPORTED_DOCUMENT_TYPES as readonly string[]).includes(value);
+}
+
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -29,22 +47,13 @@ router.post(
     const body = isObject(req.body) ? req.body : {};
 
     const documentType = body["documentType"];
-    if (
-      documentType !== "proposal" &&
-      documentType !== "valuation_report" &&
-      documentType !== "roi_report" &&
-      documentType !== "cost_report" &&
-      documentType !== "listing_report" &&
-      documentType !== "charter_report" &&
-      documentType !== "fleet_charter_report" &&
-      documentType !== "survey_report" &&
-      documentType !== "maintenance_report"
-    ) {
+    if (!isSupportedDocumentType(documentType)) {
       res
         .status(documentType ? 501 : 400)
         .json({
-          error:
-            "Unsupported or missing documentType.",
+          error: "Unsupported or missing documentType.",
+          documentType: typeof documentType === "string" ? documentType : null,
+          supportedDocumentTypes: SUPPORTED_DOCUMENT_TYPES,
         });
       return;
     }
@@ -62,7 +71,7 @@ router.post(
     }
 
     const request: GenerateDocumentRequest = {
-      documentType: documentType as GenerateDocumentRequest["documentType"],
+      documentType,
       format: format as DocumentFormat,
       template: body["template"] as GenerateDocumentRequest["template"],
       yachtProfile: yachtProfile as unknown as GenerateDocumentRequest["yachtProfile"],
