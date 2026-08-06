@@ -37,7 +37,8 @@ router.post(
       documentType !== "listing_report" &&
       documentType !== "charter_report" &&
       documentType !== "fleet_charter_report" &&
-      documentType !== "survey_report"
+      documentType !== "survey_report" &&
+      documentType !== "maintenance_report"
     ) {
       res
         .status(documentType ? 501 : 400)
