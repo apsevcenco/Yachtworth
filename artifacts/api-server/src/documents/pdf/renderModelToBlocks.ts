@@ -250,9 +250,13 @@ function flowParagraphLines(raw: string): string[] {
   return out;
 }
 
-function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[] {
-  if (node.panel) {
-    const h = measureNode(node);
+function panelParagraphBlocks(
+  node: ParagraphNode,
+  typePrefix: string,
+  lineHeight: (text: string) => number,
+): DocBlock[] {
+  const h = measureNode(node);
+  if (h <= 70) {
     return [
       {
         id: nextId("para"),
@@ -261,6 +265,31 @@ function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[
         html: leafHtml(node),
       },
     ];
+  }
+
+  const lines = flowParagraphLines(node.text ?? "");
+  if (!lines.length) {
+    return [
+      {
+        id: nextId("para"),
+        type: "paragraph",
+        estimatedHeight: h,
+        html: leafHtml(node),
+      },
+    ];
+  }
+
+  return lines.map((line, idx) => ({
+    id: nextId(`${typePrefix}-note`),
+    type: idx === 0 && node.heading ? `${typePrefix}-item` : `${typePrefix}-line`,
+    estimatedHeight: (idx === 0 && node.heading ? 9.5 : 0) + 13 + lineHeight(line),
+    html: `${idx === 0 ? eyebrow(node.heading) : ""}<div class="notes"><p>${esc(line)}</p></div>`,
+  }));
+}
+
+function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[] {
+  if (node.panel) {
+    return panelParagraphBlocks(node, typePrefix, flowLineHeight);
   }
   const lines = flowParagraphLines(node.text ?? "");
   if (!lines.length) {
@@ -317,15 +346,7 @@ function surveyMeasureTable(
 
 function surveyParagraphBlocks(node: ParagraphNode): DocBlock[] {
   if (node.panel) {
-    const h = measureNode(node);
-    return [
-      {
-        id: nextId("para"),
-        type: "paragraph",
-        estimatedHeight: h,
-        html: leafHtml(node),
-      },
-    ];
+    return panelParagraphBlocks(node, "survey", surveyLineHeight);
   }
   const raw = node.text ?? "";
   const lines = raw.split(/\n/).map((line) => line.trim()).filter(Boolean);
