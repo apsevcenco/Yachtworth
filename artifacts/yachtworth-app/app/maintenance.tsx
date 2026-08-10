@@ -228,6 +228,8 @@ export default function MaintenanceScreen() {
   const [tab, setTab] = useState<Tab>("overview");
   const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [focusedWorkOrderId, setFocusedWorkOrderId] = useState<string | null>(null);
 
   const yachtsQ = useQuery({ queryKey: ["maintenance-yachts"], queryFn: getYachts });
   const yachts = yachtsQ.data ?? [];
@@ -305,6 +307,18 @@ export default function MaintenanceScreen() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const openTask = (taskId: string) => {
+    setFocusedTaskId(taskId);
+    setFocusedWorkOrderId(null);
+    setTab("tasks");
+  };
+
+  const openWorkOrder = (workOrderId: string) => {
+    setFocusedWorkOrderId(workOrderId);
+    setFocusedTaskId(null);
+    setTab("work");
   };
 
   const loading = yachtsQ.isLoading || (!!yachtId && dashboardQ.isLoading);
@@ -388,14 +402,23 @@ export default function MaintenanceScreen() {
                 <Overview
                   dashboard={dashboardQ.data}
                   onSeed={() => run("Seeding systems", () => seedMaintenanceSystems(yachtId))}
+                  onOpenTask={openTask}
+                  onOpenWorkOrder={openWorkOrder}
                 />
               ) : null}
               {tab === "calendar" ? (
                 <MaintenanceCalendar
+                  assets={assetsQ.data ?? []}
                   tasks={tasksQ.data ?? []}
                   workOrders={workQ.data ?? []}
                   parts={partsQ.data ?? []}
                   documents={documentsQ.data ?? []}
+                  onCreateTask={(input) => run("Creating calendar task", async () => {
+                    const plan = await createMaintenancePlan(yachtId, input);
+                    if (typeof plan.id === "string") await generateMaintenanceTask(yachtId, plan.id);
+                  })}
+                  onOpenTask={openTask}
+                  onOpenWorkOrder={openWorkOrder}
                 />
               ) : null}
               {tab === "equipment" ? (
@@ -412,6 +435,8 @@ export default function MaintenanceScreen() {
                 <Tasks
                   assets={assetsQ.data ?? []}
                   tasks={tasksQ.data ?? []}
+                  focusedTaskId={focusedTaskId}
+                  onFocusedTaskHandled={() => setFocusedTaskId(null)}
                   onCreatePlan={(input) => run("Creating plan", async () => {
                     const plan = await createMaintenancePlan(yachtId, input);
                     if (typeof plan.id === "string") await generateMaintenanceTask(yachtId, plan.id);
@@ -422,6 +447,8 @@ export default function MaintenanceScreen() {
                 <WorkOrders
                   assets={assetsQ.data ?? []}
                   workOrders={workQ.data ?? []}
+                  focusedWorkOrderId={focusedWorkOrderId}
+                  onFocusedWorkOrderHandled={() => setFocusedWorkOrderId(null)}
                   onCreate={(input) => run("Creating work order", () => createWorkOrder(yachtId, input))}
                   onUpdate={(workOrderId, input) => run("Updating work order", () => updateWorkOrder(yachtId, workOrderId, input))}
                 />
@@ -475,7 +502,17 @@ export default function MaintenanceScreen() {
   );
 }
 
-function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onSeed: () => void }) {
+function Overview({
+  dashboard,
+  onSeed,
+  onOpenTask,
+  onOpenWorkOrder,
+}: {
+  dashboard?: MaintenanceDashboard;
+  onSeed: () => void;
+  onOpenTask: (taskId: string) => void;
+  onOpenWorkOrder: (workOrderId: string) => void;
+}) {
   const counts = dashboard?.counts ?? {};
   const metrics = [
     ["Systems", counts.systems ?? 0],
@@ -510,13 +547,17 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
         <Text style={styles.primaryButtonText}>Seed professional system taxonomy</Text>
       </Pressable>
       <SectionList title="Overdue / due soon" items={[...overdueTasks, ...dueSoonTasks]} render={(item: MaintenanceTask) => (
-        <Row title={item.title} meta={item.equipment_assets?.name ?? item.due_at ?? "No due date"} status={item.status} />
+        <Pressable onPress={() => onOpenTask(item.id)}>
+          <Row title={item.title} meta={item.equipment_assets?.name ?? item.due_at ?? "No due date"} status={item.status} />
+        </Pressable>
       )} />
       <SectionList title="Open defects" items={openDefects} render={(item: Defect) => (
         <Row title={item.title} meta={item.equipment_assets?.name ?? "Unassigned"} status={item.severity} />
       )} />
       <SectionList title="Open work orders" items={openWorkOrders} render={(item: WorkOrder) => (
-        <Row title={item.title} meta={item.work_order_number ?? item.priority ?? "Work order"} status={item.status} />
+        <Pressable onPress={() => onOpenWorkOrder(item.id)}>
+          <Row title={item.title} meta={item.work_order_number ?? item.priority ?? "Work order"} status={item.status} />
+        </Pressable>
       )} />
       <SectionList title="Low stock parts" items={lowStockParts} render={(item: SparePart) => (
         <Row title={item.name} meta={[item.part_number, `Stock ${item.quantity_on_hand ?? 0}`].filter(Boolean).join(" - ")} status="low stock" />
@@ -534,6 +575,7 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
 type CalendarMode = "month" | "week" | "list";
 type MaintenanceCalendarEvent = {
   id: string;
+  sourceId: string;
   date: string;
   title: string;
   meta?: string | null;
@@ -590,6 +632,7 @@ function buildCalendarEvents(
     if (!date) continue;
     events.push({
       id: `task:${task.id}`,
+      sourceId: task.id,
       date,
       title: task.title,
       meta: [task.equipment_assets?.name, task.assigned_to_role, task.due_counter_value ? `${task.due_counter_value} h` : null].filter(Boolean).join(" - "),
@@ -602,6 +645,7 @@ function buildCalendarEvents(
     if (!date) continue;
     events.push({
       id: `work:${work.id}`,
+      sourceId: work.id,
       date,
       title: work.title,
       meta: [work.work_order_number, work.priority, work.risk_level].filter(Boolean).join(" - "),
@@ -615,6 +659,7 @@ function buildCalendarEvents(
     const expired = new Date(`${date}T12:00:00.000Z`) < new Date();
     events.push({
       id: `document:${doc.id}`,
+      sourceId: doc.id,
       date,
       title: doc.title,
       meta: [doc.category, attachmentOwner(doc)].filter(Boolean).join(" - "),
@@ -628,6 +673,7 @@ function buildCalendarEvents(
     const expired = new Date(`${date}T12:00:00.000Z`) < new Date();
     events.push({
       id: `part:${part.id}`,
+      sourceId: part.id,
       date,
       title: part.name,
       meta: [part.part_number, `${part.quantity_on_hand} ${part.unit ?? "pcs"}`].filter(Boolean).join(" - "),
@@ -639,18 +685,32 @@ function buildCalendarEvents(
 }
 
 function MaintenanceCalendar({
+  assets,
   tasks,
   workOrders,
   parts,
   documents,
+  onCreateTask,
+  onOpenTask,
+  onOpenWorkOrder,
 }: {
+  assets: EquipmentAsset[];
   tasks: MaintenanceTask[];
   workOrders: WorkOrder[];
   parts: SparePart[];
   documents: MaintenanceDocument[];
+  onCreateTask: (input: Record<string, unknown>) => void;
+  onOpenTask: (taskId: string) => void;
+  onOpenWorkOrder: (workOrderId: string) => void;
 }) {
   const [mode, setMode] = useState<CalendarMode>("month");
   const [anchor, setAnchor] = useState(() => new Date());
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
+  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
+  const [priority, setPriority] = useState("normal");
+  const [assignedRole, setAssignedRole] = useState("");
   const events = buildCalendarEvents(tasks, workOrders, parts, documents);
   const range = calendarRange(mode === "list" ? "month" : mode, anchor);
   const visible = mode === "list" ? events : events.filter((event) => inRange(event.date, range.start, range.end));
@@ -660,6 +720,44 @@ function MaintenanceCalendar({
   for (const event of visible) {
     byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
   }
+  const selectedAsset = assetId ?? assets[0]?.id ?? null;
+
+  const openEvent = (event: MaintenanceCalendarEvent) => {
+    if (event.type === "task") {
+      onOpenTask(event.sourceId);
+      return;
+    }
+    if (event.type === "work") {
+      onOpenWorkOrder(event.sourceId);
+    }
+  };
+
+  const createCalendarTask = () => {
+    if (!title || !selectedAsset || !dueDate) return;
+    onCreateTask({
+      name: title,
+      description,
+      equipment_asset_id: selectedAsset,
+      plan_type: "one_time",
+      priority,
+      criticality: priority === "critical" ? "critical" : "normal",
+      start_date: dueDate,
+      assigned_to_role: assignedRole,
+      verification_required: true,
+      intervals: [{
+        interval_type: "one_time",
+        calendar_value: null,
+        calendar_unit: "days",
+        due_rule: "manual_review",
+        warning_threshold: 14,
+        warning_unit: "days",
+        next_due_at: new Date(`${dueDate}T12:00:00.000Z`).toISOString(),
+      }],
+    });
+    setTitle("");
+    setDescription("");
+    setAssignedRole("");
+  };
 
   return (
     <View>
@@ -683,13 +781,24 @@ function MaintenanceCalendar({
         selected={mode}
         onSelect={(value) => setMode(value as CalendarMode)}
       />
+      <Form title="New calendar task">
+        <Field label="Task title" value={title} onChangeText={setTitle} placeholder="Inspect bilge pump float switch" />
+        <Field label="Notes / scope" value={description} onChangeText={setDescription} multiline />
+        <Field label="Due date" value={dueDate} onChangeText={setDueDate} placeholder="YYYY-MM-DD" />
+        <Text style={styles.label}>Priority</Text>
+        <ChipSelect items={PRIORITY_OPTIONS} selected={priority} onSelect={setPriority} />
+        <Field label="Assigned role" value={assignedRole} onChangeText={setAssignedRole} placeholder="Engineer / captain / yard" />
+        <Text style={styles.label}>Equipment</Text>
+        <ChipSelect items={assets.map((asset) => ({ id: asset.id, label: asset.name }))} selected={selectedAsset} onSelect={setAssetId} />
+        <Button label="Add task to calendar" icon="plus-circle" onPress={createCalendarTask} disabled={!title || !selectedAsset || !dueDate} />
+      </Form>
       <Text style={styles.calendarRange}>{mode === "list" ? "All scheduled maintenance events" : range.label}</Text>
       {mode === "list" ? (
         <SectionList
           title="Schedule"
           items={visible}
           empty="No dated maintenance events yet."
-          render={(event) => <CalendarEventRow event={event} />}
+          render={(event) => <CalendarEventRow event={event} onPress={() => openEvent(event)} />}
         />
       ) : (
         <View style={styles.calendarGrid}>
@@ -701,7 +810,7 @@ function MaintenanceCalendar({
               <View key={key} style={[styles.calendarDay, isToday && styles.calendarDayToday]}>
                 <Text style={styles.calendarDayLabel}>{day.toLocaleDateString("en-GB", { day: "2-digit", weekday: "short" })}</Text>
                 {dayEvents.length ? dayEvents.slice(0, 4).map((event) => (
-                  <CalendarEventPill key={event.id} event={event} />
+                  <CalendarEventPill key={event.id} event={event} onPress={() => openEvent(event)} />
                 )) : <Text style={styles.calendarEmptyDay}>-</Text>}
                 {dayEvents.length > 4 ? <Text style={styles.calendarMore}>+{dayEvents.length - 4} more</Text> : null}
               </View>
@@ -719,23 +828,23 @@ function MaintenanceCalendar({
   );
 }
 
-function CalendarEventRow({ event }: { event: MaintenanceCalendarEvent }) {
+function CalendarEventRow({ event, onPress }: { event: MaintenanceCalendarEvent; onPress: () => void }) {
   return (
-    <View style={[styles.calendarEventRow, styles[`calendarTone_${eventTone(event.status)}`]]}>
+    <Pressable style={[styles.calendarEventRow, styles[`calendarTone_${eventTone(event.status)}`]]} onPress={onPress}>
       <View style={styles.rowText}>
         <Text style={styles.rowTitle}>{event.title}</Text>
         <Text style={styles.rowMeta}>{[event.date, event.type, event.meta].filter(Boolean).join(" - ")}</Text>
       </View>
       <StatusPill value={event.status} />
-    </View>
+    </Pressable>
   );
 }
 
-function CalendarEventPill({ event }: { event: MaintenanceCalendarEvent }) {
+function CalendarEventPill({ event, onPress }: { event: MaintenanceCalendarEvent; onPress: () => void }) {
   return (
-    <View style={[styles.calendarPill, styles[`calendarTone_${eventTone(event.status)}`]]}>
+    <Pressable style={[styles.calendarPill, styles[`calendarTone_${eventTone(event.status)}`]]} onPress={onPress}>
       <Text style={styles.calendarPillText} numberOfLines={2}>{event.title}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -1037,7 +1146,19 @@ function FlagToggle({ label, value, onPress }: { label: string; value: boolean; 
   );
 }
 
-function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; tasks: MaintenanceTask[]; onCreatePlan: (input: Record<string, unknown>) => void }) {
+function Tasks({
+  assets,
+  tasks,
+  focusedTaskId,
+  onFocusedTaskHandled,
+  onCreatePlan,
+}: {
+  assets: EquipmentAsset[];
+  tasks: MaintenanceTask[];
+  focusedTaskId?: string | null;
+  onFocusedTaskHandled?: () => void;
+  onCreatePlan: (input: Record<string, unknown>) => void;
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
@@ -1054,11 +1175,18 @@ function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; task
   const [warningThreshold, setWarningThreshold] = useState("30");
   const [warningUnit, setWarningUnit] = useState("days");
   const [verificationRequired, setVerificationRequired] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const selectedAsset = assetId ?? assets[0]?.id;
   const selectedAssetItem = assets.find((asset) => asset.id === selectedAsset);
   const primaryCounter = selectedAssetItem?.equipment_counters?.find((counter) => counter.is_primary) ?? selectedAssetItem?.equipment_counters?.[0];
   const showCalendar = planType === "calendar" || planType === "combined" || planType === "one_time";
   const showCounter = planType === "counter" || planType === "combined";
+
+  useEffect(() => {
+    if (!focusedTaskId) return;
+    setExpandedId(focusedTaskId);
+    onFocusedTaskHandled?.();
+  }, [focusedTaskId, onFocusedTaskHandled]);
 
   const reset = () => {
     setTitle("");
@@ -1147,17 +1275,37 @@ function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; task
         />
       </Form>
       <SectionList title="Maintenance tasks" items={tasks} empty="No generated tasks yet." render={(item: MaintenanceTask) => (
-        <Row
-          title={item.title}
-          meta={[
-            item.equipment_assets?.name,
-            item.due_at ? `Due ${item.due_at.slice(0, 10)}` : null,
-            item.due_counter_value != null ? `Due at ${item.due_counter_value}` : null,
-            item.assigned_to_role,
-          ].filter(Boolean).join(" - ") || "No due trigger"}
-          status={item.status}
-        />
+        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+          <Row
+            title={item.title}
+            meta={[
+              item.equipment_assets?.name,
+              item.due_at ? `Due ${item.due_at.slice(0, 10)}` : null,
+              item.due_counter_value != null ? `Due at ${item.due_counter_value}` : null,
+              item.assigned_to_role,
+            ].filter(Boolean).join(" - ") || "No due trigger"}
+            status={item.status}
+          />
+          {expandedId === item.id ? <TaskDetail item={item} /> : null}
+        </Pressable>
       )} />
+    </View>
+  );
+}
+
+function TaskDetail({ item }: { item: MaintenanceTask }) {
+  return (
+    <View style={styles.subPanel}>
+      <View style={styles.detailGrid}>
+        <Detail label="Equipment" value={item.equipment_assets?.name} />
+        <Detail label="Status" value={item.status} />
+        <Detail label="Priority" value={item.priority} />
+        <Detail label="Due date" value={item.due_at?.slice(0, 10)} />
+        <Detail label="Due counter" value={item.due_counter_value} />
+        <Detail label="Estimated hours" value={item.estimated_hours} />
+        <Detail label="Assigned role" value={item.assigned_to_role} />
+      </View>
+      {item.description ? <DetailBlock title="Scope" body={item.description} /> : null}
     </View>
   );
 }
@@ -1165,11 +1313,15 @@ function Tasks({ assets, tasks, onCreatePlan }: { assets: EquipmentAsset[]; task
 function WorkOrders({
   assets,
   workOrders,
+  focusedWorkOrderId,
+  onFocusedWorkOrderHandled,
   onCreate,
   onUpdate,
 }: {
   assets: EquipmentAsset[];
   workOrders: WorkOrder[];
+  focusedWorkOrderId?: string | null;
+  onFocusedWorkOrderHandled?: () => void;
   onCreate: (input: Partial<WorkOrder>) => void;
   onUpdate: (workOrderId: string, input: Partial<WorkOrder>) => void;
 }) {
@@ -1192,6 +1344,12 @@ function WorkOrders({
   const [lockoutRequired, setLockoutRequired] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(assets[0]?.id ? [assets[0].id] : []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusedWorkOrderId) return;
+    setExpandedId(focusedWorkOrderId);
+    onFocusedWorkOrderHandled?.();
+  }, [focusedWorkOrderId, onFocusedWorkOrderHandled]);
 
   const toggleAsset = (id: string) => {
     setSelectedAssetIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
