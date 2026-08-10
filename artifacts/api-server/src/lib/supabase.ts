@@ -49,6 +49,7 @@ export const CLIENTS_TABLE = "clients";
 export const YACHT_EQUIPMENT_TABLE = "yacht_equipment";
 export const YACHT_PHOTOS_BUCKET = "yacht-photos";
 export const LISTINGS_TABLE = "listings";
+export const YACHT_NETWORK_LISTINGS_TABLE = "yacht_network_listings";
 export const PROPOSALS_TABLE = "proposals";
 export const SURVEY_REPORTS_TABLE = "survey_reports";
 export const SURVEY_ITEMS_TABLE = "survey_items";

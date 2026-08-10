@@ -14,6 +14,7 @@ import documentsRouter from "./documents";
 import flagIntelligenceRouter from "./flagIntelligence";
 import brokerOsRouter from "./brokerOs";
 import maintenanceRouter from "./maintenance";
+import networkRouter from "./network";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(documentsRouter);
 router.use(flagIntelligenceRouter);
 router.use(brokerOsRouter);
 router.use(maintenanceRouter);
+router.use(networkRouter);
 
 export default router;

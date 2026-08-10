@@ -131,6 +131,15 @@ const TOOLS: Tool[] = [
     route: "/crm",
   },
   {
+    key: "yachtworth_network",
+    icon: "share-2",
+    title: "Yachtworth Network",
+    subtitle: "Internal yacht exchange",
+    roles: ["broker", "owner", "charter"],
+    status: "live",
+    route: "/yacht-network",
+  },
+  {
     key: "broker_os",
     icon: "briefcase",
     title: "Broker OS",
