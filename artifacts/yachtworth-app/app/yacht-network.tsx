@@ -226,23 +226,25 @@ export default function YachtNetworkScreen() {
   }, [listings]);
 
   return (
-    <View style={[styles.root, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 70 }]}>
-      <View style={styles.header}>
-        <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
-          <Feather name="arrow-left" size={24} color={IVORY} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>Yachtworth</Text>
-          <Text style={styles.title}>Yachtworth Network</Text>
-          <Text style={styles.subtitle}>Publish and manage your yachts in the closed Yachtworth marketplace.</Text>
-        </View>
-        <Pressable style={styles.marketButton} onPress={() => router.push("/marketplace" as never)}>
-          <Feather name="external-link" size={17} color={NAVY} />
-          <Text style={styles.marketButtonText}>Go to Marketplace</Text>
-        </Pressable>
-      </View>
-
+    <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
+              <Feather name="arrow-left" size={24} color={IVORY} />
+            </Pressable>
+            <View style={styles.headerText}>
+              <Text style={styles.eyebrow}>Yachtworth</Text>
+              <Text style={styles.title}>Yachtworth Network</Text>
+              <Text style={styles.subtitle}>Publish and manage your yachts in the closed Yachtworth marketplace.</Text>
+            </View>
+          </View>
+          <Pressable style={styles.marketButton} onPress={() => router.push("/marketplace" as never)}>
+            <Feather name="external-link" size={17} color={NAVY} />
+            <Text style={styles.marketButtonText}>Go to Marketplace</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.metrics}>
           <Metric label="Active" value={stats.active} />
           <Metric label="For sale" value={stats.sale} />
@@ -393,14 +395,15 @@ function ListingCard({ item, removing, onOpen, onArchive }: { item: YachtNetwork
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
-  header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 22, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: LINE },
+  header: { gap: 14, marginBottom: 20 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(247,243,236,0.08)" },
   headerText: { flex: 1 },
-  marketButton: { minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  marketButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
   marketButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },
-  title: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 32, marginTop: 6 },
-  subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, marginTop: 4 },
+  title: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 30, lineHeight: 36, marginTop: 6 },
+  subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, marginTop: 4 },
   scroll: { padding: 22, paddingBottom: 56 },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   metric: { minWidth: 120, flexGrow: 1, borderRadius: 8, borderWidth: 1, borderColor: LINE, backgroundColor: PANEL, padding: 14 },

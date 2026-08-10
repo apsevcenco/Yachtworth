@@ -82,35 +82,39 @@ export default function MarketplaceDetailScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 70 }]}>
-      <View style={styles.topbar}>
-        <Pressable style={styles.iconButton} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color={IVORY} />
-        </Pressable>
-        <View style={styles.brandBlock}>
-          <Text style={styles.brand}>YACHTWORTH</Text>
-          <Text style={styles.scope}>MARKETPLACE LISTING</Text>
+    <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.topbar}>
+          <View style={styles.topbarRow}>
+            <Pressable style={styles.iconButton} onPress={() => router.back()}>
+              <Feather name="arrow-left" size={24} color={IVORY} />
+            </Pressable>
+            <View style={styles.brandBlock}>
+              <Text style={styles.scope}>MARKETPLACE LISTING</Text>
+              <Text style={styles.pageTitle}>Listing details</Text>
+            </View>
+          </View>
+          <Pressable style={styles.marketButton} onPress={() => router.replace("/marketplace" as never)}>
+            <Feather name="grid" size={17} color={NAVY} />
+            <Text style={styles.marketText}>All listings</Text>
+          </Pressable>
         </View>
-        <Pressable style={styles.marketButton} onPress={() => router.replace("/marketplace" as never)}>
-          <Feather name="grid" size={17} color={NAVY} />
-          <Text style={styles.marketText}>All listings</Text>
-        </Pressable>
-      </View>
 
-      {listingQ.isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={GOLD} />
-          <Text style={styles.muted}>Loading listing...</Text>
-        </View>
-      ) : item ? (
-        <ListingDetail item={item} removing={removing} onRemove={removeFromListing} />
-      ) : (
-        <View style={styles.emptyBox}>
-          <Feather name="alert-circle" size={28} color={GOLD} />
-          <Text style={styles.emptyTitle}>Listing not found</Text>
-          <Text style={styles.muted}>This listing may be archived or unavailable to your account.</Text>
-        </View>
-      )}
+        {listingQ.isLoading ? (
+          <View style={styles.loading}>
+            <ActivityIndicator color={GOLD} />
+            <Text style={styles.muted}>Loading listing...</Text>
+          </View>
+        ) : item ? (
+          <ListingDetail item={item} removing={removing} onRemove={removeFromListing} />
+        ) : (
+          <View style={styles.emptyBox}>
+            <Feather name="alert-circle" size={28} color={GOLD} />
+            <Text style={styles.emptyTitle}>Listing not found</Text>
+            <Text style={styles.muted}>This listing may be archived or unavailable to your account.</Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -136,7 +140,7 @@ function ListingDetail({ item, removing, onRemove }: { item: YachtNetworkListing
   const rate = item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null;
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <View>
       <View style={styles.hero}>
         <View style={styles.galleryBlock}>
           {gallery[0] ? (
@@ -201,22 +205,23 @@ function ListingDetail({ item, removing, onRemove }: { item: YachtNetworkListing
           ) : null}
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
-  topbar: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 24, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: LINE, backgroundColor: NAVY_DEEP },
+  topbar: { gap: 14, marginBottom: 20 },
+  topbarRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(247,243,236,0.08)" },
   brandBlock: { flex: 1 },
-  brand: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: 6 },
   scope: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.2, marginTop: 5 },
-  marketButton: { minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  pageTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 30, lineHeight: 36, marginTop: 6 },
+  marketButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
   marketText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   muted: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
-  emptyBox: { margin: 24, alignItems: "center", gap: 8, borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 28, backgroundColor: NAVY_DEEP },
+  emptyBox: { alignItems: "center", gap: 8, borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 28, backgroundColor: NAVY_DEEP },
   emptyTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 18 },
   scroll: { padding: 24, paddingBottom: 58 },
   hero: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 22, alignItems: "stretch" },

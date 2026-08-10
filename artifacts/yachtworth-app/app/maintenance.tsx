@@ -313,32 +313,40 @@ export default function MaintenanceScreen() {
   };
 
   const loading = yachtsQ.isLoading || (!!yachtId && dashboardQ.isLoading);
+  const pageHeader = (
+    <View style={styles.header}>
+      <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
+        <Feather name="arrow-left" size={24} color={IVORY} />
+      </Pressable>
+      <View style={styles.headerText}>
+        <Text style={styles.eyebrow}>Yachtworth</Text>
+        <Text style={styles.title}>Maintenance</Text>
+        <Text style={styles.subtitle}>PMS / CMMS equipment, work orders and service history</Text>
+      </View>
+    </View>
+  );
 
   return (
-    <View style={[styles.root, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 70 }]}>
-      <View style={styles.header}>
-        <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
-          <Feather name="arrow-left" size={24} color={IVORY} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>Yachtworth</Text>
-          <Text style={styles.title}>Maintenance</Text>
-          <Text style={styles.subtitle}>PMS / CMMS equipment, work orders and service history</Text>
-        </View>
-      </View>
-
+    <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
       {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={GOLD} />
-          <Text style={styles.muted}>Loading maintenance workspace...</Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {pageHeader}
+          <View style={styles.loading}>
+            <ActivityIndicator color={GOLD} />
+            <Text style={styles.muted}>Loading maintenance workspace...</Text>
+          </View>
+        </ScrollView>
       ) : !yachtId ? (
-        <View style={styles.loading}>
-          <Text style={styles.titleSmall}>No yacht found</Text>
-          <Text style={styles.muted}>Create a yacht in My Yacht first, then open Maintenance.</Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {pageHeader}
+          <View style={styles.loading}>
+            <Text style={styles.titleSmall}>No yacht found</Text>
+            <Text style={styles.muted}>Create a yacht in My Yacht first, then open Maintenance.</Text>
+          </View>
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
+          {pageHeader}
           <View style={styles.yachtRow}>
             {yachts.map((item) => (
               <Pressable
@@ -2496,7 +2504,7 @@ function Row({ title, meta, status }: { title: string; meta?: string | null; sta
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
-  header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 22, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: LINE },
+  header: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 20 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(247,243,236,0.08)" },
   headerText: { flex: 1 },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },

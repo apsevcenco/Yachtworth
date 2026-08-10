@@ -60,22 +60,24 @@ export default function MarketplaceIndexScreen() {
   }, [listings]);
 
   return (
-    <View style={[styles.root, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 70 }]}>
-      <View style={styles.topbar}>
-        <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
-          <Feather name="arrow-left" size={24} color={IVORY} />
-        </Pressable>
-        <View style={styles.brandBlock}>
-          <Text style={styles.brand}>YACHTWORTH</Text>
-          <Text style={styles.scope}>PRIVATE MARKETPLACE</Text>
-        </View>
-        <Pressable style={styles.publishButton} onPress={() => router.push("/yacht-network" as never)}>
-          <Feather name="upload-cloud" size={17} color={NAVY} />
-          <Text style={styles.publishText}>Publish yacht</Text>
-        </Pressable>
-      </View>
-
+    <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.topbar}>
+          <View style={styles.topbarRow}>
+            <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
+              <Feather name="arrow-left" size={24} color={IVORY} />
+            </Pressable>
+            <View style={styles.brandBlock}>
+              <Text style={styles.scope}>PRIVATE MARKETPLACE</Text>
+              <Text style={styles.pageTitle}>Marketplace</Text>
+            </View>
+          </View>
+          <Pressable style={styles.publishButton} onPress={() => router.push("/yacht-network" as never)}>
+            <Feather name="upload-cloud" size={17} color={NAVY} />
+            <Text style={styles.publishText}>Publish yacht</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
             <Text style={styles.eyebrow}>Members-only yacht board</Text>
@@ -196,12 +198,13 @@ function MarketplaceCard({ item, onOpen }: { item: YachtNetworkListing; onOpen: 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: NAVY },
-  topbar: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 24, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: LINE, backgroundColor: NAVY_DEEP },
+  topbar: { gap: 14, marginBottom: 20 },
+  topbarRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(247,243,236,0.08)" },
   brandBlock: { flex: 1 },
-  brand: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: 6 },
   scope: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.2, marginTop: 5 },
-  publishButton: { minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  pageTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 30, lineHeight: 36, marginTop: 6 },
+  publishButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
   publishText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   scroll: { padding: 24, paddingBottom: 58 },
   hero: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 18, alignItems: "stretch", marginBottom: 20 },
