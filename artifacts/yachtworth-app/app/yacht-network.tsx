@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useTheme } from "@/hooks/useColors";
 import { getYachts, type YachtOption } from "@/lib/maintenance";
 import {
   archiveNetworkListing,
@@ -91,16 +92,21 @@ function Field({
   placeholder?: string;
   multiline?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.primary }]}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="rgba(247,243,236,0.35)"
+        placeholderTextColor={colors.mutedForeground}
         multiline={multiline}
-        style={[styles.input, multiline && styles.inputTall]}
+        style={[
+          styles.input,
+          { backgroundColor: colors.secondary, borderColor: colors.border, color: colors.foreground },
+          multiline && styles.inputTall,
+        ]}
       />
     </View>
   );
@@ -115,11 +121,20 @@ function ChipSelect<T extends string>({
   selected: T;
   onSelect: (id: T) => void;
 }) {
+  const { colors } = useTheme();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
       {items.map((item) => (
-        <Pressable key={item.id} onPress={() => onSelect(item.id)} style={[styles.chip, selected === item.id && styles.chipActive]}>
-          <Text style={[styles.chipText, selected === item.id && styles.chipTextActive]}>{item.label}</Text>
+        <Pressable
+          key={item.id}
+          onPress={() => onSelect(item.id)}
+          style={[
+            styles.chip,
+            { backgroundColor: colors.secondary, borderColor: colors.border },
+            selected === item.id && [styles.chipActive, { backgroundColor: colors.glow ?? colors.secondary, borderColor: colors.primary }],
+          ]}
+        >
+          <Text style={[styles.chipText, { color: colors.mutedForeground }, selected === item.id && [styles.chipTextActive, { color: colors.primary }]]}>{item.label}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -130,6 +145,7 @@ export default function YachtNetworkScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const { colors, isAcid } = useTheme();
   const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
   const [publishType, setPublishType] = useState<NetworkListingType>("sale");
   const [visibility, setVisibility] = useState<NetworkVisibility>("internal");
@@ -226,22 +242,22 @@ export default function YachtNetworkScreen() {
   }, [listings]);
 
   return (
-    <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
-              <Feather name="arrow-left" size={24} color={IVORY} />
+            <Pressable style={[styles.iconButton, { backgroundColor: colors.secondary }]} onPress={() => router.replace("/(tabs)/tools")}>
+              <Feather name="arrow-left" size={24} color={colors.foreground} />
             </Pressable>
             <View style={styles.headerText}>
-              <Text style={styles.eyebrow}>Yachtworth</Text>
-              <Text style={styles.title}>Yachtworth Network</Text>
-              <Text style={styles.subtitle}>Publish and manage your yachts in the closed Yachtworth marketplace.</Text>
+              <Text style={[styles.eyebrow, { color: colors.primary }]}>Yachtworth</Text>
+              <Text style={[styles.title, { color: colors.foreground }, isAcid ? styles.acidTitle : null]}>Yachtworth Network</Text>
+              <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Publish and manage your yachts in the closed Yachtworth marketplace.</Text>
             </View>
           </View>
-          <Pressable style={styles.marketButton} onPress={() => router.push("/marketplace" as never)}>
-            <Feather name="external-link" size={17} color={NAVY} />
-            <Text style={styles.marketButtonText}>Go to Marketplace</Text>
+          <Pressable style={[styles.marketButton, { backgroundColor: colors.primary }]} onPress={() => router.push("/marketplace" as never)}>
+            <Feather name="external-link" size={17} color={colors.background} />
+            <Text style={[styles.marketButtonText, { color: colors.background }]}>Go to Marketplace</Text>
           </Pressable>
         </View>
 
@@ -251,10 +267,10 @@ export default function YachtNetworkScreen() {
           <Metric label="Charter" value={stats.charter} />
         </View>
 
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Publish from My Yachts</Text>
-          <Text style={styles.muted}>Select an existing yacht, choose sale/charter visibility, add commercial terms, and publish to the closed Yachtworth network.</Text>
-          {yachtsQ.isLoading ? <ActivityIndicator color={GOLD} /> : null}
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Publish from My Yachts</Text>
+          <Text style={[styles.muted, { color: colors.mutedForeground }]}>Select an existing yacht, choose sale/charter visibility, add commercial terms, and publish to the closed Yachtworth network.</Text>
+          {yachtsQ.isLoading ? <ActivityIndicator color={colors.primary} /> : null}
           {yachts.length ? (
             <ChipSelect
               items={yachts.map((yacht) => ({ id: yacht.id, label: yachtTitle(yacht) }))}
@@ -262,20 +278,20 @@ export default function YachtNetworkScreen() {
               onSelect={setSelectedYachtId}
             />
           ) : (
-            <Text style={styles.empty}>No yachts in My Yachts yet.</Text>
+            <Text style={[styles.empty, { color: colors.mutedForeground, borderColor: colors.border }]}>No yachts in My Yachts yet.</Text>
           )}
           <View style={styles.publishGrid}>
             {coverForYacht(selectedYacht) ? (
               <Image source={{ uri: coverForYacht(selectedYacht)! }} style={styles.publishImage} />
             ) : (
-              <View style={styles.publishImageFallback}>
-                <Feather name="anchor" size={32} color={GOLD} />
+              <View style={[styles.publishImageFallback, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                <Feather name="anchor" size={32} color={colors.primary} />
               </View>
             )}
             <View style={styles.publishFields}>
-              <Text style={styles.label}>Listing type</Text>
+              <Text style={[styles.label, { color: colors.primary }]}>Listing type</Text>
               <ChipSelect items={PUBLISH_TYPES} selected={publishType} onSelect={setPublishType} />
-              <Text style={styles.label}>Visibility</Text>
+              <Text style={[styles.label, { color: colors.primary }]}>Visibility</Text>
               <ChipSelect items={VISIBILITY} selected={visibility} onSelect={setVisibility} />
               <Field label="Title" value={title} onChangeText={setTitle} placeholder={defaultTitle || "Listing title"} />
               <Field label="Description" value={description} onChangeText={setDescription} multiline />
@@ -293,31 +309,31 @@ export default function YachtNetworkScreen() {
                 <Field label="Contact email" value={contactEmail} onChangeText={setContactEmail} />
                 <Field label="Contact phone" value={contactPhone} onChangeText={setContactPhone} />
               </View>
-              <Pressable style={[styles.primaryButton, (!canPublish || busy) && styles.disabled]} disabled={!canPublish || busy} onPress={publish}>
-                <Feather name="upload-cloud" size={18} color={NAVY} />
-                <Text style={styles.primaryButtonText}>{busy ? "Publishing..." : "Publish to Network"}</Text>
+              <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }, (!canPublish || busy) && styles.disabled]} disabled={!canPublish || busy} onPress={publish}>
+                <Feather name="upload-cloud" size={18} color={colors.background} />
+                <Text style={[styles.primaryButtonText, { color: colors.background }]}>{busy ? "Publishing..." : "Publish to Network"}</Text>
               </Pressable>
             </View>
           </View>
         </View>
 
-        <View style={styles.panel}>
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
           <View style={styles.sectionHeaderRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>My published listings</Text>
-              <Text style={styles.muted}>These are your active, paused and draft marketplace listings.</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My published listings</Text>
+              <Text style={[styles.muted, { color: colors.mutedForeground }]}>These are your active, paused and draft marketplace listings.</Text>
             </View>
-            <Pressable style={styles.secondaryButton} onPress={() => router.push("/marketplace" as never)}>
-              <Feather name="grid" size={16} color={GOLD} />
-              <Text style={styles.secondaryButtonText}>Open board</Text>
+            <Pressable style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]} onPress={() => router.push("/marketplace" as never)}>
+              <Feather name="grid" size={16} color={colors.primary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Open board</Text>
             </Pressable>
           </View>
         </View>
 
         {networkQ.isLoading ? (
           <View style={styles.loading}>
-            <ActivityIndicator color={GOLD} />
-            <Text style={styles.muted}>Loading network listings...</Text>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.muted, { color: colors.mutedForeground }]}>Loading network listings...</Text>
           </View>
         ) : listings.length ? (
           <View style={styles.catalogGrid}>
@@ -326,7 +342,7 @@ export default function YachtNetworkScreen() {
             ))}
           </View>
         ) : (
-          <Text style={styles.empty}>You have not published any marketplace listings yet.</Text>
+          <Text style={[styles.empty, { color: colors.mutedForeground, borderColor: colors.border }]}>You have not published any marketplace listings yet.</Text>
         )}
       </ScrollView>
     </View>
@@ -334,15 +350,17 @@ export default function YachtNetworkScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
+  const { colors, isAcid } = useTheme();
   return (
-    <View style={styles.metric}>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+    <View style={[styles.metric, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
+      <Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>{label}</Text>
     </View>
   );
 }
 
 function ListingCard({ item, removing, onOpen, onArchive }: { item: YachtNetworkListing; removing: boolean; onOpen: () => void; onArchive: () => void }) {
+  const { colors, isAcid } = useTheme();
   const length = snapshotValue(item, "length_meters");
   const year = snapshotValue(item, "year_built");
   const builder = snapshotValue(item, "brand");
@@ -350,38 +368,38 @@ function ListingCard({ item, removing, onOpen, onArchive }: { item: YachtNetwork
   const cabins = snapshotValue(item, "cabins");
   const guests = snapshotValue(item, "guests");
   return (
-    <View style={styles.listingCard}>
+    <View style={[styles.listingCard, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
       <Pressable onPress={onOpen}>
         {item.cover_photo_url ? (
-          <Image source={{ uri: item.cover_photo_url }} style={styles.listingImage} />
+          <Image source={{ uri: item.cover_photo_url }} style={[styles.listingImage, { backgroundColor: colors.secondary }]} />
         ) : (
-          <View style={styles.listingImageFallback}>
-            <Feather name="anchor" size={28} color={GOLD} />
+          <View style={[styles.listingImageFallback, { backgroundColor: colors.secondary }]}>
+            <Feather name="anchor" size={28} color={colors.primary} />
           </View>
         )}
         <View style={styles.listingBody}>
           <View style={styles.listingTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.listingTitle}>{item.title}</Text>
-              <Text style={styles.listingMeta}>{[builder, model, year, length ? `${length}m` : null].filter(Boolean).join(" - ")}</Text>
+              <Text style={[styles.listingTitle, { color: colors.foreground }]}>{item.title}</Text>
+              <Text style={[styles.listingMeta, { color: colors.mutedForeground }]}>{[builder, model, year, length ? `${length}m` : null].filter(Boolean).join(" - ")}</Text>
             </View>
             <View style={[styles.statusPill, item.status === "active" ? styles.statusActive : styles.statusMuted]}>
-              <Text style={styles.statusText}>{item.status}</Text>
+              <Text style={[styles.statusText, { color: colors.foreground }]}>{item.status}</Text>
             </View>
           </View>
-          <Text style={styles.listingMeta}>{[item.location, cabins ? `${cabins} cabins` : null, guests ? `${guests} guests` : null].filter(Boolean).join(" - ")}</Text>
-          <Text style={styles.priceLine}>
+          <Text style={[styles.listingMeta, { color: colors.mutedForeground }]}>{[item.location, cabins ? `${cabins} cabins` : null, guests ? `${guests} guests` : null].filter(Boolean).join(" - ")}</Text>
+          <Text style={[styles.priceLine, { color: colors.primary }]}>
             {[money(item.asking_price_eur, item.currency ?? "EUR"), item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null].filter(Boolean).join("   ")}
           </Text>
-          {item.description ? <Text style={styles.description} numberOfLines={4}>{item.description}</Text> : null}
-          <View style={styles.contactBox}>
-            <Text style={styles.contactTitle}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
-            <Text style={styles.contactText}>{[item.contact_email, item.contact_phone].filter(Boolean).join(" - ") || "Contact details visible inside Yachtworth."}</Text>
+          {item.description ? <Text style={[styles.description, { color: colors.foreground }]} numberOfLines={4}>{item.description}</Text> : null}
+          <View style={[styles.contactBox, { borderTopColor: colors.border }]}>
+            <Text style={[styles.contactTitle, { color: colors.foreground }]}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
+            <Text style={[styles.contactText, { color: colors.mutedForeground }]}>{[item.contact_email, item.contact_phone].filter(Boolean).join(" - ") || "Contact details visible inside Yachtworth."}</Text>
           </View>
         </View>
       </Pressable>
       <View style={styles.cardFooter}>
-        <Text style={styles.visibility}>{item.listing_type} - {item.visibility}</Text>
+        <Text style={[styles.visibility, { color: colors.mutedForeground }]}>{item.listing_type} - {item.visibility}</Text>
         {item.is_owner ? (
           <Pressable disabled={removing} onPress={onArchive} style={[styles.archiveButton, removing && styles.disabled]}>
             <Feather name="trash-2" size={14} color={RED} />
@@ -403,10 +421,23 @@ const styles = StyleSheet.create({
   marketButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },
   title: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 30, lineHeight: 36, marginTop: 6 },
+  acidTitle: {
+    color: "#B6FF00",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(255,79,216,0.58)",
+    textShadowRadius: 12,
+  },
   subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, marginTop: 4 },
   scroll: { padding: 22, paddingBottom: 56 },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   metric: { minWidth: 120, flexGrow: 1, borderRadius: 8, borderWidth: 1, borderColor: LINE, backgroundColor: PANEL, padding: 14 },
+  acidPanelGlow: {
+    shadowColor: "#FF4FD8",
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+  },
   metricValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 28 },
   metricLabel: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
   panel: { borderWidth: 1, borderColor: LINE, backgroundColor: NAVY_DEEP, borderRadius: 8, padding: 16, marginBottom: 18 },

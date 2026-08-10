@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useTheme } from "../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -37,6 +38,7 @@ export function ComingSoonModal({
   toolIcon,
   onClose,
 }: ComingSoonModalProps) {
+  const { colors, isAcid } = useTheme();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -65,13 +67,13 @@ export function ComingSoonModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.card}>
-          <View style={styles.iconWrap}>
-            <Feather name={toolIcon} size={28} color={GOLD} />
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidCard : null]}>
+          <View style={[styles.iconWrap, { backgroundColor: colors.glow ?? colors.secondary }]}>
+            <Feather name={toolIcon} size={28} color={colors.primary} />
           </View>
-          <Text style={styles.kicker}>COMING SOON</Text>
-          <Text style={styles.title}>{toolName}</Text>
-          <Text style={styles.text}>
+          <Text style={[styles.kicker, { color: colors.primary }]}>COMING SOON</Text>
+          <Text style={[styles.title, { color: colors.foreground }, isAcid ? styles.acidTitle : null]}>{toolName}</Text>
+          <Text style={[styles.text, { color: colors.mutedForeground }]}>
             {toolDescription ??
               "We're building this now. Get notified the moment it goes live."}
           </Text>
@@ -84,20 +86,21 @@ export function ComingSoonModal({
             }
             style={({ pressed }) => [
               styles.primary,
+              { backgroundColor: colors.primary },
               { opacity: pressed || saving ? 0.85 : 1 },
             ]}
           >
             {saving ? (
-              <ActivityIndicator color={NAVY} />
+              <ActivityIndicator color={colors.background} />
             ) : saved ? (
               <>
-                <Feather name="check" size={16} color={NAVY} />
-                <Text style={styles.primaryText}>We'll let you know</Text>
+                <Feather name="check" size={16} color={colors.background} />
+                <Text style={[styles.primaryText, { color: colors.background }]}>We'll let you know</Text>
               </>
             ) : (
               <>
-                <Feather name="bell" size={16} color={NAVY} />
-                <Text style={styles.primaryText}>Notify me when ready</Text>
+                <Feather name="bell" size={16} color={colors.background} />
+                <Text style={[styles.primaryText, { color: colors.background }]}>Notify me when ready</Text>
               </>
             )}
           </Pressable>
@@ -105,9 +108,9 @@ export function ComingSoonModal({
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel="Close"
-            style={({ pressed }) => [styles.secondary, { opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.secondary, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
           >
-            <Text style={styles.secondaryText}>Close</Text>
+            <Text style={[styles.secondaryText, { color: colors.foreground }]}>Close</Text>
           </Pressable>
         </View>
       </View>
@@ -133,6 +136,12 @@ const styles = StyleSheet.create({
     padding: 26,
     alignItems: "center",
   },
+  acidCard: {
+    shadowColor: "#FF4FD8",
+    shadowOpacity: 0.26,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+  },
   iconWrap: {
     width: 64,
     height: 64,
@@ -156,6 +165,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     textAlign: "center",
     marginBottom: 10,
+  },
+  acidTitle: {
+    color: "#B6FF00",
+    textShadowColor: "rgba(255,79,216,0.55)",
+    textShadowRadius: 10,
   },
   text: {
     color: MUTED,

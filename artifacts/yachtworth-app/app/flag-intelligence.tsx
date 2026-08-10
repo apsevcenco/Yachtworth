@@ -24,6 +24,7 @@ import {
   type FlagScenarioRankingResponse,
 } from "../lib/flagIntelligence";
 import { RegistryFlag } from "../components/RegistryFlag";
+import { useTheme } from "../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -153,25 +154,38 @@ function Field({
   keyboardType?: "default" | "numeric";
   multiline?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={[styles.field, multiline && styles.fieldWide]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
         multiline={multiline}
-        style={[styles.input, multiline && styles.textarea]}
-        placeholderTextColor="rgba(247,243,236,0.3)"
+        style={[
+          styles.input,
+          { backgroundColor: colors.secondary, borderColor: colors.border, color: colors.foreground },
+          multiline && styles.textarea,
+        ]}
+        placeholderTextColor={colors.mutedForeground}
       />
     </View>
   );
 }
 
 function Toggle({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.toggle, active && styles.toggleActive]}>
-      <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.toggle,
+        { backgroundColor: colors.secondary, borderColor: colors.border },
+        active && [styles.toggleActive, { backgroundColor: colors.glow ?? colors.card, borderColor: colors.primary }],
+      ]}
+    >
+      <Text style={[styles.toggleText, { color: colors.mutedForeground }, active && [styles.toggleTextActive, { color: colors.primary }]]}>{label}</Text>
     </Pressable>
   );
 }
@@ -180,6 +194,7 @@ export default function FlagIntelligenceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { colors, isAcid } = useTheme();
   const [mode, setMode] = useState<Mode>("flags");
   const [flags, setFlags] = useState<FlagRegistry[]>([]);
   const [flagsLoading, setFlagsLoading] = useState(true);
@@ -286,48 +301,57 @@ export default function FlagIntelligenceScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: isWeb ? 67 : insets.top + 56 }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: isWeb ? 67 : insets.top + 56 }]}>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 42 }, isWeb && styles.webScroll]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerShell}>
+        <View style={[styles.headerShell, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
           <View style={styles.topbar}>
-            <Pressable onPress={() => router.back()} style={styles.iconButton}>
-              <Feather name="arrow-left" size={22} color={IVORY} />
+            <Pressable onPress={() => router.back()} style={[styles.iconButton, { backgroundColor: colors.secondary }]}>
+              <Feather name="arrow-left" size={22} color={colors.foreground} />
             </Pressable>
             <View style={{ flex: 1 }}>
-              <Text style={styles.kicker}>REGISTRY ADVISOR</Text>
-              <Text style={styles.title}>Flag Intelligence</Text>
-              <Text style={styles.subtitle}>Registry cards, advisory ranking and side-by-side comparison.</Text>
+              <Text style={[styles.kicker, { color: colors.primary }]}>REGISTRY ADVISOR</Text>
+              <Text style={[styles.title, { color: colors.foreground }, isAcid ? styles.acidTitle : null]}>Flag Intelligence</Text>
+              <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Registry cards, advisory ranking and side-by-side comparison.</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.modeList}>
           {MODES.map((item) => (
-            <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.modeRow, mode === item.key && styles.modeRowActive]}>
-              <View style={styles.modeIcon}>
-                <Feather name={item.icon} size={18} color={mode === item.key ? GOLD : MUTED} />
+            <Pressable
+              key={item.key}
+              onPress={() => setMode(item.key)}
+              style={[
+                styles.modeRow,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                mode === item.key && [styles.modeRowActive, { backgroundColor: colors.glow ?? colors.secondary, borderColor: colors.primary }],
+                isAcid ? styles.acidPanelGlow : null,
+              ]}
+            >
+              <View style={[styles.modeIcon, { backgroundColor: colors.secondary }]}>
+                <Feather name={item.icon} size={18} color={mode === item.key ? colors.primary : colors.mutedForeground} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modeTitle}>{item.title}</Text>
-                <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
+                <Text style={[styles.modeTitle, { color: colors.foreground }]}>{item.title}</Text>
+                <Text style={[styles.modeSubtitle, { color: colors.mutedForeground }]}>{item.subtitle}</Text>
               </View>
-              <Feather name={mode === item.key ? "chevron-down" : "chevron-right"} size={20} color={MUTED} />
+              <Feather name={mode === item.key ? "chevron-down" : "chevron-right"} size={20} color={colors.mutedForeground} />
             </Pressable>
           ))}
         </View>
 
         {flagsLoading ? (
-          <View style={styles.centerPanel}>
-            <ActivityIndicator color={GOLD} />
+          <View style={[styles.centerPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : flagsError ? (
-          <View style={styles.centerPanel}>
+          <View style={[styles.centerPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="alert-circle" size={28} color={RED} />
-            <Text style={styles.emptyTitle}>Could not load flags</Text>
-            <Text style={styles.emptyCopy}>{flagsError}</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Could not load flags</Text>
+            <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>{flagsError}</Text>
           </View>
         ) : mode === "flags" ? (
           <AllFlags flags={flags} expandedCode={expandedCode} onToggle={(code) => setExpandedCode((current) => (current === code ? null : code))} />
@@ -371,23 +395,31 @@ export default function FlagIntelligenceScreen() {
 }
 
 function AllFlags({ flags, expandedCode, onToggle }: { flags: FlagRegistry[]; expandedCode: string | null; onToggle: (code: string) => void }) {
+  const { colors, isAcid } = useTheme();
   return (
-    <View style={styles.panel}>
-      <Text style={styles.panelTitle}>All Flags</Text>
+    <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
+      <Text style={[styles.panelTitle, { color: colors.foreground }]}>All Flags</Text>
       {flags.map((flag) => {
         const expanded = expandedCode === flag.code;
         return (
           <View key={flag.code} style={styles.flagRowWrap}>
-            <Pressable onPress={() => onToggle(flag.code)} style={[styles.flagRow, expanded && styles.flagRowActive]}>
+            <Pressable
+              onPress={() => onToggle(flag.code)}
+              style={[
+                styles.flagRow,
+                { backgroundColor: colors.secondary, borderColor: colors.border },
+                expanded && [styles.flagRowActive, { backgroundColor: colors.glow ?? colors.secondary, borderColor: colors.primary }],
+              ]}
+            >
               <RegistryFlag registry={flag} size="sm" decorative />
               <View style={{ flex: 1 }}>
                 <View style={styles.nameLine}>
-                  <Text style={styles.flagTitle}>{flag.flag_name}</Text>
+                  <Text style={[styles.flagTitle, { color: colors.foreground }]}>{flag.flag_name}</Text>
                   {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
                 </View>
-                <Text style={styles.flagMeta}>{flag.country} / {flag.registry_type} / {processing(flag)}</Text>
+                <Text style={[styles.flagMeta, { color: colors.mutedForeground }]}>{flag.country} / {flag.registry_type} / {processing(flag)}</Text>
               </View>
-              <Feather name={expanded ? "chevron-up" : "chevron-down"} size={20} color={MUTED} />
+              <Feather name={expanded ? "chevron-up" : "chevron-down"} size={20} color={colors.mutedForeground} />
             </Pressable>
             {expanded ? <FlagCard flag={flag} /> : null}
           </View>
@@ -419,10 +451,11 @@ function Advice({
   runCompare: () => void;
 }) {
   const isWeb = Platform.OS === "web";
+  const { colors, isAcid } = useTheme();
   return (
     <View style={[styles.layout, isWeb && styles.webLayout]}>
-      <View style={[styles.panel, styles.formPanel]}>
-        <Text style={styles.panelTitle}>Registration Advice</Text>
+      <View style={[styles.panel, styles.formPanel, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
+        <Text style={[styles.panelTitle, { color: colors.foreground }]}>Registration Advice</Text>
         <View style={styles.segmentRow}>
           <Toggle label="Private" active={form.use_type === "private"} onPress={() => setForm((f) => ({ ...f, use_type: "private", charter: false }))} />
           <Toggle label="Commercial" active={form.use_type === "commercial"} onPress={() => setForm((f) => ({ ...f, use_type: "commercial", charter: true }))} />
@@ -452,34 +485,34 @@ function Advice({
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <Pressable onPress={runCompare} disabled={loading} style={[styles.primaryButton, loading && { opacity: 0.7 }]}>
-          {loading ? <ActivityIndicator color={NAVY} /> : <Feather name="compass" size={18} color={NAVY} />}
-          <Text style={styles.primaryText}>Get advice</Text>
+        <Pressable onPress={runCompare} disabled={loading} style={[styles.primaryButton, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}>
+          {loading ? <ActivityIndicator color={colors.background} /> : <Feather name="compass" size={18} color={colors.background} />}
+          <Text style={[styles.primaryText, { color: colors.background }]}>Get advice</Text>
         </Pressable>
       </View>
 
-      <View style={[styles.panel, styles.resultPanel]}>
-        <Text style={styles.panelTitle}>Recommended Ranking</Text>
+      <View style={[styles.panel, styles.resultPanel, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
+        <Text style={[styles.panelTitle, { color: colors.foreground }]}>Recommended Ranking</Text>
         {results.length === 0 ? (
           <View style={styles.emptyState}>
-            <Feather name="flag" size={28} color={GOLD} />
-            <Text style={styles.emptyTitle}>Ready to advise</Text>
-            <Text style={styles.emptyCopy}>Complete the yacht profile to rank the strongest registration options.</Text>
+            <Feather name="flag" size={28} color={colors.primary} />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Ready to advise</Text>
+            <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>Complete the yacht profile to rank the strongest registration options.</Text>
           </View>
         ) : (
           <>
             {results.slice(0, 6).map((flag, index) => {
               const active = selectedCode === flag.code;
               return (
-                <Pressable key={flag.code} onPress={() => setSelectedCode(flag.code)} style={[styles.rankCard, active && styles.rankCardActive]}>
-                  <Text style={styles.rankNumber}>{index + 1}</Text>
+                <Pressable key={flag.code} onPress={() => setSelectedCode(flag.code)} style={[styles.rankCard, { backgroundColor: colors.secondary, borderColor: colors.border }, active && [styles.rankCardActive, { backgroundColor: colors.glow ?? colors.secondary, borderColor: colors.primary }]]}>
+                  <Text style={[styles.rankNumber, { color: colors.primary }]}>{index + 1}</Text>
                   <RegistryFlag registry={flag} size="sm" decorative />
                   <View style={{ flex: 1 }}>
                     <View style={styles.nameLine}>
-                      <Text style={styles.rankTitle}>{flag.flag_name}</Text>
+                      <Text style={[styles.rankTitle, { color: colors.foreground }]}>{flag.flag_name}</Text>
                       {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
                     </View>
-                    <Text style={styles.rankSub}>{flag.fit_summary}</Text>
+                    <Text style={[styles.rankSub, { color: colors.mutedForeground }]}>{flag.fit_summary}</Text>
                   </View>
                   <Text style={[styles.score, { color: scoreColor(flag.score) }]}>{flag.score}</Text>
                 </Pressable>
@@ -668,18 +701,19 @@ function FeeEstimate({
 }
 
 function FlagCard({ flag }: { flag: FlagRegistry }) {
+  const { colors, isAcid } = useTheme();
   const advisor = flag.advisor;
   return (
-    <View style={styles.flagCard}>
+    <View style={[styles.flagCard, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
       <View style={styles.flagCardHeader}>
         <RegistryFlag registry={flag} size={Platform.OS === "web" ? "hero" : "lg"} />
         <View style={{ flex: 1 }}>
           <View style={styles.nameLine}>
-            <Text style={styles.detailTitle}>{flag.flag_name}</Text>
+            <Text style={[styles.detailTitle, { color: colors.foreground }]}>{flag.flag_name}</Text>
             {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
           </View>
-          {flag.registry_badge === "MAR" ? <Text style={styles.detailSub}>Portuguese International Shipping Register</Text> : null}
-          {flag.flag_note ? <Text style={styles.flagNote}>{flag.flag_note}</Text> : null}
+          {flag.registry_badge === "MAR" ? <Text style={[styles.detailSub, { color: colors.mutedForeground }]}>Portuguese International Shipping Register</Text> : null}
+          {flag.flag_note ? <Text style={[styles.flagNote, { color: colors.primary }]}>{flag.flag_note}</Text> : null}
         </View>
       </View>
       <DossierSection title="Snapshot">
@@ -779,13 +813,13 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
       <DossierSection title="Legal / registration partners">
         {flag.legal_partners.length ? (
           flag.legal_partners.map((partner) => (
-            <View key={partner.name} style={styles.partnerCard}>
-              <Text style={styles.partnerName}>{partner.name}</Text>
-              <Text style={styles.partnerText}>{partner.notes ?? partner.contact_url ?? partner.email ?? partner.phone ?? "Contact details to verify."}</Text>
+            <View key={partner.name} style={[styles.partnerCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+              <Text style={[styles.partnerName, { color: colors.foreground }]}>{partner.name}</Text>
+              <Text style={[styles.partnerText, { color: colors.mutedForeground }]}>{partner.notes ?? partner.contact_url ?? partner.email ?? partner.phone ?? "Contact details to verify."}</Text>
             </View>
           ))
         ) : (
-          <Text style={styles.bodyText}>No preferred legal partner has been assigned to this flag yet.</Text>
+          <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>No preferred legal partner has been assigned to this flag yet.</Text>
         )}
       </DossierSection>
     </View>
@@ -793,10 +827,11 @@ function FlagCard({ flag }: { flag: FlagRegistry }) {
 }
 
 function DossierSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.dossierSection}>
-      <View style={styles.dossierSectionHeader}>
-        <Text style={styles.dossierSectionTitle}>{title}</Text>
+    <View style={[styles.dossierSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.dossierSectionHeader, { backgroundColor: colors.secondary, borderBottomColor: colors.border }]}>
+        <Text style={[styles.dossierSectionTitle, { color: colors.primary }]}>{title}</Text>
       </View>
       <View style={styles.dossierSectionBody}>{children}</View>
     </View>
@@ -804,19 +839,20 @@ function DossierSection({ title, children }: { title: string; children: React.Re
 }
 
 function AdvisorSections({ sections }: { sections: NonNullable<NonNullable<FlagRegistry["advisor"]>["advisor_sections"]> }) {
+  const { colors } = useTheme();
   if (!sections.length) return null;
   return (
     <View style={styles.advisorSections}>
       {sections.map((section, index) => (
         <View key={`${section.title}-${index}`} style={styles.advisorSection}>
-          <Text style={styles.sectionHeading}>{section.title}</Text>
-          {section.body ? <Text style={styles.bodyText}>{section.body}</Text> : null}
+          <Text style={[styles.sectionHeading, { color: colors.primary }]}>{section.title}</Text>
+          {section.body ? <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{section.body}</Text> : null}
           {section.items?.length ? (
             <View style={styles.advisorList}>
               {section.items.map((item) => (
                 <View key={item} style={styles.listRow}>
-                  <Feather name="chevron-right" size={14} color={GOLD} />
-                  <Text style={styles.bodyText}>{item}</Text>
+                  <Feather name="chevron-right" size={14} color={colors.primary} />
+                  <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{item}</Text>
                 </View>
               ))}
             </View>
@@ -829,14 +865,15 @@ function AdvisorSections({ sections }: { sections: NonNullable<NonNullable<FlagR
 }
 
 function AdvisorRows({ rows }: { rows: Array<Record<string, string | number | boolean | null>> }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.advisorRows}>
       {rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.advisorRow}>
+        <View key={rowIndex} style={[styles.advisorRow, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           {Object.entries(row).map(([key, value]) => (
             <View key={key} style={styles.advisorCell}>
-              <Text style={styles.factLabel}>{key.replace(/_/g, " ")}</Text>
-              <Text style={styles.factValue}>{value == null || value === "" ? "To verify" : String(value)}</Text>
+              <Text style={[styles.factLabel, { color: colors.mutedForeground }]}>{key.replace(/_/g, " ")}</Text>
+              <Text style={[styles.factValue, { color: colors.foreground }]}>{value == null || value === "" ? "To verify" : String(value)}</Text>
             </View>
           ))}
         </View>
@@ -855,32 +892,35 @@ function StatusBadge({ label, tone }: { label: string; tone: "green" | "gold" | 
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.fact}>
-      <Text style={styles.factLabel}>{label}</Text>
-      <Text style={styles.factValue}>{value}</Text>
+    <View style={[styles.fact, { backgroundColor: colors.secondary }]}>
+      <Text style={[styles.factLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[styles.factValue, { color: colors.foreground }]}>{value}</Text>
     </View>
   );
 }
 
 function TextBlock({ title, text }: { title: string; text: string }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.textBlock}>
-      <Text style={styles.sectionHeading}>{title}</Text>
-      <Text style={styles.bodyText}>{text}</Text>
+      <Text style={[styles.sectionHeading, { color: colors.primary }]}>{title}</Text>
+      <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{text}</Text>
     </View>
   );
 }
 
 function InfoList({ title, items, icon }: { title?: string; items: string[]; icon: React.ComponentProps<typeof Feather>["name"] }) {
+  const { colors } = useTheme();
   if (!items.length) return null;
   return (
     <View style={styles.textBlock}>
-      {title ? <Text style={styles.sectionHeading}>{title}</Text> : null}
+      {title ? <Text style={[styles.sectionHeading, { color: colors.primary }]}>{title}</Text> : null}
       {items.map((item) => (
         <View key={item} style={styles.listRow}>
-          <Feather name={icon} size={14} color={GOLD} />
-          <Text style={styles.bodyText}>{item}</Text>
+          <Feather name={icon} size={14} color={colors.primary} />
+          <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{item}</Text>
         </View>
       ))}
     </View>
@@ -897,7 +937,20 @@ const styles = StyleSheet.create({
   iconButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: NAVY_DEEP, alignItems: "center", justifyContent: "center" },
   kicker: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 2.4 },
   title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 30, lineHeight: 36, marginTop: 4 },
+  acidTitle: {
+    color: "#B6FF00",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(255,79,216,0.58)",
+    textShadowRadius: 12,
+  },
   subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 4 },
+  acidPanelGlow: {
+    shadowColor: "#FF4FD8",
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+  },
   modeList: { gap: 10, marginTop: 16, marginBottom: 14 },
   modeRow: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY_DEEP, padding: 14 },
   modeRowActive: { borderColor: "rgba(201,169,97,0.55)", backgroundColor: NAVY_ELEV },

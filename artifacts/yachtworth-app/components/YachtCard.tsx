@@ -7,6 +7,7 @@ import {
   calcCompleteness,
   nextSuggestedField,
 } from "../lib/yachtCompleteness";
+import { useTheme } from "../hooks/useColors";
 import { CompletenessBar } from "./CompletenessBar";
 
 const NAVY_ELEV = "#142A52";
@@ -64,6 +65,7 @@ export function YachtCard({
   onEdit: () => void;
   onAction: (key: YachtCardAction["key"]) => void;
 }) {
+  const { colors, isAcid } = useTheme();
   const pct = calcCompleteness(yacht);
   const next = nextSuggestedField(yacht);
   const hint = next ? `Add ${next.label} to unlock more.` : "Profile complete.";
@@ -83,29 +85,33 @@ export function YachtCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Open ${yachtTitle(yacht)} profile`}
-      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.92 : 1 }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.92 : 1 },
+        isAcid ? styles.acidCard : null,
+      ]}
     >
       {/* Photo / icon */}
       {yacht.cover_photo_url || yacht.photo_url ? (
         <Image
           source={{ uri: (yacht.cover_photo_url ?? yacht.photo_url)! }}
-          style={styles.photo}
+          style={[styles.photo, { backgroundColor: colors.secondary }]}
           contentFit="cover"
           transition={150}
         />
       ) : (
-        <View style={styles.photoFallback}>
-          <Feather name="anchor" size={36} color={GOLD} />
+        <View style={[styles.photoFallback, { backgroundColor: colors.secondary }]}>
+          <Feather name="anchor" size={36} color={colors.primary} />
         </View>
       )}
 
       {/* Title row */}
       <View style={styles.titleRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, { color: colors.foreground }, isAcid ? styles.acidName : null]} numberOfLines={1}>
             {yachtTitle(yacht)}
           </Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]} numberOfLines={1}>
             {yachtSubtitle(yacht, units) || "—"}
           </Text>
         </View>
@@ -119,11 +125,12 @@ export function YachtCard({
           accessibilityLabel="Edit yacht"
           style={({ pressed }) => [
             styles.editBtn,
+            { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" },
             { opacity: pressed ? 0.6 : 1 },
           ]}
         >
-          <Feather name="edit-2" size={14} color={GOLD} />
-          <Text style={styles.editText}>Edit</Text>
+          <Feather name="edit-2" size={14} color={colors.primary} />
+          <Text style={[styles.editText, { color: colors.primary }]}>Edit</Text>
         </Pressable>
       </View>
 
@@ -132,25 +139,25 @@ export function YachtCard({
         <View style={styles.locRow}>
           {flag ? (
             <View style={styles.locItem}>
-              <Feather name="flag" size={12} color={GOLD} />
-              <Text style={styles.locText}>{flag}</Text>
+              <Feather name="flag" size={12} color={colors.primary} />
+              <Text style={[styles.locText, { color: colors.foreground }]}>{flag}</Text>
             </View>
           ) : null}
           {port ? (
             <View style={styles.locItem}>
-              <Feather name="map-pin" size={12} color={GOLD} />
-              <Text style={styles.locText}>{port}</Text>
+              <Feather name="map-pin" size={12} color={colors.primary} />
+              <Text style={[styles.locText, { color: colors.foreground }]}>{port}</Text>
             </View>
           ) : null}
         </View>
       ) : null}
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
       {/* Completeness */}
       <CompletenessBar pct={pct} hint={hint} />
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
       {/* Action grid 2×2 */}
       <View style={styles.actionGrid}>
@@ -165,6 +172,7 @@ export function YachtCard({
             accessibilityLabel={a.label}
             style={({ pressed }) => [
               styles.actionTile,
+              { backgroundColor: colors.secondary, borderColor: colors.border },
               a.soon && styles.actionTileSoon,
               { opacity: pressed ? 0.7 : 1 },
             ]}
@@ -172,19 +180,20 @@ export function YachtCard({
             <Feather
               name={a.icon}
               size={16}
-              color={a.soon ? MUTED : GOLD}
+              color={a.soon ? colors.mutedForeground : colors.primary}
             />
             <Text
               style={[
                 styles.actionLabel,
-                a.soon && { color: MUTED },
+                { color: colors.primary },
+                a.soon && { color: colors.mutedForeground },
               ]}
             >
               {a.label}
             </Text>
             {a.soon ? (
-              <View style={styles.soonChip}>
-                <Text style={styles.soonChipText}>SOON</Text>
+              <View style={[styles.soonChip, { backgroundColor: colors.muted }]}>
+                <Text style={[styles.soonChipText, { color: colors.mutedForeground }]}>SOON</Text>
               </View>
             ) : null}
           </Pressable>
@@ -192,9 +201,9 @@ export function YachtCard({
       </View>
 
       {yacht.is_archived ? (
-        <View style={styles.archivedBadge}>
-          <Feather name="archive" size={11} color={MUTED} />
-          <Text style={styles.archivedText}>Archived</Text>
+        <View style={[styles.archivedBadge, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+          <Feather name="archive" size={11} color={colors.mutedForeground} />
+          <Text style={[styles.archivedText, { color: colors.mutedForeground }]}>Archived</Text>
         </View>
       ) : null}
     </Pressable>
@@ -212,6 +221,12 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
     gap: 14,
+  },
+  acidCard: {
+    shadowColor: "#FF4FD8",
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
   },
   photo: {
     width: "100%",
@@ -234,6 +249,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     letterSpacing: -0.3,
     marginBottom: 2,
+  },
+  acidName: {
+    color: "#B6FF00",
+    textShadowColor: "rgba(255,79,216,0.55)",
+    textShadowRadius: 10,
   },
   subtitle: {
     color: MUTED,

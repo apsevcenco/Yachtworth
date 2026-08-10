@@ -30,6 +30,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 import { useUnits } from "../../hooks/useUnits";
 
 const NAVY = "#0B1E3F";
@@ -212,6 +213,7 @@ export default function MyYachtEditScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
+  const { colors, isAcid } = useTheme();
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === "string" ? params.id : null;
   const isEdit = Boolean(id);
@@ -357,14 +359,22 @@ export default function MyYachtEditScreen() {
   };
 
   const loading = isEdit && getQ.isLoading;
+  const inputStyle = [
+    styles.input,
+    {
+      backgroundColor: colors.secondary,
+      borderColor: colors.border,
+      color: colors.foreground,
+    },
+  ];
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: NAVY }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 56 }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border, paddingTop: insets.top + 56 }]}>
         <Pressable
           onPress={() => router.back()}
           hitSlop={10}
@@ -372,12 +382,13 @@ export default function MyYachtEditScreen() {
           accessibilityLabel="Back"
           style={({ pressed }) => [
             styles.backBtn,
+            { backgroundColor: colors.secondary },
             { opacity: pressed ? 0.6 : 1 },
           ]}
         >
-          <Feather name="chevron-left" size={22} color={IVORY} />
+          <Feather name="chevron-left" size={22} color={colors.foreground} />
         </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={[styles.headerTitle, { color: colors.foreground }, isAcid ? styles.acidHeaderTitle : null]} numberOfLines={1}>
           {isEdit ? "Edit Yacht" : "Add Yacht"}
         </Text>
         <View style={{ width: 36 }} />
@@ -385,7 +396,7 @@ export default function MyYachtEditScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={GOLD} />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <ScrollView
@@ -404,8 +415,8 @@ export default function MyYachtEditScreen() {
                 value={state.name}
                 onChangeText={(t) => set("name", t)}
                 placeholder="e.g. Aurelia"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Type *">
@@ -420,8 +431,8 @@ export default function MyYachtEditScreen() {
                 value={state.brand}
                 onChangeText={(t) => set("brand", t)}
                 placeholder="e.g. Azimut, Sunseeker"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Model">
@@ -429,8 +440,8 @@ export default function MyYachtEditScreen() {
                 value={state.model}
                 onChangeText={(t) => set("model", t)}
                 placeholder="e.g. Grande 24M"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Year built *">
@@ -438,9 +449,9 @@ export default function MyYachtEditScreen() {
                 value={state.year_built}
                 onChangeText={(t) => set("year_built", t.replace(/\D/g, "").slice(0, 4))}
                 placeholder="2019"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={colors.mutedForeground}
                 keyboardType="number-pad"
-                style={styles.input}
+                style={inputStyle}
               />
             </Field>
             <Field label="Your role">
@@ -470,9 +481,9 @@ export default function MyYachtEditScreen() {
                 value={dispLength}
                 onChangeText={onChangeLength}
                 placeholder={formUnits === "metric" ? "24.0" : "79.0"}
-                placeholderTextColor={MUTED}
+                placeholderTextColor={colors.mutedForeground}
                 keyboardType="decimal-pad"
-                style={styles.input}
+                style={inputStyle}
               />
             </Field>
             <Field label={`Beam — ${lengthLabel}`}>
@@ -502,8 +513,8 @@ export default function MyYachtEditScreen() {
                 value={state.flag}
                 onChangeText={(t) => set("flag", t)}
                 placeholder="e.g. Malta"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Home port">
@@ -511,16 +522,16 @@ export default function MyYachtEditScreen() {
                 value={state.home_port}
                 onChangeText={(t) => set("home_port", t)}
                 placeholder="e.g. Antibes"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Registration number">
               <TextInput
                 value={state.registration_number}
                 onChangeText={(t) => set("registration_number", t)}
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
                 autoCapitalize="characters"
               />
             </Field>
@@ -532,17 +543,17 @@ export default function MyYachtEditScreen() {
                 value={state.imo_number}
                 onChangeText={(t) => set("imo_number", t.replace(/[^0-9]/g, "").slice(0, 7))}
                 placeholder="7-digit IMO"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={colors.mutedForeground}
                 keyboardType="number-pad"
-                style={styles.input}
+                style={inputStyle}
               />
             </Field>
             <Field label="Hull ID (HIN)">
               <TextInput
                 value={state.hull_id}
                 onChangeText={(t) => set("hull_id", t)}
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
                 autoCapitalize="characters"
               />
             </Field>
@@ -562,8 +573,8 @@ export default function MyYachtEditScreen() {
                 value={state.engine_maker}
                 onChangeText={(t) => set("engine_maker", t)}
                 placeholder="e.g. MAN, MTU, Volvo Penta"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Engine model">
@@ -571,8 +582,8 @@ export default function MyYachtEditScreen() {
                 value={state.engine_model}
                 onChangeText={(t) => set("engine_model", t)}
                 placeholder="e.g. V12-1800"
-                placeholderTextColor={MUTED}
-                style={styles.input}
+                placeholderTextColor={colors.mutedForeground}
+                style={inputStyle}
               />
             </Field>
             <Field label="Number of engines">
@@ -588,9 +599,9 @@ export default function MyYachtEditScreen() {
                 value={state.total_hp}
                 onChangeText={(t) => set("total_hp", t.replace(/\D/g, ""))}
                 placeholder="e.g. 3600"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={colors.mutedForeground}
                 keyboardType="number-pad"
-                style={styles.input}
+                style={inputStyle}
               />
             </Field>
             <Field
@@ -601,9 +612,9 @@ export default function MyYachtEditScreen() {
                 value={state.engine_hours}
                 onChangeText={(t) => set("engine_hours", t.replace(/\D/g, ""))}
                 placeholder="e.g. 1200"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={colors.mutedForeground}
                 keyboardType="number-pad"
-                style={styles.input}
+                style={inputStyle}
               />
             </Field>
           </Section>
@@ -700,9 +711,9 @@ export default function MyYachtEditScreen() {
                 value={state.notes}
                 onChangeText={(t) => set("notes", t)}
                 placeholder="Anything else worth remembering…"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={colors.mutedForeground}
                 multiline
-                style={[styles.input, styles.textarea]}
+                style={[inputStyle, styles.textarea]}
               />
             </Field>
           </Section>
@@ -713,6 +724,7 @@ export default function MyYachtEditScreen() {
       <View
         style={[
           styles.saveBar,
+          { backgroundColor: colors.card, borderTopColor: colors.border },
           { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 },
         ]}
       >
@@ -723,10 +735,11 @@ export default function MyYachtEditScreen() {
           accessibilityLabel="Cancel"
           style={({ pressed }) => [
             styles.cancelBtn,
+            { borderColor: colors.border },
             { opacity: pressed ? 0.7 : saving ? 0.5 : 1 },
           ]}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={[styles.cancelText, { color: colors.foreground }]}>Cancel</Text>
         </Pressable>
         <Pressable
           onPress={onSave}
@@ -735,17 +748,18 @@ export default function MyYachtEditScreen() {
           accessibilityLabel={isEdit ? "Save changes" : "Save yacht"}
           style={({ pressed }) => [
             styles.saveBtn,
+            { backgroundColor: colors.primary },
             { opacity: pressed ? 0.85 : saving ? 0.6 : 1 },
           ]}
         >
           {saving ? (
-            <ActivityIndicator color={NAVY} />
+            <ActivityIndicator color={colors.background} />
           ) : (
             <>
-              <Text style={styles.saveText}>
+              <Text style={[styles.saveText, { color: colors.background }]}>
                 {isEdit ? "Save changes" : "Save Yacht"}
               </Text>
-              <Feather name="check" size={16} color={NAVY} />
+              <Feather name="check" size={16} color={colors.background} />
             </>
           )}
         </Pressable>
@@ -769,25 +783,26 @@ function Section({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  const { colors, isAcid } = useTheme();
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidSection : null]}>
       <Pressable
         onPress={onToggle}
         accessibilityRole="button"
         accessibilityLabel={`${open ? "Collapse" : "Expand"} ${title} section`}
         style={styles.sectionHeader}
       >
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }, isAcid ? styles.acidSectionTitle : null]}>
           {title}
-          {required ? <Text style={{ color: GOLD }}> *</Text> : null}
+          {required ? <Text style={{ color: colors.primary }}> *</Text> : null}
         </Text>
         <Feather
           name={open ? "chevron-up" : "chevron-down"}
           size={18}
-          color={MUTED}
+          color={colors.mutedForeground}
         />
       </Pressable>
-      {open ? <View style={styles.sectionBody}>{children}</View> : null}
+      {open ? <View style={[styles.sectionBody, { borderTopColor: colors.border }]}>{children}</View> : null}
     </View>
   );
 }
@@ -801,11 +816,12 @@ function Field({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text>
       {children}
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {hint ? <Text style={[styles.hint, { color: colors.mutedForeground }]}>{hint}</Text> : null}
     </View>
   );
 }
@@ -819,6 +835,7 @@ function PillRow<T extends string>({
   value: T | null;
   onChange: (v: T) => void;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.pillRow}>
       {options.map((opt) => {
@@ -831,11 +848,12 @@ function PillRow<T extends string>({
             accessibilityLabel={opt.label}
             style={({ pressed }) => [
               styles.pill,
-              sel && styles.pillSel,
+              { backgroundColor: colors.secondary, borderColor: colors.border },
+              sel && [styles.pillSel, { borderColor: colors.primary, backgroundColor: colors.glow ?? colors.secondary }],
               { opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Text style={[styles.pillText, sel && styles.pillTextSel]}>
+            <Text style={[styles.pillText, { color: colors.mutedForeground }, sel && [styles.pillTextSel, { color: colors.primary }]]}>
               {opt.label}
             </Text>
           </Pressable>
@@ -856,10 +874,11 @@ function Stepper({
   min?: number;
   max?: number;
 }) {
+  const { colors } = useTheme();
   const dec = () => onChange(Math.max(min, value - 1));
   const inc = () => onChange(Math.min(max, value + 1));
   return (
-    <View style={styles.stepper}>
+    <View style={[styles.stepper, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
       <Pressable
         onPress={dec}
         disabled={value <= min}
@@ -870,9 +889,9 @@ function Stepper({
           { opacity: value <= min ? 0.3 : pressed ? 0.6 : 1 },
         ]}
       >
-        <Feather name="minus" size={16} color={GOLD} />
+        <Feather name="minus" size={16} color={colors.primary} />
       </Pressable>
-      <Text style={styles.stepValue}>{value}</Text>
+      <Text style={[styles.stepValue, { color: colors.foreground }]}>{value}</Text>
       <Pressable
         onPress={inc}
         disabled={value >= max}
@@ -883,7 +902,7 @@ function Stepper({
           { opacity: value >= max ? 0.3 : pressed ? 0.6 : 1 },
         ]}
       >
-        <Feather name="plus" size={16} color={GOLD} />
+        <Feather name="plus" size={16} color={colors.primary} />
       </Pressable>
     </View>
   );
@@ -898,6 +917,7 @@ function DimInput({
   onChange: (metric: string) => void;
   units: "metric" | "imperial";
 }) {
+  const { colors } = useTheme();
   const disp = useMemo(() => {
     if (units === "metric") return metricValue;
     const n = numOrNull(metricValue);
@@ -913,9 +933,9 @@ function DimInput({
         onChange(n == null ? "" : (n * M_PER_FT).toFixed(2));
       }}
       placeholder="—"
-      placeholderTextColor={MUTED}
+      placeholderTextColor={colors.mutedForeground}
       keyboardType="decimal-pad"
-      style={styles.input}
+      style={[styles.input, { backgroundColor: colors.secondary, borderColor: colors.border, color: colors.foreground }]}
     />
   );
 }
@@ -946,6 +966,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: -0.2,
   },
+  acidHeaderTitle: {
+    color: "#B6FF00",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(255,79,216,0.55)",
+    textShadowRadius: 10,
+  },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   section: {
     backgroundColor: NAVY_DEEP,
@@ -954,6 +981,12 @@ const styles = StyleSheet.create({
     borderColor: DIVIDER,
     marginBottom: 12,
     overflow: "hidden",
+  },
+  acidSection: {
+    shadowColor: "#FF4FD8",
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
   },
   sectionHeader: {
     flexDirection: "row",
@@ -969,6 +1002,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
     textTransform: "uppercase",
   },
+  acidSectionTitle: { letterSpacing: 0.9 },
   sectionBody: {
     paddingHorizontal: 16,
     paddingBottom: 16,

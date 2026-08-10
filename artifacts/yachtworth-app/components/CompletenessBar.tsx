@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { useTheme } from "../hooks/useColors";
 
 const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
@@ -15,24 +16,25 @@ export function CompletenessBar({
   hint?: string | null;
   compact?: boolean;
 }) {
+  const { colors } = useTheme();
   const clamped = Math.max(0, Math.min(100, Math.round(pct)));
   return (
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
-        <Text style={styles.label}>PROFILE COMPLETENESS</Text>
-        <Text style={styles.pct}>{clamped}%</Text>
+        <Text style={[styles.label, { color: colors.mutedForeground }]}>PROFILE COMPLETENESS</Text>
+        <Text style={[styles.pct, { color: colors.primary }]}>{clamped}%</Text>
       </View>
-      <View style={styles.track}>
+      <View style={[styles.track, { backgroundColor: colors.muted }]}>
         <View
           style={[
             styles.fill,
-            { width: `${clamped}%` },
-            clamped >= 100 ? styles.fillFull : null,
+            { width: `${clamped}%`, backgroundColor: colors.primary },
+            clamped >= 100 ? [styles.fillFull, { backgroundColor: colors.primary }] : null,
           ]}
         />
       </View>
       {!compact && hint ? (
-        <Text style={styles.hint} numberOfLines={2}>
+        <Text style={[styles.hint, { color: colors.foreground }]} numberOfLines={2}>
           {hint}
         </Text>
       ) : null}

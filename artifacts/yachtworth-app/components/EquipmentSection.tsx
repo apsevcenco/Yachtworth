@@ -15,6 +15,7 @@ import {
   type EquipmentField,
   type EquipmentGroup,
 } from "../lib/equipmentConfig";
+import { useTheme } from "../hooks/useColors";
 
 const NAVY_ELEV = "#142A52";
 const NAVY_DEEP = "#081633";
@@ -53,6 +54,7 @@ function blankItem(def: EquipmentDef, category: EquipmentItem["category"]): Equi
 }
 
 export default function EquipmentSection({ items, onChange, yachtType }: Props) {
+  const { colors } = useTheme();
   const visibleGroups = EQUIPMENT_CATALOG.filter((g) =>
     g.yachtTypes ? (yachtType ? g.yachtTypes.includes(yachtType) : false) : true,
   );
@@ -95,7 +97,7 @@ export default function EquipmentSection({ items, onChange, yachtType }: Props) 
           0,
         );
         return (
-          <View key={g.category} style={styles.group}>
+          <View key={g.category} style={[styles.group, { backgroundColor: colors.secondary }]}>
             <Pressable
               onPress={() =>
                 setOpenGroup((o) => ({ ...o, [g.category]: !isOpen }))
@@ -104,20 +106,20 @@ export default function EquipmentSection({ items, onChange, yachtType }: Props) 
               accessibilityLabel={`${isOpen ? "Collapse" : "Expand"} ${g.label}`}
               style={styles.groupHeader}
             >
-              <Text style={styles.groupTitle}>{g.label}</Text>
+              <Text style={[styles.groupTitle, { color: colors.foreground }]}>{g.label}</Text>
               <View style={styles.groupRight}>
                 {enabledCount > 0 ? (
-                  <Text style={styles.groupCount}>{enabledCount}</Text>
+                  <Text style={[styles.groupCount, { color: colors.primary, backgroundColor: colors.glow ?? colors.card }]}>{enabledCount}</Text>
                 ) : null}
                 <Feather
                   name={isOpen ? "chevron-up" : "chevron-down"}
                   size={16}
-                  color={MUTED}
+                  color={colors.mutedForeground}
                 />
               </View>
             </Pressable>
             {isOpen ? (
-              <View style={styles.groupBody}>
+              <View style={[styles.groupBody, { borderTopColor: colors.border }]}>
                 {g.items.map((def) =>
                   def.kind === "toggle" ? (
                     <ToggleRow
@@ -166,19 +168,20 @@ function ToggleRow({
   onRemove: (it: EquipmentItem) => void;
   onUpdate: (it: EquipmentItem, next: EquipmentItem) => void;
 }) {
+  const { colors } = useTheme();
   const enabled = item != null;
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { borderBottomColor: colors.border }]}>
       <View style={styles.rowHead}>
-        <Text style={styles.rowLabel}>{def.label}</Text>
+        <Text style={[styles.rowLabel, { color: colors.foreground }]}>{def.label}</Text>
         <Switch
           value={enabled}
           onValueChange={(v) => {
             if (v) onAdd();
             else if (item) onRemove(item);
           }}
-          trackColor={{ false: "rgba(247,243,236,0.15)", true: GOLD }}
-          thumbColor={enabled ? IVORY : "rgba(247,243,236,0.55)"}
+          trackColor={{ false: colors.muted, true: colors.primary }}
+          thumbColor={enabled ? colors.foreground : colors.mutedForeground}
         />
       </View>
       {enabled && item ? (
@@ -213,11 +216,12 @@ function MultiRow({
   onRemove: (it: EquipmentItem) => void;
   onUpdate: (it: EquipmentItem, next: EquipmentItem) => void;
 }) {
+  const { colors } = useTheme();
   const atLimit = def.maxUnits != null && list.length >= def.maxUnits;
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { borderBottomColor: colors.border }]}>
       <View style={styles.rowHead}>
-        <Text style={styles.rowLabel}>{def.label}</Text>
+        <Text style={[styles.rowLabel, { color: colors.foreground }]}>{def.label}</Text>
         <Pressable
           onPress={onAdd}
           disabled={atLimit}
@@ -225,17 +229,18 @@ function MultiRow({
           accessibilityLabel={`Add ${def.label}`}
           style={({ pressed }) => [
             styles.addBtn,
+            { borderColor: colors.primary },
             { opacity: pressed ? 0.7 : atLimit ? 0.35 : 1 },
           ]}
         >
-          <Feather name="plus" size={14} color={GOLD} />
-          <Text style={styles.addBtnText}>Add</Text>
+          <Feather name="plus" size={14} color={colors.primary} />
+          <Text style={[styles.addBtnText, { color: colors.primary }]}>Add</Text>
         </Pressable>
       </View>
       {list.map((entry, idx) => (
-        <View key={`${def.key}.${idx}`} style={styles.entry}>
+        <View key={`${def.key}.${idx}`} style={[styles.entry, { backgroundColor: colors.card }]}>
           <View style={styles.entryHead}>
-            <Text style={styles.entryTitle}>
+            <Text style={[styles.entryTitle, { color: colors.primary }]}>
               {def.label.replace(/s$/, "")} #{idx + 1}
             </Text>
             <Pressable
@@ -248,8 +253,8 @@ function MultiRow({
                 { opacity: pressed ? 0.6 : 1 },
               ]}
             >
-              <Feather name="trash-2" size={14} color={MUTED} />
-              <Text style={styles.removeBtnText}>Remove</Text>
+              <Feather name="trash-2" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.removeBtnText, { color: colors.mutedForeground }]}>Remove</Text>
             </Pressable>
           </View>
           {def.fields.map((f) => (
@@ -277,12 +282,13 @@ function FieldInput({
   value: unknown;
   onChange: (v: string | number | null) => void;
 }) {
+  const { colors } = useTheme();
   const label =
     field.label + (field.suffix ? ` (${field.suffix})` : "");
   if (field.kind === "select" && field.options) {
     return (
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
         <View style={styles.pillRow}>
           {field.options.map((opt) => {
             const active = value === opt;
@@ -292,13 +298,14 @@ function FieldInput({
                 onPress={() => onChange(active ? null : opt)}
                 style={({ pressed }) => [
                   styles.pill,
-                  active && styles.pillActive,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  active && [styles.pillActive, { borderColor: colors.primary, backgroundColor: colors.glow ?? colors.secondary }],
                   { opacity: pressed ? 0.8 : 1 },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel={`${label}: ${opt}${active ? ", selected" : ""}`}
               >
-                <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                <Text style={[styles.pillText, { color: colors.mutedForeground }, active && [styles.pillTextActive, { color: colors.primary }]]}>
                   {opt}
                 </Text>
               </Pressable>
@@ -314,32 +321,34 @@ function FieldInput({
     const max = field.max ?? 99;
     return (
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
         <View style={styles.stepperRow}>
           <Pressable
             onPress={() => onChange(Math.max(min, n - 1))}
             disabled={n <= min}
             style={({ pressed }) => [
               styles.stepperBtn,
+              { backgroundColor: colors.card },
               { opacity: pressed ? 0.7 : n <= min ? 0.35 : 1 },
             ]}
             accessibilityRole="button"
             accessibilityLabel={`Decrease ${field.label}`}
           >
-            <Feather name="minus" size={14} color={IVORY} />
+            <Feather name="minus" size={14} color={colors.primary} />
           </Pressable>
-          <Text style={styles.stepperValue}>{n}</Text>
+          <Text style={[styles.stepperValue, { color: colors.foreground }]}>{n}</Text>
           <Pressable
             onPress={() => onChange(Math.min(max, n + 1))}
             disabled={n >= max}
             style={({ pressed }) => [
               styles.stepperBtn,
+              { backgroundColor: colors.card },
               { opacity: pressed ? 0.7 : n >= max ? 0.35 : 1 },
             ]}
             accessibilityRole="button"
             accessibilityLabel={`Increase ${field.label}`}
           >
-            <Feather name="plus" size={14} color={IVORY} />
+            <Feather name="plus" size={14} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -365,6 +374,7 @@ function FieldTextInput({
   value: unknown;
   onChange: (v: string | number | null) => void;
 }) {
+  const { colors } = useTheme();
   const isNumeric = field.kind === "number" || field.kind === "integer";
   const [text, setText] = useState(value == null ? "" : String(value));
 
@@ -388,7 +398,7 @@ function FieldTextInput({
 
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
       <TextInput
         value={text}
         onChangeText={(t) => {
@@ -411,7 +421,7 @@ function FieldTextInput({
           }
         }}
         placeholder={field.placeholder ?? (isNumeric ? "0" : "")}
-        placeholderTextColor={MUTED}
+        placeholderTextColor={colors.mutedForeground}
         keyboardType={
           field.kind === "integer"
             ? "number-pad"
@@ -420,7 +430,11 @@ function FieldTextInput({
               : "default"
         }
         multiline={field.multiline}
-        style={[styles.input, field.multiline && styles.textarea]}
+        style={[
+          styles.input,
+          { backgroundColor: colors.card, color: colors.foreground },
+          field.multiline && styles.textarea,
+        ]}
       />
     </View>
   );
