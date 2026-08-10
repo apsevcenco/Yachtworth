@@ -36,13 +36,6 @@ const LINE = "rgba(247,243,236,0.1)";
 const RED = "#F08A8A";
 const GREEN = "#7BD389";
 
-const LISTING_TYPES: { id: NetworkListingType | "all"; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "sale", label: "Sale" },
-  { id: "charter", label: "Charter" },
-  { id: "both", label: "Both" },
-];
-
 const PUBLISH_TYPES: { id: NetworkListingType; label: string }[] = [
   { id: "sale", label: "For sale" },
   { id: "charter", label: "For charter" },
@@ -137,12 +130,6 @@ export default function YachtNetworkScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"network" | "mine">("network");
-  const [queryText, setQueryText] = useState("");
-  const [listingType, setListingType] = useState<NetworkListingType | "all">("all");
-  const [minLength, setMinLength] = useState("");
-  const [maxLength, setMaxLength] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
   const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
   const [publishType, setPublishType] = useState<NetworkListingType>("sale");
   const [visibility, setVisibility] = useState<NetworkVisibility>("internal");
@@ -163,15 +150,8 @@ export default function YachtNetworkScreen() {
   const selectedYacht = yachts.find((item) => item.id === selectedYachtId) ?? yachts[0] ?? null;
 
   const networkQ = useQuery({
-    queryKey: ["network-listings", tab, queryText, listingType, minLength, maxLength, maxPrice],
-    queryFn: () => listNetworkListings({
-      mine: tab === "mine",
-      q: queryText,
-      listing_type: listingType,
-      min_length_m: minLength,
-      max_length_m: maxLength,
-      max_price_eur: maxPrice,
-    }),
+    queryKey: ["network-listings", "mine"],
+    queryFn: () => listNetworkListings({ mine: true }),
   });
 
   const listings = networkQ.data ?? [];
@@ -214,7 +194,6 @@ export default function YachtNetworkScreen() {
         photo_urls: yachtArrayField(selectedYacht, "photo_urls"),
       });
       resetPublish();
-      setTab("mine");
       await qc.invalidateQueries({ queryKey: ["network-listings"] });
       Alert.alert("Yachtworth Network", "Yacht published to the internal network.");
     } catch (err) {
@@ -249,8 +228,12 @@ export default function YachtNetworkScreen() {
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>Yachtworth</Text>
           <Text style={styles.title}>Yachtworth Network</Text>
-          <Text style={styles.subtitle}>Internal yacht exchange for brokers, owners and charter operators.</Text>
+          <Text style={styles.subtitle}>Publish and manage your yachts in the closed Yachtworth marketplace.</Text>
         </View>
+        <Pressable style={styles.marketButton} onPress={() => router.push("/marketplace" as never)}>
+          <Feather name="external-link" size={17} color={NAVY} />
+          <Text style={styles.marketButtonText}>Go to Marketplace</Text>
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -311,21 +294,15 @@ export default function YachtNetworkScreen() {
         </View>
 
         <View style={styles.panel}>
-          <View style={styles.switchRow}>
-            <Pressable style={[styles.switchButton, tab === "network" && styles.switchActive]} onPress={() => setTab("network")}>
-              <Text style={[styles.switchText, tab === "network" && styles.switchTextActive]}>Network</Text>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>My published listings</Text>
+              <Text style={styles.muted}>These are your active, paused and draft marketplace listings.</Text>
+            </View>
+            <Pressable style={styles.secondaryButton} onPress={() => router.push("/marketplace" as never)}>
+              <Feather name="grid" size={16} color={GOLD} />
+              <Text style={styles.secondaryButtonText}>Open board</Text>
             </Pressable>
-            <Pressable style={[styles.switchButton, tab === "mine" && styles.switchActive]} onPress={() => setTab("mine")}>
-              <Text style={[styles.switchText, tab === "mine" && styles.switchTextActive]}>My listings</Text>
-            </Pressable>
-          </View>
-          <Field label="Search" value={queryText} onChangeText={setQueryText} placeholder="Name, location, notes..." />
-          <Text style={styles.label}>Type</Text>
-          <ChipSelect items={LISTING_TYPES} selected={listingType} onSelect={setListingType} />
-          <View style={styles.threeCol}>
-            <Field label="Min length" value={minLength} onChangeText={setMinLength} />
-            <Field label="Max length" value={maxLength} onChangeText={setMaxLength} />
-            <Field label="Max price" value={maxPrice} onChangeText={setMaxPrice} />
           </View>
         </View>
 
@@ -337,11 +314,11 @@ export default function YachtNetworkScreen() {
         ) : listings.length ? (
           <View style={styles.catalogGrid}>
             {listings.map((item) => (
-              <ListingCard key={item.id} item={item} onArchive={() => archive(item.id)} />
+              <ListingCard key={item.id} item={item} onOpen={() => router.push(`/marketplace/${item.id}` as never)} onArchive={() => archive(item.id)} />
             ))}
           </View>
         ) : (
-          <Text style={styles.empty}>No listings match these filters yet.</Text>
+          <Text style={styles.empty}>You have not published any marketplace listings yet.</Text>
         )}
       </ScrollView>
     </View>
@@ -357,7 +334,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ListingCard({ item, onArchive }: { item: YachtNetworkListing; onArchive: () => void }) {
+function ListingCard({ item, onOpen, onArchive }: { item: YachtNetworkListing; onOpen: () => void; onArchive: () => void }) {
   const length = snapshotValue(item, "length_meters");
   const year = snapshotValue(item, "year_built");
   const builder = snapshotValue(item, "brand");
@@ -365,7 +342,7 @@ function ListingCard({ item, onArchive }: { item: YachtNetworkListing; onArchive
   const cabins = snapshotValue(item, "cabins");
   const guests = snapshotValue(item, "guests");
   return (
-    <View style={styles.listingCard}>
+    <Pressable style={styles.listingCard} onPress={onOpen}>
       {item.cover_photo_url ? (
         <Image source={{ uri: item.cover_photo_url }} style={styles.listingImage} />
       ) : (
@@ -402,7 +379,7 @@ function ListingCard({ item, onArchive }: { item: YachtNetworkListing; onArchive
           ) : null}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -411,6 +388,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 22, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: LINE },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(247,243,236,0.08)" },
   headerText: { flex: 1 },
+  marketButton: { minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  marketButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },
   title: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 32, marginTop: 6 },
   subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, marginTop: 4 },
@@ -420,6 +399,7 @@ const styles = StyleSheet.create({
   metricValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 28 },
   metricLabel: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
   panel: { borderWidth: 1, borderColor: LINE, backgroundColor: NAVY_DEEP, borderRadius: 8, padding: 16, marginBottom: 18 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   sectionTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 18, marginBottom: 10 },
   muted: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, marginBottom: 10 },
   field: { marginBottom: 12, flex: 1 },
@@ -439,6 +419,8 @@ const styles = StyleSheet.create({
   threeCol: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 10 },
   primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginTop: 4 },
   primaryButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  secondaryButton: { minHeight: 42, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
+  secondaryButtonText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
   disabled: { opacity: 0.45 },
   switchRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   switchButton: { flex: 1, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: LINE, alignItems: "center", justifyContent: "center", backgroundColor: PANEL },
