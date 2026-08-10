@@ -92,10 +92,10 @@ export function buildMaintenanceModel(input: {
     body,
     "Equipment Register",
     [
-      { header: "Asset", widthPct: 28 },
-      { header: "System", widthPct: 20 },
-      { header: "Serial / Model" },
-      { header: "Status", widthPct: 16 },
+      { header: "Asset", widthPct: 30 },
+      { header: "System", widthPct: 16 },
+      { header: "Serial / Model", widthPct: 24 },
+      { header: "Status", widthPct: 30 },
     ],
     rows(reportData.assets, (item) => [
       {
@@ -116,10 +116,10 @@ export function buildMaintenanceModel(input: {
     body,
     "Scheduled Maintenance",
     [
-      { header: "Task", widthPct: 34 },
-      { header: "Due", widthPct: 18 },
-      { header: "Priority", widthPct: 16 },
-      { header: "Asset" },
+      { header: "Task", widthPct: 46 },
+      { header: "Due", widthPct: 17 },
+      { header: "Priority", widthPct: 13 },
+      { header: "Asset", widthPct: 24 },
     ],
     rows(reportData.tasks, (item) => [
       { text: text(item.title), sub: text(item.description ?? item.task_type) },
@@ -133,10 +133,10 @@ export function buildMaintenanceModel(input: {
     body,
     "Open Work Orders",
     [
-      { header: "Work order", widthPct: 35 },
+      { header: "Work order", widthPct: 50 },
       { header: "Status", widthPct: 15 },
       { header: "Risk", widthPct: 15 },
-      { header: "Cost", align: "right", widthPct: 18 },
+      { header: "Cost", align: "right", widthPct: 20 },
     ],
     rows(reportData.workOrders, (item) => [
       { text: text(item.title), sub: [item.work_order_number, item.description].filter(Boolean).join(" - ") },
@@ -150,7 +150,7 @@ export function buildMaintenanceModel(input: {
     body,
     "Defects",
     [
-      { header: "Defect", widthPct: 36 },
+      { header: "Defect", widthPct: 50 },
       { header: "Severity", widthPct: 16 },
       { header: "Status", widthPct: 16 },
       { header: "Reported", widthPct: 18 },
@@ -167,9 +167,9 @@ export function buildMaintenanceModel(input: {
     body,
     "Service History",
     [
-      { header: "Service", widthPct: 36 },
+      { header: "Service", widthPct: 50 },
       { header: "Completed", widthPct: 18 },
-      { header: "Technician", widthPct: 22 },
+      { header: "Technician", widthPct: 16 },
       { header: "Cost", align: "right", widthPct: 16 },
     ],
     rows(reportData.serviceEvents, (item) => [
@@ -184,10 +184,10 @@ export function buildMaintenanceModel(input: {
     body,
     "Parts Inventory",
     [
-      { header: "Part", widthPct: 34 },
+      { header: "Part", widthPct: 44 },
       { header: "Stock", widthPct: 16, align: "right" },
-      { header: "Expiry", widthPct: 22 },
-      { header: "Unit cost", align: "right", widthPct: 18 },
+      { header: "Expiry", widthPct: 20 },
+      { header: "Unit cost", align: "right", widthPct: 20 },
     ],
     rows(reportData.parts, (item) => [
       { text: text(item.name), sub: [item.part_number, item.manufacturer, item.notes].filter(Boolean).join(" - ") },

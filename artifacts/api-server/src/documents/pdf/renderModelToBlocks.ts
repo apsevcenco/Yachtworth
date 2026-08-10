@@ -52,7 +52,8 @@ const TONE_CLASS: Record<CellTone, string> = {
 
 const CALLOUT_TONES = new Set(["muted", "info", "legal"]);
 const DEFAULT_TABLE_CHUNK_MM = 112;
-const DENSE_TABLE_CHUNK_MM = 86;
+const SURVEY_TABLE_CHUNK_MM = 86;
+const MAINTENANCE_TABLE_CHUNK_MM = 124;
 
 /** Clamp any caller-supplied number that lands in inline CSS to a safe range. */
 function clampMm(v: unknown, fallback: number, min = 0, max = 265): number {
@@ -541,7 +542,7 @@ function nextId(prefix: string): string {
 /** Split a table's rows greedily into page-sized chunks, header repeated. */
 function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
   const isSurvey = docType === "survey_report";
-  const isDenseReport = isSurvey || docType === "maintenance_report";
+  const isMaintenance = docType === "maintenance_report";
   const measureCurrentTable = isSurvey ? surveyMeasureTable : measureTable;
   const measureCurrentRow = isSurvey ? surveyMeasureTableRow : measureTableRow;
   const pageBudgetMm = isSurvey ? 251 : PACK_BUDGET_MM;
@@ -559,7 +560,12 @@ function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
     ];
   }
   const full = measureCurrentTable(node.heading, node.columns, node.rows);
-  const wholeTableLimit = isDenseReport ? DENSE_TABLE_CHUNK_MM : DEFAULT_TABLE_CHUNK_MM;
+  const targetBudget = isSurvey
+    ? SURVEY_TABLE_CHUNK_MM
+    : isMaintenance
+      ? MAINTENANCE_TABLE_CHUNK_MM
+      : DEFAULT_TABLE_CHUNK_MM;
+  const wholeTableLimit = targetBudget;
   if (full <= wholeTableLimit) {
     return [{ id: nextId("table"), type: "table", estimatedHeight: full, html: leafHtml(node) }];
   }
@@ -567,15 +573,19 @@ function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
   const hasHeader = node.columns.some((c) => c.header != null && c.header !== "");
   const headerH = hasHeader ? rowBaseMm : 0;
   const rowBudget = pageBudgetMm - headingH - headerH;
-  const targetBudget = isDenseReport ? DENSE_TABLE_CHUNK_MM : DEFAULT_TABLE_CHUNK_MM;
   const budget = Math.max(rowBaseMm * 2, Math.min(rowBudget, targetBudget - headingH - headerH));
+  const preferredMinFill = isMaintenance
+    ? Math.min(rowBudget, 155 - headingH - headerH)
+    : budget;
 
   const chunks: TableCell[][][] = [];
   let current: TableCell[][] = [];
   let used = 0;
   for (const row of node.rows) {
     const h = measureCurrentRow(row, node.columns);
-    if (current.length && used + h > budget) {
+    const wouldExceedTarget = used + h > budget;
+    const canStillImproveFill = used < preferredMinFill && used + h <= rowBudget;
+    if (current.length && wouldExceedTarget && !canStillImproveFill) {
       chunks.push(current);
       current = [];
       used = 0;
