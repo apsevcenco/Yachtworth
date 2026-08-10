@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Platform,
@@ -15,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getNetworkListing, type YachtNetworkListing } from "@/lib/yachtNetwork";
+import { archiveNetworkListing, getNetworkListing, type YachtNetworkListing } from "@/lib/yachtNetwork";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -24,6 +25,7 @@ const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.68)";
 const LINE = "rgba(247,243,236,0.1)";
+const RED = "#F08A8A";
 
 function money(value?: number | null, currency = "EUR"): string | null {
   return value == null ? null : `${currency} ${Number(value).toLocaleString("en-US")}`;
@@ -42,8 +44,10 @@ function photos(item: YachtNetworkListing): string[] {
 export default function MarketplaceDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === "string" ? params.id : "";
+  const [removing, setRemoving] = useState(false);
 
   const listingQ = useQuery({
     queryKey: ["marketplace-listing", id],
@@ -52,6 +56,30 @@ export default function MarketplaceDetailScreen() {
   });
 
   const item = listingQ.data ?? null;
+
+  const removeFromListing = () => {
+    if (!item || removing) return;
+    Alert.alert("Remove from listing", "This yacht will be removed from the marketplace board. The listing data will be archived, not deleted.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setRemoving(true);
+            await archiveNetworkListing(item.id);
+            await qc.invalidateQueries({ queryKey: ["marketplace-listings"] });
+            await qc.invalidateQueries({ queryKey: ["network-listings"] });
+            router.replace("/marketplace" as never);
+          } catch (err) {
+            Alert.alert("Remove failed", err instanceof Error ? err.message : "Could not remove listing");
+          } finally {
+            setRemoving(false);
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -75,7 +103,7 @@ export default function MarketplaceDetailScreen() {
           <Text style={styles.muted}>Loading listing...</Text>
         </View>
       ) : item ? (
-        <ListingDetail item={item} />
+        <ListingDetail item={item} removing={removing} onRemove={removeFromListing} />
       ) : (
         <View style={styles.emptyBox}>
           <Feather name="alert-circle" size={28} color={GOLD} />
@@ -87,7 +115,7 @@ export default function MarketplaceDetailScreen() {
   );
 }
 
-function ListingDetail({ item }: { item: YachtNetworkListing }) {
+function ListingDetail({ item, removing, onRemove }: { item: YachtNetworkListing; removing: boolean; onRemove: () => void }) {
   const gallery = photos(item);
   const facts = [
     ["Builder", snapshotValue(item, "brand") ?? snapshotValue(item, "builder")],
@@ -133,6 +161,12 @@ function ListingDetail({ item }: { item: YachtNetworkListing }) {
           <Text style={styles.meta}>{[snapshotValue(item, "year_built"), snapshotValue(item, "length_meters") ? `${snapshotValue(item, "length_meters")} m` : null, item.location].filter(Boolean).join(" - ")}</Text>
           <Text style={styles.priceLine}>{[price, rate].filter(Boolean).join("   ") || "Commercial terms on request"}</Text>
           {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
+          {item.is_owner ? (
+            <Pressable style={[styles.removeButton, removing && styles.disabled]} disabled={removing} onPress={onRemove}>
+              <Feather name="trash-2" size={18} color={RED} />
+              <Text style={styles.removeText}>{removing ? "Removing..." : "Remove from listing"}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -209,4 +243,7 @@ const styles = StyleSheet.create({
   actionText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
   secondaryButton: { minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16 },
   secondaryText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
+  removeButton: { minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: RED, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16, marginTop: 18 },
+  removeText: { color: RED, fontFamily: "Inter_700Bold", fontSize: 14 },
+  disabled: { opacity: 0.5 },
 });

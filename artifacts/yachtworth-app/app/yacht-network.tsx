@@ -204,12 +204,22 @@ export default function YachtNetworkScreen() {
   };
 
   const archive = async (id: string) => {
-    try {
-      await archiveNetworkListing(id);
-      await qc.invalidateQueries({ queryKey: ["network-listings"] });
-    } catch (err) {
-      Alert.alert("Archive failed", err instanceof Error ? err.message : "Could not archive listing");
-    }
+    Alert.alert("Remove from listing", "This yacht will be removed from the marketplace board. The listing data will be archived, not deleted.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await archiveNetworkListing(id);
+            await qc.invalidateQueries({ queryKey: ["network-listings"] });
+            await qc.invalidateQueries({ queryKey: ["marketplace-listings"] });
+          } catch (err) {
+            Alert.alert("Remove failed", err instanceof Error ? err.message : "Could not remove listing");
+          }
+        },
+      },
+    ]);
   };
 
   const stats = useMemo(() => {
@@ -372,9 +382,15 @@ function ListingCard({ item, onOpen, onArchive }: { item: YachtNetworkListing; o
         <View style={styles.cardFooter}>
           <Text style={styles.visibility}>{item.listing_type} - {item.visibility}</Text>
           {item.is_owner ? (
-            <Pressable onPress={onArchive} style={styles.archiveButton}>
-              <Feather name="archive" size={14} color={RED} />
-              <Text style={styles.archiveText}>Archive</Text>
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onArchive();
+              }}
+              style={styles.archiveButton}
+            >
+              <Feather name="trash-2" size={14} color={RED} />
+              <Text style={styles.archiveText}>Remove from listing</Text>
             </Pressable>
           ) : null}
         </View>
