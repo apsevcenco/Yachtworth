@@ -446,6 +446,10 @@ function RootLayoutNav() {
               options={{ headerShown: false, presentation: "card" }}
             />
             <Stack.Screen
+              name="marketplace"
+              options={{ headerShown: false, presentation: "card" }}
+            />
+            <Stack.Screen
               name="maintenance"
               options={{ headerShown: false, presentation: "card" }}
             />
