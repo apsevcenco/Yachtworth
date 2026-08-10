@@ -228,8 +228,6 @@ export default function MaintenanceScreen() {
   const [tab, setTab] = useState<Tab>("overview");
   const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
-  const [focusedWorkOrderId, setFocusedWorkOrderId] = useState<string | null>(null);
 
   const yachtsQ = useQuery({ queryKey: ["maintenance-yachts"], queryFn: getYachts });
   const yachts = yachtsQ.data ?? [];
@@ -309,16 +307,9 @@ export default function MaintenanceScreen() {
     }
   };
 
-  const openTask = (taskId: string) => {
-    setFocusedTaskId(taskId);
-    setFocusedWorkOrderId(null);
-    setTab("tasks");
-  };
-
-  const openWorkOrder = (workOrderId: string) => {
-    setFocusedWorkOrderId(workOrderId);
-    setFocusedTaskId(null);
-    setTab("work");
+  const openMaintenanceCard = (type: string, id: string) => {
+    if (!yachtId) return;
+    router.push({ pathname: "/maintenance-detail", params: { yachtId, type, id } } as never);
   };
 
   const loading = yachtsQ.isLoading || (!!yachtId && dashboardQ.isLoading);
@@ -326,7 +317,7 @@ export default function MaintenanceScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable style={styles.iconButton} onPress={() => router.back()}>
+        <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
           <Feather name="arrow-left" size={24} color={IVORY} />
         </Pressable>
         <View style={styles.headerText}>
@@ -402,8 +393,8 @@ export default function MaintenanceScreen() {
                 <Overview
                   dashboard={dashboardQ.data}
                   onSeed={() => run("Seeding systems", () => seedMaintenanceSystems(yachtId))}
-                  onOpenTask={openTask}
-                  onOpenWorkOrder={openWorkOrder}
+                  onOpenTask={(id) => openMaintenanceCard("task", id)}
+                  onOpenWorkOrder={(id) => openMaintenanceCard("work", id)}
                 />
               ) : null}
               {tab === "calendar" ? (
@@ -417,14 +408,14 @@ export default function MaintenanceScreen() {
                     const plan = await createMaintenancePlan(yachtId, input);
                     if (typeof plan.id === "string") await generateMaintenanceTask(yachtId, plan.id);
                   })}
-                  onOpenTask={openTask}
-                  onOpenWorkOrder={openWorkOrder}
+                  onOpen={(type, id) => openMaintenanceCard(type, id)}
                 />
               ) : null}
               {tab === "equipment" ? (
                 <Equipment
                   systems={systemsQ.data ?? []}
                   assets={assetsQ.data ?? []}
+                  onOpen={(id) => openMaintenanceCard("equipment", id)}
                   onCreate={(input) => run("Saving asset", () => createEquipmentAsset(yachtId, input))}
                   onUpdate={(assetId, input) => run("Updating asset", () => updateEquipmentAsset(yachtId, assetId, input))}
                   onCreateCounter={(assetId, input) => run("Saving counter", () => createEquipmentCounter(yachtId, assetId, input))}
@@ -435,8 +426,7 @@ export default function MaintenanceScreen() {
                 <Tasks
                   assets={assetsQ.data ?? []}
                   tasks={tasksQ.data ?? []}
-                  focusedTaskId={focusedTaskId}
-                  onFocusedTaskHandled={() => setFocusedTaskId(null)}
+                  onOpen={(id) => openMaintenanceCard("task", id)}
                   onCreatePlan={(input) => run("Creating plan", async () => {
                     const plan = await createMaintenancePlan(yachtId, input);
                     if (typeof plan.id === "string") await generateMaintenanceTask(yachtId, plan.id);
@@ -447,8 +437,7 @@ export default function MaintenanceScreen() {
                 <WorkOrders
                   assets={assetsQ.data ?? []}
                   workOrders={workQ.data ?? []}
-                  focusedWorkOrderId={focusedWorkOrderId}
-                  onFocusedWorkOrderHandled={() => setFocusedWorkOrderId(null)}
+                  onOpen={(id) => openMaintenanceCard("work", id)}
                   onCreate={(input) => run("Creating work order", () => createWorkOrder(yachtId, input))}
                   onUpdate={(workOrderId, input) => run("Updating work order", () => updateWorkOrder(yachtId, workOrderId, input))}
                 />
@@ -457,6 +446,7 @@ export default function MaintenanceScreen() {
                 <Defects
                   assets={assetsQ.data ?? []}
                   defects={defectsQ.data ?? []}
+                  onOpen={(id) => openMaintenanceCard("defect", id)}
                   onCreate={(input) => run("Creating defect", () => createDefect(yachtId, input))}
                   onUpdate={(defectId, input) => run("Updating defect", () => updateDefect(yachtId, defectId, input))}
                 />
@@ -465,6 +455,7 @@ export default function MaintenanceScreen() {
                 <ServiceHistory
                   assets={assetsQ.data ?? []}
                   events={historyQ.data ?? []}
+                  onOpen={(id) => openMaintenanceCard("service", id)}
                   onCreate={(input) => run("Saving service event", () => createServiceEvent(yachtId, input))}
                 />
               ) : null}
@@ -472,6 +463,7 @@ export default function MaintenanceScreen() {
                 <Parts
                   assets={assetsQ.data ?? []}
                   parts={partsQ.data ?? []}
+                  onOpen={(id) => openMaintenanceCard("part", id)}
                   onCreate={(input) => run("Saving part", () => createSparePart(yachtId, input))}
                   onUpdate={(partId, input) => run("Updating part", () => updateSparePart(yachtId, partId, input))}
                   onMove={(partId, input) => run("Recording inventory movement", () => createInventoryMovement(yachtId, partId, input))}
@@ -488,6 +480,7 @@ export default function MaintenanceScreen() {
                   onUpload={(input) => run("Uploading attachment", () => uploadMaintenanceDocumentFile(yachtId, input))}
                   onUpdate={(documentId, input) => run("Updating attachment", () => updateMaintenanceDocument(yachtId, documentId, input))}
                   onDelete={(documentId) => run("Deleting attachment", () => deleteMaintenanceDocument(yachtId, documentId))}
+                  onOpenCard={(id) => openMaintenanceCard("document", id)}
                   onOpen={(documentId) => run("Opening attachment", async () => {
                     const url = await getMaintenanceDocumentSignedUrl(yachtId, documentId);
                     await Linking.openURL(url);
@@ -691,8 +684,7 @@ function MaintenanceCalendar({
   parts,
   documents,
   onCreateTask,
-  onOpenTask,
-  onOpenWorkOrder,
+  onOpen,
 }: {
   assets: EquipmentAsset[];
   tasks: MaintenanceTask[];
@@ -700,8 +692,7 @@ function MaintenanceCalendar({
   parts: SparePart[];
   documents: MaintenanceDocument[];
   onCreateTask: (input: Record<string, unknown>) => void;
-  onOpenTask: (taskId: string) => void;
-  onOpenWorkOrder: (workOrderId: string) => void;
+  onOpen: (type: MaintenanceCalendarEvent["type"], id: string) => void;
 }) {
   const [mode, setMode] = useState<CalendarMode>("month");
   const [anchor, setAnchor] = useState(() => new Date());
@@ -723,13 +714,7 @@ function MaintenanceCalendar({
   const selectedAsset = assetId ?? assets[0]?.id ?? null;
 
   const openEvent = (event: MaintenanceCalendarEvent) => {
-    if (event.type === "task") {
-      onOpenTask(event.sourceId);
-      return;
-    }
-    if (event.type === "work") {
-      onOpenWorkOrder(event.sourceId);
-    }
+    onOpen(event.type, event.sourceId);
   };
 
   const createCalendarTask = () => {
@@ -893,6 +878,7 @@ function csvToList(value: string): string[] {
 function Equipment({
   systems,
   assets,
+  onOpen,
   onCreate,
   onUpdate,
   onCreateCounter,
@@ -900,6 +886,7 @@ function Equipment({
 }: {
   systems: MaintenanceSystem[];
   assets: EquipmentAsset[];
+  onOpen: (assetId: string) => void;
   onCreate: (input: Partial<EquipmentAsset>) => void;
   onUpdate: (assetId: string, input: Partial<EquipmentAsset>) => void;
   onCreateCounter: (assetId: string, input: Partial<EquipmentCounter>) => void;
@@ -925,10 +912,7 @@ function Equipment({
   const [safetyRelevant, setSafetyRelevant] = useState(false);
   const [environmentalRelevant, setEnvironmentalRelevant] = useState(false);
   const [systemId, setSystemId] = useState<string | null>(systems[0]?.id ?? null);
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(assets[0]?.id ?? null);
   const currentSystemId = systemId ?? systems[0]?.id ?? null;
-  const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
-  const selectedCounter = selectedAsset?.equipment_counters?.[0];
 
   const reset = () => {
     setName("");
@@ -1008,7 +992,7 @@ function Equipment({
         }} disabled={!name || !currentSystemId} />
       </Form>
       <SectionList title="Equipment register" items={assets} empty="No equipment assets yet." render={(item: EquipmentAsset) => (
-        <Pressable onPress={() => setSelectedAssetId(item.id)}>
+        <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={item.display_name ?? item.name}
             meta={[item.maintenance_systems?.name, item.manufacturer, item.model, item.serial_number].filter(Boolean).join(" - ")}
@@ -1016,16 +1000,6 @@ function Equipment({
           />
         </Pressable>
       )} />
-      {selectedAsset ? (
-        <EquipmentDetail
-          asset={selectedAsset}
-          systems={systems}
-          counter={selectedCounter}
-          onUpdate={(input) => onUpdate(selectedAsset.id, input)}
-          onCreateCounter={(input) => onCreateCounter(selectedAsset.id, input)}
-          onRecordReading={(value) => selectedCounter ? onRecordReading(selectedCounter.id, value) : undefined}
-        />
-      ) : null}
     </View>
   );
 }
@@ -1149,14 +1123,12 @@ function FlagToggle({ label, value, onPress }: { label: string; value: boolean; 
 function Tasks({
   assets,
   tasks,
-  focusedTaskId,
-  onFocusedTaskHandled,
+  onOpen,
   onCreatePlan,
 }: {
   assets: EquipmentAsset[];
   tasks: MaintenanceTask[];
-  focusedTaskId?: string | null;
-  onFocusedTaskHandled?: () => void;
+  onOpen: (taskId: string) => void;
   onCreatePlan: (input: Record<string, unknown>) => void;
 }) {
   const [title, setTitle] = useState("");
@@ -1175,18 +1147,11 @@ function Tasks({
   const [warningThreshold, setWarningThreshold] = useState("30");
   const [warningUnit, setWarningUnit] = useState("days");
   const [verificationRequired, setVerificationRequired] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const selectedAsset = assetId ?? assets[0]?.id;
   const selectedAssetItem = assets.find((asset) => asset.id === selectedAsset);
   const primaryCounter = selectedAssetItem?.equipment_counters?.find((counter) => counter.is_primary) ?? selectedAssetItem?.equipment_counters?.[0];
   const showCalendar = planType === "calendar" || planType === "combined" || planType === "one_time";
   const showCounter = planType === "counter" || planType === "combined";
-
-  useEffect(() => {
-    if (!focusedTaskId) return;
-    setExpandedId(focusedTaskId);
-    onFocusedTaskHandled?.();
-  }, [focusedTaskId, onFocusedTaskHandled]);
 
   const reset = () => {
     setTitle("");
@@ -1275,7 +1240,7 @@ function Tasks({
         />
       </Form>
       <SectionList title="Maintenance tasks" items={tasks} empty="No generated tasks yet." render={(item: MaintenanceTask) => (
-        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+        <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={item.title}
             meta={[
@@ -1286,7 +1251,6 @@ function Tasks({
             ].filter(Boolean).join(" - ") || "No due trigger"}
             status={item.status}
           />
-          {expandedId === item.id ? <TaskDetail item={item} /> : null}
         </Pressable>
       )} />
     </View>
@@ -1313,15 +1277,13 @@ function TaskDetail({ item }: { item: MaintenanceTask }) {
 function WorkOrders({
   assets,
   workOrders,
-  focusedWorkOrderId,
-  onFocusedWorkOrderHandled,
+  onOpen,
   onCreate,
   onUpdate,
 }: {
   assets: EquipmentAsset[];
   workOrders: WorkOrder[];
-  focusedWorkOrderId?: string | null;
-  onFocusedWorkOrderHandled?: () => void;
+  onOpen: (workOrderId: string) => void;
   onCreate: (input: Partial<WorkOrder>) => void;
   onUpdate: (workOrderId: string, input: Partial<WorkOrder>) => void;
 }) {
@@ -1343,13 +1305,6 @@ function WorkOrders({
   const [riskAssessmentRequired, setRiskAssessmentRequired] = useState(false);
   const [lockoutRequired, setLockoutRequired] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(assets[0]?.id ? [assets[0].id] : []);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!focusedWorkOrderId) return;
-    setExpandedId(focusedWorkOrderId);
-    onFocusedWorkOrderHandled?.();
-  }, [focusedWorkOrderId, onFocusedWorkOrderHandled]);
 
   const toggleAsset = (id: string) => {
     setSelectedAssetIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -1438,7 +1393,7 @@ function WorkOrders({
         />
       </Form>
       <SectionList title="Work orders" items={workOrders} empty="No work orders yet." render={(item: WorkOrder) => (
-        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+        <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={`${item.work_order_number} - ${item.title}`}
             meta={[
@@ -1449,7 +1404,6 @@ function WorkOrders({
             ].filter(Boolean).join(" - ") || "Unassigned"}
             status={item.status}
           />
-          {expandedId === item.id ? <WorkOrderDetail item={item} onUpdate={(input) => onUpdate(item.id, input)} /> : null}
         </Pressable>
       )} />
     </View>
@@ -1504,11 +1458,13 @@ function workOrderAssets(item: WorkOrder): string | null {
 function Defects({
   assets,
   defects,
+  onOpen,
   onCreate,
   onUpdate,
 }: {
   assets: EquipmentAsset[];
   defects: Defect[];
+  onOpen: (defectId: string) => void;
   onCreate: (input: Partial<Defect>) => void;
   onUpdate: (defectId: string, input: Partial<Defect>) => void;
 }) {
@@ -1525,7 +1481,6 @@ function Defects({
   const [warrantyClaimId, setWarrantyClaimId] = useState("");
   const [photoUrls, setPhotoUrls] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const selectedAsset = assetId ?? assets[0]?.id;
 
   const reset = () => {
@@ -1586,7 +1541,7 @@ function Defects({
         />
       </Form>
       <SectionList title="Open defects" items={defects} empty="No defects recorded." render={(item: Defect) => (
-        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+        <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={`${item.defect_number} - ${item.title}`}
             meta={[
@@ -1597,7 +1552,6 @@ function Defects({
             ].filter(Boolean).join(" - ") || "Unassigned"}
             status={item.severity ?? item.status}
           />
-          {expandedId === item.id ? <DefectDetail defect={item} onUpdate={(input) => onUpdate(item.id, input)} /> : null}
         </Pressable>
       )} />
     </View>
@@ -1654,7 +1608,17 @@ function DefectDetail({ defect, onUpdate }: { defect: Defect; onUpdate: (input: 
   );
 }
 
-function ServiceHistory({ assets, events, onCreate }: { assets: EquipmentAsset[]; events: ServiceEvent[]; onCreate: (input: Partial<ServiceEvent>) => void }) {
+function ServiceHistory({
+  assets,
+  events,
+  onOpen,
+  onCreate,
+}: {
+  assets: EquipmentAsset[];
+  events: ServiceEvent[];
+  onOpen: (eventId: string) => void;
+  onCreate: (input: Partial<ServiceEvent>) => void;
+}) {
   const [title, setTitle] = useState("");
   const [performedBy, setPerformedBy] = useState("");
   const [completedAt, setCompletedAt] = useState(new Date().toISOString().slice(0, 10));
@@ -1678,7 +1642,6 @@ function ServiceHistory({ assets, events, onCreate }: { assets: EquipmentAsset[]
   const [approvedBy, setApprovedBy] = useState("");
   const [authorisedDealer, setAuthorisedDealer] = useState(false);
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const selectedAsset = assetId ?? assets[0]?.id;
 
   const reset = () => {
@@ -1770,7 +1733,7 @@ function ServiceHistory({ assets, events, onCreate }: { assets: EquipmentAsset[]
         />
       </Form>
       <SectionList title="Immutable service history" items={events} empty="No service events yet." render={(item: ServiceEvent) => (
-        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+        <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={`${item.service_event_number} - ${item.title}`}
             meta={[
@@ -1781,7 +1744,6 @@ function ServiceHistory({ assets, events, onCreate }: { assets: EquipmentAsset[]
             ].filter(Boolean).join(" - ")}
             status={item.service_type}
           />
-          {expandedId === item.id ? <ServiceEventDetail event={item} /> : null}
         </Pressable>
       )} />
     </View>
@@ -1949,12 +1911,14 @@ function History({ assets, events, onCreate }: { assets: EquipmentAsset[]; event
 function Parts({
   assets,
   parts,
+  onOpen,
   onCreate,
   onUpdate,
   onMove,
 }: {
   assets: EquipmentAsset[];
   parts: SparePart[];
+  onOpen: (partId: string) => void;
   onCreate: (input: Partial<SparePart>) => void;
   onUpdate: (partId: string, input: Partial<SparePart>) => void;
   onMove: (partId: string, input: Partial<InventoryMovement>) => void;
@@ -1971,7 +1935,6 @@ function Parts({
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(assets[0]?.id ?? null);
   const [compatibleAssetIds, setCompatibleAssetIds] = useState<string[]>(assets[0]?.id ? [assets[0].id] : []);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleCompatible = (id: string) => {
     setCompatibleAssetIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -2036,7 +1999,7 @@ function Parts({
         />
       </Form>
       <SectionList title="Inventory" items={parts} empty="No spare parts yet." render={(item: SparePart) => (
-        <Pressable onPress={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+        <Pressable onPress={() => onOpen(item.id)}>
           <Row
             title={item.name}
             meta={[
@@ -2047,7 +2010,6 @@ function Parts({
             ].filter(Boolean).join(" - ")}
             status={partStockStatus(item)}
           />
-          {expandedId === item.id ? <PartDetail part={item} onUpdate={(input) => onUpdate(item.id, input)} onMove={(input) => onMove(item.id, input)} /> : null}
         </Pressable>
       )} />
     </View>
@@ -2136,6 +2098,7 @@ function Attachments({
   onUpload,
   onUpdate,
   onDelete,
+  onOpenCard,
   onOpen,
 }: {
   assets: EquipmentAsset[];
@@ -2147,6 +2110,7 @@ function Attachments({
   onUpload: (input: UploadMaintenanceDocumentInput) => void;
   onUpdate: (documentId: string, input: Partial<MaintenanceDocument>) => void;
   onDelete: (documentId: string) => void;
+  onOpenCard: (documentId: string) => void;
   onOpen: (documentId: string) => void;
 }) {
   const [title, setTitle] = useState("");
@@ -2447,7 +2411,7 @@ function Attachments({
       ) : null}
       <SectionList title="Attachment register" items={documents} empty="No attachments yet." render={(item: MaintenanceDocument) => (
         <View style={styles.attachmentCard}>
-        <Pressable onPress={() => onOpen(item.id)}>
+        <Pressable onPress={() => onOpenCard(item.id)}>
           <Row
             title={item.title}
             meta={[
