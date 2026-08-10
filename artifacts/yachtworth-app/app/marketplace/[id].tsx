@@ -82,7 +82,7 @@ export default function MarketplaceDetailScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 70 }]}>
       <View style={styles.topbar}>
         <Pressable style={styles.iconButton} onPress={() => router.back()}>
           <Feather name="arrow-left" size={24} color={IVORY} />

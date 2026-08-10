@@ -226,7 +226,7 @@ export default function YachtNetworkScreen() {
   }, [listings]);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 70 }]}>
       <View style={styles.header}>
         <Pressable style={styles.iconButton} onPress={() => router.replace("/(tabs)/tools")}>
           <Feather name="arrow-left" size={24} color={IVORY} />

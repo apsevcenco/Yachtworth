@@ -19,7 +19,7 @@ export function BrandHeader() {
         {
           paddingTop: topPad,
           height: topPad + 44,
-          backgroundColor: isIOS ? "transparent" : NAVY,
+          backgroundColor: NAVY,
         },
       ]}
     >
