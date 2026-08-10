@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     minHeight: 116,
   },
   acidCard: {
-    shadowColor: "#00F5FF",
+    shadowColor: "#FF4FD8",
     shadowOpacity: 0.14,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     minHeight: 124,
   },
   acidFeatured: {
-    shadowColor: "#B6FF00",
+    shadowColor: "#FF4FD8",
     shadowOpacity: 0.2,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },

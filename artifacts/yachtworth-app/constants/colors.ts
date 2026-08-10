@@ -9,11 +9,16 @@ const navyElev = "#142A52";
 const gold = "#C9A961";
 const goldSoft = "#E4CB94";
 const ivory = "#F7F3EC";
-const acidBlack = "#05060B";
-const acidPanel = "#101126";
+const acidBlack = "#09000F";
+const acidPanel = "#1B0028";
 const acidLime = "#B6FF00";
-const acidCyan = "#00F5FF";
+const acidCyan = "#FF4FD8";
 const acidCoral = "#FF3D81";
+const medSea = "#0B8F9C";
+const medInk = "#12323A";
+const medMist = "#F4FBFA";
+const medFoam = "#FFFFFF";
+const medSand = "#D9B66F";
 
 const colors = {
   light: {
@@ -87,10 +92,10 @@ const colors = {
     primary: acidLime,
     primaryForeground: acidBlack,
 
-    secondary: "#171B39",
+    secondary: "#2A003D",
     secondaryForeground: "#F6FFF4",
 
-    muted: "#191B32",
+    muted: "#250038",
     mutedForeground: "rgba(246,255,244,0.68)",
 
     accent: acidCyan,
@@ -99,14 +104,49 @@ const colors = {
     destructive: acidCoral,
     destructiveForeground: "#FFFFFF",
 
-    border: "rgba(0,245,255,0.26)",
-    input: "rgba(0,245,255,0.20)",
+    border: "rgba(255,79,216,0.32)",
+    input: "rgba(255,79,216,0.22)",
 
     neon: acidLime,
-    neonAlt: acidCyan,
+    neonAlt: "#FF8A00",
     hot: acidCoral,
-    violet: "#8F5CFF",
-    glow: "rgba(182,255,0,0.22)",
+    violet: "#A855FF",
+    glow: "rgba(182,255,0,0.20)",
+  },
+
+  mediterranean: {
+    text: medInk,
+    tint: medSea,
+
+    background: medMist,
+    foreground: medInk,
+
+    card: medFoam,
+    cardForeground: medInk,
+
+    primary: medSea,
+    primaryForeground: "#FFFFFF",
+
+    secondary: "#E6F4F3",
+    secondaryForeground: medInk,
+
+    muted: "#DDEDEB",
+    mutedForeground: "#5F7276",
+
+    accent: medSand,
+    accentForeground: medInk,
+
+    destructive: "#C94C4C",
+    destructiveForeground: "#FFFFFF",
+
+    border: "#C7DEDC",
+    input: "#C7DEDC",
+
+    neon: medSea,
+    neonAlt: "#48BFC7",
+    hot: "#EF7D64",
+    violet: "#7A8BD8",
+    glow: "rgba(11,143,156,0.12)",
   },
 
   radius: 14,

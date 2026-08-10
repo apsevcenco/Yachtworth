@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 
 import colors from "@/constants/colors";
 
-export type AppThemeId = "classic" | "acid";
+export type AppThemeId = "classic" | "acid" | "mediterranean";
 
 type Palette = typeof colors.dark & {
   neon?: string;
@@ -28,7 +28,12 @@ export const APP_THEMES: Array<{
   {
     id: "acid",
     label: "Acid Marina",
-    description: "Black base with neon lime, electric cyan, hot coral and violet accents.",
+    description: "Black and ultraviolet base with toxic lime, magenta, orange and coral accents.",
+  },
+  {
+    id: "mediterranean",
+    label: "Mediterranean",
+    description: "Light sea-mist interface with turquoise, white foam, sand and coral accents.",
   },
 ];
 
@@ -37,17 +42,19 @@ type ThemeContextValue = {
   setThemeId: (theme: AppThemeId) => Promise<void>;
   colors: Palette & { radius: number };
   isAcid: boolean;
+  isMediterranean: boolean;
   loaded: boolean;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function isThemeId(value: string | null): value is AppThemeId {
-  return value === "classic" || value === "acid";
+  return value === "classic" || value === "acid" || value === "mediterranean";
 }
 
 function paletteFor(themeId: AppThemeId): Palette {
   if (themeId === "acid") return colors.acid;
+  if (themeId === "mediterranean") return colors.mediterranean;
   return colors.dark;
 }
 
@@ -81,6 +88,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeId,
       colors: { ...palette, radius: colors.radius },
       isAcid: themeId === "acid",
+      isMediterranean: themeId === "mediterranean",
       loaded,
     };
   }, [loaded, themeId]);
@@ -97,6 +105,7 @@ export function useTheme() {
       setThemeId: async () => {},
       colors: { ...fallback, radius: colors.radius },
       isAcid: false,
+      isMediterranean: false,
       loaded: true,
     };
   }

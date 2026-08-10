@@ -348,6 +348,7 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
               style={({ pressed }) => [
                 styles.desktopNavItem,
                 active ? styles.desktopNavItemActive : null,
+                active ? { backgroundColor: colors.glow ?? "rgba(201,169,97,0.12)", borderColor: colors.primary } : null,
                 pressed ? styles.desktopNavItemPressed : null,
               ]}
             >
@@ -544,6 +545,11 @@ function RootLayoutNav() {
   );
 }
 
+function ThemedStatusBar() {
+  const { isMediterranean } = useTheme();
+  return <StatusBar style={isMediterranean ? "dark" : "light"} />;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -584,7 +590,7 @@ export default function RootLayout() {
                 <QueryClientProvider client={queryClient}>
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <AppKeyboardProvider>
-                      <StatusBar style="light" />
+                      <ThemedStatusBar />
                       <RootLayoutNav />
                       {disableIntro ? null : <LaunchIntro />}
                     </AppKeyboardProvider>

@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ComingSoonModal } from "../../components/ComingSoonModal";
 import { YachtCard, type YachtCardAction } from "../../components/YachtCard";
+import { useTheme } from "../../hooks/useColors";
 import { useUnits } from "../../hooks/useUnits";
 
 const NAVY = "#0B1E3F";
@@ -34,6 +35,7 @@ export default function MyYachtScreen() {
   const isWeb = Platform.OS === "web";
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
+  const { colors } = useTheme();
   const { units } = useUnits();
   const [showPassportModal, setShowPassportModal] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -77,7 +79,7 @@ export default function MyYachtScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
       <Pressable
         onPress={() =>
           router.canGoBack() ? router.back() : router.replace("/(tabs)")
@@ -87,7 +89,7 @@ export default function MyYachtScreen() {
         accessibilityLabel="Go back"
         style={[styles.backFab, { top: (isWeb ? 12 : insets.top) + 56 }]}
       >
-        <Feather name="chevron-left" size={24} color={IVORY} />
+        <Feather name="chevron-left" size={24} color={colors.foreground} />
       </Pressable>
       <ScrollView
         contentContainerStyle={{
@@ -97,13 +99,13 @@ export default function MyYachtScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerBlock}>
-          <Text style={styles.kicker}>YOUR FLEET</Text>
-          <Text style={styles.title}>My Yacht</Text>
+          <Text style={[styles.kicker, { color: colors.primary }]}>YOUR FLEET</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>My Yacht</Text>
         </View>
 
         {!isLoaded || (isSignedIn && query.isLoading) ? (
           <View style={styles.center}>
-            <ActivityIndicator color={GOLD} />
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : !isSignedIn ? (
           <EmptyBlock
@@ -136,13 +138,14 @@ export default function MyYachtScreen() {
                 }
                 style={({ pressed }) => [
                   styles.archiveToggle,
+                  { borderColor: colors.border, backgroundColor: colors.glow ?? colors.card },
                   { opacity: pressed ? 0.7 : 1 },
                 ]}
               >
                 <Feather
                   name={showArchived ? "eye-off" : "archive"}
                   size={13}
-                  color={GOLD}
+                  color={colors.primary}
                 />
                 <Text style={styles.archiveToggleText}>
                   {showArchived
@@ -188,11 +191,12 @@ export default function MyYachtScreen() {
                 accessibilityLabel="Add another yacht"
                 style={({ pressed }) => [
                   styles.addAnother,
+                  { borderColor: colors.border, backgroundColor: colors.glow ?? colors.card },
                   { opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <Feather name="plus" size={16} color={GOLD} />
-                <Text style={styles.addAnotherText}>Add another yacht</Text>
+                <Feather name="plus" size={16} color={colors.primary} />
+                <Text style={[styles.addAnotherText, { color: colors.primary }]}>Add another yacht</Text>
               </Pressable>
             ) : null}
           </View>
@@ -224,20 +228,22 @@ function EmptyBlock({
   cta: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.empty}>
-      <View style={styles.emptyIcon}>
-        <Feather name={icon} size={42} color={GOLD} />
+      <View style={[styles.emptyIcon, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name={icon} size={42} color={colors.primary} />
       </View>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyText}>{text}</Text>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{text}</Text>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={cta}
-        style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.85 : 1 }]}
+        style={({ pressed }) => [styles.cta, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
       >
-        <Text style={styles.ctaText}>{cta}</Text>
+        <Text style={[styles.ctaText, { color: colors.background }]}>{cta}</Text>
       </Pressable>
     </View>
   );
@@ -343,7 +349,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(8,22,51,0.7)",
+    backgroundColor: "rgba(8,22,51,0.28)",
     alignItems: "center",
     justifyContent: "center",
   },

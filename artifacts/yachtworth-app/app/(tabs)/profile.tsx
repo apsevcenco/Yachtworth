@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -36,6 +37,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { getToken, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
+  const { colors, isAcid, isMediterranean } = useTheme();
 
   const displayName =
     user?.fullName ||
@@ -77,7 +79,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: (isWeb ? 67 : insets.top) + 70,
@@ -86,11 +88,11 @@ export default function ProfileScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.kicker}>ACCOUNT</Text>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>ACCOUNT</Text>
+        <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle, isMediterranean && styles.mediterraneanTitle]}>Profile</Text>
 
-        <View style={styles.userCard}>
-          <View style={styles.avatar}>
+        <View style={[styles.userCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: isMediterranean ? 1 : 0 }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.glow ?? "rgba(201,169,97,0.12)" }]}>
             {isSignedIn && user?.imageUrl ? (
               <Image source={{ uri: user.imageUrl }} style={styles.avatarImg} />
             ) : isSignedIn ? (
@@ -98,21 +100,21 @@ export default function ProfileScreen() {
                 {getInitials(displayName)}
               </Text>
             ) : (
-              <Feather name="user" size={22} color={GOLD} />
+              <Feather name="user" size={22} color={colors.primary} />
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={[styles.userName, { color: colors.foreground }]}>{displayName}</Text>
             {isSignedIn && email ? (
-              <Text style={styles.userMeta}>{email}</Text>
+              <Text style={[styles.userMeta, { color: colors.mutedForeground }]}>{email}</Text>
             ) : (
-              <Text style={styles.userMeta}>
+              <Text style={[styles.userMeta, { color: colors.mutedForeground }]}>
                 Sign in to save your estimates
               </Text>
             )}
             {isSignedIn && (
-              <View style={styles.planChip}>
-                <Text style={styles.planChipText}>{planLabel}</Text>
+              <View style={[styles.planChip, { backgroundColor: colors.glow ?? "rgba(201,169,97,0.14)", borderColor: colors.primary }]}>
+                <Text style={[styles.planChipText, { color: colors.primary }]}>{planLabel}</Text>
               </View>
             )}
           </View>
@@ -123,30 +125,32 @@ export default function ProfileScreen() {
             onPress={() => router.push("/sign-in")}
             style={({ pressed }) => [
               styles.primaryAuth,
+              { borderColor: colors.primary, backgroundColor: colors.glow ?? "rgba(201,169,97,0.06)" },
               { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Text style={styles.primaryAuthText}>Sign in</Text>
-            <Feather name="arrow-up-right" size={20} color={GOLD} />
+            <Text style={[styles.primaryAuthText, { color: colors.primary }]}>Sign in</Text>
+            <Feather name="arrow-up-right" size={20} color={colors.primary} />
           </Pressable>
         ) : (
           <Pressable
             style={({ pressed }) => [
               styles.upgrade,
+              { backgroundColor: colors.glow ?? "rgba(201,169,97,0.10)", borderColor: colors.primary },
               { opacity: pressed ? 0.9 : 1 },
             ]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
-              <Text style={styles.upgradeSubtitle}>
+              <Text style={[styles.upgradeTitle, { color: colors.primary }]}>Upgrade to Pro</Text>
+              <Text style={[styles.upgradeSubtitle, { color: colors.mutedForeground }]}>
                 Unlimited estimates, history and PDF · €49.99/mo
               </Text>
             </View>
-            <Feather name="arrow-up-right" size={20} color={GOLD} />
+            <Feather name="arrow-up-right" size={20} color={colors.primary} />
           </Pressable>
         )}
 
-        <View style={styles.menuGroup}>
+        <View style={[styles.menuGroup, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           {isSignedIn && (
             <Row
               icon="clock"
@@ -231,25 +235,27 @@ function Row({
   danger?: boolean;
   last?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
         last && styles.rowLast,
+        { borderBottomColor: colors.border },
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
       <Feather
         name={icon}
         size={18}
-        color={danger ? DANGER : GOLD}
+        color={danger ? DANGER : colors.primary}
         style={{ width: 26 }}
       />
-      <Text style={[styles.rowLabel, danger && { color: DANGER }]}>
+      <Text style={[styles.rowLabel, { color: colors.foreground }, danger && { color: DANGER }]}>
         {label}
       </Text>
-      <Feather name="chevron-right" size={18} color={FAINT} />
+      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
     </Pressable>
   );
 }
@@ -270,6 +276,16 @@ const styles = StyleSheet.create({
     fontSize: 32,
     letterSpacing: -0.3,
     marginBottom: 28,
+  },
+  acidTitle: {
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  acidKicker: {
+    letterSpacing: 3,
+  },
+  mediterraneanTitle: {
+    letterSpacing: 0.2,
   },
   userCard: {
     flexDirection: "row",

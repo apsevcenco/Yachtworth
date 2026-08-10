@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -41,9 +42,10 @@ async function openExternal(url: string) {
 export default function PdyeScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { colors, isAcid, isMediterranean } = useTheme();
 
   return (
-    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 24,
@@ -54,32 +56,32 @@ export default function PdyeScreen() {
         <View style={styles.headerBlock}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.kicker}>OFF-MARKET</Text>
-              <Text style={styles.title}>PDYE Platform</Text>
+              <Text style={[styles.kicker, { color: colors.primary }, isAcid ? styles.acidKicker : null]}>OFF-MARKET</Text>
+              <Text style={[styles.title, { color: colors.foreground }, isAcid ? styles.acidTitle : null, isMediterranean ? styles.mediterraneanTitle : null]}>PDYE Platform</Text>
             </View>
-            <View style={styles.lockChip}>
-              <Feather name="lock" size={14} color={GOLD} />
+            <View style={[styles.lockChip, { backgroundColor: colors.glow ?? colors.card, borderColor: colors.border }]}>
+              <Feather name="lock" size={14} color={colors.primary} />
             </View>
           </View>
         </View>
 
         {/* Hero card */}
-        <View style={styles.hero}>
-          <Text style={styles.heroKicker}>PRIVATE DEAL EXCHANGE</Text>
-          <Text style={styles.heroTitle}>
+        <View style={[styles.hero, { backgroundColor: colors.card, borderColor: colors.primary }, isAcid ? styles.acidHero : null]}>
+          <Text style={[styles.heroKicker, { color: colors.primary }]}>PRIVATE DEAL EXCHANGE</Text>
+          <Text style={[styles.heroTitle, { color: colors.foreground }]}>
             Off-market yacht transactions.
           </Text>
-          <Text style={styles.heroText}>
+          <Text style={[styles.heroText, { color: colors.mutedForeground }]}>
             Broker-to-broker · NDA protected · Deal Room secured.
           </Text>
           <Pressable
             onPress={() => openExternal(PDYE_URL)}
             accessibilityRole="button"
             accessibilityLabel="Open PDYE Platform in browser"
-            style={({ pressed }) => [styles.heroCta, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [styles.heroCta, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={styles.heroCtaText}>Open PDYE Platform</Text>
-            <Feather name="arrow-up-right" size={18} color={NAVY} />
+            <Text style={[styles.heroCtaText, { color: colors.background }]}>Open PDYE Platform</Text>
+            <Feather name="arrow-up-right" size={18} color={colors.background} />
           </Pressable>
         </View>
 
@@ -101,16 +103,16 @@ export default function PdyeScreen() {
         />
 
         {/* Bottom CTA */}
-        <View style={styles.bottomCta}>
-          <Text style={styles.bottomCtaText}>Not a broker yet?</Text>
+        <View style={[styles.bottomCta, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.bottomCtaText, { color: colors.foreground }]}>Not a broker yet?</Text>
           <Pressable
             onPress={() => openExternal(PDYE_REGISTER_URL)}
             accessibilityRole="button"
             accessibilityLabel="Register on PDYE"
-            style={({ pressed }) => [styles.registerBtn, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [styles.registerBtn, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent", opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={styles.registerBtnText}>Register on PDYE</Text>
-            <Feather name="arrow-up-right" size={16} color={GOLD} />
+            <Text style={[styles.registerBtnText, { color: colors.primary }]}>Register on PDYE</Text>
+            <Feather name="arrow-up-right" size={16} color={colors.primary} />
           </Pressable>
         </View>
       </ScrollView>
@@ -127,14 +129,16 @@ function InfoCard({
   title: string;
   text: string;
 }) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.infoCard}>
-      <View style={styles.infoIcon}>
-        <Feather name={icon} size={18} color={GOLD} />
+    <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.infoIcon, { backgroundColor: colors.glow ?? colors.muted }]}>
+        <Feather name={icon} size={18} color={colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.infoTitle}>{title}</Text>
-        <Text style={styles.infoText}>{text}</Text>
+        <Text style={[styles.infoTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text style={[styles.infoText, { color: colors.mutedForeground }]}>{text}</Text>
       </View>
     </View>
   );
@@ -263,4 +267,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(201,169,97,0.06)",
   },
   registerBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 0.3 },
+  acidKicker: { letterSpacing: 3.2 },
+  acidTitle: {
+    color: "#B6FF00",
+    textShadowColor: "rgba(255,79,216,0.65)",
+    textShadowRadius: 12,
+  },
+  acidHero: {
+    shadowColor: "#FF4FD8",
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  mediterraneanTitle: { fontFamily: "Inter_800ExtraBold", letterSpacing: 0 },
 });

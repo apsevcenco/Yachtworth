@@ -54,7 +54,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { isSignedIn, signOut } = useAuth();
   const { units, setUnits, loaded: unitsLoaded } = useUnits();
-  const { colors, themeId, setThemeId, isAcid } = useTheme();
+  const { colors, themeId, setThemeId, isAcid, isMediterranean } = useTheme();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -137,7 +137,7 @@ export default function SettingsScreen() {
         {/* APPEARANCE */}
         <Text style={[styles.sectionTitle, { color: colors.primary }]}>Appearance</Text>
         <View style={[styles.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-          <Feather name={isAcid ? "zap" : "moon"} size={18} color={colors.primary} style={{ width: 26 }} />
+          <Feather name={isAcid ? "zap" : isMediterranean ? "sun" : "moon"} size={18} color={colors.primary} style={{ width: 26 }} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowLabel, { color: colors.foreground }]}>Theme</Text>
             <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
@@ -155,11 +155,16 @@ export default function SettingsScreen() {
                 style={({ pressed }) => [
                   styles.themeOption,
                   { backgroundColor: colors.secondary, borderColor: active ? colors.primary : colors.border },
-                  active && { backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.12)" },
+                  active && { backgroundColor: colors.glow ?? (isAcid ? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.12)") },
                   pressed && { opacity: 0.82 },
                 ]}
               >
-                <View style={[styles.themeSwatch, theme.id === "acid" ? styles.acidSwatch : styles.classicSwatch]} />
+                <View
+                  style={[
+                    styles.themeSwatch,
+                    theme.id === "acid" ? styles.acidSwatch : theme.id === "mediterranean" ? styles.mediterraneanSwatch : styles.classicSwatch,
+                  ]}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.rowLabel, { color: active ? colors.primary : colors.foreground }, isAcid && active && styles.acidOptionTitle]}>
                     {theme.label}
@@ -379,10 +384,18 @@ const styles = StyleSheet.create({
   },
   acidSwatch: {
     backgroundColor: "#B6FF00",
-    borderColor: "#00F5FF",
-    shadowColor: "#00F5FF",
+    borderColor: "#FF4FD8",
+    shadowColor: "#FF4FD8",
     shadowOpacity: 0.8,
     shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  mediterraneanSwatch: {
+    backgroundColor: "#F4FBFA",
+    borderColor: "#0B8F9C",
+    shadowColor: "#0B8F9C",
+    shadowOpacity: 0.26,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
   acidOptionTitle: {

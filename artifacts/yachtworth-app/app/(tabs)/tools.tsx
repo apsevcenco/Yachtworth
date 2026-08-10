@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   acidCard: {
-    shadowColor: "#00F5FF",
+    shadowColor: "#FF4FD8",
     shadowOpacity: 0.14,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
