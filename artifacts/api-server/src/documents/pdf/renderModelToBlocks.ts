@@ -640,16 +640,7 @@ function renderNode(node: ContentNode, docType?: string): DocBlock[] {
       return galleryBlocks(node);
     case "paragraph": {
       if (docType === "survey_report") return surveyParagraphBlocks(node);
-      if (docType === "roi_report") return flowParagraphBlocks(node, "roi");
-      const h = measureNode(node);
-      const block: DocBlock = {
-        id: nextId("para"),
-        type: "paragraph",
-        estimatedHeight: h,
-        html: leafHtml(node),
-      };
-      if (h > 100) block.splittable = true;
-      return [block];
+      return flowParagraphBlocks(node, docType === "roi_report" ? "roi" : "doc");
     }
     case "signature": {
       const h = docType === "survey_report" ? 18 : measureNode(node);
