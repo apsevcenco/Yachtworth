@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useColorScheme } from "react-native";
 
 import colors from "@/constants/colors";
 
@@ -47,13 +46,12 @@ function isThemeId(value: string | null): value is AppThemeId {
   return value === "classic" || value === "acid";
 }
 
-function paletteFor(themeId: AppThemeId, scheme: "light" | "dark" | null | undefined): Palette {
+function paletteFor(themeId: AppThemeId): Palette {
   if (themeId === "acid") return colors.acid;
-  return scheme === "dark" ? colors.dark : colors.light;
+  return colors.dark;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const scheme = useColorScheme();
   const [themeId, setThemeIdState] = useState<AppThemeId>("classic");
   const [loaded, setLoaded] = useState(false);
 
@@ -77,7 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo<ThemeContextValue>(() => {
-    const palette = paletteFor(themeId, scheme);
+    const palette = paletteFor(themeId);
     return {
       themeId,
       setThemeId,
@@ -85,7 +83,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isAcid: themeId === "acid",
       loaded,
     };
-  }, [loaded, scheme, themeId]);
+  }, [loaded, themeId]);
 
   return React.createElement(ThemeContext.Provider, { value }, children);
 }
@@ -93,7 +91,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
-    const fallback = paletteFor("classic", "dark");
+    const fallback = paletteFor("classic");
     return {
       themeId: "classic" as const,
       setThemeId: async () => {},
