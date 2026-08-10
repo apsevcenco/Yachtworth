@@ -559,7 +559,8 @@ function tableBlocks(node: TableNode, docType?: string): DocBlock[] {
     ];
   }
   const full = measureCurrentTable(node.heading, node.columns, node.rows);
-  if (full <= pageBudgetMm) {
+  const wholeTableLimit = isDenseReport ? DENSE_TABLE_CHUNK_MM : DEFAULT_TABLE_CHUNK_MM;
+  if (full <= wholeTableLimit) {
     return [{ id: nextId("table"), type: "table", estimatedHeight: full, html: leafHtml(node) }];
   }
   const headingH = node.heading ? headingMm : 0;
