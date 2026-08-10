@@ -76,10 +76,11 @@ const LINE = "rgba(247,243,236,0.1)";
 const RED = "#F08A8A";
 const GREEN = "#7BD389";
 
-type Tab = "overview" | "equipment" | "tasks" | "work" | "defects" | "history" | "parts" | "attachments";
+type Tab = "overview" | "calendar" | "equipment" | "tasks" | "work" | "defects" | "history" | "parts" | "attachments";
 
 const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
   { key: "overview", label: "Overview", icon: "grid" },
+  { key: "calendar", label: "Calendar", icon: "calendar" },
   { key: "equipment", label: "Equipment", icon: "cpu" },
   { key: "tasks", label: "Tasks", icon: "check-square" },
   { key: "work", label: "Work orders", icon: "tool" },
@@ -389,6 +390,14 @@ export default function MaintenanceScreen() {
                   onSeed={() => run("Seeding systems", () => seedMaintenanceSystems(yachtId))}
                 />
               ) : null}
+              {tab === "calendar" ? (
+                <MaintenanceCalendar
+                  tasks={tasksQ.data ?? []}
+                  workOrders={workQ.data ?? []}
+                  parts={partsQ.data ?? []}
+                  documents={documentsQ.data ?? []}
+                />
+              ) : null}
               {tab === "equipment" ? (
                 <Equipment
                   systems={systemsQ.data ?? []}
@@ -518,6 +527,223 @@ function Overview({ dashboard, onSeed }: { dashboard?: MaintenanceDashboard; onS
       <SectionList title="Expired / expiring attachments" items={[...expiredDocuments, ...expiringDocuments]} render={(item: MaintenanceDocument) => (
         <Row title={item.title} meta={[item.category, item.expires_at ? `Expires ${item.expires_at.slice(0, 10)}` : null].filter(Boolean).join(" - ")} status={item.expires_at && new Date(item.expires_at) < new Date() ? "expired" : "expiring"} />
       )} />
+    </View>
+  );
+}
+
+type CalendarMode = "month" | "week" | "list";
+type MaintenanceCalendarEvent = {
+  id: string;
+  date: string;
+  title: string;
+  meta?: string | null;
+  status: string;
+  type: "task" | "work" | "document" | "part";
+};
+
+function parseDateKey(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function calendarRange(mode: CalendarMode, anchor: Date): { start: Date; end: Date; label: string } {
+  if (mode === "week") {
+    const start = addDays(anchor, -((anchor.getDay() + 6) % 7));
+    const end = addDays(start, 6);
+    return { start, end, label: `${start.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} - ${end.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` };
+  }
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  return { start, end, label: anchor.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) };
+}
+
+function inRange(dateKey: string, start: Date, end: Date): boolean {
+  const date = new Date(`${dateKey}T12:00:00.000Z`);
+  return date >= start && date <= end;
+}
+
+function eventTone(status: string): "overdue" | "warning" | "done" | "normal" {
+  const value = status.toLowerCase();
+  if (value.includes("overdue") || value.includes("expired") || value.includes("critical")) return "overdue";
+  if (value.includes("due") || value.includes("scheduled") || value.includes("expiring") || value.includes("waiting")) return "warning";
+  if (value.includes("complete") || value.includes("closed") || value.includes("verified")) return "done";
+  return "normal";
+}
+
+function buildCalendarEvents(
+  tasks: MaintenanceTask[],
+  workOrders: WorkOrder[],
+  parts: SparePart[],
+  documents: MaintenanceDocument[],
+): MaintenanceCalendarEvent[] {
+  const events: MaintenanceCalendarEvent[] = [];
+  for (const task of tasks) {
+    const date = parseDateKey(task.due_at);
+    if (!date) continue;
+    events.push({
+      id: `task:${task.id}`,
+      date,
+      title: task.title,
+      meta: [task.equipment_assets?.name, task.assigned_to_role, task.due_counter_value ? `${task.due_counter_value} h` : null].filter(Boolean).join(" - "),
+      status: task.status || "task",
+      type: "task",
+    });
+  }
+  for (const work of workOrders) {
+    const date = parseDateKey(work.planned_start ?? work.planned_end ?? work.actual_start ?? work.actual_end);
+    if (!date) continue;
+    events.push({
+      id: `work:${work.id}`,
+      date,
+      title: work.title,
+      meta: [work.work_order_number, work.priority, work.risk_level].filter(Boolean).join(" - "),
+      status: work.status || "work order",
+      type: "work",
+    });
+  }
+  for (const doc of documents) {
+    const date = parseDateKey(doc.expires_at);
+    if (!date) continue;
+    const expired = new Date(`${date}T12:00:00.000Z`) < new Date();
+    events.push({
+      id: `document:${doc.id}`,
+      date,
+      title: doc.title,
+      meta: [doc.category, attachmentOwner(doc)].filter(Boolean).join(" - "),
+      status: expired ? "expired" : "expiring",
+      type: "document",
+    });
+  }
+  for (const part of parts) {
+    const date = parseDateKey(part.expiry_date);
+    if (!date) continue;
+    const expired = new Date(`${date}T12:00:00.000Z`) < new Date();
+    events.push({
+      id: `part:${part.id}`,
+      date,
+      title: part.name,
+      meta: [part.part_number, `${part.quantity_on_hand} ${part.unit ?? "pcs"}`].filter(Boolean).join(" - "),
+      status: expired ? "expired part" : "part expiry",
+      type: "part",
+    });
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+}
+
+function MaintenanceCalendar({
+  tasks,
+  workOrders,
+  parts,
+  documents,
+}: {
+  tasks: MaintenanceTask[];
+  workOrders: WorkOrder[];
+  parts: SparePart[];
+  documents: MaintenanceDocument[];
+}) {
+  const [mode, setMode] = useState<CalendarMode>("month");
+  const [anchor, setAnchor] = useState(() => new Date());
+  const events = buildCalendarEvents(tasks, workOrders, parts, documents);
+  const range = calendarRange(mode === "list" ? "month" : mode, anchor);
+  const visible = mode === "list" ? events : events.filter((event) => inRange(event.date, range.start, range.end));
+  const dayCount = Math.round((range.end.getTime() - range.start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const days = Array.from({ length: dayCount }, (_, idx) => addDays(range.start, idx));
+  const byDate = new Map<string, MaintenanceCalendarEvent[]>();
+  for (const event of visible) {
+    byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
+  }
+
+  return (
+    <View>
+      <View style={styles.calendarHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>Maintenance Calendar</Text>
+          <Text style={styles.muted}>Planned tasks, work orders, certificate expiry and spare-part expiry in one place.</Text>
+        </View>
+        <View style={styles.calendarNav}>
+          <Button label="Prev" icon="chevron-left" onPress={() => setAnchor((date) => addDays(date, mode === "week" ? -7 : -31))} />
+          <Button label="Today" icon="target" onPress={() => setAnchor(new Date())} />
+          <Button label="Next" icon="chevron-right" onPress={() => setAnchor((date) => addDays(date, mode === "week" ? 7 : 31))} />
+        </View>
+      </View>
+      <ChipSelect
+        items={[
+          { id: "month", label: "Month" },
+          { id: "week", label: "Week" },
+          { id: "list", label: "List" },
+        ]}
+        selected={mode}
+        onSelect={(value) => setMode(value as CalendarMode)}
+      />
+      <Text style={styles.calendarRange}>{mode === "list" ? "All scheduled maintenance events" : range.label}</Text>
+      {mode === "list" ? (
+        <SectionList
+          title="Schedule"
+          items={visible}
+          empty="No dated maintenance events yet."
+          render={(event) => <CalendarEventRow event={event} />}
+        />
+      ) : (
+        <View style={styles.calendarGrid}>
+          {days.map((day) => {
+            const key = day.toISOString().slice(0, 10);
+            const dayEvents = byDate.get(key) ?? [];
+            const isToday = key === new Date().toISOString().slice(0, 10);
+            return (
+              <View key={key} style={[styles.calendarDay, isToday && styles.calendarDayToday]}>
+                <Text style={styles.calendarDayLabel}>{day.toLocaleDateString("en-GB", { day: "2-digit", weekday: "short" })}</Text>
+                {dayEvents.length ? dayEvents.slice(0, 4).map((event) => (
+                  <CalendarEventPill key={event.id} event={event} />
+                )) : <Text style={styles.calendarEmptyDay}>-</Text>}
+                {dayEvents.length > 4 ? <Text style={styles.calendarMore}>+{dayEvents.length - 4} more</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+      )}
+      <View style={styles.legendRow}>
+        <Legend label="Overdue / expired" tone="overdue" />
+        <Legend label="Due / scheduled" tone="warning" />
+        <Legend label="Completed" tone="done" />
+        <Legend label="Normal" tone="normal" />
+      </View>
+    </View>
+  );
+}
+
+function CalendarEventRow({ event }: { event: MaintenanceCalendarEvent }) {
+  return (
+    <View style={[styles.calendarEventRow, styles[`calendarTone_${eventTone(event.status)}`]]}>
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle}>{event.title}</Text>
+        <Text style={styles.rowMeta}>{[event.date, event.type, event.meta].filter(Boolean).join(" - ")}</Text>
+      </View>
+      <StatusPill value={event.status} />
+    </View>
+  );
+}
+
+function CalendarEventPill({ event }: { event: MaintenanceCalendarEvent }) {
+  return (
+    <View style={[styles.calendarPill, styles[`calendarTone_${eventTone(event.status)}`]]}>
+      <Text style={styles.calendarPillText} numberOfLines={2}>{event.title}</Text>
+    </View>
+  );
+}
+
+function Legend({ label, tone }: { label: string; tone: "overdue" | "warning" | "done" | "normal" }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, styles[`calendarTone_${tone}`]]} />
+      <Text style={styles.muted}>{label}</Text>
     </View>
   );
 }
@@ -2209,6 +2435,25 @@ const styles = StyleSheet.create({
   rowTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 15 },
   rowMeta: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 18 },
   attachmentCard: { borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: NAVY_DEEP, padding: 10, marginBottom: 10 },
+  calendarHeader: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 12, marginBottom: 12 },
+  calendarNav: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+  calendarRange: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 16, marginTop: 6, marginBottom: 12 },
+  calendarGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
+  calendarDay: { width: Platform.OS === "web" ? 150 : "48%", minHeight: 128, borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: NAVY_DEEP, padding: 10 },
+  calendarDayToday: { borderColor: GOLD, backgroundColor: PANEL },
+  calendarDayLabel: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 12, textTransform: "uppercase", marginBottom: 8 },
+  calendarEmptyDay: { color: "rgba(247,243,236,0.28)", fontFamily: "Inter_500Medium", fontSize: 13 },
+  calendarPill: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 6, marginBottom: 6 },
+  calendarPillText: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 11, lineHeight: 14 },
+  calendarMore: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 11, marginTop: 2 },
+  calendarEventRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 10 },
+  calendarTone_overdue: { borderColor: "rgba(240,138,138,0.75)", backgroundColor: "rgba(240,138,138,0.12)" },
+  calendarTone_warning: { borderColor: "rgba(201,169,97,0.78)", backgroundColor: "rgba(201,169,97,0.12)" },
+  calendarTone_done: { borderColor: "rgba(123,211,137,0.68)", backgroundColor: "rgba(123,211,137,0.1)" },
+  calendarTone_normal: { borderColor: LINE, backgroundColor: PANEL },
+  legendRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 18 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 7 },
+  legendDot: { width: 14, height: 14, borderWidth: 1, borderRadius: 7 },
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   pillText: { fontFamily: "Inter_700Bold", fontSize: 11, textTransform: "uppercase" },
   empty: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 14 },
