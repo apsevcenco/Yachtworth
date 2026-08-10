@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../hooks/useUnits";
+import { APP_THEMES, useTheme } from "../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -53,13 +54,15 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { isSignedIn, signOut } = useAuth();
   const { units, setUnits, loaded: unitsLoaded } = useUnits();
+  const { colors, themeId, setThemeId, isAcid } = useTheme();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.headerBar,
           { paddingTop: (isWeb ? 12 : insets.top) + 56 },
+          { borderBottomColor: colors.border },
         ]}
       >
         <Pressable
@@ -70,9 +73,9 @@ export default function SettingsScreen() {
           hitSlop={12}
           style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
-          <Feather name="chevron-left" size={26} color={IVORY} />
+          <Feather name="chevron-left" size={26} color={colors.foreground} />
         </Pressable>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }, isAcid && styles.acidDisplayText]}>Settings</Text>
         <View style={{ width: 26 }} />
       </View>
 
@@ -132,16 +135,41 @@ export default function SettingsScreen() {
         </View>
 
         {/* APPEARANCE */}
-        <Text style={styles.sectionTitle}>Appearance</Text>
-        <View style={styles.card}>
-          <Feather name="moon" size={18} color={GOLD} style={{ width: 26 }} />
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Appearance</Text>
+        <View style={[styles.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+          <Feather name={isAcid ? "zap" : "moon"} size={18} color={colors.primary} style={{ width: 26 }} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Dark</Text>
-            <Text style={styles.rowSub}>
-              Yachtworth uses our signature navy theme. Light mode coming later.
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Theme</Text>
+            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+              Choose the visual character of Yachtworth. PDF styling stays professional.
             </Text>
           </View>
-          <Feather name="check" size={18} color={GOLD} />
+        </View>
+        <View style={styles.themeList}>
+          {APP_THEMES.map((theme) => {
+            const active = theme.id === themeId;
+            return (
+              <Pressable
+                key={theme.id}
+                onPress={() => setThemeId(theme.id)}
+                style={({ pressed }) => [
+                  styles.themeOption,
+                  { backgroundColor: colors.secondary, borderColor: active ? colors.primary : colors.border },
+                  active && { backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.12)" },
+                  pressed && { opacity: 0.82 },
+                ]}
+              >
+                <View style={[styles.themeSwatch, theme.id === "acid" ? styles.acidSwatch : styles.classicSwatch]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowLabel, { color: active ? colors.primary : colors.foreground }, isAcid && active && styles.acidOptionTitle]}>
+                    {theme.label}
+                  </Text>
+                  <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{theme.description}</Text>
+                </View>
+                {active ? <Feather name="check" size={18} color={colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* ABOUT */}
@@ -326,6 +354,45 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   segmentTextActive: { color: GOLD, fontFamily: "Inter_700Bold" },
+  themeList: {
+    gap: 10,
+    marginTop: 10,
+  },
+  themeOption: {
+    minHeight: 74,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  themeSwatch: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "rgba(247,243,236,0.28)",
+  },
+  classicSwatch: {
+    backgroundColor: GOLD,
+  },
+  acidSwatch: {
+    backgroundColor: "#B6FF00",
+    borderColor: "#00F5FF",
+    shadowColor: "#00F5FF",
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  acidOptionTitle: {
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  acidDisplayText: {
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   poweredBlock: {
     marginTop: 32,
     backgroundColor: NAVY_ELEV,

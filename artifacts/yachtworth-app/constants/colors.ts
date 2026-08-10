@@ -9,6 +9,11 @@ const navyElev = "#142A52";
 const gold = "#C9A961";
 const goldSoft = "#E4CB94";
 const ivory = "#F7F3EC";
+const acidBlack = "#05060B";
+const acidPanel = "#101126";
+const acidLime = "#B6FF00";
+const acidCyan = "#00F5FF";
+const acidCoral = "#FF3D81";
 
 const colors = {
   light: {
@@ -67,6 +72,41 @@ const colors = {
 
     border: "#1E3461",
     input: "#1E3461",
+  },
+
+  acid: {
+    text: "#F6FFF4",
+    tint: acidLime,
+
+    background: acidBlack,
+    foreground: "#F6FFF4",
+
+    card: acidPanel,
+    cardForeground: "#F6FFF4",
+
+    primary: acidLime,
+    primaryForeground: acidBlack,
+
+    secondary: "#171B39",
+    secondaryForeground: "#F6FFF4",
+
+    muted: "#191B32",
+    mutedForeground: "rgba(246,255,244,0.68)",
+
+    accent: acidCyan,
+    accentForeground: acidBlack,
+
+    destructive: acidCoral,
+    destructiveForeground: "#FFFFFF",
+
+    border: "rgba(0,245,255,0.26)",
+    input: "rgba(0,245,255,0.20)",
+
+    neon: acidLime,
+    neonAlt: acidCyan,
+    hot: acidCoral,
+    violet: "#8F5CFF",
+    glow: "rgba(182,255,0,0.22)",
   },
 
   radius: 14,

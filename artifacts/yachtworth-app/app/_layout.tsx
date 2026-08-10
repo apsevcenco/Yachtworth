@@ -30,6 +30,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BrandHeader } from "@/components/BrandHeader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LaunchIntro } from "@/components/LaunchIntro";
+import { ThemeProvider, useColors, useTheme } from "@/hooks/useColors";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
@@ -325,9 +326,11 @@ function isDesktopRouteActive(pathname: string, item: (typeof DESKTOP_NAV_ITEMS)
 
 function DesktopSidebar({ pathname }: { pathname: string }) {
   const router = useRouter();
+  const colors = useColors();
+  const { isAcid } = useTheme();
 
   return (
-    <View style={styles.desktopSidebar}>
+    <View style={[styles.desktopSidebar, { backgroundColor: colors.secondary, borderRightColor: colors.border }]}>
       <Image
         source={require("../assets/images/logo-wordmark.png")}
         style={styles.desktopLogo}
@@ -351,12 +354,15 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
               <Feather
                 name={item.icon}
                 size={18}
-                color={active ? "#C9A961" : "rgba(247,243,236,0.68)"}
+                color={active ? colors.primary : colors.mutedForeground}
               />
               <Text
                 style={[
                   styles.desktopNavText,
+                  { color: colors.mutedForeground },
                   active ? styles.desktopNavTextActive : null,
+                  active ? { color: colors.primary } : null,
+                  isAcid ? styles.desktopNavTextAcid : null,
                 ]}
               >
                 {item.label}
@@ -365,9 +371,9 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
           );
         })}
       </View>
-      <View style={styles.desktopSidebarFooter}>
-        <Text style={styles.desktopFooterKicker}>Yacht intelligence</Text>
-        <Text style={styles.desktopFooterText}>Render + Supabase + Clerk</Text>
+      <View style={[styles.desktopSidebarFooter, { borderTopColor: colors.border }]}>
+        <Text style={[styles.desktopFooterKicker, { color: colors.primary }]}>Yacht intelligence</Text>
+        <Text style={[styles.desktopFooterText, { color: colors.mutedForeground }]}>Render + Supabase + Clerk</Text>
       </View>
     </View>
   );
@@ -376,12 +382,13 @@ function DesktopSidebar({ pathname }: { pathname: string }) {
 function RootLayoutNav() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
+  const colors = useColors();
   const isDesktopWeb = Platform.OS === "web" && width >= DESKTOP_BREAKPOINT;
   const showBrandHeader = !isDesktopWeb && !pathname.startsWith("/sign-");
   return (
-    <View style={[styles.appShell, isDesktopWeb ? styles.desktopShell : null]}>
+    <View style={[styles.appShell, { backgroundColor: colors.background }, isDesktopWeb ? styles.desktopShell : null]}>
       {isDesktopWeb ? <DesktopSidebar pathname={pathname} /> : null}
-      <View style={isDesktopWeb ? styles.desktopMain : styles.mobileMain}>
+      <View style={[isDesktopWeb ? styles.desktopMain : styles.mobileMain, { backgroundColor: colors.background }]}>
         <View style={isDesktopWeb ? styles.desktopContent : styles.mobileMain}>
           <Stack screenOptions={{ headerBackTitle: "Back" }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -571,19 +578,21 @@ export default function RootLayout() {
       </ClerkLoading>
       <ClerkLoaded>
         <AuthReadyGate>
-          <SafeAreaProvider>
-            <ErrorBoundary>
-              <QueryClientProvider client={queryClient}>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <AppKeyboardProvider>
-                    <StatusBar style="light" />
-                    <RootLayoutNav />
-                    {disableIntro ? null : <LaunchIntro />}
-                  </AppKeyboardProvider>
-                </GestureHandlerRootView>
-              </QueryClientProvider>
-            </ErrorBoundary>
-          </SafeAreaProvider>
+          <ThemeProvider>
+            <SafeAreaProvider>
+              <ErrorBoundary>
+                <QueryClientProvider client={queryClient}>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <AppKeyboardProvider>
+                      <StatusBar style="light" />
+                      <RootLayoutNav />
+                      {disableIntro ? null : <LaunchIntro />}
+                    </AppKeyboardProvider>
+                  </GestureHandlerRootView>
+                </QueryClientProvider>
+              </ErrorBoundary>
+            </SafeAreaProvider>
+          </ThemeProvider>
         </AuthReadyGate>
       </ClerkLoaded>
     </ClerkProvider>
@@ -642,6 +651,11 @@ const styles = StyleSheet.create({
   },
   desktopNavTextActive: {
     color: "#C9A961",
+  },
+  desktopNavTextAcid: {
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
   desktopSidebarFooter: {
     marginTop: "auto",

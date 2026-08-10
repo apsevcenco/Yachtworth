@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 import { TOOLS_ROLE_STORAGE_KEY } from "./tools";
 
 const NAVY = "#0B1E3F";
@@ -60,6 +61,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isWeb = Platform.OS === "web";
+  const { colors, isAcid } = useTheme();
 
   const haptic = () => {
     if (Platform.OS !== "web") {
@@ -76,7 +78,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: NAVY }]}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: (isWeb ? 67 : insets.top) + 70,
@@ -86,11 +88,11 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero */}
-        <Text style={styles.kicker}>AI tools for the yachting industry</Text>
-        <Text style={styles.hero}>
+        <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>AI tools for the yachting industry</Text>
+        <Text style={[styles.hero, { color: colors.foreground }, isAcid && styles.acidHero]}>
           Your yacht.{"\n"}Fully understood.
         </Text>
-        <Text style={styles.subhero}>
+        <Text style={[styles.subhero, { color: colors.mutedForeground }]}>
           AI-powered tools for owners, brokers and surveyors.
         </Text>
 
@@ -104,14 +106,16 @@ export default function HomeScreen() {
               accessibilityLabel={`${r.label} role — opens tools filtered for ${r.label}`}
               style={({ pressed }) => [
                 styles.roleCard,
+                { backgroundColor: colors.secondary, borderColor: isAcid ? colors.border : DIVIDER },
+                isAcid && styles.acidCard,
                 { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
               ]}
             >
-              <View style={styles.roleIcon}>
-                <Feather name={r.icon} size={20} color={GOLD} />
+              <View style={[styles.roleIcon, { backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.12)" }]}>
+                <Feather name={r.icon} size={20} color={colors.primary} />
               </View>
-              <Text style={styles.roleLabel}>{r.label}</Text>
-              <Text style={styles.roleSub} numberOfLines={2}>
+              <Text style={[styles.roleLabel, { color: colors.foreground }, isAcid && styles.acidRoleLabel]}>{r.label}</Text>
+              <Text style={[styles.roleSub, { color: colors.mutedForeground }]} numberOfLines={2}>
                 {r.subtitle}
               </Text>
             </Pressable>
@@ -127,10 +131,10 @@ export default function HomeScreen() {
             }}
             accessibilityRole="button"
             accessibilityLabel="New valuation"
-            style={({ pressed }) => [styles.quickBtn, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [styles.quickBtn, { borderColor: colors.primary, backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.06)", opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={styles.quickBtnText}>New Valuation</Text>
-            <Feather name="arrow-up-right" size={16} color={GOLD} />
+            <Text style={[styles.quickBtnText, { color: colors.primary }]}>New Valuation</Text>
+            <Feather name="arrow-up-right" size={16} color={colors.primary} />
           </Pressable>
           <Pressable
             onPress={() => {
@@ -139,10 +143,10 @@ export default function HomeScreen() {
             }}
             accessibilityRole="button"
             accessibilityLabel="My yacht"
-            style={({ pressed }) => [styles.quickBtn, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [styles.quickBtn, { borderColor: colors.primary, backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.06)", opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={styles.quickBtnText}>My Yacht</Text>
-            <Feather name="arrow-up-right" size={16} color={GOLD} />
+            <Text style={[styles.quickBtnText, { color: colors.primary }]}>My Yacht</Text>
+            <Feather name="arrow-up-right" size={16} color={colors.primary} />
           </Pressable>
         </View>
 
@@ -154,24 +158,24 @@ export default function HomeScreen() {
           }}
           accessibilityRole="button"
           accessibilityLabel="Featured: Start free AI valuation"
-          style={({ pressed }) => [styles.featured, { opacity: pressed ? 0.92 : 1 }]}
+          style={({ pressed }) => [styles.featured, { backgroundColor: colors.card, borderColor: isAcid ? colors.accent : "transparent", borderWidth: isAcid ? 1 : 0, opacity: pressed ? 0.92 : 1 }, isAcid && styles.acidFeatured]}
         >
-          <View style={styles.featuredAccent} />
+          <View style={[styles.featuredAccent, { backgroundColor: colors.primary }]} />
           <View style={{ flex: 1, paddingLeft: 16 }}>
-            <Text style={styles.featuredKicker}>FEATURED TOOL</Text>
-            <Text style={styles.featuredTitle}>Know your yacht's worth</Text>
-            <Text style={styles.featuredText}>
+            <Text style={[styles.featuredKicker, { color: colors.primary }, isAcid && styles.acidKicker]}>FEATURED TOOL</Text>
+            <Text style={[styles.featuredTitle, { color: colors.foreground }, isAcid && styles.acidRoleLabel]}>Know your yacht's worth</Text>
+            <Text style={[styles.featuredText, { color: colors.mutedForeground }]}>
               AI valuation in under 1 min.
             </Text>
             <View style={styles.featuredCta}>
-              <Text style={styles.featuredCtaText}>Start free</Text>
-              <Feather name="arrow-right" size={14} color={GOLD} />
+              <Text style={[styles.featuredCtaText, { color: colors.primary }]}>Start free</Text>
+              <Feather name="arrow-right" size={14} color={colors.primary} />
             </View>
           </View>
         </Pressable>
 
         <View style={styles.footerNote}>
-          <Text style={styles.footerNoteText}>by the team behind PDYE</Text>
+          <Text style={[styles.footerNoteText, { color: colors.primary }]}>by the team behind PDYE</Text>
         </View>
       </ScrollView>
     </View>
@@ -194,6 +198,13 @@ const styles = StyleSheet.create({
     fontSize: 38,
     lineHeight: 44,
     letterSpacing: -0.5,
+  },
+  acidHero: {
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  acidKicker: {
+    letterSpacing: 3,
   },
   subhero: {
     color: MUTED,
@@ -218,6 +229,12 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 116,
   },
+  acidCard: {
+    shadowColor: "#00F5FF",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+  },
   roleIcon: {
     width: 38,
     height: 38,
@@ -232,6 +249,10 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-ExtraBold",
     fontSize: 17,
     marginBottom: 4,
+  },
+  acidRoleLabel: {
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   roleSub: {
     color: MUTED,
@@ -270,6 +291,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: 18,
     minHeight: 124,
+  },
+  acidFeatured: {
+    shadowColor: "#B6FF00",
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
   },
   featuredAccent: {
     width: 3,

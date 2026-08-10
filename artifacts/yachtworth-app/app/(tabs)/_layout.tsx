@@ -99,14 +99,14 @@ export default function TabLayout() {
             isIOS ? (
               <SymbolView
                 name="lock.shield"
-                tintColor={focused ? "#C9A961" : color}
+                tintColor={focused ? colors.primary : color}
                 size={24}
               />
             ) : (
               <Feather
                 name="shield"
                 size={22}
-                color={focused ? "#C9A961" : color}
+                color={focused ? colors.primary : color}
               />
             ),
         }}

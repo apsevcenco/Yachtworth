@@ -3,11 +3,12 @@ import React from "react";
 import { Image, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const NAVY = "#0B1E3F";
-const DIVIDER = "rgba(247,243,236,0.08)";
+import { useColors, useTheme } from "@/hooks/useColors";
 
 export function BrandHeader() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { isAcid } = useTheme();
   const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
   const topPad = isWeb ? 12 : insets.top + 6;
@@ -19,8 +20,10 @@ export function BrandHeader() {
         {
           paddingTop: topPad,
           height: topPad + 44,
-          backgroundColor: NAVY,
+          backgroundColor: colors.background,
+          borderBottomColor: isAcid ? colors.accent : colors.border,
         },
+        isAcid ? styles.acidHeader : null,
       ]}
     >
       {isIOS ? (
@@ -33,7 +36,7 @@ export function BrandHeader() {
       ) : null}
       <Image
         source={require("../assets/images/logo-wordmark.png")}
-        style={styles.logo}
+        style={[styles.logo, isAcid ? styles.acidLogo : null]}
         resizeMode="contain"
         accessibilityLabel="Yachtworth"
         accessible
@@ -50,9 +53,18 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 24,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DIVIDER,
     justifyContent: "center",
     zIndex: 50,
   },
   logo: { width: 194, height: 30 },
+  acidHeader: {
+    borderBottomWidth: 1,
+    shadowColor: "#00F5FF",
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  acidLogo: {
+    tintColor: "#F6FFF4",
+  },
 });

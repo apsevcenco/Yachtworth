@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ComingSoonModal } from "../../components/ComingSoonModal";
+import { useTheme } from "../../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -207,6 +208,7 @@ export default function ToolsScreen() {
   const params = useLocalSearchParams<{ role?: string }>();
   const [role, setRole] = useState<Role>("all");
   const [modal, setModal] = useState<Tool | null>(null);
+  const { colors, isAcid } = useTheme();
 
   useEffect(() => {
     // Param takes priority (deep-link from Home role card), then persisted value.
@@ -233,7 +235,7 @@ export default function ToolsScreen() {
   );
 
   return (
-    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 70 }]}>
+    <View style={[styles.root, { paddingTop: (isWeb ? 67 : insets.top) + 70, backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 24,
@@ -242,9 +244,9 @@ export default function ToolsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerBlock}>
-          <Text style={styles.kicker}>WORKBENCH</Text>
-          <Text style={styles.title}>Tools</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>WORKBENCH</Text>
+          <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Tools</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             Everything in one place — for owners, brokers, surveyors and charter
             operators.
           </Text>
@@ -265,9 +267,14 @@ export default function ToolsScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={`${r.label} filter`}
-                style={[styles.chip, active && styles.chipActive]}
+                style={[
+                  styles.chip,
+                  { backgroundColor: colors.secondary, borderColor: colors.border },
+                  active && styles.chipActive,
+                  active && { borderColor: colors.primary, backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.14)" },
+                ]}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                <Text style={[styles.chipText, { color: colors.mutedForeground }, active && styles.chipTextActive, active && { color: colors.primary }]}>
                   {r.label}
                 </Text>
               </Pressable>
@@ -288,36 +295,40 @@ export default function ToolsScreen() {
               }}
               accessibilityRole="button"
               accessibilityLabel={`${t.title} — ${t.status === "live" ? "live, open" : "coming soon"}`}
-              style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+              style={({ pressed }) => [
+                styles.card,
+                { backgroundColor: colors.secondary, borderColor: isAcid ? colors.border : DIVIDER, opacity: pressed ? 0.85 : 1 },
+                isAcid && styles.acidCard,
+              ]}
             >
-              <View style={styles.toolIcon}>
-                <Feather name={t.icon} size={18} color={GOLD} />
+              <View style={[styles.toolIcon, { backgroundColor: isAcid ? colors.glow ?? "rgba(182,255,0,0.16)" : "rgba(201,169,97,0.12)" }]}>
+                <Feather name={t.icon} size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.titleRow}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }, isAcid && styles.acidCardTitle]} numberOfLines={1}>
                     {t.title}
                   </Text>
                   {t.status === "live" ? (
                     <View style={styles.liveBadge}>
                       <View style={styles.liveDot} />
-                      <Text style={styles.liveText}>LIVE</Text>
+                      <Text style={[styles.liveText, isAcid && { color: colors.primary }]}>LIVE</Text>
                     </View>
                   ) : (
-                    <View style={styles.soonBadge}>
-                      <Text style={styles.soonText}>SOON</Text>
+                    <View style={[styles.soonBadge, { backgroundColor: colors.muted }]}>
+                      <Text style={[styles.soonText, { color: colors.mutedForeground }]}>SOON</Text>
                     </View>
                   )}
                 </View>
-                <Text style={styles.cardSub} numberOfLines={2}>
+                <Text style={[styles.cardSub, { color: colors.mutedForeground }]} numberOfLines={2}>
                   {t.subtitle}
                 </Text>
               </View>
-              <Feather name="chevron-right" size={18} color={MUTED} />
+              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
             </Pressable>
           ))}
           {filtered.length === 0 && (
-            <Text style={styles.emptyText}>No tools for this role yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No tools for this role yet.</Text>
           )}
         </View>
       </ScrollView>
@@ -354,6 +365,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     marginBottom: 8,
   },
+  acidTitle: {
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  acidKicker: {
+    letterSpacing: 3,
+  },
   subtitle: {
     color: MUTED,
     fontFamily: "Inter_400Regular",
@@ -388,6 +406,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
+  },
+  acidCard: {
+    shadowColor: "#00F5FF",
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  acidCardTitle: {
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   toolIcon: {
     width: 38,
