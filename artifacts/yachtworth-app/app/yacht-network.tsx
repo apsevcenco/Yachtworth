@@ -144,6 +144,7 @@ export default function YachtNetworkScreen() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const yachtsQ = useQuery({ queryKey: ["network-yachts"], queryFn: getYachts });
   const yachts = (yachtsQ.data ?? []).filter((yacht) => (yacht as YachtRecord).is_archived !== true);
@@ -154,7 +155,7 @@ export default function YachtNetworkScreen() {
     queryFn: () => listNetworkListings({ mine: true }),
   });
 
-  const listings = networkQ.data ?? [];
+  const listings = (networkQ.data ?? []).filter((item) => item.status !== "archived");
   const selectedYachtLabel = yachtTitle(selectedYacht);
   const defaultTitle = selectedYacht
     ? [yachtField(selectedYacht, "brand") ?? selectedYacht.manufacturer, selectedYacht.model, selectedYacht.name].filter(Boolean).join(" ")
@@ -204,22 +205,17 @@ export default function YachtNetworkScreen() {
   };
 
   const archive = async (id: string) => {
-    Alert.alert("Remove from listing", "This yacht will be removed from the marketplace board. The listing data will be archived, not deleted.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await archiveNetworkListing(id);
-            await qc.invalidateQueries({ queryKey: ["network-listings"] });
-            await qc.invalidateQueries({ queryKey: ["marketplace-listings"] });
-          } catch (err) {
-            Alert.alert("Remove failed", err instanceof Error ? err.message : "Could not remove listing");
-          }
-        },
-      },
-    ]);
+    if (removingId) return;
+    try {
+      setRemovingId(id);
+      await archiveNetworkListing(id);
+      await qc.invalidateQueries({ queryKey: ["network-listings"] });
+      await qc.invalidateQueries({ queryKey: ["marketplace-listings"] });
+    } catch (err) {
+      Alert.alert("Remove failed", err instanceof Error ? err.message : "Could not remove listing");
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   const stats = useMemo(() => {
@@ -324,7 +320,7 @@ export default function YachtNetworkScreen() {
         ) : listings.length ? (
           <View style={styles.catalogGrid}>
             {listings.map((item) => (
-              <ListingCard key={item.id} item={item} onOpen={() => router.push(`/marketplace/${item.id}` as never)} onArchive={() => archive(item.id)} />
+              <ListingCard key={item.id} item={item} removing={removingId === item.id} onOpen={() => router.push(`/marketplace/${item.id}` as never)} onArchive={() => archive(item.id)} />
             ))}
           </View>
         ) : (
@@ -344,7 +340,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ListingCard({ item, onOpen, onArchive }: { item: YachtNetworkListing; onOpen: () => void; onArchive: () => void }) {
+function ListingCard({ item, removing, onOpen, onArchive }: { item: YachtNetworkListing; removing: boolean; onOpen: () => void; onArchive: () => void }) {
   const length = snapshotValue(item, "length_meters");
   const year = snapshotValue(item, "year_built");
   const builder = snapshotValue(item, "brand");
@@ -352,50 +348,46 @@ function ListingCard({ item, onOpen, onArchive }: { item: YachtNetworkListing; o
   const cabins = snapshotValue(item, "cabins");
   const guests = snapshotValue(item, "guests");
   return (
-    <Pressable style={styles.listingCard} onPress={onOpen}>
-      {item.cover_photo_url ? (
-        <Image source={{ uri: item.cover_photo_url }} style={styles.listingImage} />
-      ) : (
-        <View style={styles.listingImageFallback}>
-          <Feather name="anchor" size={28} color={GOLD} />
-        </View>
-      )}
-      <View style={styles.listingBody}>
-        <View style={styles.listingTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.listingTitle}>{item.title}</Text>
-            <Text style={styles.listingMeta}>{[builder, model, year, length ? `${length}m` : null].filter(Boolean).join(" - ")}</Text>
+    <View style={styles.listingCard}>
+      <Pressable onPress={onOpen}>
+        {item.cover_photo_url ? (
+          <Image source={{ uri: item.cover_photo_url }} style={styles.listingImage} />
+        ) : (
+          <View style={styles.listingImageFallback}>
+            <Feather name="anchor" size={28} color={GOLD} />
           </View>
-          <View style={[styles.statusPill, item.status === "active" ? styles.statusActive : styles.statusMuted]}>
-            <Text style={styles.statusText}>{item.status}</Text>
+        )}
+        <View style={styles.listingBody}>
+          <View style={styles.listingTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.listingTitle}>{item.title}</Text>
+              <Text style={styles.listingMeta}>{[builder, model, year, length ? `${length}m` : null].filter(Boolean).join(" - ")}</Text>
+            </View>
+            <View style={[styles.statusPill, item.status === "active" ? styles.statusActive : styles.statusMuted]}>
+              <Text style={styles.statusText}>{item.status}</Text>
+            </View>
+          </View>
+          <Text style={styles.listingMeta}>{[item.location, cabins ? `${cabins} cabins` : null, guests ? `${guests} guests` : null].filter(Boolean).join(" - ")}</Text>
+          <Text style={styles.priceLine}>
+            {[money(item.asking_price_eur, item.currency ?? "EUR"), item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null].filter(Boolean).join("   ")}
+          </Text>
+          {item.description ? <Text style={styles.description} numberOfLines={4}>{item.description}</Text> : null}
+          <View style={styles.contactBox}>
+            <Text style={styles.contactTitle}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
+            <Text style={styles.contactText}>{[item.contact_email, item.contact_phone].filter(Boolean).join(" - ") || "Contact details visible inside Yachtworth."}</Text>
           </View>
         </View>
-        <Text style={styles.listingMeta}>{[item.location, cabins ? `${cabins} cabins` : null, guests ? `${guests} guests` : null].filter(Boolean).join(" - ")}</Text>
-        <Text style={styles.priceLine}>
-          {[money(item.asking_price_eur, item.currency ?? "EUR"), item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null].filter(Boolean).join("   ")}
-        </Text>
-        {item.description ? <Text style={styles.description} numberOfLines={4}>{item.description}</Text> : null}
-        <View style={styles.contactBox}>
-          <Text style={styles.contactTitle}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
-          <Text style={styles.contactText}>{[item.contact_email, item.contact_phone].filter(Boolean).join(" - ") || "Contact details visible inside Yachtworth."}</Text>
-        </View>
-        <View style={styles.cardFooter}>
-          <Text style={styles.visibility}>{item.listing_type} - {item.visibility}</Text>
-          {item.is_owner ? (
-            <Pressable
-              onPress={(event) => {
-                event.stopPropagation();
-                onArchive();
-              }}
-              style={styles.archiveButton}
-            >
-              <Feather name="trash-2" size={14} color={RED} />
-              <Text style={styles.archiveText}>Remove from listing</Text>
-            </Pressable>
-          ) : null}
-        </View>
+      </Pressable>
+      <View style={styles.cardFooter}>
+        <Text style={styles.visibility}>{item.listing_type} - {item.visibility}</Text>
+        {item.is_owner ? (
+          <Pressable disabled={removing} onPress={onArchive} style={[styles.archiveButton, removing && styles.disabled]}>
+            <Feather name="trash-2" size={14} color={RED} />
+            <Text style={styles.archiveText}>{removing ? "Removing..." : "Remove from listing"}</Text>
+          </Pressable>
+        ) : null}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
