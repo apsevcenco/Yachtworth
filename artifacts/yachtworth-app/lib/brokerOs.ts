@@ -99,6 +99,59 @@ export type BrokerContact = {
   cases: BrokerContactCase[];
 };
 
+export type BrokerActivity = {
+  id: string;
+  case_id: string | null;
+  contact_id: string | null;
+  activity_type: string;
+  channel: string | null;
+  subject: string | null;
+  body: string | null;
+  happened_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type BrokerContactTask = BrokerTask;
+
+export type BrokerContactDetail = {
+  item: BrokerContact;
+  cases: BrokerContactCase[];
+  tasks: BrokerContactTask[];
+  activity: BrokerActivity[];
+};
+
+export type UpsertBrokerContactInput = {
+  full_name: string;
+  email?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  linkedin?: string | null;
+  country?: string | null;
+  citizenship?: string | null;
+  residency?: string | null;
+  languages?: string[] | string | null;
+  preferred_channel?: string | null;
+  relationship_owner?: string | null;
+  relationship_type?: string | null;
+  trust_level?: string | null;
+  source?: string | null;
+  notes?: string | null;
+};
+
+export type CreateContactTaskInput = {
+  title: string;
+  detail?: string | null;
+  due_date?: string | null;
+  priority?: "low" | "normal" | "high" | "urgent";
+};
+
+export type CreateContactActivityInput = {
+  activity_type?: string | null;
+  channel?: "phone" | "email" | "whatsapp" | "meeting" | "note" | "other" | null;
+  subject?: string | null;
+  body?: string | null;
+};
+
 export type BrokerContactsResponse = {
   items: BrokerContact[];
   total: number;
@@ -169,6 +222,72 @@ export async function getBrokerContacts(params?: { q?: string; source?: string }
     headers: await headers(),
   });
   return readJson<BrokerContactsResponse>(res);
+}
+
+export async function getBrokerContact(id: string): Promise<BrokerContactDetail> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/contacts/${id}`, {
+    headers: await headers(),
+  });
+  return readJson<BrokerContactDetail>(res);
+}
+
+export async function createBrokerContact(input: UpsertBrokerContactInput): Promise<{ item: BrokerContact }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/contacts`, {
+    method: "POST",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerContact }>(res);
+}
+
+export async function updateBrokerContact(id: string, input: UpsertBrokerContactInput): Promise<{ item: BrokerContact }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/contacts/${id}`, {
+    method: "PATCH",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerContact }>(res);
+}
+
+export async function deleteBrokerContact(id: string): Promise<void> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/contacts/${id}`, {
+    method: "DELETE",
+    headers: await headers(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Broker OS request failed (HTTP ${res.status}): ${text.slice(0, 240) || "no body"}`);
+  }
+}
+
+export async function createBrokerContactTask(
+  contactId: string,
+  input: CreateContactTaskInput,
+): Promise<{ item: BrokerContactTask }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/contacts/${contactId}/tasks`, {
+    method: "POST",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerContactTask }>(res);
+}
+
+export async function createBrokerContactActivity(
+  contactId: string,
+  input: CreateContactActivityInput,
+): Promise<{ item: BrokerActivity }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/contacts/${contactId}/activity`, {
+    method: "POST",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerActivity }>(res);
 }
 
 export async function createBrokerCase(input: CreateBrokerCaseInput): Promise<{ item: BrokerCase }> {

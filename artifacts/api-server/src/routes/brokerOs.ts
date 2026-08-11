@@ -55,6 +55,8 @@ type BrokerTaskRow = {
 
 type BrokerContactRow = {
   id: string;
+  company_id?: string | null;
+  source_client_id?: string | null;
   full_name: string;
   email: string | null;
   phone: string | null;
@@ -139,6 +141,37 @@ function normalizeLeadScore(v: unknown): "A" | "B" | "C" | "D" {
 
 function normalizeRisk(v: unknown): "low" | "medium" | "high" {
   return v === "low" || v === "medium" || v === "high" ? v : "medium";
+}
+
+function normalizePriority(v: unknown): "low" | "normal" | "high" | "urgent" {
+  return v === "low" || v === "normal" || v === "high" || v === "urgent" ? v : "normal";
+}
+
+function normalizeChannel(v: unknown): string | null {
+  const allowed = new Set(["phone", "email", "whatsapp", "meeting", "note", "other"]);
+  return typeof v === "string" && allowed.has(v) ? v : "note";
+}
+
+function contactPayload(body: Record<string, unknown>, userId: string) {
+  return {
+    clerk_user_id: userId,
+    full_name: str(body["full_name"], 160) ?? str(body["name"], 160),
+    email: str(body["email"], 200),
+    phone: str(body["phone"], 80),
+    whatsapp: str(body["whatsapp"], 80),
+    linkedin: str(body["linkedin"], 240),
+    country: str(body["country"], 100),
+    citizenship: str(body["citizenship"], 100),
+    residency: str(body["residency"], 100),
+    languages: arr(body["languages"]),
+    preferred_channel: str(body["preferred_channel"], 60),
+    relationship_owner: str(body["relationship_owner"], 120),
+    relationship_type: str(body["relationship_type"], 80),
+    trust_level: str(body["trust_level"], 60),
+    source: str(body["source"], 80) ?? "manual",
+    notes: str(body["notes"], 2000),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function computePriority(c: BrokerCaseRow): number {
@@ -350,6 +383,280 @@ router.get(
         ).sort(),
       },
     });
+  },
+);
+
+router.post(
+  "/broker-os/contacts",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker CRM storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const payload = contactPayload(body, req.userId!);
+    if (!payload.full_name) {
+      res.status(400).json({ error: "full_name required" });
+      return;
+    }
+
+    const { data, error } = await sb.from(BROKER_CONTACTS_TABLE).insert(payload).select(CONTACT_COLUMNS).single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    await sb.from(BROKER_ACTIVITY_TABLE).insert({
+      clerk_user_id: req.userId!,
+      contact_id: data.id,
+      activity_type: "contact_created",
+      channel: "note",
+      subject: "Contact created",
+      body: payload.notes,
+    });
+
+    res.status(201).json({ item: data });
+  },
+);
+
+router.get(
+  "/broker-os/contacts/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker CRM storage not configured" });
+      return;
+    }
+
+    const { data: contact, error: contactErr } = await forClerkUser(
+      sb.from(BROKER_CONTACTS_TABLE).select(CONTACT_COLUMNS),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (contactErr) {
+      res.status(500).json({ error: contactErr.message });
+      return;
+    }
+    if (!contact) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const [{ data: cases }, { data: tasks }, { data: activity }] = await Promise.all([
+      forClerkUser(
+        sb.from(BROKER_CASES_TABLE).select("id,contact_id,title,case_type,stage,status,updated_at"),
+        req.userId!,
+      )
+        .eq("contact_id", contact.id)
+        .order("updated_at", { ascending: false })
+        .limit(100),
+      forClerkUser(sb.from(BROKER_TASKS_TABLE).select("*"), req.userId!)
+        .eq("contact_id", contact.id)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .limit(100),
+      forClerkUser(sb.from(BROKER_ACTIVITY_TABLE).select("*"), req.userId!)
+        .eq("contact_id", contact.id)
+        .order("happened_at", { ascending: false })
+        .limit(100),
+    ]);
+
+    res.json({ item: contact, cases: cases ?? [], tasks: tasks ?? [], activity: activity ?? [] });
+  },
+);
+
+router.patch(
+  "/broker-os/contacts/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker CRM storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const payload = contactPayload(body, req.userId!);
+    if (!payload.full_name) {
+      res.status(400).json({ error: "full_name required" });
+      return;
+    }
+    const { data, error } = await forClerkUser(
+      sb.from(BROKER_CONTACTS_TABLE).update(payload).select(CONTACT_COLUMNS),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    if (!data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    await sb.from(BROKER_ACTIVITY_TABLE).insert({
+      clerk_user_id: req.userId!,
+      contact_id: data.id,
+      activity_type: "contact_updated",
+      channel: "note",
+      subject: "Contact updated",
+    });
+
+    res.json({ item: data });
+  },
+);
+
+router.delete(
+  "/broker-os/contacts/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker CRM storage not configured" });
+      return;
+    }
+    const { error, count } = await forClerkUser(
+      sb.from(BROKER_CONTACTS_TABLE).delete({ count: "exact" }),
+      req.userId!,
+    ).eq("id", req.params["id"]);
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    if (!count) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.status(204).send();
+  },
+);
+
+router.post(
+  "/broker-os/contacts/:id/tasks",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker CRM storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const title = str(body["title"], 220);
+    if (!title) {
+      res.status(400).json({ error: "title required" });
+      return;
+    }
+    const { data: contact } = await forClerkUser(
+      sb.from(BROKER_CONTACTS_TABLE).select("id"),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (!contact) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(BROKER_TASKS_TABLE)
+      .insert({
+        clerk_user_id: req.userId!,
+        contact_id: contact.id,
+        title,
+        detail: str(body["detail"], 1000),
+        due_date: str(body["due_date"], 20),
+        priority: normalizePriority(body["priority"]),
+      })
+      .select("*")
+      .single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    await sb.from(BROKER_ACTIVITY_TABLE).insert({
+      clerk_user_id: req.userId!,
+      contact_id: contact.id,
+      activity_type: "task_created",
+      channel: "note",
+      subject: title,
+      body: str(body["detail"], 1000),
+    });
+    res.status(201).json({ item: data });
+  },
+);
+
+router.post(
+  "/broker-os/contacts/:id/activity",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker CRM storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const subject = str(body["subject"], 220) ?? "CRM note";
+    const bodyText = str(body["body"], 2000);
+    if (!bodyText && !subject) {
+      res.status(400).json({ error: "activity body required" });
+      return;
+    }
+    const { data: contact } = await forClerkUser(
+      sb.from(BROKER_CONTACTS_TABLE).select("id"),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (!contact) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(BROKER_ACTIVITY_TABLE)
+      .insert({
+        clerk_user_id: req.userId!,
+        contact_id: contact.id,
+        activity_type: str(body["activity_type"], 80) ?? "note",
+        channel: normalizeChannel(body["channel"]),
+        subject,
+        body: bodyText,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.status(201).json({ item: data });
   },
 );
 
