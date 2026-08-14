@@ -17,10 +17,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { mdiT9Items, mdiT9Report, mdiT9SeaTrial } from "../../lib/mdiT9SurveyDemo";
 
-const NAVY = "#0B1E3F";
-const NAVY_ELEV = "#142A52";
-const GOLD = "#C9A961";
-const IVORY = "#C8FF00";
+const NAVY = "#07000B";
+const NAVY_ELEV = "#2C003F";
+const GOLD = "#C8FF00";
+const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.68)";
 const FAINT = "rgba(247,243,236,0.36)";
 const RED = "#E87B7B";

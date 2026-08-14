@@ -18,9 +18,9 @@ import {
 import { uploadProposalPhoto } from "@/lib/proposalPhotoUpload";
 import { useTheme } from "../hooks/useColors";
 
-const NAVY = "#0B1E3F";
-const NAVY_ELEV = "#142A52";
-const GOLD = "#C9A961";
+const NAVY = "#07000B";
+const NAVY_ELEV = "#2C003F";
+const GOLD = "#C8FF00";
 const MUTED = "#8F9BB3";
 const DANGER = "#D26565";
 const BORDER = "#1F3760";

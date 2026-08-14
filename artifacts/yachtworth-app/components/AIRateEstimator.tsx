@@ -13,9 +13,9 @@ import {
   View,
 } from "react-native";
 
-const NAVY_DEEP = "#081633";
-const GOLD = "#C9A961";
-const IVORY = "#C8FF00";
+const NAVY_DEEP = "#1D002B";
+const GOLD = "#C8FF00";
+const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.55)";
 const DIVIDER = "rgba(247,243,236,0.10)";
 const ERROR = "#FF8A8A";

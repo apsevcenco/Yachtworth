@@ -23,10 +23,10 @@ import { YachtCard, type YachtCardAction } from "../../components/YachtCard";
 import { useTheme } from "../../hooks/useColors";
 import { useUnits } from "../../hooks/useUnits";
 
-const NAVY = "#0B1E3F";
-const NAVY_ELEV = "#142A52";
-const GOLD = "#C9A961";
-const IVORY = "#C8FF00";
+const NAVY = "#07000B";
+const NAVY_ELEV = "#2C003F";
+const GOLD = "#C8FF00";
+const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.6)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 

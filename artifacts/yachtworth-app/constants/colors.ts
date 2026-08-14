@@ -80,29 +80,29 @@ const colors = {
   },
 
   acid: {
-    text: acidLime,
+    text: "#FAFFF2",
     tint: acidLime,
 
     background: acidBlack,
-    foreground: acidLime,
+    foreground: "#FAFFF2",
 
     card: acidPanel,
-    cardForeground: acidLime,
+    cardForeground: "#FAFFF2",
 
     primary: acidLime,
     primaryForeground: acidBlack,
 
     secondary: "#2C003F",
-    secondaryForeground: acidLime,
+    secondaryForeground: "#FAFFF2",
 
     muted: "#240032",
-    mutedForeground: "rgba(200,255,0,0.72)",
+    mutedForeground: "rgba(250,255,242,0.72)",
 
     accent: acidCyan,
     accentForeground: acidBlack,
 
     destructive: acidCoral,
-    destructiveForeground: acidBlack,
+    destructiveForeground: "#FFFFFF",
 
     border: "rgba(255,56,232,0.42)",
     input: "rgba(255,56,232,0.28)",
