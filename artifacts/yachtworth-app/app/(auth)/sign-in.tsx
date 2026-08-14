@@ -18,9 +18,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useColors";
 
-const NAVY = "#07000B";
-const NAVY_ELEV = "#2C003F";
-const GOLD = "#C8FF00";
+const NAVY = "#0B1E3F";
+const NAVY_ELEV = "#142A52";
+const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
 
 WebBrowser.maybeCompleteAuthSession();

@@ -18,10 +18,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../hooks/useUnits";
 import { APP_THEMES, useTheme } from "../hooks/useColors";
 
-const NAVY = "#07000B";
-const NAVY_ELEV = "#2C003F";
-const NAVY_DEEP = "#1D002B";
-const GOLD = "#C8FF00";
+const NAVY = "#0B1E3F";
+const NAVY_ELEV = "#142A52";
+const NAVY_DEEP = "#081633";
+const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.6)";
 const FAINT = "rgba(247,243,236,0.4)";

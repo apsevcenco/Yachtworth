@@ -35,10 +35,10 @@ import {
   type YachtOption,
 } from "@/lib/maintenance";
 
-const NAVY = "#07000B";
-const NAVY_DEEP = "#1D002B";
-const PANEL = "#2C003F";
-const GOLD = "#C8FF00";
+const NAVY = "#0B1E3F";
+const NAVY_DEEP = "#081633";
+const PANEL = "#112A56";
+const GOLD = "#C9A961";
 const IVORY = "#F7F3EC";
 const MUTED = "rgba(247,243,236,0.68)";
 const LINE = "rgba(247,243,236,0.1)";
