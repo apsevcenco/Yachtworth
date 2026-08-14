@@ -16,6 +16,7 @@ import {
 } from "react-native";
 
 import { uploadProposalPhoto } from "@/lib/proposalPhotoUpload";
+import { useTheme } from "../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -40,6 +41,7 @@ type Props = {
  * the local list because a manual proposal has no DB row to attach photos to.
  */
 export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
+  const { colors, isAcid } = useTheme();
   const [busy, setBusy] = useState<"add" | string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -172,7 +174,7 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
 
   return (
     <View>
-      <Text style={styles.hint}>
+      <Text style={[styles.hint, { color: colors.mutedForeground }]}>
         Up to {MAX_PHOTOS} photos. First photo is the cover — long-press any
         photo to make it the cover. Photos are auto-compressed.
       </Text>
@@ -191,7 +193,10 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
               onPress={() => setPreviewUrl(url)}
               onLongPress={() => onLongPress(url)}
               delayLongPress={350}
-              style={styles.thumbWrap}
+              style={[
+                styles.thumbWrap,
+                { backgroundColor: colors.secondary, borderColor: colors.border },
+              ]}
             >
               <Image
                 source={{ uri: url }}
@@ -200,9 +205,9 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
                 transition={150}
               />
               {isCover && (
-                <View style={styles.coverBadge}>
-                  <Feather name="star" size={11} color={NAVY} />
-                  <Text style={styles.coverBadgeText}>COVER</Text>
+                <View style={[styles.coverBadge, { backgroundColor: colors.primary }]}>
+                  <Feather name="star" size={11} color={colors.background} />
+                  <Text style={[styles.coverBadgeText, { color: colors.background }]}>COVER</Text>
                 </View>
               )}
               <Pressable
@@ -215,7 +220,7 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
               </Pressable>
               {isBusy && (
                 <View style={styles.busyOverlay}>
-                  <ActivityIndicator color={GOLD} />
+                  <ActivityIndicator color={colors.primary} />
                 </View>
               )}
             </Pressable>
@@ -227,16 +232,18 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
             onPress={openSourceSheet}
             style={({ pressed }) => [
               styles.addBtn,
+              { backgroundColor: colors.secondary, borderColor: colors.primary },
+              isAcid ? styles.acidAddBtn : null,
               pressed && { opacity: 0.85 },
             ]}
             accessibilityLabel="Add photo"
           >
             {busy === "add" ? (
-              <ActivityIndicator color={GOLD} />
+              <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <Feather name="plus" size={26} color={GOLD} />
-                <Text style={styles.addBtnText}>Add</Text>
+                <Feather name="plus" size={26} color={colors.primary} />
+                <Text style={[styles.addBtnText, { color: colors.primary }]}>Add</Text>
               </>
             )}
           </Pressable>
@@ -256,7 +263,7 @@ export function ProposalPhotoSection({ photos, coverUrl, onChange }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Close photo preview"
             >
-              <Feather name="x" size={22} color="#F4EFE3" />
+              <Feather name="x" size={22} color={colors.foreground} />
             </Pressable>
             <Pressable
               onPress={() => setPreviewUrl(null)}
@@ -347,6 +354,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     color: GOLD,
+  },
+  acidAddBtn: {
+    shadowColor: "#FF38E8",
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
   },
   previewBg: {
     flex: 1,

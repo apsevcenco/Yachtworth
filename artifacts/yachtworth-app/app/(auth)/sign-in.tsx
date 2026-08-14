@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -38,6 +39,7 @@ export default function SignInScreen() {
   useWarmUpBrowser();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors, isAcid } = useTheme();
   const { signIn, errors, fetchStatus } = useSignIn();
   const { startSSOFlow } = useSSO();
 
@@ -101,7 +103,7 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: NAVY }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
         contentContainerStyle={{
@@ -113,18 +115,18 @@ export default function SignInScreen() {
       >
         <View style={styles.headerRow}>
           <Pressable hitSlop={12} onPress={() => router.back()}>
-            <Feather name="x" size={22} color={IVORY} />
+            <Feather name="x" size={22} color={colors.foreground} />
           </Pressable>
           <View style={styles.brandRow}>
-            <View style={styles.dot} />
-            <Text style={styles.brandLabel}>YACHTWORTH</Text>
+            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.brandLabel, { color: colors.foreground }]}>YACHTWORTH</Text>
           </View>
           <View style={{ width: 22 }} />
         </View>
 
-        <Text style={styles.kicker}>WELCOME BACK</Text>
-        <Text style={styles.title}>Sign in.</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>WELCOME BACK</Text>
+        <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Sign in.</Text>
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Access your estimates and continue where you left off.
         </Text>
 
@@ -133,15 +135,16 @@ export default function SignInScreen() {
           onPress={() => handleOAuth("oauth_apple")}
           style={({ pressed }) => [
             styles.oauthBtn,
+            { backgroundColor: colors.card, borderColor: colors.border },
             { opacity: pressed || oauthLoading ? 0.85 : 1 },
           ]}
         >
           {oauthLoading === "oauth_apple" ? (
-            <ActivityIndicator color={IVORY} />
+            <ActivityIndicator color={colors.foreground} />
           ) : (
             <>
-              <Feather name="smartphone" size={18} color={IVORY} />
-              <Text style={styles.oauthText}>Continue with Apple</Text>
+              <Feather name="smartphone" size={18} color={colors.foreground} />
+              <Text style={[styles.oauthText, { color: colors.foreground }]}>Continue with Apple</Text>
             </>
           )}
         </Pressable>
@@ -151,33 +154,34 @@ export default function SignInScreen() {
           onPress={() => handleOAuth("oauth_google")}
           style={({ pressed }) => [
             styles.oauthBtn,
+            { backgroundColor: colors.card, borderColor: colors.border },
             { opacity: pressed || oauthLoading ? 0.85 : 1 },
           ]}
         >
           {oauthLoading === "oauth_google" ? (
-            <ActivityIndicator color={IVORY} />
+            <ActivityIndicator color={colors.foreground} />
           ) : (
             <>
-              <Feather name="globe" size={18} color={IVORY} />
-              <Text style={styles.oauthText}>Continue with Google</Text>
+              <Feather name="globe" size={18} color={colors.foreground} />
+              <Text style={[styles.oauthText, { color: colors.foreground }]}>Continue with Google</Text>
             </>
           )}
         </Pressable>
 
         <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>OR</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
-        <Text style={styles.label}>Email</Text>
+        <Text style={[styles.label, { color: colors.primary }]}>Email</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
           placeholder="you@example.com"
-          placeholderTextColor="rgba(247,243,236,0.35)"
+          placeholderTextColor={colors.mutedForeground}
           value={emailAddress}
           onChangeText={setEmailAddress}
         />
@@ -185,13 +189,13 @@ export default function SignInScreen() {
           <Text style={styles.error}>{errors.fields.identifier.message}</Text>
         )}
 
-        <Text style={styles.label}>Password</Text>
+        <Text style={[styles.label, { color: colors.primary }]}>Password</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           secureTextEntry
           autoComplete="current-password"
           placeholder="••••••••"
-          placeholderTextColor="rgba(247,243,236,0.35)"
+          placeholderTextColor={colors.mutedForeground}
           value={password}
           onChangeText={setPassword}
         />
@@ -205,6 +209,7 @@ export default function SignInScreen() {
           disabled={!emailAddress || !password || fetchStatus === "fetching"}
           style={({ pressed }) => [
             styles.primaryBtn,
+            { backgroundColor: colors.glow ?? "transparent", borderColor: colors.primary },
             {
               opacity:
                 !emailAddress || !password || fetchStatus === "fetching"
@@ -216,16 +221,16 @@ export default function SignInScreen() {
           ]}
         >
           {fetchStatus === "fetching" ? (
-            <ActivityIndicator color={GOLD} />
+            <ActivityIndicator color={colors.primary} />
           ) : (
-            <Text style={styles.primaryText}>Sign in</Text>
+            <Text style={[styles.primaryText, { color: colors.primary }]}>Sign in</Text>
           )}
         </Pressable>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Don't have an account? </Text>
           <Link href="/sign-up" replace>
-            <Text style={styles.footerLink}>Sign up</Text>
+            <Text style={[styles.footerLink, { color: colors.primary }]}>Sign up</Text>
           </Link>
         </View>
       </ScrollView>
@@ -262,6 +267,13 @@ const styles = StyleSheet.create({
     fontSize: 36,
     letterSpacing: -0.3,
   },
+  acidTitle: {
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(255,56,232,0.6)",
+    textShadowRadius: 12,
+  },
+  acidKicker: { letterSpacing: 3 },
   subtitle: {
     color: "rgba(247,243,236,0.6)",
     fontFamily: "Inter_400Regular",

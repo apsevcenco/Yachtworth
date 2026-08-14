@@ -9,11 +9,11 @@ const navyElev = "#142A52";
 const gold = "#C9A961";
 const goldSoft = "#E4CB94";
 const ivory = "#F7F3EC";
-const acidBlack = "#09000F";
-const acidPanel = "#1B0028";
-const acidLime = "#B6FF00";
-const acidCyan = "#FF4FD8";
-const acidCoral = "#FF3D81";
+const acidBlack = "#07000B";
+const acidPanel = "#1D002B";
+const acidLime = "#C8FF00";
+const acidCyan = "#FF38E8";
+const acidCoral = "#FF386C";
 const medSea = "#0B8F9C";
 const medInk = "#12323A";
 const medMist = "#F4FBFA";
@@ -80,23 +80,23 @@ const colors = {
   },
 
   acid: {
-    text: "#F6FFF4",
+    text: "#FAFFF2",
     tint: acidLime,
 
     background: acidBlack,
-    foreground: "#F6FFF4",
+    foreground: "#FAFFF2",
 
     card: acidPanel,
-    cardForeground: "#F6FFF4",
+    cardForeground: "#FAFFF2",
 
     primary: acidLime,
     primaryForeground: acidBlack,
 
-    secondary: "#2A003D",
-    secondaryForeground: "#F6FFF4",
+    secondary: "#2C003F",
+    secondaryForeground: "#FAFFF2",
 
-    muted: "#250038",
-    mutedForeground: "rgba(246,255,244,0.68)",
+    muted: "#240032",
+    mutedForeground: "rgba(250,255,242,0.72)",
 
     accent: acidCyan,
     accentForeground: acidBlack,
@@ -104,14 +104,14 @@ const colors = {
     destructive: acidCoral,
     destructiveForeground: "#FFFFFF",
 
-    border: "rgba(255,79,216,0.32)",
-    input: "rgba(255,79,216,0.22)",
+    border: "rgba(255,56,232,0.42)",
+    input: "rgba(255,56,232,0.28)",
 
     neon: acidLime,
     neonAlt: "#FF8A00",
     hot: acidCoral,
-    violet: "#A855FF",
-    glow: "rgba(182,255,0,0.20)",
+    violet: "#9B5CFF",
+    glow: "rgba(200,255,0,0.22)",
   },
 
   mediterranean: {

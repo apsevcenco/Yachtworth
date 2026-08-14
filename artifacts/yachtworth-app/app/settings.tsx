@@ -88,28 +88,29 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* UNITS */}
-        <Text style={styles.sectionTitle}>Units</Text>
-        <View style={styles.card}>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Units</Text>
+        <View style={[styles.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Measurement system</Text>
-            <Text style={styles.rowSub}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Measurement system</Text>
+            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
               Used everywhere — form inputs, history, comparables, PDF.
             </Text>
           </View>
         </View>
-        <View style={styles.segment}>
+        <View style={[styles.segment, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <Pressable
             disabled={!unitsLoaded}
             onPress={() => setUnits("metric")}
             style={[
               styles.segmentItem,
-              units === "metric" && styles.segmentItemActive,
+              units === "metric" && { backgroundColor: colors.glow ?? colors.muted, borderColor: colors.primary },
             ]}
           >
             <Text
               style={[
                 styles.segmentText,
-                units === "metric" && styles.segmentTextActive,
+                { color: colors.mutedForeground },
+                units === "metric" && { color: colors.primary },
               ]}
             >
               Metric  ·  m, t
@@ -120,13 +121,14 @@ export default function SettingsScreen() {
             onPress={() => setUnits("imperial")}
             style={[
               styles.segmentItem,
-              units === "imperial" && styles.segmentItemActive,
+              units === "imperial" && { backgroundColor: colors.glow ?? colors.muted, borderColor: colors.primary },
             ]}
           >
             <Text
               style={[
                 styles.segmentText,
-                units === "imperial" && styles.segmentTextActive,
+                { color: colors.mutedForeground },
+                units === "imperial" && { color: colors.primary },
               ]}
             >
               Imperial  ·  ft, lt
@@ -178,12 +180,12 @@ export default function SettingsScreen() {
         </View>
 
         {/* ABOUT */}
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.cardGroup}>
-          <View style={styles.row}>
-            <Feather name="info" size={18} color={GOLD} style={{ width: 26 }} />
-            <Text style={styles.rowLabel}>App version</Text>
-            <Text style={styles.rowValue}>{APP_VERSION}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>About</Text>
+        <View style={[styles.cardGroup, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+          <View style={[styles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="info" size={18} color={colors.primary} style={{ width: 26 }} />
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>App version</Text>
+            <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{APP_VERSION}</Text>
           </View>
           <Pressable
             onPress={() =>
@@ -192,11 +194,11 @@ export default function SettingsScreen() {
                 "The full Privacy Policy will be published before the App Store launch.",
               )
             }
-            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.row, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
           >
-            <Feather name="shield" size={18} color={GOLD} style={{ width: 26 }} />
-            <Text style={styles.rowLabel}>Privacy Policy</Text>
-            <Feather name="chevron-right" size={18} color={FAINT} />
+            <Feather name="shield" size={18} color={colors.primary} style={{ width: 26 }} />
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Privacy Policy</Text>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
           </Pressable>
           <Pressable
             onPress={() =>
@@ -214,11 +216,11 @@ export default function SettingsScreen() {
             <Feather
               name="file-text"
               size={18}
-              color={GOLD}
+              color={colors.primary}
               style={{ width: 26 }}
             />
-            <Text style={styles.rowLabel}>Terms of Service</Text>
-            <Feather name="chevron-right" size={18} color={FAINT} />
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Terms of Service</Text>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
           </Pressable>
         </View>
 
@@ -227,18 +229,19 @@ export default function SettingsScreen() {
           onPress={() => openExternal(PDYE_URL)}
           style={({ pressed }) => [
             styles.poweredBlock,
+            { backgroundColor: colors.card, borderColor: colors.border },
             { opacity: pressed ? 0.9 : 1 },
           ]}
         >
-          <Text style={styles.poweredKicker}>POWERED BY</Text>
-          <Text style={styles.poweredTitle}>PDYE</Text>
-          <Text style={styles.poweredText}>
+          <Text style={[styles.poweredKicker, { color: colors.primary }]}>POWERED BY</Text>
+          <Text style={[styles.poweredTitle, { color: colors.foreground }, isAcid && styles.acidDisplayText]}>PDYE</Text>
+          <Text style={[styles.poweredText, { color: colors.mutedForeground }]}>
             Built by the team behind PDYE — yacht brokerage and superyacht
             market intelligence. Tap to visit pdyegroup.com.
           </Text>
           <View style={styles.poweredCta}>
-            <Text style={styles.poweredCtaText}>Visit PDYE</Text>
-            <Feather name="arrow-up-right" size={16} color={GOLD} />
+            <Text style={[styles.poweredCtaText, { color: colors.primary }]}>Visit PDYE</Text>
+            <Feather name="arrow-up-right" size={16} color={colors.primary} />
           </View>
         </Pressable>
 
@@ -248,6 +251,7 @@ export default function SettingsScreen() {
             onPress={() => signOut()}
             style={({ pressed }) => [
               styles.signOut,
+              { borderColor: colors.destructive, backgroundColor: "rgba(255,56,108,0.10)" },
               { opacity: pressed ? 0.85 : 1 },
             ]}
           >
@@ -346,6 +350,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 9,
     alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "transparent",
   },
   segmentItemActive: {
     backgroundColor: "rgba(201,169,97,0.12)",

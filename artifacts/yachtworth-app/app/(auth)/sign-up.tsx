@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
@@ -38,6 +39,7 @@ export default function SignUpScreen() {
   useWarmUpBrowser();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors, isAcid } = useTheme();
   const { signUp, errors, fetchStatus } = useSignUp();
   const { isSignedIn } = useAuth();
   const { startSSOFlow } = useSSO();
@@ -122,7 +124,7 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: NAVY }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
         contentContainerStyle={{
@@ -134,29 +136,29 @@ export default function SignUpScreen() {
       >
         <View style={styles.headerRow}>
           <Pressable hitSlop={12} onPress={() => router.back()}>
-            <Feather name="x" size={22} color={IVORY} />
+            <Feather name="x" size={22} color={colors.foreground} />
           </Pressable>
           <View style={styles.brandRow}>
-            <View style={styles.dot} />
-            <Text style={styles.brandLabel}>YACHTWORTH</Text>
+            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.brandLabel, { color: colors.foreground }]}>YACHTWORTH</Text>
           </View>
           <View style={{ width: 22 }} />
         </View>
 
         {verifying ? (
           <>
-            <Text style={styles.kicker}>VERIFY EMAIL</Text>
-            <Text style={styles.title}>Check your inbox.</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>VERIFY EMAIL</Text>
+            <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Check your inbox.</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
               We sent a 6-digit code to {emailAddress}.
             </Text>
 
-            <Text style={styles.label}>Verification code</Text>
+            <Text style={[styles.label, { color: colors.primary }]}>Verification code</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               keyboardType="number-pad"
               placeholder="123456"
-              placeholderTextColor="rgba(247,243,236,0.35)"
+              placeholderTextColor={colors.mutedForeground}
               value={code}
               onChangeText={setCode}
             />
@@ -170,6 +172,7 @@ export default function SignUpScreen() {
               disabled={!code || fetchStatus === "fetching"}
               style={({ pressed }) => [
                 styles.primaryBtn,
+                { backgroundColor: colors.glow ?? "transparent", borderColor: colors.primary },
                 {
                   opacity:
                     !code || fetchStatus === "fetching"
@@ -181,9 +184,9 @@ export default function SignUpScreen() {
               ]}
             >
               {fetchStatus === "fetching" ? (
-                <ActivityIndicator color={GOLD} />
+                <ActivityIndicator color={colors.primary} />
               ) : (
-                <Text style={styles.primaryText}>Verify</Text>
+                <Text style={[styles.primaryText, { color: colors.primary }]}>Verify</Text>
               )}
             </Pressable>
 
@@ -191,14 +194,14 @@ export default function SignUpScreen() {
               onPress={() => signUp.verifications.sendEmailCode()}
               style={{ marginTop: 16, alignItems: "center" }}
             >
-              <Text style={styles.footerLink}>Send a new code</Text>
+              <Text style={[styles.footerLink, { color: colors.primary }]}>Send a new code</Text>
             </Pressable>
           </>
         ) : (
           <>
-            <Text style={styles.kicker}>JOIN YACHTWORTH</Text>
-            <Text style={styles.title}>Create account.</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>JOIN YACHTWORTH</Text>
+            <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Create account.</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
               Start with one free yacht estimate. Upgrade anytime.
             </Text>
 
@@ -207,15 +210,16 @@ export default function SignUpScreen() {
               onPress={() => handleOAuth("oauth_apple")}
               style={({ pressed }) => [
                 styles.oauthBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
                 { opacity: pressed || oauthLoading ? 0.85 : 1 },
               ]}
             >
               {oauthLoading === "oauth_apple" ? (
-                <ActivityIndicator color={IVORY} />
+                <ActivityIndicator color={colors.foreground} />
               ) : (
                 <>
-                  <Feather name="smartphone" size={18} color={IVORY} />
-                  <Text style={styles.oauthText}>Continue with Apple</Text>
+                  <Feather name="smartphone" size={18} color={colors.foreground} />
+                  <Text style={[styles.oauthText, { color: colors.foreground }]}>Continue with Apple</Text>
                 </>
               )}
             </Pressable>
@@ -225,33 +229,34 @@ export default function SignUpScreen() {
               onPress={() => handleOAuth("oauth_google")}
               style={({ pressed }) => [
                 styles.oauthBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
                 { opacity: pressed || oauthLoading ? 0.85 : 1 },
               ]}
             >
               {oauthLoading === "oauth_google" ? (
-                <ActivityIndicator color={IVORY} />
+                <ActivityIndicator color={colors.foreground} />
               ) : (
                 <>
-                  <Feather name="globe" size={18} color={IVORY} />
-                  <Text style={styles.oauthText}>Continue with Google</Text>
+                  <Feather name="globe" size={18} color={colors.foreground} />
+                  <Text style={[styles.oauthText, { color: colors.foreground }]}>Continue with Google</Text>
                 </>
               )}
             </Pressable>
 
             <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>OR</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
-            <Text style={styles.label}>Email</Text>
+            <Text style={[styles.label, { color: colors.primary }]}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor="rgba(247,243,236,0.35)"
+              placeholderTextColor={colors.mutedForeground}
               value={emailAddress}
               onChangeText={setEmailAddress}
             />
@@ -261,13 +266,13 @@ export default function SignUpScreen() {
               </Text>
             )}
 
-            <Text style={styles.label}>Password</Text>
+            <Text style={[styles.label, { color: colors.primary }]}>Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               secureTextEntry
               autoComplete="new-password"
               placeholder="At least 8 characters"
-              placeholderTextColor="rgba(247,243,236,0.35)"
+              placeholderTextColor={colors.mutedForeground}
               value={password}
               onChangeText={setPassword}
             />
@@ -281,6 +286,7 @@ export default function SignUpScreen() {
               disabled={!emailAddress || !password || fetchStatus === "fetching"}
               style={({ pressed }) => [
                 styles.primaryBtn,
+                { backgroundColor: colors.glow ?? "transparent", borderColor: colors.primary },
                 {
                   opacity:
                     !emailAddress || !password || fetchStatus === "fetching"
@@ -292,9 +298,9 @@ export default function SignUpScreen() {
               ]}
             >
               {fetchStatus === "fetching" ? (
-                <ActivityIndicator color={GOLD} />
+                <ActivityIndicator color={colors.primary} />
               ) : (
-                <Text style={styles.primaryText}>Create account</Text>
+                <Text style={[styles.primaryText, { color: colors.primary }]}>Create account</Text>
               )}
             </Pressable>
 
@@ -302,9 +308,9 @@ export default function SignUpScreen() {
             <View nativeID="clerk-captcha" />
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+              <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Already have an account? </Text>
               <Link href="/sign-in" replace>
-                <Text style={styles.footerLink}>Sign in</Text>
+                <Text style={[styles.footerLink, { color: colors.primary }]}>Sign in</Text>
               </Link>
             </View>
           </>
@@ -343,6 +349,13 @@ const styles = StyleSheet.create({
     fontSize: 36,
     letterSpacing: -0.3,
   },
+  acidTitle: {
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(255,56,232,0.6)",
+    textShadowRadius: 12,
+  },
+  acidKicker: { letterSpacing: 3 },
   subtitle: {
     color: "rgba(247,243,236,0.6)",
     fontFamily: "Inter_400Regular",

@@ -205,18 +205,20 @@ export default function ProfileScreen() {
           onPress={() => router.push("/settings")}
           style={({ pressed }) => [
             styles.poweredBlock,
+            { backgroundColor: colors.card, borderColor: colors.border },
+            isAcid && styles.acidPoweredBlock,
             { opacity: pressed ? 0.9 : 1 },
           ]}
         >
-          <Text style={styles.poweredKicker}>POWERED BY</Text>
-          <Text style={styles.poweredTitle}>PDYE</Text>
-          <Text style={styles.poweredText}>
+          <Text style={[styles.poweredKicker, { color: colors.primary }]}>POWERED BY</Text>
+          <Text style={[styles.poweredTitle, { color: colors.foreground }, isAcid && styles.acidPoweredTitle]}>PDYE</Text>
+          <Text style={[styles.poweredText, { color: colors.mutedForeground }]}>
             Yachtworth is built by the team behind PDYE — yacht brokerage and
             superyacht market intelligence.
           </Text>
         </Pressable>
 
-        <Text style={styles.version}>Yachtworth · v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.mutedForeground }]}>Yachtworth · v1.0.0</Text>
       </ScrollView>
     </View>
   );
@@ -408,6 +410,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(201,169,97,0.2)",
   },
+  acidPoweredBlock: {
+    shadowColor: "#FF38E8",
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+  },
   poweredKicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",
@@ -422,6 +430,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: 2,
     marginBottom: 8,
+  },
+  acidPoweredTitle: {
+    letterSpacing: 4,
+    textShadowColor: "rgba(200,255,0,0.5)",
+    textShadowRadius: 10,
   },
   poweredText: {
     color: MUTED,
