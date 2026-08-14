@@ -15,24 +15,18 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../hooks/useColors";
 import {
   createBrokerCase,
+  getBrokerCases,
   getBrokerDashboard,
+  getBrokerPipeline,
   importCharterClientsToBrokerOs,
   type BrokerCase,
   type BrokerDashboard,
 } from "../lib/brokerOs";
 
-const NAVY = "#0B1E3F";
-const NAVY_DEEP = "#081633";
-const NAVY_ELEV = "#142A52";
-const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
-const MUTED = "rgba(247,243,236,0.62)";
-const DIVIDER = "rgba(247,243,236,0.1)";
-const GREEN = "#7BD389";
-const RED = "#E77777";
-
+type ViewMode = "overview" | "pipeline" | "cases";
 type Draft = {
   title: string;
   contact_name: string;
@@ -79,9 +73,19 @@ const CASE_TYPES = [
   ["buyer_inquiry", "Buyer"],
   ["seller_mandate", "Seller"],
   ["charter_inquiry", "Charter"],
+  ["charter_central_agency", "Charter CA"],
   ["flag_registration", "Flag"],
   ["valuation", "Valuation"],
   ["survey", "Survey"],
+  ["insurance", "Insurance"],
+] as const;
+
+const PIPELINE = [
+  { key: "new_inquiry", label: "New inquiry" },
+  { key: "qualified", label: "Qualified" },
+  { key: "proposal", label: "Proposal" },
+  { key: "negotiation", label: "Negotiation" },
+  { key: "closing", label: "Closing" },
 ] as const;
 
 function numberOrNull(v: string): number | null {
@@ -99,50 +103,21 @@ function caseTypeLabel(type: string): string {
   return CASE_TYPES.find(([value]) => value === type)?.[1] ?? type.replace(/_/g, " ");
 }
 
-function riskColor(risk: string): string {
-  if (risk === "high") return RED;
-  if (risk === "low") return GREEN;
-  return GOLD;
-}
-
-function Field(props: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder?: string;
-  keyboardType?: "default" | "numeric";
-  multiline?: boolean;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{props.label}</Text>
-      <TextInput
-        value={props.value}
-        onChangeText={props.onChangeText}
-        placeholder={props.placeholder}
-        placeholderTextColor="rgba(247,243,236,0.28)"
-        keyboardType={props.keyboardType}
-        multiline={props.multiline}
-        style={[styles.input, props.multiline && styles.textarea]}
-      />
-    </View>
-  );
-}
-
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </Pressable>
-  );
+function daysLabel(v: string | null | undefined): string {
+  if (!v) return "No due date";
+  return v;
 }
 
 export default function BrokerOsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { colors, isAcid } = useTheme();
   const { isLoaded, isSignedIn } = useAuth();
   const [dashboard, setDashboard] = useState<BrokerDashboard | null>(null);
+  const [pipeline, setPipeline] = useState<BrokerCase[]>([]);
+  const [cases, setCases] = useState<BrokerCase[]>([]);
+  const [mode, setMode] = useState<ViewMode>("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +139,14 @@ export default function BrokerOsScreen() {
     setLoading(true);
     setError(null);
     try {
-      setDashboard(await getBrokerDashboard());
+      const [dash, pipe, allCases] = await Promise.all([
+        getBrokerDashboard(),
+        getBrokerPipeline(),
+        getBrokerCases(),
+      ]);
+      setDashboard(dash);
+      setPipeline(pipe.items);
+      setCases(allCases.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -181,6 +163,10 @@ export default function BrokerOsScreen() {
     load().catch(() => {});
   }, [isLoaded, isSignedIn]);
 
+  function openCase(id: string) {
+    router.push({ pathname: "/broker-case-detail", params: { id } } as never);
+  }
+
   async function saveCase() {
     if (!draft.title.trim()) {
       Alert.alert("Case title required", "Add a short title for this commercial situation.");
@@ -188,7 +174,7 @@ export default function BrokerOsScreen() {
     }
     setSaving(true);
     try {
-      await createBrokerCase({
+      const result = await createBrokerCase({
         title: draft.title.trim(),
         contact_name: draft.contact_name.trim() || null,
         contact_email: draft.contact_email.trim() || null,
@@ -211,6 +197,7 @@ export default function BrokerOsScreen() {
       setDraft(EMPTY_DRAFT);
       setModalOpen(false);
       await load();
+      openCase(result.item.id);
     } catch (err) {
       Alert.alert("Could not save case", err instanceof Error ? err.message : String(err));
     } finally {
@@ -229,256 +216,372 @@ export default function BrokerOsScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: (isWeb ? 62 : insets.top) + 64 }]}>
+    <View style={[styles.root, { paddingTop: (isWeb ? 62 : insets.top) + 64, backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + 44 },
-          isWeb && styles.webScroll,
-        ]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 44 }, isWeb && styles.webScroll]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topbar}>
-          <Pressable onPress={() => router.back()} style={styles.iconButton}>
-            <Feather name="arrow-left" size={22} color={IVORY} />
+          <Pressable onPress={() => router.back()} style={[styles.iconButton, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>YACHTWORTH</Text>
-            <Text style={styles.title}>Broker OS</Text>
-            <Text style={styles.subtitle}>First enquiry to closing and commission.</Text>
+            <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>YACHTWORTH</Text>
+            <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Broker OS</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>First enquiry to closing, commission and follow-up control.</Text>
           </View>
         </View>
 
         {!isLoaded || loading ? (
-          <View style={styles.centerPanel}>
-            <ActivityIndicator color={GOLD} />
-          </View>
+          <CenterPanel title="Loading Broker OS" icon="loader" />
         ) : !isSignedIn ? (
-          <View style={styles.centerPanel}>
-            <Feather name="lock" size={28} color={GOLD} />
-            <Text style={styles.emptyTitle}>Sign in required</Text>
-          </View>
+          <CenterPanel title="Sign in required" icon="lock" />
         ) : error ? (
-          <View style={styles.centerPanel}>
-            <Feather name="alert-circle" size={28} color={RED} />
-            <Text style={styles.emptyTitle}>Could not load Broker OS</Text>
-            <Text style={styles.emptyCopy}>{error}</Text>
-          </View>
+          <CenterPanel title="Could not load Broker OS" copy={error} icon="alert-circle" danger />
         ) : (
           <>
             <View style={styles.actions}>
-              <Pressable onPress={() => setModalOpen(true)} style={styles.primaryButton}>
-                <Feather name="plus" size={18} color={NAVY} />
-                <Text style={styles.primaryText}>New Case</Text>
+              <Pressable onPress={() => setModalOpen(true)} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+                <Feather name="plus" size={18} color={colors.background} />
+                <Text style={[styles.primaryText, { color: colors.background }]}>New Case</Text>
               </Pressable>
-              <Pressable onPress={importClients} style={styles.secondaryButton}>
-                <Feather name="download" size={16} color={GOLD} />
-                <Text style={styles.secondaryText}>Import charter clients</Text>
+              <Pressable onPress={() => router.push("/crm" as never)} style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
+                <Feather name="users" size={16} color={colors.primary} />
+                <Text style={[styles.secondaryText, { color: colors.primary }]}>Open CRM</Text>
+              </Pressable>
+              <Pressable onPress={importClients} style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
+                <Feather name="download" size={16} color={colors.primary} />
+                <Text style={[styles.secondaryText, { color: colors.primary }]}>Import charter clients</Text>
               </Pressable>
             </View>
 
             <View style={styles.metricsGrid}>
-              {metrics.map((m) => (
-                <View key={m.label} style={styles.metricCard}>
-                  <Feather name={m.icon} size={17} color={GOLD} />
-                  <Text style={styles.metricValue}>{m.value}</Text>
-                  <Text style={styles.metricLabel}>{m.label}</Text>
-                </View>
+              {metrics.map((m) => <Metric key={m.label} {...m} />)}
+            </View>
+
+            <View style={styles.tabs}>
+              {(["overview", "pipeline", "cases"] as const).map((tab) => (
+                <Pressable
+                  key={tab}
+                  onPress={() => setMode(tab)}
+                  style={[
+                    styles.tab,
+                    { backgroundColor: colors.secondary, borderColor: mode === tab ? colors.primary : colors.border },
+                    mode === tab && { backgroundColor: colors.glow ?? colors.secondary },
+                  ]}
+                >
+                  <Text style={[styles.tabText, { color: mode === tab ? colors.primary : colors.mutedForeground }]}>{tab}</Text>
+                </Pressable>
               ))}
             </View>
 
-            <View style={[styles.layout, isWeb && styles.webLayout]}>
-              <View style={styles.panel}>
-                <Text style={styles.panelTitle}>Priority Cases</Text>
-                {dashboard?.priority_cases.length ? (
-                  dashboard.priority_cases.map((item) => <CaseCard key={item.id} item={item} />)
-                ) : (
-                  <EmptyBlock title="No active cases yet" copy="Create the first buyer, seller or charter case to start the broker workflow." />
-                )}
-              </View>
-
-              <View style={styles.sideColumn}>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>Revenue Forecast</Text>
-                  <View style={styles.forecastRow}>
-                    <View>
-                      <Text style={styles.forecastLabel}>Expected</Text>
-                      <Text style={styles.forecastValue}>{money(dashboard?.forecast.expected_commission_eur)}</Text>
-                    </View>
-                    <View>
-                      <Text style={styles.forecastLabel}>Weighted</Text>
-                      <Text style={styles.forecastValue}>{money(dashboard?.forecast.weighted_commission_eur)}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.panel}>
-                  <Text style={styles.panelTitle}>Today</Text>
-                  {dashboard?.tasks.length ? (
-                    dashboard.tasks.map((task) => (
-                      <View key={task.id} style={styles.taskRow}>
-                        <Feather name="check-circle" size={15} color={GOLD} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.taskTitle}>{task.title}</Text>
-                          <Text style={styles.taskMeta}>{task.due_date ?? "No due date"} · {task.priority}</Text>
-                        </View>
-                      </View>
-                    ))
-                  ) : (
-                    <EmptyBlock title="No urgent follow-ups" copy="Tasks appear here when a case has a next action due." />
-                  )}
-                </View>
-              </View>
-            </View>
+            {mode === "overview" ? (
+              <Overview dashboard={dashboard} openCase={openCase} />
+            ) : mode === "pipeline" ? (
+              <Pipeline cases={pipeline} openCase={openCase} />
+            ) : (
+              <CaseList cases={cases} openCase={openCase} />
+            )}
           </>
         )}
       </ScrollView>
-
-      <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, isWeb && styles.modalWeb]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New commercial case</Text>
-              <Pressable onPress={() => setModalOpen(false)} style={styles.smallIcon}>
-                <Feather name="x" size={20} color={IVORY} />
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalScroll}>
-              <Field label="Case title" value={draft.title} onChangeText={(v) => setDraft((d) => ({ ...d, title: v }))} placeholder="James Harrington - Buyer Search" />
-              <View style={styles.chipRow}>
-                {CASE_TYPES.map(([value, label]) => (
-                  <Chip key={value} label={label} active={draft.case_type === value} onPress={() => setDraft((d) => ({ ...d, case_type: value }))} />
-                ))}
-              </View>
-              <Field label="Contact name" value={draft.contact_name} onChangeText={(v) => setDraft((d) => ({ ...d, contact_name: v }))} />
-              <Field label="Contact email" value={draft.contact_email} onChangeText={(v) => setDraft((d) => ({ ...d, contact_email: v }))} />
-              <View style={styles.chipRow}>
-                {(["A", "B", "C", "D"] as const).map((score) => (
-                  <Chip key={score} label={`Lead ${score}`} active={draft.lead_score === score} onPress={() => setDraft((d) => ({ ...d, lead_score: score }))} />
-                ))}
-              </View>
-              <View style={styles.twoCol}>
-                <Field label="Budget min" value={draft.budget_min_eur} keyboardType="numeric" onChangeText={(v) => setDraft((d) => ({ ...d, budget_min_eur: v }))} />
-                <Field label="Budget max" value={draft.budget_max_eur} keyboardType="numeric" onChangeText={(v) => setDraft((d) => ({ ...d, budget_max_eur: v }))} />
-                <Field label="LOA min" value={draft.loa_min_m} keyboardType="numeric" onChangeText={(v) => setDraft((d) => ({ ...d, loa_min_m: v }))} />
-                <Field label="LOA max" value={draft.loa_max_m} keyboardType="numeric" onChangeText={(v) => setDraft((d) => ({ ...d, loa_max_m: v }))} />
-              </View>
-              <Field label="Timeline" value={draft.timeline} onChangeText={(v) => setDraft((d) => ({ ...d, timeline: v }))} placeholder="Q4 2026" />
-              <Field label="Preferred regions" value={draft.preferred_regions} onChangeText={(v) => setDraft((d) => ({ ...d, preferred_regions: v }))} placeholder="Mediterranean, South of France" />
-              <Field label="Mandatory requirements" value={draft.mandatory_requirements} multiline onChangeText={(v) => setDraft((d) => ({ ...d, mandatory_requirements: v }))} />
-              <Field label="Next action" value={draft.next_action} onChangeText={(v) => setDraft((d) => ({ ...d, next_action: v }))} placeholder="Send 3 off-market yachts" />
-              <Field label="Next action due YYYY-MM-DD" value={draft.next_action_due} onChangeText={(v) => setDraft((d) => ({ ...d, next_action_due: v }))} />
-              <View style={styles.twoCol}>
-                <Field label="Expected commission" value={draft.expected_commission_eur} keyboardType="numeric" onChangeText={(v) => setDraft((d) => ({ ...d, expected_commission_eur: v }))} />
-                <Field label="Probability %" value={draft.close_probability} keyboardType="numeric" onChangeText={(v) => setDraft((d) => ({ ...d, close_probability: v }))} />
-              </View>
-              <View style={styles.chipRow}>
-                {(["low", "medium", "high"] as const).map((risk) => (
-                  <Chip key={risk} label={`Risk ${risk}`} active={draft.risk_level === risk} onPress={() => setDraft((d) => ({ ...d, risk_level: risk }))} />
-                ))}
-              </View>
-              <Field label="Risk reason" value={draft.risk_reason} onChangeText={(v) => setDraft((d) => ({ ...d, risk_reason: v }))} />
-              <Pressable onPress={saveCase} disabled={saving} style={[styles.primaryButton, saving && { opacity: 0.7 }]}>
-                {saving ? <ActivityIndicator color={NAVY} /> : <Feather name="save" size={18} color={NAVY} />}
-                <Text style={styles.primaryText}>Save Case</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <CaseModal
+        visible={modalOpen}
+        draft={draft}
+        setDraft={setDraft}
+        saving={saving}
+        onClose={() => setModalOpen(false)}
+        onSave={saveCase}
+      />
     </View>
   );
 }
 
-function CaseCard({ item }: { item: BrokerCase }) {
+function Overview({ dashboard, openCase }: { dashboard: BrokerDashboard | null; openCase: (id: string) => void }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.caseCard}>
+    <View style={styles.overviewGrid}>
+      <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.panelTitle, { color: colors.foreground }]}>Priority Cases</Text>
+        {dashboard?.priority_cases.length ? dashboard.priority_cases.map((item) => <CaseCard key={item.id} item={item} onPress={() => openCase(item.id)} />) : <EmptyBlock title="No active cases yet" copy="Create the first buyer, seller or charter case to start the broker workflow." />}
+      </View>
+      <View style={styles.sideColumn}>
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.panelTitle, { color: colors.foreground }]}>Revenue Forecast</Text>
+          <View style={styles.forecastRow}>
+            <Fact label="Expected" value={money(dashboard?.forecast.expected_commission_eur)} />
+            <Fact label="Weighted" value={money(dashboard?.forecast.weighted_commission_eur)} />
+          </View>
+        </View>
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.panelTitle, { color: colors.foreground }]}>Today</Text>
+          {dashboard?.tasks.length ? dashboard.tasks.map((task) => (
+            <View key={task.id} style={[styles.taskRow, { borderBottomColor: colors.border }]}>
+              <Feather name="check-circle" size={15} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.taskTitle, { color: colors.foreground }]}>{task.title}</Text>
+                <Text style={[styles.taskMeta, { color: colors.mutedForeground }]}>{daysLabel(task.due_date)} / {task.priority}</Text>
+              </View>
+            </View>
+          )) : <EmptyBlock title="No urgent follow-ups" copy="Tasks appear here when a case has a next action due." />}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function Pipeline({ cases, openCase }: { cases: BrokerCase[]; openCase: (id: string) => void }) {
+  const { colors } = useTheme();
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pipeline}>
+      {PIPELINE.map((stage) => {
+        const items = cases.filter((item) => item.stage === stage.key);
+        return (
+          <View key={stage.key} style={[styles.pipelineColumn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.pipelineHeader}>
+              <Text style={[styles.panelTitle, { color: colors.foreground, marginBottom: 0 }]}>{stage.label}</Text>
+              <Text style={[styles.countBadge, { color: colors.primary, backgroundColor: colors.glow ?? colors.secondary }]}>{items.length}</Text>
+            </View>
+            {items.length ? items.map((item) => <CaseCard key={item.id} compact item={item} onPress={() => openCase(item.id)} />) : <Text style={[styles.emptySmall, { color: colors.mutedForeground }]}>No cases</Text>}
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function CaseList({ cases, openCase }: { cases: BrokerCase[]; openCase: (id: string) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.panelTitle, { color: colors.foreground }]}>All Cases</Text>
+      {cases.length ? cases.map((item) => <CaseCard key={item.id} item={item} onPress={() => openCase(item.id)} />) : <EmptyBlock title="No cases yet" copy="New commercial cases appear here." />}
+    </View>
+  );
+}
+
+function Metric({ label, value, icon }: { label: string; value: number; icon: keyof typeof Feather.glyphMap }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.metricCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+      <Feather name={icon} size={17} color={colors.primary} />
+      <Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>{label}</Text>
+    </View>
+  );
+}
+
+function CaseCard({ item, onPress, compact }: { item: BrokerCase; onPress: () => void; compact?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} style={[styles.caseCard, { backgroundColor: colors.secondary, borderColor: colors.border }, compact && styles.caseCardCompact]}>
       <View style={styles.caseTop}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.caseTitle}>{item.title}</Text>
-          <Text style={styles.caseMeta}>{caseTypeLabel(item.case_type)} · {item.stage.replace(/_/g, " ")} · Lead {item.lead_score}</Text>
+          <Text style={[styles.caseTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.caseMeta, { color: colors.mutedForeground }]}>{caseTypeLabel(item.case_type)} / {item.stage.replace(/_/g, " ")} / Lead {item.lead_score}</Text>
         </View>
         <View style={[styles.riskBadge, { borderColor: riskColor(item.risk_level) }]}>
           <Text style={[styles.riskText, { color: riskColor(item.risk_level) }]}>{item.risk_level}</Text>
         </View>
       </View>
       <View style={styles.caseFacts}>
-        <Text style={styles.factText}>{item.loa_min_m ?? "?"}-{item.loa_max_m ?? "?"} m</Text>
-        <Text style={styles.factText}>{money(item.budget_min_eur)}-{money(item.budget_max_eur)}</Text>
-        <Text style={styles.factText}>{item.close_probability}% close</Text>
+        <Text style={[styles.factPill, { color: colors.primary, backgroundColor: colors.glow ?? colors.card }]}>{item.loa_min_m ?? "?"}-{item.loa_max_m ?? "?"} m</Text>
+        <Text style={[styles.factPill, { color: colors.primary, backgroundColor: colors.glow ?? colors.card }]}>{money(item.budget_min_eur)}-{money(item.budget_max_eur)}</Text>
+        <Text style={[styles.factPill, { color: colors.primary, backgroundColor: colors.glow ?? colors.card }]}>{item.close_probability}% close</Text>
       </View>
-      {item.next_action ? <Text style={styles.nextAction}>Next: {item.next_action}</Text> : null}
-      {item.risk_reason ? <Text style={styles.riskReason}>Risk: {item.risk_reason}</Text> : null}
+      {item.next_action ? <Text style={[styles.nextAction, { color: colors.foreground }]}>Next: {item.next_action}</Text> : null}
+    </Pressable>
+  );
+}
+
+function CaseModal(props: { visible: boolean; draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>>; saving: boolean; onClose: () => void; onSave: () => void }) {
+  const { colors } = useTheme();
+  const isWeb = Platform.OS === "web";
+  return (
+    <Modal visible={props.visible} animationType="slide" transparent onRequestClose={props.onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }, isWeb && styles.modalWeb]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>New commercial case</Text>
+            <Pressable onPress={props.onClose} style={[styles.smallIcon, { backgroundColor: colors.secondary }]}>
+              <Feather name="x" size={20} color={colors.foreground} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalScroll}>
+            <Field label="Case title" value={props.draft.title} onChangeText={(v) => props.setDraft((d) => ({ ...d, title: v }))} placeholder="James Harrington - Buyer Search" />
+            <ChipRow items={CASE_TYPES.map(([, label]) => label)} active={caseTypeLabel(props.draft.case_type)} onChange={(label) => {
+              const found = CASE_TYPES.find(([, l]) => l === label);
+              if (found) props.setDraft((d) => ({ ...d, case_type: found[0] }));
+            }} />
+            <View style={styles.twoCol}>
+              <Field label="Contact name" value={props.draft.contact_name} onChangeText={(v) => props.setDraft((d) => ({ ...d, contact_name: v }))} />
+              <Field label="Contact email" value={props.draft.contact_email} onChangeText={(v) => props.setDraft((d) => ({ ...d, contact_email: v }))} />
+            </View>
+            <ChipRow items={["A", "B", "C", "D"] as const} active={props.draft.lead_score} onChange={(lead_score) => props.setDraft((d) => ({ ...d, lead_score }))} />
+            <View style={styles.twoCol}>
+              <Field label="Budget min" value={props.draft.budget_min_eur} keyboardType="numeric" onChangeText={(v) => props.setDraft((d) => ({ ...d, budget_min_eur: v }))} />
+              <Field label="Budget max" value={props.draft.budget_max_eur} keyboardType="numeric" onChangeText={(v) => props.setDraft((d) => ({ ...d, budget_max_eur: v }))} />
+              <Field label="LOA min" value={props.draft.loa_min_m} keyboardType="numeric" onChangeText={(v) => props.setDraft((d) => ({ ...d, loa_min_m: v }))} />
+              <Field label="LOA max" value={props.draft.loa_max_m} keyboardType="numeric" onChangeText={(v) => props.setDraft((d) => ({ ...d, loa_max_m: v }))} />
+            </View>
+            <Field label="Timeline" value={props.draft.timeline} onChangeText={(v) => props.setDraft((d) => ({ ...d, timeline: v }))} placeholder="Q4 2026" />
+            <Field label="Preferred regions" value={props.draft.preferred_regions} onChangeText={(v) => props.setDraft((d) => ({ ...d, preferred_regions: v }))} placeholder="Mediterranean, South of France" />
+            <Field label="Mandatory requirements" value={props.draft.mandatory_requirements} multiline onChangeText={(v) => props.setDraft((d) => ({ ...d, mandatory_requirements: v }))} />
+            <View style={styles.twoCol}>
+              <Field label="Next action" value={props.draft.next_action} onChangeText={(v) => props.setDraft((d) => ({ ...d, next_action: v }))} />
+              <Field label="Next action due" value={props.draft.next_action_due} onChangeText={(v) => props.setDraft((d) => ({ ...d, next_action_due: v }))} placeholder="YYYY-MM-DD" />
+              <Field label="Expected commission" value={props.draft.expected_commission_eur} keyboardType="numeric" onChangeText={(v) => props.setDraft((d) => ({ ...d, expected_commission_eur: v }))} />
+              <Field label="Probability %" value={props.draft.close_probability} keyboardType="numeric" onChangeText={(v) => props.setDraft((d) => ({ ...d, close_probability: v }))} />
+            </View>
+            <ChipRow items={["low", "medium", "high"] as const} active={props.draft.risk_level} onChange={(risk_level) => props.setDraft((d) => ({ ...d, risk_level }))} />
+            <Field label="Risk reason" value={props.draft.risk_reason} onChangeText={(v) => props.setDraft((d) => ({ ...d, risk_reason: v }))} />
+            <Pressable onPress={props.onSave} disabled={props.saving} style={[styles.primaryButton, { backgroundColor: colors.primary }, props.saving && { opacity: 0.7 }]}>
+              {props.saving ? <ActivityIndicator color={colors.background} /> : <Feather name="save" size={18} color={colors.background} />}
+              <Text style={[styles.primaryText, { color: colors.background }]}>Save Case</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function Field(props: { label: string; value: string; onChangeText: (v: string) => void; placeholder?: string; keyboardType?: "default" | "numeric"; multiline?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.field}>
+      <Text style={[styles.label, { color: colors.mutedForeground }]}>{props.label}</Text>
+      <TextInput
+        value={props.value}
+        onChangeText={props.onChangeText}
+        placeholder={props.placeholder}
+        placeholderTextColor={colors.mutedForeground}
+        keyboardType={props.keyboardType}
+        multiline={props.multiline}
+        style={[styles.input, { backgroundColor: colors.secondary, borderColor: colors.border, color: colors.foreground }, props.multiline && styles.textarea]}
+      />
+    </View>
+  );
+}
+
+function ChipRow<T extends string>({ items, active, onChange }: { items: readonly T[]; active: string; onChange: (v: T) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.chipRow}>
+      {items.map((item) => {
+        const selected = item === active;
+        return (
+          <Pressable key={item} onPress={() => onChange(item)} style={[styles.chip, { backgroundColor: colors.secondary, borderColor: selected ? colors.primary : colors.border }, selected && { backgroundColor: colors.glow ?? colors.secondary }]}>
+            <Text style={[styles.chipText, { color: selected ? colors.primary : colors.mutedForeground }]}>{item.replace(/_/g, " ")}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={[styles.forecastLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[styles.forecastValue, { color: colors.primary }]}>{value}</Text>
     </View>
   );
 }
 
 function EmptyBlock({ title, copy }: { title: string; copy: string }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.emptyBlock}>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyCopy}>{copy}</Text>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>{copy}</Text>
     </View>
   );
 }
 
+function CenterPanel({ icon, title, copy, danger }: { icon: keyof typeof Feather.glyphMap; title: string; copy?: string; danger?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.centerPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {icon === "loader" ? <ActivityIndicator color={colors.primary} /> : <Feather name={icon} size={28} color={danger ? "#E77777" : colors.primary} />}
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
+      {copy ? <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>{copy}</Text> : null}
+    </View>
+  );
+}
+
+function riskColor(risk: string): string {
+  if (risk === "high") return "#E77777";
+  if (risk === "low") return "#7BD389";
+  return "#C9A961";
+}
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: NAVY },
+  root: { flex: 1 },
   scroll: { paddingHorizontal: 22 },
-  webScroll: { maxWidth: 1240, width: "100%", alignSelf: "center" },
+  webScroll: { maxWidth: 1280, width: "100%", alignSelf: "center" },
   topbar: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 },
-  iconButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: NAVY_DEEP, alignItems: "center", justifyContent: "center" },
-  kicker: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 2.2 },
-  title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 34, marginTop: 4 },
-  subtitle: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4 },
-  centerPanel: { minHeight: 260, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: NAVY_DEEP, borderRadius: 16, borderWidth: 1, borderColor: DIVIDER, padding: 24 },
+  iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  kicker: { fontFamily: "Inter_700Bold", fontSize: 12, letterSpacing: 2.2 },
+  acidKicker: { letterSpacing: 3.2 },
+  title: { fontFamily: "Gilroy-ExtraBold", fontSize: 36, marginTop: 4 },
+  acidTitle: { letterSpacing: 0.8, textTransform: "uppercase" },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 19 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  primaryButton: { minHeight: 52, borderRadius: 14, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18 },
-  primaryText: { color: NAVY, fontFamily: "Inter_800ExtraBold", fontSize: 15 },
-  secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16 },
-  secondaryText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
+  primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18 },
+  primaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 15 },
+  secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16 },
+  secondaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 13 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  metricCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? 180 : "47%", backgroundColor: NAVY_DEEP, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, padding: 14 },
-  metricValue: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 27, marginTop: 8 },
-  metricLabel: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12, marginTop: 2 },
-  layout: { gap: 14 },
-  webLayout: { flexDirection: "row", alignItems: "flex-start" },
-  panel: { flex: 1, backgroundColor: NAVY_DEEP, borderRadius: 16, borderWidth: 1, borderColor: DIVIDER, padding: 16 },
-  sideColumn: { flex: 0.75, gap: 14 },
-  panelTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 18, marginBottom: 12 },
-  caseCard: { backgroundColor: NAVY, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, padding: 14, marginBottom: 10 },
+  metricCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? 180 : "47%", borderRadius: 14, borderWidth: 1, padding: 14 },
+  metricValue: { fontFamily: "Inter_800ExtraBold", fontSize: 27, marginTop: 8 },
+  metricLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, marginTop: 2 },
+  tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
+  tab: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
+  tabText: { fontFamily: "Inter_800ExtraBold", fontSize: 12, textTransform: "capitalize" },
+  overviewGrid: { gap: 14, flexDirection: Platform.OS === "web" ? "row" : "column", alignItems: "flex-start" },
+  panel: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 16, width: "100%" },
+  sideColumn: { flex: 0.75, gap: 14, width: "100%" },
+  panelTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 18, marginBottom: 12 },
+  forecastRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  forecastLabel: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase" },
+  forecastValue: { fontFamily: "Inter_800ExtraBold", fontSize: 20, marginTop: 6 },
+  taskRow: { flexDirection: "row", gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
+  taskTitle: { fontFamily: "Inter_700Bold", fontSize: 13 },
+  taskMeta: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
+  pipeline: { gap: 12, paddingBottom: 8 },
+  pipelineColumn: { width: Platform.OS === "web" ? 280 : 270, borderRadius: 16, borderWidth: 1, padding: 12 },
+  pipelineHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  countBadge: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, fontFamily: "Inter_800ExtraBold", fontSize: 12 },
+  caseCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10 },
+  caseCardCompact: { padding: 12 },
   caseTop: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  caseTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
-  caseMeta: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
+  caseTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 16 },
+  caseMeta: { fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
   riskBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   riskText: { fontFamily: "Inter_800ExtraBold", fontSize: 11, textTransform: "uppercase" },
   caseFacts: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-  factText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 12, backgroundColor: "rgba(201,169,97,0.11)", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
-  nextAction: { color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 12, lineHeight: 18 },
-  riskReason: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 7, lineHeight: 17 },
-  forecastRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  forecastLabel: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2 },
-  forecastValue: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 20, marginTop: 6 },
-  taskRow: { flexDirection: "row", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: DIVIDER },
-  taskTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 13 },
-  taskMeta: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
-  emptyBlock: { paddingVertical: 20, gap: 5 },
-  emptyTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 16, textAlign: "center" },
-  emptyCopy: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", lineHeight: 19 },
+  factPill: { fontFamily: "Inter_800ExtraBold", fontSize: 12, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, overflow: "hidden" },
+  nextAction: { fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 12, lineHeight: 18 },
+  emptySmall: { fontFamily: "Inter_500Medium", fontSize: 13, paddingVertical: 20, textAlign: "center" },
+  emptyBlock: { paddingVertical: 20, gap: 5, alignItems: "center" },
+  emptyTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 16, textAlign: "center" },
+  emptyCopy: { fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", lineHeight: 19 },
+  centerPanel: { minHeight: 260, alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 16, borderWidth: 1, padding: 24 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.58)", justifyContent: "flex-end" },
-  modalCard: { maxHeight: "92%", backgroundColor: NAVY_DEEP, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: DIVIDER },
-  modalWeb: { width: 760, alignSelf: "center", borderRadius: 22, marginBottom: 30 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, borderBottomWidth: 1, borderBottomColor: DIVIDER },
-  modalTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 20 },
-  smallIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: NAVY, alignItems: "center", justifyContent: "center" },
+  modalCard: { maxHeight: "92%", borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1 },
+  modalWeb: { width: 820, alignSelf: "center", borderRadius: 22, marginBottom: 30 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, borderBottomWidth: 1 },
+  modalTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 20 },
+  smallIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   modalScroll: { padding: 18, gap: 12 },
-  field: { width: "100%" },
+  field: { flex: 1, minWidth: Platform.OS === "web" ? 240 : "100%" },
   twoCol: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  label: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 6 },
-  input: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: "rgba(247,243,236,0.12)", backgroundColor: NAVY_ELEV, color: IVORY, fontFamily: "Inter_500Medium", fontSize: 15, paddingHorizontal: 13, paddingVertical: 11 },
+  label: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase", marginBottom: 6 },
+  input: { minHeight: 48, borderRadius: 12, borderWidth: 1, fontFamily: "Inter_500Medium", fontSize: 15, paddingHorizontal: 13, paddingVertical: 11 },
   textarea: { minHeight: 84, textAlignVertical: "top" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { borderRadius: 999, borderWidth: 1, borderColor: DIVIDER, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: NAVY },
-  chipActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
-  chipText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
-  chipTextActive: { color: GOLD },
+  chip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
+  chipText: { fontFamily: "Inter_800ExtraBold", fontSize: 12, textTransform: "capitalize" },
 });

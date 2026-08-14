@@ -2,11 +2,14 @@ import { getAuthToken, getBaseUrl } from "@workspace/api-client-react";
 
 export type BrokerCase = {
   id: string;
+  contact_id: string | null;
+  company_id: string | null;
   title: string;
   case_type: string;
   stage: string;
   lead_score: "A" | "B" | "C" | "D";
   status: string;
+  owner_name: string | null;
   budget_min_eur: number | null;
   budget_max_eur: number | null;
   loa_min_m: number | null;
@@ -62,6 +65,10 @@ export type BrokerDashboard = {
     phone: string | null;
     source: string | null;
   }>;
+};
+
+export type BrokerCasesResponse = {
+  items: BrokerCase[];
 };
 
 export type BrokerContactCase = {
@@ -163,9 +170,11 @@ export type BrokerContactsResponse = {
 
 export type CreateBrokerCaseInput = {
   title: string;
+  contact_id?: string | null;
   contact_name?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
+  owner_name?: string | null;
   case_type?: string | null;
   lead_score?: "A" | "B" | "C" | "D";
   budget_min_eur?: number | null;
@@ -184,6 +193,19 @@ export type CreateBrokerCaseInput = {
   close_probability?: number | null;
   forecast_close_date?: string | null;
   notes?: string | null;
+};
+
+export type BrokerCaseDetail = {
+  item: BrokerCase;
+  tasks: BrokerTask[];
+  activity: BrokerActivity[];
+};
+
+export type UpdateBrokerCaseInput = CreateBrokerCaseInput & {
+  stage?: string | null;
+  status?: "active" | "paused" | "won" | "lost" | "archived" | string;
+  acceptable_compromises?: string[] | string;
+  rejected_characteristics?: string[] | string;
 };
 
 async function headers(): Promise<HeadersInit> {
@@ -210,6 +232,22 @@ export async function getBrokerDashboard(): Promise<BrokerDashboard> {
     headers: await headers(),
   });
   return readJson<BrokerDashboard>(res);
+}
+
+export async function getBrokerCases(): Promise<BrokerCasesResponse> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/cases`, {
+    headers: await headers(),
+  });
+  return readJson<BrokerCasesResponse>(res);
+}
+
+export async function getBrokerPipeline(): Promise<BrokerCasesResponse> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/pipeline`, {
+    headers: await headers(),
+  });
+  return readJson<BrokerCasesResponse>(res);
 }
 
 export async function getBrokerContacts(params?: { q?: string; source?: string }): Promise<BrokerContactsResponse> {
@@ -298,6 +336,60 @@ export async function createBrokerCase(input: CreateBrokerCaseInput): Promise<{ 
     body: JSON.stringify(input),
   });
   return readJson<{ item: BrokerCase }>(res);
+}
+
+export async function getBrokerCase(id: string): Promise<BrokerCaseDetail> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/cases/${id}`, {
+    headers: await headers(),
+  });
+  return readJson<BrokerCaseDetail>(res);
+}
+
+export async function updateBrokerCase(id: string, input: UpdateBrokerCaseInput): Promise<{ item: BrokerCase }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/cases/${id}`, {
+    method: "PATCH",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerCase }>(res);
+}
+
+export async function createBrokerCaseTask(
+  caseId: string,
+  input: CreateContactTaskInput,
+): Promise<{ item: BrokerTask }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/cases/${caseId}/tasks`, {
+    method: "POST",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerTask }>(res);
+}
+
+export async function updateBrokerTask(id: string, input: { status: "open" | "done" | "cancelled" }): Promise<{ item: BrokerTask }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/tasks/${id}`, {
+    method: "PATCH",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerTask }>(res);
+}
+
+export async function createBrokerCaseActivity(
+  caseId: string,
+  input: CreateContactActivityInput,
+): Promise<{ item: BrokerActivity }> {
+  const base = getBaseUrl() ?? "";
+  const res = await fetch(`${base}/api/broker-os/cases/${caseId}/activity`, {
+    method: "POST",
+    headers: await headers(),
+    body: JSON.stringify(input),
+  });
+  return readJson<{ item: BrokerActivity }>(res);
 }
 
 export async function importCharterClientsToBrokerOs(): Promise<{ imported: number }> {

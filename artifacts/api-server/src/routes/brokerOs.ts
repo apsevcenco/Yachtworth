@@ -143,6 +143,56 @@ function normalizeRisk(v: unknown): "low" | "medium" | "high" {
   return v === "low" || v === "medium" || v === "high" ? v : "medium";
 }
 
+function normalizeStatus(v: unknown): "active" | "paused" | "won" | "lost" | "archived" {
+  return v === "active" || v === "paused" || v === "won" || v === "lost" || v === "archived" ? v : "active";
+}
+
+function casePayload(body: Record<string, unknown>) {
+  const payload: Record<string, unknown> = {
+    title: str(body["title"], 200),
+    case_type: normalizeCaseType(body["case_type"]),
+    stage: str(body["stage"], 80) ?? "new_inquiry",
+    lead_score: normalizeLeadScore(body["lead_score"]),
+    status: normalizeStatus(body["status"]),
+    owner_name: str(body["owner_name"], 160),
+    budget_min_eur: toNumber(body["budget_min_eur"]),
+    budget_max_eur: toNumber(body["budget_max_eur"]),
+    loa_min_m: toNumber(body["loa_min_m"]),
+    loa_max_m: toNumber(body["loa_max_m"]),
+    timeline: str(body["timeline"], 200),
+    preferred_regions: arr(body["preferred_regions"]),
+    mandatory_requirements: arr(body["mandatory_requirements"]),
+    preferred_requirements: arr(body["preferred_requirements"]),
+    acceptable_compromises: arr(body["acceptable_compromises"]),
+    rejected_characteristics: arr(body["rejected_characteristics"]),
+    next_action: str(body["next_action"], 300),
+    next_action_due: str(body["next_action_due"], 20),
+    risk_level: normalizeRisk(body["risk_level"]),
+    risk_reason: str(body["risk_reason"], 300),
+    expected_commission_eur: toNumber(body["expected_commission_eur"]),
+    close_probability: Math.max(0, Math.min(100, Math.round(toNumber(body["close_probability"]) ?? 30))),
+    forecast_close_date: str(body["forecast_close_date"], 20),
+    notes: str(body["notes"], 2000),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (Object.prototype.hasOwnProperty.call(body, "contact_id")) {
+    payload["contact_id"] = isUuid(body["contact_id"]) ? body["contact_id"] : null;
+  }
+
+  return payload as {
+    title: string | null;
+    contact_id?: string | null;
+    case_type: string;
+    stage: string;
+    lead_score: "A" | "B" | "C" | "D";
+    status: "active" | "paused" | "won" | "lost" | "archived";
+    risk_level: "low" | "medium" | "high";
+    close_probability: number;
+    updated_at: string;
+  } & Record<string, unknown>;
+}
+
 function normalizePriority(v: unknown): "low" | "normal" | "high" | "urgent" {
   return v === "low" || v === "normal" || v === "high" || v === "urgent" ? v : "normal";
 }
@@ -275,6 +325,28 @@ router.get(
     const { data, error } = await forClerkUser(sb.from(BROKER_CASES_TABLE).select(CASE_COLUMNS), req.userId!)
       .order("updated_at", { ascending: false })
       .limit(300);
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json({ items: data ?? [] });
+  },
+);
+
+router.get(
+  "/broker-os/pipeline",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker OS storage not configured" });
+      return;
+    }
+    const { data, error } = await forClerkUser(sb.from(BROKER_CASES_TABLE).select(CASE_COLUMNS), req.userId!)
+      .in("status", ["active", "paused"])
+      .order("updated_at", { ascending: false })
+      .limit(500);
     if (error) {
       res.status(500).json({ error: error.message });
       return;
@@ -757,6 +829,202 @@ router.post(
     });
 
     res.status(201).json({ item: created });
+  },
+);
+
+router.patch(
+  "/broker-os/cases/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker OS storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const payload = casePayload(body);
+    if (!payload.title) {
+      res.status(400).json({ error: "title required" });
+      return;
+    }
+    const { data, error } = await forClerkUser(
+      sb.from(BROKER_CASES_TABLE).update(payload).select(CASE_COLUMNS),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    if (!data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await sb.from(BROKER_ACTIVITY_TABLE).insert({
+      clerk_user_id: req.userId!,
+      case_id: data.id,
+      contact_id: data.contact_id,
+      activity_type: "case_updated",
+      channel: "note",
+      subject: "Case updated",
+    });
+    res.json({ item: data });
+  },
+);
+
+router.post(
+  "/broker-os/cases/:id/tasks",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker OS storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const title = str(body["title"], 220);
+    if (!title) {
+      res.status(400).json({ error: "title required" });
+      return;
+    }
+    const { data: brokerCase } = await forClerkUser(
+      sb.from(BROKER_CASES_TABLE).select("id,contact_id"),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (!brokerCase) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(BROKER_TASKS_TABLE)
+      .insert({
+        clerk_user_id: req.userId!,
+        case_id: brokerCase.id,
+        contact_id: brokerCase.contact_id,
+        title,
+        detail: str(body["detail"], 1000),
+        due_date: str(body["due_date"], 20),
+        priority: normalizePriority(body["priority"]),
+      })
+      .select("*")
+      .single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    await sb.from(BROKER_ACTIVITY_TABLE).insert({
+      clerk_user_id: req.userId!,
+      case_id: brokerCase.id,
+      contact_id: brokerCase.contact_id,
+      activity_type: "task_created",
+      channel: "note",
+      subject: title,
+      body: str(body["detail"], 1000),
+    });
+    res.status(201).json({ item: data });
+  },
+);
+
+router.patch(
+  "/broker-os/tasks/:id",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker OS storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const status = body["status"] === "done" || body["status"] === "cancelled" || body["status"] === "open" ? body["status"] : "done";
+    const { data, error } = await forClerkUser(
+      sb.from(BROKER_TASKS_TABLE).update({ status, updated_at: new Date().toISOString() }).select("*"),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    if (!data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await sb.from(BROKER_ACTIVITY_TABLE).insert({
+      clerk_user_id: req.userId!,
+      case_id: data.case_id,
+      contact_id: data.contact_id,
+      activity_type: "task_updated",
+      channel: "note",
+      subject: `${data.title} marked ${status}`,
+    });
+    res.json({ item: data });
+  },
+);
+
+router.post(
+  "/broker-os/cases/:id/activity",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Broker OS storage not configured" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const subject = str(body["subject"], 220) ?? "Case note";
+    const bodyText = str(body["body"], 2000);
+    const { data: brokerCase } = await forClerkUser(
+      sb.from(BROKER_CASES_TABLE).select("id,contact_id"),
+      req.userId!,
+    )
+      .eq("id", req.params["id"])
+      .maybeSingle();
+    if (!brokerCase) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(BROKER_ACTIVITY_TABLE)
+      .insert({
+        clerk_user_id: req.userId!,
+        case_id: brokerCase.id,
+        contact_id: brokerCase.contact_id,
+        activity_type: str(body["activity_type"], 80) ?? "note",
+        channel: normalizeChannel(body["channel"]),
+        subject,
+        body: bodyText,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.status(201).json({ item: data });
   },
 );
 

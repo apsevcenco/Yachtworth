@@ -446,6 +446,10 @@ function RootLayoutNav() {
               options={{ headerShown: false, presentation: "card" }}
             />
             <Stack.Screen
+              name="broker-case-detail"
+              options={{ headerShown: false, presentation: "card" }}
+            />
+            <Stack.Screen
               name="crm"
               options={{ headerShown: false, presentation: "card" }}
             />
