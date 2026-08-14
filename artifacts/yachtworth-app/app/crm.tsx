@@ -246,6 +246,7 @@ export default function CrmScreen() {
   const selected = detail?.item ?? data?.items.find((item) => item.id === selectedId) ?? null;
   const activeCases = detail?.cases.filter((item) => item.status === "active").length ?? selected?.active_cases_count ?? 0;
   const openTasks = detail?.tasks.filter((task) => task.status === "open").length ?? 0;
+  const showInitialLoading = !isLoaded || (loading && !data);
 
   function openCreateForm() {
     setEditingId(null);
@@ -398,7 +399,7 @@ export default function CrmScreen() {
           </View>
         </View>
 
-        {!isLoaded || loading ? (
+        {showInitialLoading ? (
           <CenterPanel icon="loader" title="Loading CRM" colors={colors} />
         ) : !isSignedIn ? (
           <CenterPanel icon="lock" title="Sign in required" colors={colors} />
@@ -425,6 +426,7 @@ export default function CrmScreen() {
                 {importing ? <ActivityIndicator color={colors.primary} /> : <Feather name="download" size={16} color={colors.primary} />}
                 <Text style={[styles.secondaryText, { color: colors.primary }]}>Import charter clients</Text>
               </Pressable>
+              {loading ? <ActivityIndicator color={colors.primary} style={styles.inlineLoader} /> : null}
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -853,6 +855,7 @@ const styles = StyleSheet.create({
   primaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 15, textAlign: "center", flexShrink: 1 },
   secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16, flexGrow: 1 },
   secondaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 13, textAlign: "center", flexShrink: 1 },
+  inlineLoader: { alignSelf: "center", marginHorizontal: 4 },
   filterRow: { gap: 8, paddingBottom: 12 },
   filterChip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   filterText: { fontFamily: "Inter_800ExtraBold", fontSize: 12, textTransform: "capitalize" },
