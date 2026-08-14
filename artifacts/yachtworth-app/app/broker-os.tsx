@@ -292,7 +292,7 @@ export default function BrokerOsScreen() {
           <Pressable onPress={() => router.back()} style={[styles.iconButton, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </Pressable>
-          <View style={{ flex: 1 }}>
+          <View style={styles.titleBlock}>
             <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>YACHTWORTH</Text>
             <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Broker OS</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>First enquiry to closing, commission and follow-up control.</Text>
@@ -710,18 +710,19 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 22 },
   webScroll: { maxWidth: 1280, width: "100%", alignSelf: "center" },
-  topbar: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 },
+  topbar: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 18 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  titleBlock: { flex: 1, minWidth: 0, paddingTop: 1 },
   kicker: { fontFamily: "Inter_700Bold", fontSize: 12, letterSpacing: 2.2 },
   acidKicker: { letterSpacing: 3.2 },
-  title: { fontFamily: "Gilroy-ExtraBold", fontSize: 36, marginTop: 4 },
+  title: { fontFamily: "Gilroy-ExtraBold", fontSize: Platform.OS === "web" ? 36 : 31, lineHeight: Platform.OS === "web" ? 42 : 36, marginTop: 4 },
   acidTitle: { letterSpacing: 0.8, textTransform: "uppercase" },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 19 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18 },
+  primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, flexGrow: 1 },
   primaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 15 },
-  secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16 },
-  secondaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 13 },
+  secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16, flexGrow: 1 },
+  secondaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 13, textAlign: "center", flexShrink: 1 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   metricCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? 180 : "47%", borderRadius: 14, borderWidth: 1, padding: 14 },
   metricValue: { fontFamily: "Inter_800ExtraBold", fontSize: 27, marginTop: 8 },
@@ -739,7 +740,7 @@ const styles = StyleSheet.create({
   overviewGrid: { gap: 14, flexDirection: Platform.OS === "web" ? "row" : "column", alignItems: "flex-start" },
   panel: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 16, width: "100%" },
   sideColumn: { flex: 0.75, gap: 14, width: "100%" },
-  panelTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 18, marginBottom: 12 },
+  panelTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 18, lineHeight: 23, marginBottom: 12 },
   forecastRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   forecastLabel: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase" },
   forecastValue: { fontFamily: "Inter_800ExtraBold", fontSize: 20, marginTop: 6 },
@@ -754,12 +755,12 @@ const styles = StyleSheet.create({
   caseCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10 },
   caseCardCompact: { padding: 12 },
   caseTop: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  caseTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 16 },
+  caseTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 16, lineHeight: 21 },
   caseMeta: { fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
   riskBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   riskText: { fontFamily: "Inter_800ExtraBold", fontSize: 11, textTransform: "uppercase" },
   caseFacts: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-  factPill: { fontFamily: "Inter_800ExtraBold", fontSize: 12, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, overflow: "hidden" },
+  factPill: { fontFamily: "Inter_800ExtraBold", fontSize: 12, lineHeight: 16, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, overflow: "hidden" },
   nextAction: { fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 12, lineHeight: 18 },
   emptySmall: { fontFamily: "Inter_500Medium", fontSize: 13, paddingVertical: 20, textAlign: "center" },
   emptyBlock: { paddingVertical: 20, gap: 5, alignItems: "center" },

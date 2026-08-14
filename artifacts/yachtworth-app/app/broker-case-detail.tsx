@@ -259,9 +259,9 @@ export default function BrokerCaseDetailScreen() {
           <Pressable onPress={() => router.back()} style={[styles.iconButton, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </Pressable>
-          <View style={{ flex: 1 }}>
+          <View style={styles.titleBlock}>
             <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>BROKER CASE</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>{draft?.title || "Case detail"}</Text>
+            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={3}>{draft?.title || "Case detail"}</Text>
             {item ? <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{item.case_type.replace(/_/g, " ")} / {item.stage.replace(/_/g, " ")} / updated {item.updated_at?.slice(0, 10)}</Text> : null}
           </View>
         </View>
@@ -498,25 +498,26 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 22 },
   webScroll: { maxWidth: 1280, width: "100%", alignSelf: "center" },
-  topbar: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
+  topbar: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  titleBlock: { flex: 1, minWidth: 0, paddingTop: 1 },
   kicker: { fontFamily: "Inter_700Bold", fontSize: 12, letterSpacing: 2.2 },
   acidKicker: { letterSpacing: 3.2 },
-  title: { fontFamily: "Gilroy-ExtraBold", fontSize: 32, marginTop: 4 },
+  title: { fontFamily: "Gilroy-ExtraBold", fontSize: Platform.OS === "web" ? 32 : 27, lineHeight: Platform.OS === "web" ? 38 : 32, marginTop: 4 },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 19, textTransform: "capitalize" },
   actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18 },
-  primaryText: { fontFamily: "Inter_700Bold", fontSize: 15 },
-  secondaryButton: { minHeight: 48, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16 },
-  secondaryText: { fontFamily: "Inter_700Bold", fontSize: 13 },
+  primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, flexGrow: 1 },
+  primaryText: { fontFamily: "Inter_700Bold", fontSize: 15, textAlign: "center", flexShrink: 1 },
+  secondaryButton: { minHeight: 48, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16, flexGrow: 1 },
+  secondaryText: { fontFamily: "Inter_700Bold", fontSize: 13, textAlign: "center", flexShrink: 1 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   metricCard: { flexGrow: 1, flexBasis: Platform.OS === "web" ? 220 : "47%", borderRadius: 14, borderWidth: 1, padding: 14 },
-  metricValue: { fontFamily: "Inter_700Bold", fontSize: 20 },
+  metricValue: { fontFamily: "Inter_700Bold", fontSize: Platform.OS === "web" ? 20 : 17, lineHeight: Platform.OS === "web" ? 25 : 22 },
   metricLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, marginTop: 5 },
   layoutGrid: { gap: 14, flexDirection: Platform.OS === "web" ? "row" : "column", alignItems: "flex-start", marginBottom: 14 },
   panel: { flex: 1, width: "100%", borderRadius: 16, borderWidth: 1, padding: 16, gap: 10 },
   sideColumn: { flex: 0.78, width: "100%", gap: 14 },
-  panelTitle: { fontFamily: "Inter_700Bold", fontSize: 18, marginBottom: 2 },
+  panelTitle: { fontFamily: "Inter_700Bold", fontSize: 18, lineHeight: 23, marginBottom: 2 },
   twoCol: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   field: { flex: 1, minWidth: Platform.OS === "web" ? 240 : "100%" },
   label: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase", marginBottom: 6, marginTop: 2 },
@@ -525,11 +526,11 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
   chip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   chipText: { fontFamily: "Inter_700Bold", fontSize: 12, textTransform: "capitalize" },
-  listRow: { flexDirection: "row", gap: 11, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowTitle: { fontFamily: "Inter_700Bold", fontSize: 15 },
+  listRow: { flexDirection: "row", gap: 11, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, alignItems: "flex-start" },
+  rowTitle: { fontFamily: "Inter_700Bold", fontSize: 15, lineHeight: 20 },
   rowMeta: { fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4, textTransform: "capitalize" },
   rowBody: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, marginTop: 7 },
-  smallButton: { borderWidth: 1, borderRadius: 999, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 7 },
+  smallButton: { borderWidth: 1, borderRadius: 999, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 7, flexShrink: 0 },
   smallButtonText: { fontFamily: "Inter_700Bold", fontSize: 12 },
   centerPanel: { minHeight: 260, alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 16, borderWidth: 1, padding: 24 },
   emptyTitle: { fontFamily: "Inter_700Bold", fontSize: 16, textAlign: "center" },
