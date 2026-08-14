@@ -20,7 +20,7 @@ import { REC_OPTIONS, type RecLevel } from "../../../lib/surveyTemplates";
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
 const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 const MUTED = "rgba(247,243,236,0.6)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 const RED = "#E27D7D";

@@ -16,7 +16,7 @@ import { useTheme } from "../hooks/useColors";
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
 const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 const MUTED = "rgba(247,243,236,0.6)";
 
 const STORAGE_KEY = "yachtworth.coming_soon_notify";

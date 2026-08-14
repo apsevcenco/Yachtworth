@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
   },
   acidLogo: {
-    tintColor: "#F6FFF4",
+    tintColor: "#C8FF00",
   },
   mediterraneanLogo: {
     tintColor: "#12323A",

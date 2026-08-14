@@ -25,7 +25,7 @@ import {
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
 const GOLD = "#C9A961";
-const TEXT = "#F4EFE3";
+const TEXT = "#C8FF00";
 const MUTED = "#8F9BB3";
 const DANGER = "#D26565";
 const BORDER = "#1F3760";

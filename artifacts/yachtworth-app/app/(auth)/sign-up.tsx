@@ -21,7 +21,7 @@ import { useTheme } from "../../hooks/useColors";
 const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
 const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 
 WebBrowser.maybeCompleteAuthSession();
 

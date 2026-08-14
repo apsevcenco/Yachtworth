@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../hooks/useColors";
 
 const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 const MUTED = "rgba(247,243,236,0.6)";
 const TRACK = "rgba(247,243,236,0.10)";
 

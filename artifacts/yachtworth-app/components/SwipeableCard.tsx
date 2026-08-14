@@ -3,7 +3,7 @@ import React, { useRef } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 const DANGER = "#B5363A";
 
 export interface SwipeableCardProps {

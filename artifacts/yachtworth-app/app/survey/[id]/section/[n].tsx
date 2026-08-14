@@ -1,4 +1,4 @@
-﻿import { Feather } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetSurveyReportQueryKey,
@@ -67,7 +67,7 @@ const NAVY = "#0B1E3F";
 const NAVY_ELEV = "#142A52";
 const NAVY_DEEP = "#081633";
 const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 const MUTED = "rgba(247,243,236,0.6)";
 const FAINT = "rgba(247,243,236,0.4)";
 const DIVIDER = "rgba(247,243,236,0.08)";
@@ -467,7 +467,7 @@ export default function SurveySectionScreen() {
       try {
         const r = await uploadSurveyItemPhoto(itemId, uri);
         // Update only the local row's photo_urls. We deliberately do NOT
-        // invalidate the report query here â€” a refetch would re-run the
+        // invalidate the report query here — a refetch would re-run the
         // `setEditable(mine)` effect and silently discard any unsaved
         // notes/recommendation edits in this section.
         updateItem(idx, { photo_urls: r.photo_urls });
@@ -643,7 +643,7 @@ export default function SurveySectionScreen() {
             .map((i) => [i.id as string, Array.isArray(i.photo_urls) ? i.photo_urls : []]),
         );
       } catch {
-        // Best-effort â€” if refetch fails, fall back to local snapshot.
+        // Best-effort — if refetch fails, fall back to local snapshot.
       }
       // Server scopes replace to this section only (atomic via RPC), so other
       // sections are untouched and concurrent edits in other sections survive.
@@ -686,7 +686,7 @@ export default function SurveySectionScreen() {
       });
       dirtyRef.current = false;
       if (silent) {
-        // Don't invalidate â€” that would refetch and the re-seed effect would
+        // Don't invalidate — that would refetch and the re-seed effect would
         // wipe any keystrokes the user has typed since this auto-save started.
         setAutoSavedAt(Date.now());
       } else {
@@ -699,7 +699,7 @@ export default function SurveySectionScreen() {
         const msg = e instanceof Error ? e.message : "Please try again.";
         Alert.alert("Save failed", msg);
       }
-      // Silent saves swallow errors â€” the user can still hit Save manually
+      // Silent saves swallow errors — the user can still hit Save manually
       // and will see a real alert if it still fails.
     } finally {
       setSaving(false);
@@ -781,7 +781,7 @@ export default function SurveySectionScreen() {
                   Recording {editable[voiceTarget.idx]?.item_number ?? ""}
                 </Text>
                 <Text style={styles.recordingText}>
-                  {voiceTarget.fieldKey.replace("section_data.", "")} · {recordingSeconds}s · tap the same mic to stop
+                  {voiceTarget.fieldKey.replace("section_data.", "")} � {recordingSeconds}s � tap the same mic to stop
                 </Text>
               </View>
             </View>
@@ -833,7 +833,7 @@ export default function SurveySectionScreen() {
                   style={styles.selectBtn}
                 >
                   <Text style={[styles.selectText, !it.condition && { color: FAINT }]}>
-                    {it.condition || "Selectâ€¦"}
+                    {it.condition || "Select…"}
                   </Text>
                   <Feather name="chevron-down" size={14} color={MUTED} />
                 </Pressable>
@@ -849,7 +849,7 @@ export default function SurveySectionScreen() {
               <TextInput
                 value={it.notes}
                 onChangeText={(v) => updateItem(idx, { notes: v })}
-                placeholder="Surveyor observationsâ€¦"
+                placeholder="Surveyor observations…"
                 placeholderTextColor={FAINT}
                 multiline
                 style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]}
@@ -909,7 +909,7 @@ export default function SurveySectionScreen() {
                 </View>
               )}
 
-              {/* Photos â€” only after item has been saved (needs server id) */}
+              {/* Photos — only after item has been saved (needs server id) */}
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.fieldLabel}>
                   Photos ({it.photo_urls.length}/{MAX_ITEM_PHOTOS})
@@ -977,7 +977,7 @@ export default function SurveySectionScreen() {
                       value={it.moisture_reading}
                       onChangeText={(v) => updateItem(idx, { moisture_reading: v })}
                       keyboardType="decimal-pad"
-                      placeholder="0â€“100"
+                      placeholder="0–100"
                       placeholderTextColor={FAINT}
                       style={styles.input}
                     />
@@ -1015,7 +1015,7 @@ export default function SurveySectionScreen() {
         <View style={[styles.saveBar, { paddingBottom: insets.bottom + 12 }]}>
           {autoSavedAt && (
             <Text style={styles.autoSavedHint}>
-              Auto-saved Â· {new Date(autoSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              Auto-saved · {new Date(autoSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </Text>
           )}
           <Pressable
@@ -1044,7 +1044,7 @@ export default function SurveySectionScreen() {
           <View style={styles.previewBg}>
             {/* ScrollView gives free pinch-to-zoom on iOS via maximumZoomScale.
                 Android falls back to tap-to-dismiss (native ScrollView ignores
-                maximumZoomScale on Android â€” true cross-platform pinch would
+                maximumZoomScale on Android — true cross-platform pinch would
                 need a gesture-handler wrapper, deferred). */}
             <ScrollView
               style={{ flex: 1, width: "100%" }}
@@ -1096,7 +1096,7 @@ export default function SurveySectionScreen() {
             picker.type === "condition"
               ? CONDITION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))
               : picker.type === "rec"
-                ? [{ value: "", label: "None" }, ...REC_OPTIONS.map((o) => ({ value: o.value, label: `${o.short} â€” ${o.full}` }))]
+                ? [{ value: "", label: "None" }, ...REC_OPTIONS.map((o) => ({ value: o.value, label: `${o.short} — ${o.full}` }))]
                 : [
                     { value: "Low", label: "Low" },
                     { value: "Medium", label: "Medium" },
@@ -1227,8 +1227,8 @@ function VoiceNotesPanel({
             <View key={note.id} style={styles.voiceNoteRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.voiceNoteMeta}>
-                  {note.language.toUpperCase()} · {note.field_key.replace("section_data.", "")}
-                  {note.duration_seconds ? ` · ${Math.round(note.duration_seconds)}s` : ""}
+                  {note.language.toUpperCase()} � {note.field_key.replace("section_data.", "")}
+                  {note.duration_seconds ? ` � ${Math.round(note.duration_seconds)}s` : ""}
                 </Text>
                 <Text style={styles.voiceNoteText} numberOfLines={3}>
                   {note.edited_text || note.raw_transcript || note.error_message || "No transcript"}
@@ -1277,7 +1277,7 @@ function PolishPreviewSheet({
             </Pressable>
           </View>
           <Text style={styles.polishMeta}>
-            {preview.result.mode.toUpperCase()} · confidence {preview.result.confidence ?? "medium"}
+            {preview.result.mode.toUpperCase()} � confidence {preview.result.confidence ?? "medium"}
           </Text>
           <ScrollView style={styles.polishTextBox}>
             <Text style={styles.polishText}>{preview.result.polished_text}</Text>

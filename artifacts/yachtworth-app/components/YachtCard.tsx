@@ -13,7 +13,7 @@ import { CompletenessBar } from "./CompletenessBar";
 const NAVY_ELEV = "#142A52";
 const NAVY_DEEP = "#081633";
 const GOLD = "#C9A961";
-const IVORY = "#F7F3EC";
+const IVORY = "#C8FF00";
 const MUTED = "rgba(247,243,236,0.6)";
 const DIVIDER = "rgba(247,243,236,0.08)";
 
