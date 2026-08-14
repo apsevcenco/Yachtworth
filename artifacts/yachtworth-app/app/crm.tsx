@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,6 +20,7 @@ import {
   createBrokerContact,
   createBrokerContactActivity,
   createBrokerContactTask,
+  createBrokerCase,
   deleteBrokerContact,
   getBrokerContact,
   getBrokerContacts,
@@ -168,6 +169,7 @@ function draftPayload(draft: ContactDraft): UpsertBrokerContactInput {
 
 export default function CrmScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ contactId?: string }>();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { colors, isAcid } = useTheme();
@@ -197,6 +199,8 @@ export default function CrmScreen() {
       const result = await getBrokerContacts({ q: search, source });
       setData(result);
       setSelectedId((prev) => {
+        const contactId = Array.isArray(params.contactId) ? params.contactId[0] : params.contactId;
+        if (contactId && result.items.some((item) => item.id === contactId)) return contactId;
         if (keepSelection && prev && result.items.some((item) => item.id === prev)) return prev;
         return result.items[0]?.id ?? null;
       });
@@ -232,7 +236,7 @@ export default function CrmScreen() {
       loadContacts().catch(() => {});
     }, 220);
     return () => clearTimeout(timer);
-  }, [isLoaded, isSignedIn, search, source]);
+  }, [isLoaded, isSignedIn, search, source, params.contactId]);
 
   useEffect(() => {
     loadDetail(selectedId).catch(() => {});
@@ -352,6 +356,31 @@ export default function CrmScreen() {
     }
   }
 
+  function openCase(caseId: string) {
+    router.push({ pathname: "/broker-case-detail", params: { id: caseId } } as never);
+  }
+
+  async function createCaseFromSelected() {
+    if (!selected) return;
+    try {
+      const result = await createBrokerCase({
+        contact_id: selected.id,
+        title: `${selected.full_name} - New brokerage case`,
+        owner_name: selected.full_name,
+        case_type: "buyer_inquiry",
+        stage: "new_inquiry",
+        status: "active",
+        lead_score: "B",
+        risk_level: "medium",
+        close_probability: 30,
+        notes: selected.notes,
+      });
+      router.push({ pathname: "/broker-case-detail", params: { id: result.item.id } } as never);
+    } catch (err) {
+      Alert.alert("Could not create case", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   return (
     <View style={[styles.root, { paddingTop: (isWeb ? 62 : insets.top) + 64, backgroundColor: colors.background }]}>
       <ScrollView
@@ -455,6 +484,8 @@ export default function CrmScreen() {
                     activityDraft={activityDraft}
                     setActivityDraft={setActivityDraft}
                     addActivity={addActivity}
+                    onOpenCase={openCase}
+                    onCreateCase={createCaseFromSelected}
                   />
                 ) : (
                   <EmptyBlock title="Select a client" copy="Client details, communication history and follow-ups appear here." />
@@ -523,6 +554,8 @@ function ContactDetail(props: {
   activity: BrokerActivity[];
   onEdit: () => void;
   onDelete: () => void;
+  onOpenCase: (caseId: string) => void;
+  onCreateCase: () => void;
   taskDraft: TaskDraft;
   setTaskDraft: React.Dispatch<React.SetStateAction<TaskDraft>>;
   addTask: () => void;
@@ -541,6 +574,10 @@ function ContactDetail(props: {
           <Text style={[styles.detailMeta, { color: colors.mutedForeground }]}>{sourceLabel(c.source)} / updated {fmtDate(c.updated_at)}</Text>
         </View>
         <View style={styles.detailActions}>
+          <Pressable onPress={props.onCreateCase} style={[styles.smallButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
+            <Feather name="briefcase" size={15} color={colors.primary} />
+            <Text style={[styles.smallButtonText, { color: colors.primary }]}>Create case</Text>
+          </Pressable>
           <Pressable onPress={props.onEdit} style={[styles.smallButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
             <Feather name="edit-2" size={15} color={colors.primary} />
             <Text style={[styles.smallButtonText, { color: colors.primary }]}>Edit</Text>
@@ -602,7 +639,7 @@ function ContactDetail(props: {
       </View>
 
       <SectionTitle title="Linked Broker OS cases" />
-      {props.cases.length ? props.cases.map((item) => <CaseRow key={item.id} item={item} />) : <EmptyBlock title="No linked cases" copy="Create Broker OS cases from the operating screen when this client becomes an active opportunity." />}
+      {props.cases.length ? props.cases.map((item) => <CaseRow key={item.id} item={item} onPress={() => props.onOpenCase(item.id)} />) : <EmptyBlock title="No linked cases" copy="Create Broker OS cases from this client when they become an active opportunity." />}
 
       <SectionTitle title="Open tasks" />
       {props.tasks.length ? props.tasks.map((task) => <TaskRow key={task.id} task={task} />) : <EmptyInline text="No tasks for this client." />}
@@ -737,13 +774,16 @@ function SectionTitle({ title }: { title: string }) {
   return <Text style={[styles.sectionTitle, { color: colors.primary }]}>{title}</Text>;
 }
 
-function CaseRow({ item }: { item: BrokerContact["cases"][number] }) {
+function CaseRow({ item, onPress }: { item: BrokerContact["cases"][number]; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.rowCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-      <Text style={[styles.rowTitle, { color: colors.foreground }]}>{item.title}</Text>
-      <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>{item.case_type.replace(/_/g, " ")} / {item.stage.replace(/_/g, " ")} / {item.status}</Text>
-    </View>
+    <Pressable onPress={onPress} style={[styles.rowCard, styles.openableRow, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowTitle, { color: colors.foreground }]}>{item.title}</Text>
+        <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>{item.case_type.replace(/_/g, " ")} / {item.stage.replace(/_/g, " ")} / {item.status}</Text>
+      </View>
+      <Feather name="arrow-up-right" size={17} color={colors.primary} />
+    </Pressable>
   );
 }
 
@@ -851,6 +891,7 @@ const styles = StyleSheet.create({
   subPanel: { flex: 1, gap: 10 },
   sectionTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 14, marginTop: 4, textTransform: "uppercase", letterSpacing: 1.1 },
   rowCard: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
+  openableRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   rowTitle: { fontFamily: "Inter_800ExtraBold", fontSize: 14 },
   rowMeta: { fontFamily: "Inter_500Medium", fontSize: 12, textTransform: "capitalize" },
   rowBody: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 4 },

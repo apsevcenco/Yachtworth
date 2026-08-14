@@ -283,6 +283,15 @@ export default function BrokerCaseDetailScreen() {
                 <Feather name="users" size={17} color={colors.primary} />
                 <Text style={[styles.secondaryText, { color: colors.primary }]}>CRM</Text>
               </Pressable>
+              {item.contact_id ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: "/crm", params: { contactId: item.contact_id } } as never)}
+                  style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}
+                >
+                  <Feather name="user-check" size={17} color={colors.primary} />
+                  <Text style={[styles.secondaryText, { color: colors.primary }]}>Open linked contact</Text>
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={styles.metricsGrid}>

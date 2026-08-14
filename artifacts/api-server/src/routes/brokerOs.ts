@@ -751,7 +751,23 @@ router.post(
     }
 
     let contactId: string | null = null;
-    if (contactName) {
+    if (isUuid(body["contact_id"])) {
+      const { data: existingContact, error: existingContactErr } = await forClerkUser(
+        sb.from(BROKER_CONTACTS_TABLE).select("id"),
+        req.userId!,
+      )
+        .eq("id", body["contact_id"])
+        .maybeSingle();
+      if (existingContactErr) {
+        res.status(500).json({ error: existingContactErr.message });
+        return;
+      }
+      if (!existingContact) {
+        res.status(404).json({ error: "contact not found" });
+        return;
+      }
+      contactId = existingContact.id;
+    } else if (contactName) {
       const { data: contact, error: contactErr } = await sb
         .from(BROKER_CONTACTS_TABLE)
         .insert({

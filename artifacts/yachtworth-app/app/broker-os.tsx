@@ -27,6 +27,7 @@ import {
 } from "../lib/brokerOs";
 
 type ViewMode = "overview" | "pipeline" | "cases";
+type DueFilter = "all" | "overdue" | "today" | "no_action" | "stale";
 type Draft = {
   title: string;
   contact_name: string;
@@ -88,6 +89,12 @@ const PIPELINE = [
   { key: "closing", label: "Closing" },
 ] as const;
 
+const STAGE_FILTERS = ["all", "new_inquiry", "qualified", "proposal", "negotiation", "closing", "closed_won", "closed_lost"] as const;
+const STATUS_FILTERS = ["all", "active", "paused", "won", "lost", "archived"] as const;
+const LEAD_FILTERS = ["all", "A", "B", "C", "D"] as const;
+const RISK_FILTERS = ["all", "low", "medium", "high"] as const;
+const DUE_FILTERS: DueFilter[] = ["all", "overdue", "today", "no_action", "stale"];
+
 function numberOrNull(v: string): number | null {
   if (!v.trim()) return null;
   const n = Number(v.replace(/[,\s]/g, ""));
@@ -108,6 +115,38 @@ function daysLabel(v: string | null | undefined): string {
   return v;
 }
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function daysSince(v: string | null | undefined): number | null {
+  if (!v) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+
+function textHaystack(item: BrokerCase): string {
+  return [
+    item.title,
+    item.owner_name,
+    item.case_type,
+    item.stage,
+    item.status,
+    item.timeline,
+    item.next_action,
+    item.risk_reason,
+    item.notes,
+    ...(item.preferred_regions ?? []),
+    ...(item.mandatory_requirements ?? []),
+    ...(item.preferred_requirements ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 export default function BrokerOsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -123,6 +162,13 @@ export default function BrokerOsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [caseSearch, setCaseSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [leadFilter, setLeadFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [dueFilter, setDueFilter] = useState<DueFilter>("all");
 
   const metrics = useMemo(() => {
     const t = dashboard?.today;
@@ -133,6 +179,27 @@ export default function BrokerOsScreen() {
       { label: "Active cases", value: t?.active_cases ?? 0, icon: "briefcase" as const },
     ];
   }, [dashboard?.today]);
+
+  const filterCase = useMemo(() => {
+    const q = caseSearch.trim().toLowerCase();
+    const today = todayIso();
+    return (item: BrokerCase) => {
+      if (q && !textHaystack(item).includes(q)) return false;
+      if (typeFilter !== "all" && item.case_type !== typeFilter) return false;
+      if (stageFilter !== "all" && item.stage !== stageFilter) return false;
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
+      if (leadFilter !== "all" && item.lead_score !== leadFilter) return false;
+      if (riskFilter !== "all" && item.risk_level !== riskFilter) return false;
+      if (dueFilter === "overdue" && !(item.next_action_due && item.next_action_due < today)) return false;
+      if (dueFilter === "today" && item.next_action_due !== today) return false;
+      if (dueFilter === "no_action" && item.next_action) return false;
+      if (dueFilter === "stale" && !((daysSince(item.last_meaningful_contact_at) ?? 0) >= 7)) return false;
+      return true;
+    };
+  }, [caseSearch, dueFilter, leadFilter, riskFilter, stageFilter, statusFilter, typeFilter]);
+
+  const filteredPipeline = useMemo(() => pipeline.filter(filterCase), [filterCase, pipeline]);
+  const filteredCases = useMemo(() => cases.filter(filterCase), [cases, filterCase]);
 
   async function load() {
     if (!isSignedIn) return;
@@ -275,12 +342,31 @@ export default function BrokerOsScreen() {
               ))}
             </View>
 
+            <BrokerFilters
+              search={caseSearch}
+              setSearch={setCaseSearch}
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
+              stageFilter={stageFilter}
+              setStageFilter={setStageFilter}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              leadFilter={leadFilter}
+              setLeadFilter={setLeadFilter}
+              riskFilter={riskFilter}
+              setRiskFilter={setRiskFilter}
+              dueFilter={dueFilter}
+              setDueFilter={setDueFilter}
+              filteredCount={mode === "pipeline" ? filteredPipeline.length : filteredCases.length}
+              totalCount={mode === "pipeline" ? pipeline.length : cases.length}
+            />
+
             {mode === "overview" ? (
               <Overview dashboard={dashboard} openCase={openCase} />
             ) : mode === "pipeline" ? (
-              <Pipeline cases={pipeline} openCase={openCase} />
+              <Pipeline cases={filteredPipeline} openCase={openCase} />
             ) : (
-              <CaseList cases={cases} openCase={openCase} />
+              <CaseList cases={filteredCases} openCase={openCase} />
             )}
           </>
         )}
@@ -297,8 +383,82 @@ export default function BrokerOsScreen() {
   );
 }
 
+function BrokerFilters(props: {
+  search: string;
+  setSearch: (v: string) => void;
+  typeFilter: string;
+  setTypeFilter: (v: string) => void;
+  stageFilter: string;
+  setStageFilter: (v: string) => void;
+  statusFilter: string;
+  setStatusFilter: (v: string) => void;
+  leadFilter: string;
+  setLeadFilter: (v: string) => void;
+  riskFilter: string;
+  setRiskFilter: (v: string) => void;
+  dueFilter: DueFilter;
+  setDueFilter: (v: DueFilter) => void;
+  filteredCount: number;
+  totalCount: number;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.filterPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.filterHeader}>
+        <View style={[styles.searchBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+          <Feather name="search" size={17} color={colors.mutedForeground} />
+          <TextInput
+            value={props.search}
+            onChangeText={props.setSearch}
+            placeholder="Search cases, client, region, notes or next action"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.searchInput, { color: colors.foreground }]}
+          />
+        </View>
+        <Text style={[styles.filterCount, { color: colors.primary, backgroundColor: colors.glow ?? colors.secondary }]}>
+          {props.filteredCount}/{props.totalCount}
+        </Text>
+      </View>
+      <FilterLine label="Type">
+        <ChipRow
+          items={["all", ...CASE_TYPES.map(([value]) => value)]}
+          active={props.typeFilter}
+          onChange={props.setTypeFilter}
+        />
+      </FilterLine>
+      <FilterLine label="Stage">
+        <ChipRow items={STAGE_FILTERS} active={props.stageFilter} onChange={props.setStageFilter} />
+      </FilterLine>
+      <FilterLine label="Status">
+        <ChipRow items={STATUS_FILTERS} active={props.statusFilter} onChange={props.setStatusFilter} />
+      </FilterLine>
+      <FilterLine label="Lead">
+        <ChipRow items={LEAD_FILTERS} active={props.leadFilter} onChange={props.setLeadFilter} />
+      </FilterLine>
+      <FilterLine label="Risk">
+        <ChipRow items={RISK_FILTERS} active={props.riskFilter} onChange={props.setRiskFilter} />
+      </FilterLine>
+      <FilterLine label="Follow-up">
+        <ChipRow items={DUE_FILTERS} active={props.dueFilter} onChange={props.setDueFilter} />
+      </FilterLine>
+    </View>
+  );
+}
+
+function FilterLine({ label, children }: { label: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.filterLine}>
+      <Text style={[styles.filterLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <View style={{ flex: 1 }}>{children}</View>
+    </View>
+  );
+}
+
 function Overview({ dashboard, openCase }: { dashboard: BrokerDashboard | null; openCase: (id: string) => void }) {
   const { colors } = useTheme();
+  const highRisk = (dashboard?.priority_cases ?? []).filter((item) => item.risk_level === "high").slice(0, 4);
+  const stale = (dashboard?.priority_cases ?? []).filter((item) => (item.days_since_contact ?? 0) >= 7).slice(0, 4);
   return (
     <View style={styles.overviewGrid}>
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -316,17 +476,46 @@ function Overview({ dashboard, openCase }: { dashboard: BrokerDashboard | null; 
         <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.panelTitle, { color: colors.foreground }]}>Today</Text>
           {dashboard?.tasks.length ? dashboard.tasks.map((task) => (
-            <View key={task.id} style={[styles.taskRow, { borderBottomColor: colors.border }]}>
+            <Pressable
+              key={task.id}
+              onPress={() => task.case_id && openCase(task.case_id)}
+              disabled={!task.case_id}
+              style={[styles.taskRow, { borderBottomColor: colors.border }]}
+            >
               <Feather name="check-circle" size={15} color={colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.taskTitle, { color: colors.foreground }]}>{task.title}</Text>
                 <Text style={[styles.taskMeta, { color: colors.mutedForeground }]}>{daysLabel(task.due_date)} / {task.priority}</Text>
               </View>
-            </View>
+              {task.case_id ? <Feather name="arrow-up-right" size={15} color={colors.primary} /> : null}
+            </Pressable>
           )) : <EmptyBlock title="No urgent follow-ups" copy="Tasks appear here when a case has a next action due." />}
+        </View>
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.panelTitle, { color: colors.foreground }]}>Risk Watch</Text>
+          {highRisk.length ? highRisk.map((item) => <CaseMini key={item.id} item={item} onPress={() => openCase(item.id)} />) : <EmptyBlock title="No high-risk cases" copy="High-risk opportunities appear here for quick control." />}
+        </View>
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.panelTitle, { color: colors.foreground }]}>Stale Cases</Text>
+          {stale.length ? stale.map((item) => <CaseMini key={item.id} item={item} onPress={() => openCase(item.id)} />) : <EmptyBlock title="No stale cases" copy="Cases without meaningful contact for 7+ days appear here." />}
         </View>
       </View>
     </View>
+  );
+}
+
+function CaseMini({ item, onPress }: { item: BrokerCase; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} style={[styles.miniCase, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.taskTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
+        <Text style={[styles.taskMeta, { color: colors.mutedForeground }]}>
+          {caseTypeLabel(item.case_type)} / {item.stage.replace(/_/g, " ")} / {item.days_since_contact ?? "-"}d
+        </Text>
+      </View>
+      <Text style={[styles.riskText, { color: riskColor(item.risk_level) }]}>{item.risk_level}</Text>
+    </Pressable>
   );
 }
 
@@ -540,6 +729,13 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
   tab: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
   tabText: { fontFamily: "Inter_800ExtraBold", fontSize: 12, textTransform: "capitalize" },
+  filterPanel: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 10, marginBottom: 14 },
+  filterHeader: { flexDirection: "row", gap: 10, alignItems: "center" },
+  searchBox: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 10 },
+  searchInput: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, minHeight: 44 },
+  filterCount: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8, fontFamily: "Inter_800ExtraBold", fontSize: 12 },
+  filterLine: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 8, alignItems: Platform.OS === "web" ? "center" : "stretch" },
+  filterLabel: { width: Platform.OS === "web" ? 88 : "100%", fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase" },
   overviewGrid: { gap: 14, flexDirection: Platform.OS === "web" ? "row" : "column", alignItems: "flex-start" },
   panel: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 16, width: "100%" },
   sideColumn: { flex: 0.75, gap: 14, width: "100%" },
@@ -550,6 +746,7 @@ const styles = StyleSheet.create({
   taskRow: { flexDirection: "row", gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
   taskTitle: { fontFamily: "Inter_700Bold", fontSize: 13 },
   taskMeta: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
+  miniCase: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 12, padding: 11, marginBottom: 8 },
   pipeline: { gap: 12, paddingBottom: 8 },
   pipelineColumn: { width: Platform.OS === "web" ? 280 : 270, borderRadius: 16, borderWidth: 1, padding: 12 },
   pipelineHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },

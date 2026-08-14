@@ -176,6 +176,8 @@ export type CreateBrokerCaseInput = {
   contact_phone?: string | null;
   owner_name?: string | null;
   case_type?: string | null;
+  stage?: string | null;
+  status?: "active" | "paused" | "won" | "lost" | "archived" | string;
   lead_score?: "A" | "B" | "C" | "D";
   budget_min_eur?: number | null;
   budget_max_eur?: number | null;
@@ -202,8 +204,6 @@ export type BrokerCaseDetail = {
 };
 
 export type UpdateBrokerCaseInput = CreateBrokerCaseInput & {
-  stage?: string | null;
-  status?: "active" | "paused" | "won" | "lost" | "archived" | string;
   acceptable_compromises?: string[] | string;
   rejected_characteristics?: string[] | string;
 };
