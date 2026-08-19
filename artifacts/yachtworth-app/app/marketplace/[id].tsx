@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -36,9 +37,35 @@ function snapshotValue(item: YachtNetworkListing, key: string): string | number 
   return typeof value === "string" || typeof value === "number" ? value : null;
 }
 
+function snapshotBool(item: YachtNetworkListing, key: string): boolean | null {
+  const value = item.yacht_snapshot?.[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+function snapshotList(item: YachtNetworkListing, key: string): string[] {
+  const value = item.yacht_snapshot?.[key];
+  return Array.isArray(value) ? value.filter((url): url is string => typeof url === "string" && url.trim().length > 0) : [];
+}
+
+function yesNo(value: boolean | null): string | null {
+  return value == null ? null : value ? "Yes" : "No";
+}
+
 function photos(item: YachtNetworkListing): string[] {
   const gallery = Array.isArray(item.photo_urls) ? item.photo_urls.filter((url): url is string => typeof url === "string") : [];
-  return [item.cover_photo_url, ...gallery].filter((url, index, arr): url is string => typeof url === "string" && arr.indexOf(url) === index);
+  return [
+    item.cover_photo_url,
+    ...gallery,
+    snapshotValue(item, "cover_photo_url"),
+    snapshotValue(item, "photo_url"),
+    ...snapshotList(item, "photo_urls"),
+  ].filter((url, index, arr): url is string => typeof url === "string" && url.trim().length > 0 && arr.indexOf(url) === index);
+}
+
+type FactPair = [string, string | number | null | undefined];
+
+function cleanFacts(items: FactPair[]): [string, string | number][] {
+  return items.filter((item): item is [string, string | number] => item[1] != null && item[1] !== "");
 }
 
 export default function MarketplaceDetailScreen() {
@@ -156,20 +183,62 @@ function ListingDetail({
   onOpenMessages: () => void;
 }) {
   const gallery = photos(item);
-  const facts = [
-    ["Builder", snapshotValue(item, "brand") ?? snapshotValue(item, "builder")],
-    ["Model", snapshotValue(item, "model")],
-    ["Year", snapshotValue(item, "year_built")],
-    ["Length", snapshotValue(item, "length_meters") ? `${snapshotValue(item, "length_meters")} m` : null],
-    ["Beam", snapshotValue(item, "beam_meters") ? `${snapshotValue(item, "beam_meters")} m` : null],
-    ["Draft", snapshotValue(item, "draft_meters") ? `${snapshotValue(item, "draft_meters")} m` : null],
-    ["Cabins", snapshotValue(item, "cabins")],
-    ["Guests", snapshotValue(item, "guests")],
-    ["Crew", snapshotValue(item, "crew")],
-    ["Flag", snapshotValue(item, "flag")],
-    ["Location", item.location],
-    ["Availability", item.availability],
-  ].filter(([, value]) => value != null && value !== "");
+  const [activePhoto, setActivePhoto] = useState<number | null>(null);
+  const builder = snapshotValue(item, "brand") ?? snapshotValue(item, "builder");
+  const length = snapshotValue(item, "length_meters");
+  const beam = snapshotValue(item, "beam_meters");
+  const draft = snapshotValue(item, "draft_meters");
+  const purchasePrice = snapshotValue(item, "purchase_price_eur");
+  const facts = {
+    listing: cleanFacts([
+      ["Listing type", item.listing_type],
+      ["Status", item.status],
+      ["Visibility", item.visibility],
+      ["Location", item.location],
+      ["Availability", item.availability],
+      ["Asking price", money(item.asking_price_eur, item.currency ?? "EUR")],
+      ["Charter rate", item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null],
+    ]),
+    identity: cleanFacts([
+      ["Name", snapshotValue(item, "name")],
+      ["Builder", builder],
+      ["Model", snapshotValue(item, "model")],
+      ["Year", snapshotValue(item, "year_built")],
+      ["Type", snapshotValue(item, "yacht_type")],
+      ["Configuration", snapshotValue(item, "configuration")],
+    ]),
+    dimensions: cleanFacts([
+      ["LOA", length ? `${length} m` : null],
+      ["Beam", beam ? `${beam} m` : null],
+      ["Draft", draft ? `${draft} m` : null],
+      ["Cabins", snapshotValue(item, "cabins")],
+      ["Guest capacity", snapshotValue(item, "guests")],
+      ["Berths", snapshotValue(item, "berths")],
+      ["Heads", snapshotValue(item, "heads")],
+      ["Crew", snapshotValue(item, "crew")],
+      ["Crew cabins", snapshotValue(item, "crew_cabins")],
+    ]),
+    registration: cleanFacts([
+      ["Flag", snapshotValue(item, "flag")],
+      ["Home port", snapshotValue(item, "home_port")],
+      ["Marina", snapshotValue(item, "marina_location")],
+      ["VAT status", snapshotValue(item, "vat_status")],
+      ["Commercial registration", yesNo(snapshotBool(item, "commercial_registration"))],
+    ]),
+    machinery: cleanFacts([
+      ["Engine maker", snapshotValue(item, "engine_maker")],
+      ["Engine model", snapshotValue(item, "engine_model")],
+      ["Engine count", snapshotValue(item, "engine_count")],
+      ["Total HP", snapshotValue(item, "total_hp")],
+      ["Engine hours", snapshotValue(item, "engine_hours")],
+    ]),
+    ownership: cleanFacts([
+      ["Owner role", snapshotValue(item, "owner_role")],
+      ["Purchase price", typeof purchasePrice === "number" ? money(purchasePrice, item.currency ?? "EUR") : purchasePrice],
+      ["Purchase year", snapshotValue(item, "purchase_year")],
+      ["Financing type", snapshotValue(item, "financing_type")],
+    ]),
+  };
 
   const price = money(item.asking_price_eur, item.currency ?? "EUR");
   const rate = item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null;
@@ -179,7 +248,13 @@ function ListingDetail({
       <View style={styles.hero}>
         <View style={styles.galleryBlock}>
           {gallery[0] ? (
-            <Image source={{ uri: gallery[0] }} style={styles.heroImage} />
+            <Pressable onPress={() => setActivePhoto(0)}>
+              <Image source={{ uri: gallery[0] }} style={styles.heroImage} resizeMode="cover" />
+              <View style={styles.openPhotoBadge}>
+                <Feather name="maximize-2" size={15} color={NAVY} />
+                <Text style={styles.openPhotoText}>Open photo</Text>
+              </View>
+            </Pressable>
           ) : (
             <View style={styles.heroFallback}>
               <Feather name="anchor" size={42} color={GOLD} />
@@ -187,8 +262,11 @@ function ListingDetail({
           )}
           {gallery.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbRow}>
-              {gallery.slice(1).map((url) => (
-                <Image key={url} source={{ uri: url }} style={styles.thumb} />
+              {gallery.map((url, index) => (
+                <Pressable key={url} onPress={() => setActivePhoto(index)} style={styles.thumbWrap}>
+                  <Image source={{ uri: url }} style={styles.thumb} resizeMode="cover" />
+                  <Text style={styles.thumbCount}>{index + 1}</Text>
+                </Pressable>
               ))}
             </ScrollView>
           ) : null}
@@ -209,17 +287,19 @@ function ListingDetail({
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Yacht particulars</Text>
-        <View style={styles.detailGrid}>
-          {facts.map(([label, value]) => (
-            <View key={label} style={styles.fact}>
-              <Text style={styles.factLabel}>{label}</Text>
-              <Text style={styles.factValue}>{String(value)}</Text>
-            </View>
-          ))}
+      <FactSection title="Listing terms" facts={facts.listing} />
+      <FactSection title="Identity" facts={facts.identity} />
+      <FactSection title="Dimensions & accommodation" facts={facts.dimensions} />
+      <FactSection title="Registration & location" facts={facts.registration} />
+      <FactSection title="Machinery" facts={facts.machinery} />
+      <FactSection title="Ownership & financial snapshot" facts={facts.ownership} />
+
+      {snapshotValue(item, "notes") ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Yacht notes</Text>
+          <Text style={styles.description}>{snapshotValue(item, "notes")}</Text>
         </View>
-      </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Participant contact</Text>
@@ -251,7 +331,84 @@ function ListingDetail({
           ) : null}
         </View>
       </View>
+
+      <PhotoViewer
+        urls={gallery}
+        index={activePhoto}
+        title={item.title}
+        onClose={() => setActivePhoto(null)}
+        onChange={setActivePhoto}
+      />
     </View>
+  );
+}
+
+function FactSection({ title, facts }: { title: string; facts: [string, string | number][] }) {
+  if (!facts.length) return null;
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.detailGrid}>
+        {facts.map(([label, value]) => (
+          <View key={label} style={styles.fact}>
+            <Text style={styles.factLabel}>{label}</Text>
+            <Text style={styles.factValue}>{String(value)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PhotoViewer({
+  urls,
+  index,
+  title,
+  onClose,
+  onChange,
+}: {
+  urls: string[];
+  index: number | null;
+  title: string;
+  onClose: () => void;
+  onChange: (index: number) => void;
+}) {
+  const current = index == null ? null : urls[index];
+  const canPrev = index != null && index > 0;
+  const canNext = index != null && index < urls.length - 1;
+  if (index == null || !current) return null;
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.viewer}>
+        <View style={styles.viewerTop}>
+          <View style={styles.viewerTitleBlock}>
+            <Text style={styles.viewerTitle} numberOfLines={1}>{title}</Text>
+            <Text style={styles.viewerCounter}>{index + 1} / {urls.length}</Text>
+          </View>
+          <Pressable style={styles.viewerIcon} onPress={onClose}>
+            <Feather name="x" size={24} color={IVORY} />
+          </Pressable>
+        </View>
+        <View style={styles.viewerBody}>
+          <Pressable style={[styles.viewerNav, !canPrev && styles.viewerNavDisabled]} disabled={!canPrev} onPress={() => onChange(index - 1)}>
+            <Feather name="chevron-left" size={28} color={IVORY} />
+          </Pressable>
+          <Image source={{ uri: current }} style={styles.viewerImage} resizeMode="contain" />
+          <Pressable style={[styles.viewerNav, !canNext && styles.viewerNavDisabled]} disabled={!canNext} onPress={() => onChange(index + 1)}>
+            <Feather name="chevron-right" size={28} color={IVORY} />
+          </Pressable>
+        </View>
+        {urls.length > 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewerThumbs}>
+            {urls.map((url, photoIndex) => (
+              <Pressable key={url} onPress={() => onChange(photoIndex)} style={[styles.viewerThumbWrap, photoIndex === index && styles.viewerThumbActive]}>
+                <Image source={{ uri: url }} style={styles.viewerThumb} resizeMode="cover" />
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
+      </View>
+    </Modal>
   );
 }
 
@@ -274,8 +431,12 @@ const styles = StyleSheet.create({
   galleryBlock: { flex: 1.1, gap: 10 },
   heroImage: { width: "100%", height: Platform.OS === "web" ? 520 : 320, borderRadius: 8, backgroundColor: PANEL },
   heroFallback: { width: "100%", height: Platform.OS === "web" ? 520 : 320, borderRadius: 8, backgroundColor: PANEL, alignItems: "center", justifyContent: "center" },
+  openPhotoBadge: { position: "absolute", right: 12, bottom: 12, minHeight: 34, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10 },
+  openPhotoText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 12 },
   thumbRow: { gap: 10 },
+  thumbWrap: { width: 140, height: 95 },
   thumb: { width: 140, height: 95, borderRadius: 8, backgroundColor: PANEL },
+  thumbCount: { position: "absolute", left: 7, top: 7, color: NAVY, backgroundColor: GOLD, overflow: "hidden", borderRadius: 999, minWidth: 22, height: 22, textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 12, lineHeight: 22 },
   summary: { flex: 0.9, borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: NAVY_DEEP, padding: 18, alignSelf: "flex-start", width: Platform.OS === "web" ? undefined : "100%" },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },
   title: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: Platform.OS === "web" ? 42 : 32, lineHeight: Platform.OS === "web" ? 50 : 38, marginTop: 10 },
@@ -297,4 +458,18 @@ const styles = StyleSheet.create({
   removeButton: { minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: RED, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16, marginTop: 18 },
   removeText: { color: RED, fontFamily: "Inter_700Bold", fontSize: 14 },
   disabled: { opacity: 0.5 },
+  viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.94)", paddingHorizontal: Platform.OS === "web" ? 24 : 12, paddingVertical: Platform.OS === "web" ? 24 : 42 },
+  viewerTop: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 14 },
+  viewerTitleBlock: { flex: 1, minWidth: 0 },
+  viewerTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 18 },
+  viewerCounter: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, marginTop: 3 },
+  viewerIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(247,243,236,0.12)", alignItems: "center", justifyContent: "center" },
+  viewerBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: Platform.OS === "web" ? 16 : 6 },
+  viewerImage: { flex: 1, height: "100%" },
+  viewerNav: { width: 44, height: 64, borderRadius: 8, backgroundColor: "rgba(247,243,236,0.12)", alignItems: "center", justifyContent: "center" },
+  viewerNavDisabled: { opacity: 0.22 },
+  viewerThumbs: { gap: 10, paddingTop: 14 },
+  viewerThumbWrap: { width: 92, height: 62, borderRadius: 8, borderWidth: 1, borderColor: "transparent", overflow: "hidden" },
+  viewerThumbActive: { borderColor: GOLD },
+  viewerThumb: { width: "100%", height: "100%" },
 });
