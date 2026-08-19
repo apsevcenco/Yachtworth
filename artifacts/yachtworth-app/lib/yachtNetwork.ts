@@ -31,6 +31,35 @@ export type YachtNetworkListing = {
   is_owner?: boolean | null;
 };
 
+export type NetworkConversation = {
+  id: string;
+  listing_id: string;
+  listing_owner_user_id: string;
+  starter_user_id: string;
+  status: "active" | "archived";
+  last_message_text?: string | null;
+  last_message_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  listing?: YachtNetworkListing | null;
+  other_participant_user_id?: string | null;
+  is_listing_owner?: boolean | null;
+};
+
+export type NetworkMessage = {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  body: string;
+  read_at?: string | null;
+  created_at?: string | null;
+};
+
+export type NetworkConversationDetail = {
+  conversation: NetworkConversation;
+  items: NetworkMessage[];
+};
+
 export type PublishNetworkListingInput = {
   yacht_id: string;
   listing_type: NetworkListingType;
@@ -126,4 +155,24 @@ export async function updateNetworkListing(id: string, input: Partial<PublishNet
 
 export async function archiveNetworkListing(id: string): Promise<void> {
   await request(`/api/network/listings/${id}`, { method: "DELETE" });
+}
+
+export async function listNetworkConversations(): Promise<NetworkConversation[]> {
+  const data = await request<{ items: NetworkConversation[] }>("/api/network/conversations");
+  return data.items;
+}
+
+export async function startNetworkConversation(listingId: string): Promise<NetworkConversation> {
+  return request(`/api/network/listings/${listingId}/conversations`, { method: "POST" });
+}
+
+export async function getNetworkConversationMessages(conversationId: string): Promise<NetworkConversationDetail> {
+  return request(`/api/network/conversations/${conversationId}/messages`);
+}
+
+export async function sendNetworkMessage(conversationId: string, body: string): Promise<NetworkMessage> {
+  return request(`/api/network/conversations/${conversationId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
 }

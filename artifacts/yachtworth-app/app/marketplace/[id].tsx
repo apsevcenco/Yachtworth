@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { archiveNetworkListing, getNetworkListing, type YachtNetworkListing } from "@/lib/yachtNetwork";
+import { archiveNetworkListing, getNetworkListing, startNetworkConversation, type YachtNetworkListing } from "@/lib/yachtNetwork";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -48,6 +48,7 @@ export default function MarketplaceDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === "string" ? params.id : "";
   const [removing, setRemoving] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
 
   const listingQ = useQuery({
     queryKey: ["marketplace-listing", id],
@@ -81,6 +82,19 @@ export default function MarketplaceDetailScreen() {
     ]);
   };
 
+  const messageListing = async () => {
+    if (!item || item.is_owner || startingChat) return;
+    try {
+      setStartingChat(true);
+      const conversation = await startNetworkConversation(item.id);
+      router.push(`/network-chat/${conversation.id}` as never);
+    } catch (err) {
+      Alert.alert("Message unavailable", err instanceof Error ? err.message : "Could not start conversation");
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
   return (
     <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -106,7 +120,7 @@ export default function MarketplaceDetailScreen() {
             <Text style={styles.muted}>Loading listing...</Text>
           </View>
         ) : item ? (
-          <ListingDetail item={item} removing={removing} onRemove={removeFromListing} />
+          <ListingDetail item={item} removing={removing} startingChat={startingChat} onRemove={removeFromListing} onMessage={messageListing} />
         ) : (
           <View style={styles.emptyBox}>
             <Feather name="alert-circle" size={28} color={GOLD} />
@@ -119,7 +133,19 @@ export default function MarketplaceDetailScreen() {
   );
 }
 
-function ListingDetail({ item, removing, onRemove }: { item: YachtNetworkListing; removing: boolean; onRemove: () => void }) {
+function ListingDetail({
+  item,
+  removing,
+  startingChat,
+  onRemove,
+  onMessage,
+}: {
+  item: YachtNetworkListing;
+  removing: boolean;
+  startingChat: boolean;
+  onRemove: () => void;
+  onMessage: () => void;
+}) {
   const gallery = photos(item);
   const facts = [
     ["Builder", snapshotValue(item, "brand") ?? snapshotValue(item, "builder")],
@@ -191,10 +217,16 @@ function ListingDetail({ item, removing, onRemove }: { item: YachtNetworkListing
         <Text style={styles.contactText}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
         <Text style={styles.contactText}>{[item.contact_email, item.contact_phone].filter(Boolean).join(" - ") || "Contact details are available inside Yachtworth."}</Text>
         <View style={styles.contactActions}>
+          {!item.is_owner ? (
+            <Pressable style={styles.actionButton} disabled={startingChat} onPress={onMessage}>
+              {startingChat ? <ActivityIndicator color={NAVY} /> : <Feather name="message-circle" size={18} color={NAVY} />}
+              <Text style={styles.actionText}>{startingChat ? "Opening..." : "Message inside Yachtworth"}</Text>
+            </Pressable>
+          ) : null}
           {item.contact_email ? (
-            <Pressable style={styles.actionButton} onPress={() => Linking.openURL(`mailto:${item.contact_email}`)}>
-              <Feather name="mail" size={18} color={NAVY} />
-              <Text style={styles.actionText}>Email</Text>
+            <Pressable style={styles.secondaryButton} onPress={() => Linking.openURL(`mailto:${item.contact_email}`)}>
+              <Feather name="mail" size={18} color={GOLD} />
+              <Text style={styles.secondaryText}>Email</Text>
             </Pressable>
           ) : null}
           {item.contact_phone ? (

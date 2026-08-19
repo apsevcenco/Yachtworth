@@ -72,10 +72,16 @@ export default function MarketplaceIndexScreen() {
               <Text style={styles.pageTitle}>Marketplace</Text>
             </View>
           </View>
-          <Pressable style={styles.publishButton} onPress={() => router.push("/yacht-network" as never)}>
-            <Feather name="upload-cloud" size={17} color={NAVY} />
-            <Text style={styles.publishText}>Publish yacht</Text>
-          </Pressable>
+          <View style={styles.topActions}>
+            <Pressable style={styles.messagesButton} onPress={() => router.push("/network-messages" as never)}>
+              <Feather name="message-circle" size={17} color={GOLD} />
+              <Text style={styles.messagesText}>Messages</Text>
+            </Pressable>
+            <Pressable style={styles.publishButton} onPress={() => router.push("/yacht-network" as never)}>
+              <Feather name="upload-cloud" size={17} color={NAVY} />
+              <Text style={styles.publishText}>Publish yacht</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.hero}>
@@ -204,6 +210,9 @@ const styles = StyleSheet.create({
   brandBlock: { flex: 1 },
   scope: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.2, marginTop: 5 },
   pageTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 30, lineHeight: 36, marginTop: 6 },
+  topActions: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 10, alignSelf: Platform.OS === "web" ? "flex-start" : "stretch" },
+  messagesButton: { minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  messagesText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
   publishButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
   publishText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   scroll: { padding: 24, paddingBottom: 58 },

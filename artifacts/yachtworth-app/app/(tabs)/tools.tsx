@@ -150,6 +150,15 @@ const TOOLS: Tool[] = [
     route: "/marketplace",
   },
   {
+    key: "network_messages",
+    icon: "message-circle",
+    title: "Network Messages",
+    subtitle: "Listing conversations",
+    roles: ["broker", "owner", "charter"],
+    status: "live",
+    route: "/network-messages",
+  },
+  {
     key: "broker_os",
     icon: "briefcase",
     title: "Broker OS",

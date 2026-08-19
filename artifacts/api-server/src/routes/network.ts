@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import {
   getSupabase,
+  NETWORK_CONVERSATIONS_TABLE,
+  NETWORK_MESSAGES_TABLE,
   YACHT_NETWORK_LISTINGS_TABLE,
   YACHTS_TABLE,
 } from "../lib/supabase";
@@ -19,6 +21,10 @@ const YACHT_SNAPSHOT_COLUMNS =
 
 const NETWORK_COLUMNS =
   "id,clerk_user_id,yacht_id,listing_type,status,visibility,title,description,asking_price_eur,charter_rate_eur_week,currency,location,availability,broker_name,broker_company,contact_email,contact_phone,cover_photo_url,photo_urls,yacht_snapshot,created_at,updated_at,published_at";
+const CONVERSATION_COLUMNS =
+  "id,listing_id,listing_owner_user_id,starter_user_id,status,last_message_text,last_message_at,created_at,updated_at";
+const MESSAGE_COLUMNS =
+  "id,conversation_id,sender_user_id,body,read_at,created_at";
 
 function str(value: unknown, max = 400): string | null {
   return typeof value === "string" && value.trim()
@@ -49,6 +55,43 @@ function compactListing(row: Record<string, unknown>, userId: string) {
     ...row,
     is_owner: row["clerk_user_id"] === userId,
   };
+}
+
+function userIsParticipant(row: Record<string, unknown>, userId: string): boolean {
+  return row["listing_owner_user_id"] === userId || row["starter_user_id"] === userId;
+}
+
+function otherParticipant(row: Record<string, unknown>, userId: string): string {
+  return row["listing_owner_user_id"] === userId
+    ? String(row["starter_user_id"] ?? "")
+    : String(row["listing_owner_user_id"] ?? "");
+}
+
+function compactConversation(
+  row: Record<string, unknown>,
+  listing: Record<string, unknown> | null | undefined,
+  userId: string,
+) {
+  return {
+    ...row,
+    listing: listing ? compactListing(listing, userId) : null,
+    other_participant_user_id: otherParticipant(row, userId),
+    is_listing_owner: row["listing_owner_user_id"] === userId,
+  };
+}
+
+async function getConversationForUser(id: string, userId: string) {
+  const sb = getSupabase();
+  if (!sb) return { data: null, error: null };
+  const { data, error } = await sb
+    .from(NETWORK_CONVERSATIONS_TABLE)
+    .select(CONVERSATION_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return { data: null, error };
+  const row = data as Record<string, unknown>;
+  if (!userIsParticipant(row, userId)) return { data: null, error: null };
+  return { data: row, error: null };
 }
 
 router.get(
@@ -361,6 +404,255 @@ router.delete(
       return;
     }
     res.status(204).send();
+  },
+);
+
+router.get(
+  "/network/conversations",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const sb = getSupabase();
+    if (!sb) {
+      res.json({ items: [] });
+      return;
+    }
+
+    const { data, error } = await sb
+      .from(NETWORK_CONVERSATIONS_TABLE)
+      .select(CONVERSATION_COLUMNS)
+      .or(`listing_owner_user_id.eq.${req.userId!},starter_user_id.eq.${req.userId!}`)
+      .neq("status", "archived")
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .order("updated_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      req.log.error({ err: error.message }, "network conversations failed");
+      res.status(503).json({ error: "Could not load conversations" });
+      return;
+    }
+
+    const conversations = (data ?? []) as Record<string, unknown>[];
+    const listingIds = Array.from(
+      new Set(conversations.map((row) => String(row["listing_id"] ?? "")).filter(Boolean)),
+    );
+    let listingById = new Map<string, Record<string, unknown>>();
+    if (listingIds.length) {
+      const { data: listings, error: listingsError } = await sb
+        .from(YACHT_NETWORK_LISTINGS_TABLE)
+        .select(NETWORK_COLUMNS)
+        .in("id", listingIds);
+      if (listingsError) {
+        req.log.warn({ err: listingsError.message }, "network conversation listings failed");
+      } else {
+        listingById = new Map(
+          ((listings ?? []) as Record<string, unknown>[]).map((row) => [String(row["id"]), row]),
+        );
+      }
+    }
+
+    res.json({
+      items: conversations.map((row) =>
+        compactConversation(row, listingById.get(String(row["listing_id"])), req.userId!),
+      ),
+    });
+  },
+);
+
+router.post(
+  "/network/listings/:id/conversations",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const id = req.params["id"] ?? "";
+    if (!isUuid(id)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Network messaging is not configured" });
+      return;
+    }
+
+    const { data: listing, error: listingError } = await sb
+      .from(YACHT_NETWORK_LISTINGS_TABLE)
+      .select(NETWORK_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+    if (listingError || !listing) {
+      res.status(404).json({ error: "Listing not found" });
+      return;
+    }
+
+    const listingRow = listing as Record<string, unknown>;
+    const ownerUserId = String(listingRow["clerk_user_id"] ?? "");
+    const isOwner = ownerUserId === req.userId!;
+    if (!isOwner && (listingRow["status"] !== "active" || !["internal", "broker_network"].includes(String(listingRow["visibility"])))) {
+      res.status(404).json({ error: "Listing not found" });
+      return;
+    }
+    if (isOwner) {
+      res.status(400).json({ error: "This is your listing. Open Messages to view incoming conversations." });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const row = {
+      listing_id: id,
+      listing_owner_user_id: ownerUserId,
+      starter_user_id: req.userId!,
+      status: "active",
+      updated_at: now,
+    };
+
+    const { data, error } = await sb
+      .from(NETWORK_CONVERSATIONS_TABLE)
+      .upsert(row, {
+        onConflict: "listing_id,listing_owner_user_id,starter_user_id",
+      })
+      .select(CONVERSATION_COLUMNS)
+      .single();
+    if (error || !data) {
+      req.log.error({ err: error?.message }, "start network conversation failed");
+      res.status(503).json({ error: "Could not start conversation" });
+      return;
+    }
+
+    res.status(201).json(compactConversation(data as Record<string, unknown>, listingRow, req.userId!));
+  },
+);
+
+router.get(
+  "/network/conversations/:id/messages",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const id = req.params["id"] ?? "";
+    if (!isUuid(id)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const { data: conversation, error: conversationError } = await getConversationForUser(id, req.userId!);
+    if (conversationError) {
+      req.log.error({ err: conversationError.message }, "network conversation lookup failed");
+      res.status(503).json({ error: "Could not load conversation" });
+      return;
+    }
+    if (!conversation) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+
+    const { data: listing } = await sb
+      .from(YACHT_NETWORK_LISTINGS_TABLE)
+      .select(NETWORK_COLUMNS)
+      .eq("id", String(conversation["listing_id"]))
+      .maybeSingle();
+
+    const { data, error } = await sb
+      .from(NETWORK_MESSAGES_TABLE)
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", id)
+      .order("created_at", { ascending: true })
+      .limit(500);
+
+    if (error) {
+      req.log.error({ err: error.message }, "network messages failed");
+      res.status(503).json({ error: "Could not load messages" });
+      return;
+    }
+
+    await sb
+      .from(NETWORK_MESSAGES_TABLE)
+      .update({ read_at: new Date().toISOString() })
+      .eq("conversation_id", id)
+      .neq("sender_user_id", req.userId!)
+      .is("read_at", null);
+
+    res.json({
+      conversation: compactConversation(
+        conversation,
+        listing ? (listing as Record<string, unknown>) : null,
+        req.userId!,
+      ),
+      items: data ?? [],
+    });
+  },
+);
+
+router.post(
+  "/network/conversations/:id/messages",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    const id = req.params["id"] ?? "";
+    if (!isUuid(id)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const message = str(body["body"], 4000);
+    if (!message) {
+      res.status(400).json({ error: "Message text required" });
+      return;
+    }
+
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Network messaging is not configured" });
+      return;
+    }
+
+    const { data: conversation, error: conversationError } = await getConversationForUser(id, req.userId!);
+    if (conversationError) {
+      req.log.error({ err: conversationError.message }, "network conversation lookup failed");
+      res.status(503).json({ error: "Could not load conversation" });
+      return;
+    }
+    if (!conversation) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await sb
+      .from(NETWORK_MESSAGES_TABLE)
+      .insert({
+        conversation_id: id,
+        sender_user_id: req.userId!,
+        body: message,
+        created_at: now,
+      })
+      .select(MESSAGE_COLUMNS)
+      .single();
+
+    if (error || !data) {
+      req.log.error({ err: error?.message }, "send network message failed");
+      res.status(503).json({ error: "Could not send message" });
+      return;
+    }
+
+    await sb
+      .from(NETWORK_CONVERSATIONS_TABLE)
+      .update({
+        last_message_text: message,
+        last_message_at: now,
+        updated_at: now,
+      })
+      .eq("id", id);
+
+    res.status(201).json(data);
   },
 );
 
