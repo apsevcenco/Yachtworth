@@ -31,7 +31,7 @@ export default function NetworkMessagesScreen() {
   const conversationsQ = useQuery({
     queryKey: ["network-conversations"],
     queryFn: listNetworkConversations,
-    refetchInterval: 10000,
+    refetchInterval: 5000,
   });
 
   const items = conversationsQ.data ?? [];
@@ -87,6 +87,7 @@ function ConversationCard({ item, onOpen }: { item: NetworkConversation; onOpen:
   const role = item.is_listing_owner ? "Incoming inquiry" : "Your inquiry";
   const title = listing?.title ?? "Marketplace conversation";
   const meta = [listing?.location, listing?.listing_type, role].filter(Boolean).join(" - ");
+  const unread = Math.max(0, Number(item.unread_count ?? 0));
 
   return (
     <Pressable
@@ -110,7 +111,13 @@ function ConversationCard({ item, onOpen }: { item: NetworkConversation; onOpen:
           {item.last_message_text || "No messages yet. Open the conversation to send the first message."}
         </Text>
       </View>
-      <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+      {unread > 0 ? (
+        <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.unreadText, { color: colors.background }]}>{unread > 99 ? "99+" : unread}</Text>
+        </View>
+      ) : (
+        <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+      )}
     </Pressable>
   );
 }
@@ -136,6 +143,8 @@ const styles = StyleSheet.create({
   cardDate: { fontFamily: "Inter_500Medium", fontSize: 11 },
   cardMeta: { fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
   lastMessage: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, marginTop: 7 },
+  unreadBadge: { minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 7, alignItems: "center", justifyContent: "center" },
+  unreadText: { fontFamily: "Inter_700Bold", fontSize: 11 },
   center: { alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 8, padding: 24 },
   muted: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, textAlign: "center" },
   emptyTitle: { fontFamily: "Inter_700Bold", fontSize: 18 },

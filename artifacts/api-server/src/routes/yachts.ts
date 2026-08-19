@@ -84,6 +84,17 @@ function titleFromYacht(row: Record<string, unknown>): string {
   return name || [brand, model].filter(Boolean).join(" ") || "Yacht";
 }
 
+function publicAppUrl(path: string): string {
+  const configured =
+    process.env.PUBLIC_APP_URL ??
+    process.env.EXPO_PUBLIC_APP_URL ??
+    process.env.WEB_ORIGIN ??
+    process.env.EXPO_PUBLIC_DOMAIN ??
+    "https://yachtworth.com";
+  const base = configured.startsWith("http") ? configured : `https://${configured}`;
+  return `${base.replace(/\/+$/, "")}${path}`;
+}
+
 function compactRows(rows: Record<string, unknown>[] | null | undefined, limit = 5): Record<string, unknown>[] {
   return (rows ?? []).slice(0, limit);
 }
@@ -357,7 +368,7 @@ router.get(
       passport: {
         yachtworth_id: `YW-${String((yacht as Record<string, unknown>)["id"]).slice(0, 8).toUpperCase()}`,
         title: titleFromYacht(yacht as Record<string, unknown>),
-        access_url: `https://yachtworth.com/passport/${String((yacht as Record<string, unknown>)["id"])}`,
+        access_url: publicAppUrl(`/passport/${String((yacht as Record<string, unknown>)["id"])}`),
         last_activity_at: latestDates[0] ?? null,
       },
       yacht,

@@ -3,18 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import QRCode from "qrcode";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Platform,
   Pressable,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SvgXml } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useColors";
 import { getDigitalPassport, type DigitalPassport } from "@/lib/digitalPassport";
@@ -90,6 +93,15 @@ export default function DigitalPassportScreen() {
     Alert.alert("Copied", "Digital passport link copied.");
   };
 
+  const shareLink = async () => {
+    if (!data) return;
+    await Share.share({
+      title: data.passport.title,
+      message: `${data.passport.title}\n${data.passport.access_url}`,
+      url: data.passport.access_url,
+    });
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 56 }]}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
@@ -133,14 +145,34 @@ export default function DigitalPassportScreen() {
                     <Feather name="copy" size={16} color={colors.background} />
                     <Text style={[styles.primaryText, { color: colors.background }]}>Copy passport link</Text>
                   </Pressable>
+                  <Pressable style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={shareLink}>
+                    <Feather name="share-2" size={16} color={colors.primary} />
+                    <Text style={[styles.secondaryText, { color: colors.primary }]}>Share passport</Text>
+                  </Pressable>
                   <Pressable style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={() => router.push({ pathname: "/my-yacht/[id]", params: { id } })}>
                     <Feather name="database" size={16} color={colors.primary} />
                     <Text style={[styles.secondaryText, { color: colors.primary }]}>Open yacht profile</Text>
                   </Pressable>
                 </View>
               </View>
-              <QrPreview code={data.passport.yachtworth_id} />
+              <QrPreview code={data.passport.yachtworth_id} url={data.passport.access_url} />
             </View>
+
+            <Section title="Access">
+              <View style={styles.accessRow}>
+                <View style={[styles.accessIcon, { backgroundColor: colors.secondary }]}>
+                  <Feather name="lock" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.accessText}>
+                  <Text style={[styles.timelineTitle, { color: colors.foreground }]}>Protected Yachtworth passport</Text>
+                  <Text style={[styles.muted, { color: colors.mutedForeground }]}>The QR opens the yacht passport route. Yacht data remains behind the Yachtworth authenticated workspace until public passport access is enabled for a vessel.</Text>
+                </View>
+              </View>
+              <Pressable style={[styles.linkBox, { backgroundColor: colors.secondary, borderColor: colors.border }]} onPress={copyLink}>
+                <Text style={[styles.linkText, { color: colors.foreground }]} numberOfLines={1}>{data.passport.access_url}</Text>
+                <Feather name="copy" size={16} color={colors.primary} />
+              </Pressable>
+            </Section>
 
             <Section title="Identity">
               <FactGrid
@@ -256,15 +288,41 @@ function ModuleTile({ icon, label, value }: { icon: React.ComponentProps<typeof 
   );
 }
 
-function QrPreview({ code }: { code: string }) {
+function QrPreview({ code, url }: { code: string; url: string }) {
   const { colors } = useTheme();
+  const [svg, setSvg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    QRCode.toString(url, {
+      type: "svg",
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 116,
+      color: { dark: colors.foreground, light: colors.background },
+    })
+      .then((value) => {
+        if (!cancelled) setSvg(value);
+      })
+      .catch(() => {
+        if (!cancelled) setSvg(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [colors.background, colors.foreground, url]);
+
   return (
     <View style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-      <View style={styles.qrGrid}>
-        {Array.from({ length: 25 }).map((_, i) => (
-          <View key={i} style={[styles.qrCell, { backgroundColor: i % 2 === 0 || i % 7 === 0 ? colors.primary : "transparent" }]} />
-        ))}
-      </View>
+      {svg ? (
+        <SvgXml xml={svg} width={116} height={116} />
+      ) : (
+        <View style={styles.qrGrid}>
+          {Array.from({ length: 25 }).map((_, i) => (
+            <View key={i} style={[styles.qrCell, { backgroundColor: i % 2 === 0 || i % 7 === 0 ? colors.primary : "transparent" }]} />
+          ))}
+        </View>
+      )}
       <Text style={[styles.qrText, { color: colors.foreground }]}>{code}</Text>
     </View>
   );
@@ -292,6 +350,11 @@ const styles = StyleSheet.create({
   primaryText: { fontFamily: "Inter_700Bold", fontSize: 13 },
   secondaryButton: { minHeight: 44, borderRadius: 8, borderWidth: 1, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   secondaryText: { fontFamily: "Inter_700Bold", fontSize: 13 },
+  accessRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  accessIcon: { width: 38, height: 38, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  accessText: { flex: 1, minWidth: 0 },
+  linkBox: { minHeight: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  linkText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   card: { borderWidth: 1, borderRadius: 12, padding: 16, gap: 14 },
   cardTitle: { fontFamily: "Gilroy-ExtraBold", fontSize: 21 },
   muted: { fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 20 },
@@ -310,7 +373,7 @@ const styles = StyleSheet.create({
   timelineTitle: { fontFamily: "Inter_700Bold", fontSize: 14, lineHeight: 19 },
   dateText: { fontFamily: "Inter_600SemiBold", fontSize: 11, width: 82, textAlign: "right" },
   qrBox: { width: Platform.OS === "web" ? 170 : "100%", padding: 14, borderLeftWidth: Platform.OS === "web" ? 1 : 0, borderTopWidth: Platform.OS === "web" ? 0 : 1, alignItems: "center", justifyContent: "center", gap: 10 },
-  qrGrid: { width: 86, height: 86, flexDirection: "row", flexWrap: "wrap" },
-  qrCell: { width: 17.2, height: 17.2 },
+  qrGrid: { width: 116, height: 116, flexDirection: "row", flexWrap: "wrap" },
+  qrCell: { width: 23.2, height: 23.2 },
   qrText: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2 },
 });

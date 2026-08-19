@@ -71,12 +71,14 @@ function compactConversation(
   row: Record<string, unknown>,
   listing: Record<string, unknown> | null | undefined,
   userId: string,
+  unreadCount = 0,
 ) {
   return {
     ...row,
     listing: listing ? compactListing(listing, userId) : null,
     other_participant_user_id: otherParticipant(row, userId),
     is_listing_owner: row["listing_owner_user_id"] === userId,
+    unread_count: unreadCount,
   };
 }
 
@@ -437,7 +439,11 @@ router.get(
     const listingIds = Array.from(
       new Set(conversations.map((row) => String(row["listing_id"] ?? "")).filter(Boolean)),
     );
+    const conversationIds = Array.from(
+      new Set(conversations.map((row) => String(row["id"] ?? "")).filter(Boolean)),
+    );
     let listingById = new Map<string, Record<string, unknown>>();
+    const unreadByConversationId = new Map<string, number>();
     if (listingIds.length) {
       const { data: listings, error: listingsError } = await sb
         .from(YACHT_NETWORK_LISTINGS_TABLE)
@@ -451,10 +457,34 @@ router.get(
         );
       }
     }
+    if (conversationIds.length) {
+      const { data: unreadRows, error: unreadError } = await sb
+        .from(NETWORK_MESSAGES_TABLE)
+        .select("conversation_id,sender_user_id,read_at")
+        .in("conversation_id", conversationIds)
+        .is("read_at", null);
+      if (unreadError) {
+        req.log.warn({ err: unreadError.message }, "network unread count failed");
+      } else {
+        for (const row of (unreadRows ?? []) as Record<string, unknown>[]) {
+          if (String(row["sender_user_id"] ?? "") === req.userId!) continue;
+          const conversationId = String(row["conversation_id"] ?? "");
+          unreadByConversationId.set(
+            conversationId,
+            (unreadByConversationId.get(conversationId) ?? 0) + 1,
+          );
+        }
+      }
+    }
 
     res.json({
       items: conversations.map((row) =>
-        compactConversation(row, listingById.get(String(row["listing_id"])), req.userId!),
+        compactConversation(
+          row,
+          listingById.get(String(row["listing_id"])),
+          req.userId!,
+          unreadByConversationId.get(String(row["id"])) ?? 0,
+        ),
       ),
     });
   },

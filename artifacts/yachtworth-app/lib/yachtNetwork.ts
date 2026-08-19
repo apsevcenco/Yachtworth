@@ -44,6 +44,7 @@ export type NetworkConversation = {
   listing?: YachtNetworkListing | null;
   other_participant_user_id?: string | null;
   is_listing_owner?: boolean | null;
+  unread_count?: number | null;
 };
 
 export type NetworkMessage = {
