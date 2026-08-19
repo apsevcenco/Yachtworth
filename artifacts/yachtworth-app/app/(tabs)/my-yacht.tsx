@@ -18,7 +18,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ComingSoonModal } from "../../components/ComingSoonModal";
 import { YachtCard, type YachtCardAction } from "../../components/YachtCard";
 import { useTheme } from "../../hooks/useColors";
 import { useUnits } from "../../hooks/useUnits";
@@ -37,7 +36,6 @@ export default function MyYachtScreen() {
   const { isSignedIn, isLoaded } = useAuth();
   const { colors } = useTheme();
   const { units } = useUnits();
-  const [showPassportModal, setShowPassportModal] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
   // Always fetch the full set (active + archived) so we can show the
@@ -73,7 +71,7 @@ export default function MyYachtScreen() {
         router.push("/charter-planner");
         return;
       case "passport":
-        setShowPassportModal(true);
+        router.push(`/my-yacht/passport/${yachtId}` as never);
         return;
     }
   };
@@ -202,15 +200,6 @@ export default function MyYachtScreen() {
           </View>
         )}
       </ScrollView>
-
-      <ComingSoonModal
-        visible={showPassportModal}
-        toolKey="digital_passport"
-        toolName="Digital Passport"
-        toolDescription="QR-linked verified yacht history — service log, ownership, surveys."
-        toolIcon="credit-card"
-        onClose={() => setShowPassportModal(false)}
-      />
     </View>
   );
 }

@@ -1,10 +1,19 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import {
+  COST_ESTIMATES_TABLE,
+  EQUIPMENT_ASSETS_TABLE,
+  MAINTENANCE_DOCUMENTS_TABLE,
+  ROI_CALCULATIONS_TABLE,
+  SERVICE_EVENTS_TABLE,
+  SURVEY_REPORTS_TABLE,
   getSupabase,
   YACHTS_TABLE,
   YACHT_EQUIPMENT_TABLE,
   YACHT_PHOTOS_BUCKET,
+  WORK_ORDERS_TABLE,
+  YACHT_NETWORK_LISTINGS_TABLE,
+  ESTIMATES_TABLE,
 } from "../lib/supabase";
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import {
@@ -62,6 +71,22 @@ const MAX_YACHTS_PER_USER = 5;
 
 const YACHT_COLUMNS =
   "id, clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, home_port, photo_url, photo_urls, cover_photo_url, notes, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown, draft_meters, registration_number, imo_number, hull_id, vat_status, engine_maker, engine_model, engine_count, total_hp, crew_cabins, berths, heads, owner_role, is_archived";
+
+function stamp(row: Record<string, unknown>, fallback = ""): string {
+  const raw = row["updated_at"] ?? row["created_at"] ?? row["completed_at"] ?? fallback;
+  return typeof raw === "string" ? raw : fallback;
+}
+
+function titleFromYacht(row: Record<string, unknown>): string {
+  const name = typeof row["name"] === "string" ? row["name"] : "";
+  const brand = typeof row["brand"] === "string" ? row["brand"] : "";
+  const model = typeof row["model"] === "string" ? row["model"] : "";
+  return name || [brand, model].filter(Boolean).join(" ") || "Yacht";
+}
+
+function compactRows(rows: Record<string, unknown>[] | null | undefined, limit = 5): Record<string, unknown>[] {
+  return (rows ?? []).slice(0, limit);
+}
 
 router.get(
   "/yachts",
@@ -177,6 +202,191 @@ router.get(
       return;
     }
     res.json(data);
+  },
+);
+
+router.get(
+  "/yachts/:id/passport",
+  softClerkAuth(),
+  requireAuth(),
+  async (req, res): Promise<void> => {
+    if (!isUuid(req.params["id"])) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) {
+      res.status(503).json({ error: "Yacht storage not configured" });
+      return;
+    }
+    const yachtId = req.params["id"]!;
+    const userId = req.userId!;
+    const { data: yacht, error: yachtError } = await forClerkUser(
+      sb.from(YACHTS_TABLE).select(YACHT_COLUMNS),
+      userId,
+    )
+      .eq("id", yachtId)
+      .maybeSingle();
+    if (yachtError) {
+      req.log.error({ err: yachtError.message }, "Get yacht passport yacht failed");
+      res.status(500).json({ error: yachtError.message });
+      return;
+    }
+    if (!yacht) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const [
+      equipment,
+      valuations,
+      roi,
+      costs,
+      surveys,
+      networkListings,
+      assets,
+      workOrders,
+      serviceEvents,
+      documents,
+    ] = await Promise.all([
+      forClerkUser(
+        sb.from(YACHT_EQUIPMENT_TABLE).select(EQUIPMENT_COLUMNS),
+        userId,
+      )
+        .eq("yacht_id", yachtId)
+        .order("created_at", { ascending: false })
+        .limit(25),
+      forClerkUser(
+        sb
+          .from(ESTIMATES_TABLE)
+          .select("id, created_at, yacht_id, yacht_label, estimated_price_eur, currency"),
+        userId,
+      )
+        .eq("yacht_id", yachtId)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      forClerkUser(
+        sb
+          .from(ROI_CALCULATIONS_TABLE)
+          .select("id, yacht_id, created_at, region, annual_revenue_eur, annual_expenses_eur, net_profit_eur, roi_pct, payback_years"),
+        userId,
+      )
+        .eq("yacht_id", yachtId)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      forClerkUser(
+        sb
+          .from(COST_ESTIMATES_TABLE)
+          .select("id, created_at, yacht_id, yacht_name, total_annual_eur, currency, region, usage_type"),
+        userId,
+      )
+        .eq("yacht_id", yachtId)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      forClerkUser(
+        sb
+          .from(SURVEY_REPORTS_TABLE)
+          .select("id, yacht_id, vessel_name, report_type, status, survey_date, created_at, updated_at, total_recommendations_a, total_recommendations_b, total_recommendations_c, total_recommendations_d"),
+        userId,
+      )
+        .eq("yacht_id", yachtId)
+        .order("updated_at", { ascending: false })
+        .limit(10),
+      forClerkUser(
+        sb
+          .from(YACHT_NETWORK_LISTINGS_TABLE)
+          .select("id, yacht_id, listing_type, status, visibility, title, published_at, updated_at"),
+        userId,
+      )
+        .eq("yacht_id", yachtId)
+        .order("updated_at", { ascending: false })
+        .limit(10),
+      sb
+        .from(EQUIPMENT_ASSETS_TABLE)
+        .select("id, yacht_id, name, status, operational_status, condition_status, updated_at")
+        .eq("yacht_id", yachtId)
+        .limit(50),
+      sb
+        .from(WORK_ORDERS_TABLE)
+        .select("id, yacht_id, work_order_number, title, status, priority, updated_at, created_at")
+        .eq("yacht_id", yachtId)
+        .order("updated_at", { ascending: false })
+        .limit(10),
+      sb
+        .from(SERVICE_EVENTS_TABLE)
+        .select("id, yacht_id, service_event_number, title, completed_at, total_cost, currency, updated_at, created_at")
+        .eq("yacht_id", yachtId)
+        .order("completed_at", { ascending: false })
+        .limit(10),
+      sb
+        .from(MAINTENANCE_DOCUMENTS_TABLE)
+        .select("id, yacht_id, title, document_type, expires_at, updated_at, created_at")
+        .eq("yacht_id", yachtId)
+        .order("updated_at", { ascending: false })
+        .limit(10),
+    ]);
+
+    const errors = [
+      equipment.error,
+      valuations.error,
+      roi.error,
+      costs.error,
+      surveys.error,
+      networkListings.error,
+      assets.error,
+      workOrders.error,
+      serviceEvents.error,
+      documents.error,
+    ]
+      .filter(Boolean)
+      .map((err) => err?.message);
+
+    const latestDates = [
+      stamp(yacht as Record<string, unknown>),
+      ...(valuations.data ?? []).map((row) => stamp(row as Record<string, unknown>)),
+      ...(roi.data ?? []).map((row) => stamp(row as Record<string, unknown>)),
+      ...(costs.data ?? []).map((row) => stamp(row as Record<string, unknown>)),
+      ...(surveys.data ?? []).map((row) => stamp(row as Record<string, unknown>)),
+      ...(serviceEvents.data ?? []).map((row) => stamp(row as Record<string, unknown>)),
+      ...(networkListings.data ?? []).map((row) => stamp(row as Record<string, unknown>)),
+    ].filter(Boolean);
+
+    latestDates.sort((a, b) => Date.parse(b) - Date.parse(a));
+
+    res.json({
+      passport: {
+        yachtworth_id: `YW-${String((yacht as Record<string, unknown>)["id"]).slice(0, 8).toUpperCase()}`,
+        title: titleFromYacht(yacht as Record<string, unknown>),
+        access_url: `https://yachtworth.com/passport/${String((yacht as Record<string, unknown>)["id"])}`,
+        last_activity_at: latestDates[0] ?? null,
+      },
+      yacht,
+      counts: {
+        equipment: equipment.data?.length ?? 0,
+        valuations: valuations.data?.length ?? 0,
+        roi: roi.data?.length ?? 0,
+        costs: costs.data?.length ?? 0,
+        surveys: surveys.data?.length ?? 0,
+        network_listings: networkListings.data?.length ?? 0,
+        maintenance_assets: assets.data?.length ?? 0,
+        work_orders: workOrders.data?.length ?? 0,
+        service_events: serviceEvents.data?.length ?? 0,
+        documents: documents.data?.length ?? 0,
+      },
+      modules: {
+        equipment: compactRows(equipment.data as Record<string, unknown>[] | null),
+        valuations: compactRows(valuations.data as Record<string, unknown>[] | null),
+        roi: compactRows(roi.data as Record<string, unknown>[] | null),
+        costs: compactRows(costs.data as Record<string, unknown>[] | null),
+        surveys: compactRows(surveys.data as Record<string, unknown>[] | null),
+        network_listings: compactRows(networkListings.data as Record<string, unknown>[] | null),
+        maintenance_assets: compactRows(assets.data as Record<string, unknown>[] | null),
+        work_orders: compactRows(workOrders.data as Record<string, unknown>[] | null),
+        service_events: compactRows(serviceEvents.data as Record<string, unknown>[] | null),
+        documents: compactRows(documents.data as Record<string, unknown>[] | null),
+      },
+      errors,
+    });
   },
 );
 

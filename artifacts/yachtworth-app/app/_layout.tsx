@@ -502,6 +502,10 @@ function RootLayoutNav() {
               options={{ headerShown: false, presentation: "card" }}
             />
             <Stack.Screen
+              name="my-yacht/passport/[id]"
+              options={{ headerShown: false, presentation: "card" }}
+            />
+            <Stack.Screen
               name="listing/index"
               options={{ headerShown: false, presentation: "card" }}
             />

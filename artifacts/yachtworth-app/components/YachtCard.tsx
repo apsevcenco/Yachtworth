@@ -74,6 +74,7 @@ export function YachtCard({
   const port = yacht.home_port || yacht.marina_location || null;
 
   const actions: YachtCardAction[] = [
+    { key: "passport", label: "Passport", icon: "credit-card" },
     { key: "valuations", label: "Valuations", icon: "trending-up" },
     { key: "costs", label: "Costs", icon: "bar-chart-2" },
     { key: "roi", label: "Charter ROI", icon: "dollar-sign" },
