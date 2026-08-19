@@ -102,7 +102,8 @@ const TOOLS: Tool[] = [
     title: "Digital Passport",
     subtitle: "QR-linked verified yacht history",
     roles: ["owner", "broker", "charter", "surveyor"],
-    status: "soon",
+    status: "live",
+    route: "/(tabs)/my-yacht",
   },
   {
     key: "survey_builder",
