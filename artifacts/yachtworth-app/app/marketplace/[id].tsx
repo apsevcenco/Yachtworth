@@ -120,7 +120,14 @@ export default function MarketplaceDetailScreen() {
             <Text style={styles.muted}>Loading listing...</Text>
           </View>
         ) : item ? (
-          <ListingDetail item={item} removing={removing} startingChat={startingChat} onRemove={removeFromListing} onMessage={messageListing} />
+          <ListingDetail
+            item={item}
+            removing={removing}
+            startingChat={startingChat}
+            onRemove={removeFromListing}
+            onMessage={messageListing}
+            onOpenMessages={() => router.push("/network-messages" as never)}
+          />
         ) : (
           <View style={styles.emptyBox}>
             <Feather name="alert-circle" size={28} color={GOLD} />
@@ -139,12 +146,14 @@ function ListingDetail({
   startingChat,
   onRemove,
   onMessage,
+  onOpenMessages,
 }: {
   item: YachtNetworkListing;
   removing: boolean;
   startingChat: boolean;
   onRemove: () => void;
   onMessage: () => void;
+  onOpenMessages: () => void;
 }) {
   const gallery = photos(item);
   const facts = [
@@ -217,12 +226,17 @@ function ListingDetail({
         <Text style={styles.contactText}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
         <Text style={styles.contactText}>{[item.contact_email, item.contact_phone].filter(Boolean).join(" - ") || "Contact details are available inside Yachtworth."}</Text>
         <View style={styles.contactActions}>
-          {!item.is_owner ? (
+          {item.is_owner ? (
+            <Pressable style={styles.actionButton} onPress={onOpenMessages}>
+              <Feather name="inbox" size={18} color={NAVY} />
+              <Text style={styles.actionText}>Open listing messages</Text>
+            </Pressable>
+          ) : (
             <Pressable style={styles.actionButton} disabled={startingChat} onPress={onMessage}>
               {startingChat ? <ActivityIndicator color={NAVY} /> : <Feather name="message-circle" size={18} color={NAVY} />}
               <Text style={styles.actionText}>{startingChat ? "Opening..." : "Message inside Yachtworth"}</Text>
             </Pressable>
-          ) : null}
+          )}
           {item.contact_email ? (
             <Pressable style={styles.secondaryButton} onPress={() => Linking.openURL(`mailto:${item.contact_email}`)}>
               <Feather name="mail" size={18} color={GOLD} />

@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Platform,
   Pressable,
@@ -14,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { listNetworkListings, type NetworkListingType, type YachtNetworkListing } from "@/lib/yachtNetwork";
+import { listNetworkListings, startNetworkConversation, type NetworkListingType, type YachtNetworkListing } from "@/lib/yachtNetwork";
 
 const NAVY = "#0B1E3F";
 const NAVY_DEEP = "#081633";
@@ -51,7 +52,26 @@ export default function MarketplaceIndexScreen() {
     queryFn: () => listNetworkListings({ listing_type: listingType }),
   });
 
+  const [startingChatId, setStartingChatId] = useState<string | null>(null);
+
   const listings = listingsQ.data ?? [];
+
+  const openListingChat = async (item: YachtNetworkListing) => {
+    if (item.is_owner) {
+      router.push("/network-messages" as never);
+      return;
+    }
+    if (startingChatId) return;
+    try {
+      setStartingChatId(item.id);
+      const conversation = await startNetworkConversation(item.id);
+      router.push(`/network-chat/${conversation.id}` as never);
+    } catch (err) {
+      Alert.alert("Message unavailable", err instanceof Error ? err.message : "Could not start conversation");
+    } finally {
+      setStartingChatId(null);
+    }
+  };
   const featured = listings[0] ?? null;
   const stats = useMemo(() => {
     const sale = listings.filter((item) => item.listing_type === "sale" || item.listing_type === "both").length;
@@ -116,7 +136,13 @@ export default function MarketplaceIndexScreen() {
         ) : listings.length ? (
           <View style={styles.catalogGrid}>
             {listings.map((item) => (
-              <MarketplaceCard key={item.id} item={item} onOpen={() => router.push(`/marketplace/${item.id}` as never)} />
+              <MarketplaceCard
+                key={item.id}
+                item={item}
+                startingChat={startingChatId === item.id}
+                onOpen={() => router.push(`/marketplace/${item.id}` as never)}
+                onMessage={() => openListingChat(item)}
+              />
             ))}
           </View>
         ) : (
@@ -161,7 +187,17 @@ function FeaturedCard({ item, onOpen }: { item: YachtNetworkListing | null; onOp
   );
 }
 
-function MarketplaceCard({ item, onOpen }: { item: YachtNetworkListing; onOpen: () => void }) {
+function MarketplaceCard({
+  item,
+  startingChat,
+  onOpen,
+  onMessage,
+}: {
+  item: YachtNetworkListing;
+  startingChat: boolean;
+  onOpen: () => void;
+  onMessage: () => void;
+}) {
   const length = snapshotValue(item, "length_meters");
   const year = snapshotValue(item, "year_built");
   const builder = snapshotValue(item, "brand") ?? snapshotValue(item, "builder");
@@ -172,7 +208,7 @@ function MarketplaceCard({ item, onOpen }: { item: YachtNetworkListing; onOpen: 
   const rate = item.charter_rate_eur_week ? `${money(item.charter_rate_eur_week, item.currency ?? "EUR")} / week` : null;
 
   return (
-    <Pressable onPress={onOpen} style={styles.card}>
+    <View style={styles.card}>
       {item.cover_photo_url ? (
         <Image source={{ uri: item.cover_photo_url }} style={styles.cardImage} />
       ) : (
@@ -193,12 +229,21 @@ function MarketplaceCard({ item, onOpen }: { item: YachtNetworkListing; onOpen: 
         <Text style={styles.cardMeta}>{[item.location, cabins ? `${cabins} cabins` : null, guests ? `${guests} guests` : null].filter(Boolean).join(" - ")}</Text>
         <Text style={styles.priceLine}>{[price, rate].filter(Boolean).join("   ") || "Commercial terms on request"}</Text>
         {item.description ? <Text style={styles.description} numberOfLines={3}>{item.description}</Text> : null}
+        <View style={styles.cardActions}>
+          <Pressable style={styles.detailsButton} onPress={onOpen}>
+            <Feather name="arrow-up-right" size={17} color={GOLD} />
+            <Text style={styles.detailsText}>Details</Text>
+          </Pressable>
+          <Pressable style={[styles.chatButton, startingChat && styles.disabled]} disabled={startingChat} onPress={onMessage}>
+            {startingChat ? <ActivityIndicator color={NAVY} /> : <Feather name={item.is_owner ? "inbox" : "message-circle"} size={17} color={NAVY} />}
+            <Text style={styles.chatText}>{item.is_owner ? "Messages" : startingChat ? "Opening..." : "Message"}</Text>
+          </Pressable>
+        </View>
         <View style={styles.cardFooter}>
           <Text style={styles.memberText}>{item.broker_company || item.broker_name || "Yachtworth member"}</Text>
-          <Feather name="arrow-up-right" size={18} color={GOLD} />
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -255,6 +300,12 @@ const styles = StyleSheet.create({
   typePillText: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 10, textTransform: "uppercase" },
   priceLine: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15, lineHeight: 22, marginTop: 10 },
   description: { color: IVORY, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, marginTop: 8 },
+  cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
+  detailsButton: { flex: 1, minHeight: 42, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10 },
+  detailsText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
+  chatButton: { flex: 1, minHeight: 42, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10 },
+  chatText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   cardFooter: { borderTopWidth: 1, borderTopColor: LINE, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12, paddingTop: 12 },
   memberText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  disabled: { opacity: 0.55 },
 });
