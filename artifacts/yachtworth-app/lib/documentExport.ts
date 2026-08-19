@@ -36,6 +36,7 @@ import type {
   WorkOrder,
   YachtOption,
 } from "./maintenance";
+import type { DigitalPassport } from "./digitalPassport";
 
 export type DocumentFormat = "pdf";
 
@@ -1126,5 +1127,76 @@ export async function exportMaintenanceDocument(input: MaintenanceDocumentExport
     },
     "pdf",
     `${base}_maintenance.pdf`,
+  );
+}
+
+export async function exportDigitalPassportDocument(input: DigitalPassport): Promise<void> {
+  const yacht = input.yacht;
+  const base =
+    ((typeof yacht.name === "string" ? yacht.name : null) || "digital_passport")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60) || "digital_passport";
+
+  await downloadDocument(
+    {
+      documentType: "digital_passport",
+      format: "pdf",
+      template: "premium",
+      yachtProfile: {
+        name: typeof yacht.name === "string" && yacht.name ? yacht.name : input.passport.title,
+        builder: typeof yacht.brand === "string" ? yacht.brand : null,
+        model: typeof yacht.model === "string" ? yacht.model : null,
+        yacht_type: typeof yacht.yacht_type === "string" ? yacht.yacht_type : null,
+        year_built: typeof yacht.year_built === "number" ? yacht.year_built : null,
+        length_meters: typeof yacht.length_meters === "number" ? yacht.length_meters : null,
+        beam_meters: typeof yacht.beam_meters === "number" ? yacht.beam_meters : null,
+        draft_meters: typeof yacht.draft_meters === "number" ? yacht.draft_meters : null,
+        flag: typeof yacht.flag === "string" ? yacht.flag : null,
+        home_port: typeof yacht.home_port === "string" ? yacht.home_port : null,
+        cabins: typeof yacht.cabins === "number" ? yacht.cabins : null,
+        guests: typeof yacht.guests === "number" ? yacht.guests : null,
+        crew: typeof yacht.crew === "number" ? yacht.crew : null,
+        berths: typeof yacht.berths === "number" ? yacht.berths : null,
+        heads: typeof yacht.heads === "number" ? yacht.heads : null,
+        engine_maker: typeof yacht.engine_maker === "string" ? yacht.engine_maker : null,
+        engine_model: typeof yacht.engine_model === "string" ? yacht.engine_model : null,
+        engine_count: typeof yacht.engine_count === "number" ? yacht.engine_count : null,
+        total_hp: typeof yacht.total_hp === "number" ? yacht.total_hp : null,
+        engine_hours: typeof yacht.engine_hours === "number" ? yacht.engine_hours : null,
+        max_speed_knots: typeof yacht.max_speed_knots === "number" ? yacht.max_speed_knots : null,
+        cruising_speed_knots: typeof yacht.cruising_speed_knots === "number" ? yacht.cruising_speed_knots : null,
+        range_nm: typeof yacht.range_nm === "number" ? yacht.range_nm : null,
+        fuel_capacity_l: typeof yacht.fuel_capacity_l === "number" ? yacht.fuel_capacity_l : null,
+        water_capacity_l: typeof yacht.water_capacity_l === "number" ? yacht.water_capacity_l : null,
+        registration_number: typeof yacht.registration_number === "string" ? yacht.registration_number : null,
+        imo_number: typeof yacht.imo_number === "string" ? yacht.imo_number : null,
+        hull_id: typeof yacht.hull_id === "string" ? yacht.hull_id : null,
+        vat_status: typeof yacht.vat_status === "string" ? yacht.vat_status : null,
+        photo_url: typeof yacht.photo_url === "string" ? yacht.photo_url : null,
+        cover_photo_url: typeof yacht.cover_photo_url === "string" ? yacht.cover_photo_url : null,
+        photo_urls: Array.isArray(yacht.photo_urls) ? yacht.photo_urls.filter((url): url is string => typeof url === "string") : null,
+      },
+      reportData: {
+        generatedLabel: new Date().toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        passport: input.passport,
+        counts: input.counts,
+        modules: input.modules,
+      },
+      exportSettings: {
+        template: "premium",
+        language: "english",
+        branding: "Yachtworth",
+        confidential: false,
+        engine: "adaptive",
+      },
+    },
+    "pdf",
+    `${base}_digital_passport.pdf`,
   );
 }

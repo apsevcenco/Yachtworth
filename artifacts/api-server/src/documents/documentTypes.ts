@@ -19,7 +19,8 @@ export type DocumentType =
   | "charter_report"
   | "fleet_charter_report"
   | "survey_report"
-  | "maintenance_report";
+  | "maintenance_report"
+  | "digital_passport";
 export type DocumentFormat = "pdf";
 
 export type DocumentEngine = "adaptive";
@@ -460,6 +461,19 @@ export interface MaintenanceReportData {
   documents?: Record<string, unknown>[] | null;
 }
 
+export interface DigitalPassportReportData {
+  passport?: {
+    yachtworth_id?: string | null;
+    title?: string | null;
+    access_url?: string | null;
+    last_activity_at?: string | null;
+  } | null;
+  counts?: Record<string, number> | null;
+  modules?: Record<string, Record<string, unknown>[] | null | undefined> | null;
+  qrSvg?: string | null;
+  generatedLabel?: string | null;
+}
+
 export interface GenerateDocumentRequest {
   documentType: DocumentType;
   format: DocumentFormat;
@@ -474,7 +488,8 @@ export interface GenerateDocumentRequest {
     | CharterReportData
     | FleetCharterReportData
     | SurveyReportData
-    | MaintenanceReportData;
+    | MaintenanceReportData
+    | DigitalPassportReportData;
   exportSettings?: ExportSettings;
 }
 

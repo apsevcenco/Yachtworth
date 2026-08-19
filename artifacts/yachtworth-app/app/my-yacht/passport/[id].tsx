@@ -21,6 +21,7 @@ import { SvgXml } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useColors";
 import { getDigitalPassport, type DigitalPassport } from "@/lib/digitalPassport";
+import { exportDigitalPassportDocument } from "@/lib/documentExport";
 
 function fmtDate(value?: unknown): string {
   if (typeof value !== "string" || !value) return "-";
@@ -74,6 +75,7 @@ export default function DigitalPassportScreen() {
   const id = typeof params.id === "string" ? params.id : "";
   const insets = useSafeAreaInsets();
   const { colors, isAcid } = useTheme();
+  const [exporting, setExporting] = useState(false);
 
   const passportQ = useQuery({
     queryKey: ["digital-passport", id],
@@ -100,6 +102,18 @@ export default function DigitalPassportScreen() {
       message: `${data.passport.title}\n${data.passport.access_url}`,
       url: data.passport.access_url,
     });
+  };
+
+  const exportPassport = async () => {
+    if (!data || exporting) return;
+    try {
+      setExporting(true);
+      await exportDigitalPassportDocument(data);
+    } catch (err) {
+      Alert.alert("Digital Passport", err instanceof Error ? err.message : "PDF export failed.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -153,9 +167,13 @@ export default function DigitalPassportScreen() {
                     <Feather name="database" size={16} color={colors.primary} />
                     <Text style={[styles.secondaryText, { color: colors.primary }]}>Open yacht profile</Text>
                   </Pressable>
+                  <Pressable style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={exportPassport} disabled={exporting}>
+                    {exporting ? <ActivityIndicator color={colors.primary} /> : <Feather name="file-text" size={16} color={colors.primary} />}
+                    <Text style={[styles.secondaryText, { color: colors.primary }]}>Export PDF</Text>
+                  </Pressable>
                 </View>
               </View>
-              <QrPreview code={data.passport.yachtworth_id} url={data.passport.access_url} />
+              <QrPreview code={data.passport.yachtworth_id} url={data.passport.access_url} onPress={exportPassport} />
             </View>
 
             <Section title="Access">
@@ -288,9 +306,10 @@ function ModuleTile({ icon, label, value }: { icon: React.ComponentProps<typeof 
   );
 }
 
-function QrPreview({ code, url }: { code: string; url: string }) {
+function QrPreview({ code, url, onPress }: { code: string; url: string; onPress?: () => void }) {
   const { colors } = useTheme();
   const [svg, setSvg] = useState<string | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -313,7 +332,12 @@ function QrPreview({ code, url }: { code: string; url: string }) {
   }, [colors.background, colors.foreground, url]);
 
   return (
-    <View style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+    <Pressable
+      style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+    >
       {svg ? (
         <SvgXml xml={svg} width={116} height={116} />
       ) : (
@@ -324,7 +348,13 @@ function QrPreview({ code, url }: { code: string; url: string }) {
         </View>
       )}
       <Text style={[styles.qrText, { color: colors.foreground }]}>{code}</Text>
-    </View>
+      {hovered && Platform.OS === "web" ? (
+        <View style={[styles.qrHint, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+          <Text style={[styles.qrHintTitle, { color: colors.foreground }]}>Passport PDF</Text>
+          <Text style={[styles.qrHintText, { color: colors.mutedForeground }]}>Click to export specifications, reports and service history.</Text>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -372,8 +402,11 @@ const styles = StyleSheet.create({
   timelineText: { flex: 1 },
   timelineTitle: { fontFamily: "Inter_700Bold", fontSize: 14, lineHeight: 19 },
   dateText: { fontFamily: "Inter_600SemiBold", fontSize: 11, width: 82, textAlign: "right" },
-  qrBox: { width: Platform.OS === "web" ? 170 : "100%", padding: 14, borderLeftWidth: Platform.OS === "web" ? 1 : 0, borderTopWidth: Platform.OS === "web" ? 0 : 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  qrBox: { width: Platform.OS === "web" ? 170 : "100%", padding: 14, borderLeftWidth: Platform.OS === "web" ? 1 : 0, borderTopWidth: Platform.OS === "web" ? 0 : 1, alignItems: "center", justifyContent: "center", gap: 10, position: "relative" },
   qrGrid: { width: 116, height: 116, flexDirection: "row", flexWrap: "wrap" },
   qrCell: { width: 23.2, height: 23.2 },
   qrText: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2 },
+  qrHint: { position: "absolute", right: 10, bottom: 10, width: 190, borderWidth: 1, borderRadius: 8, padding: 10 },
+  qrHintTitle: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  qrHintText: { fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15, marginTop: 4 },
 });

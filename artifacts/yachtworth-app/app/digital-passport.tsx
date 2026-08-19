@@ -26,6 +26,7 @@ import { SvgXml } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useColors";
 import { getDigitalPassport, type DigitalPassport } from "@/lib/digitalPassport";
+import { exportDigitalPassportDocument } from "@/lib/documentExport";
 
 type SectionKey = "all" | "identity" | "registration" | "technical" | "modules" | "timeline";
 
@@ -83,6 +84,7 @@ export default function DigitalPassportToolScreen() {
   const { colors, isAcid } = useTheme();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [section, setSection] = useState<SectionKey>("all");
+  const [exporting, setExporting] = useState(false);
 
   const yachtsQ = useListYachts({ include_archived: true }, {
     query: {
@@ -124,6 +126,28 @@ export default function DigitalPassportToolScreen() {
       message: `${data.passport.title}\n${data.passport.access_url}`,
       url: data.passport.access_url,
     });
+  };
+
+  const exportPassport = async () => {
+    if (!data || exporting) return;
+    try {
+      setExporting(true);
+      await exportDigitalPassportDocument(data);
+    } catch (err) {
+      Alert.alert("Digital Passport", err instanceof Error ? err.message : "PDF export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const openModule = (key: keyof DigitalPassport["counts"]) => {
+    if (key === "valuations") router.push({ pathname: "/valuation/new", params: { yacht_id: activeId } } as never);
+    else if (key === "roi") router.push({ pathname: "/roi/calculate", params: { yacht_id: activeId } } as never);
+    else if (key === "costs") router.push({ pathname: "/cost/new", params: { yacht_id: activeId } } as never);
+    else if (key === "surveys") router.push("/survey" as never);
+    else if (key === "maintenance_assets" || key === "work_orders" || key === "service_events" || key === "documents") router.push("/maintenance" as never);
+    else if (key === "network_listings") router.push("/yacht-network" as never);
+    else router.push("/history" as never);
   };
 
   return (
@@ -234,9 +258,13 @@ export default function DigitalPassportToolScreen() {
                         <Feather name="share-2" size={16} color={colors.primary} />
                         <Text style={[styles.secondaryText, { color: colors.primary }]}>Share</Text>
                       </Pressable>
+                      <Pressable style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={exportPassport} disabled={exporting}>
+                        {exporting ? <ActivityIndicator color={colors.primary} /> : <Feather name="file-text" size={16} color={colors.primary} />}
+                        <Text style={[styles.secondaryText, { color: colors.primary }]}>PDF passport</Text>
+                      </Pressable>
                     </View>
                   </View>
-                  <QrPreview code={data.passport.yachtworth_id} url={data.passport.access_url} />
+                  <QrPreview code={data.passport.yachtworth_id} url={data.passport.access_url} onPress={exportPassport} />
                 </View>
 
                 {show("identity") ? (
@@ -283,14 +311,14 @@ export default function DigitalPassportToolScreen() {
                 {show("modules") ? (
                   <Section title="Connected Modules">
                     <View style={styles.moduleGrid}>
-                      <ModuleTile icon="trending-up" label="Valuations" value={data.counts.valuations} />
-                      <ModuleTile icon="percent" label="ROI" value={data.counts.roi} />
-                      <ModuleTile icon="bar-chart-2" label="Costs" value={data.counts.costs} />
-                      <ModuleTile icon="clipboard" label="Surveys" value={data.counts.surveys} />
-                      <ModuleTile icon="tool" label="Service events" value={data.counts.service_events} />
-                      <ModuleTile icon="file-text" label="Documents" value={data.counts.documents} />
-                      <ModuleTile icon="cpu" label="Assets" value={data.counts.maintenance_assets} />
-                      <ModuleTile icon="share-2" label="Network" value={data.counts.network_listings} />
+                      <ModuleTile icon="trending-up" label="Valuations" value={data.counts.valuations} onPress={() => openModule("valuations")} />
+                      <ModuleTile icon="percent" label="ROI" value={data.counts.roi} onPress={() => openModule("roi")} />
+                      <ModuleTile icon="bar-chart-2" label="Costs" value={data.counts.costs} onPress={() => openModule("costs")} />
+                      <ModuleTile icon="clipboard" label="Surveys" value={data.counts.surveys} onPress={() => openModule("surveys")} />
+                      <ModuleTile icon="tool" label="Service events" value={data.counts.service_events} onPress={() => openModule("service_events")} />
+                      <ModuleTile icon="file-text" label="Documents" value={data.counts.documents} onPress={() => openModule("documents")} />
+                      <ModuleTile icon="cpu" label="Assets" value={data.counts.maintenance_assets} onPress={() => openModule("maintenance_assets")} />
+                      <ModuleTile icon="share-2" label="Network" value={data.counts.network_listings} onPress={() => openModule("network_listings")} />
                     </View>
                   </Section>
                 ) : null}
@@ -361,20 +389,21 @@ function FactGrid({ items }: { items: [string, unknown][] }) {
   );
 }
 
-function ModuleTile({ icon, label, value }: { icon: React.ComponentProps<typeof Feather>["name"]; label: string; value: number }) {
+function ModuleTile({ icon, label, value, onPress }: { icon: React.ComponentProps<typeof Feather>["name"]; label: string; value: number; onPress?: () => void }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.moduleTile, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+    <Pressable style={[styles.moduleTile, { backgroundColor: colors.secondary, borderColor: colors.border }]} onPress={onPress}>
       <Feather name={icon} size={19} color={colors.primary} />
       <Text style={[styles.moduleValue, { color: colors.foreground }]}>{value}</Text>
       <Text style={[styles.moduleLabel, { color: colors.mutedForeground }]}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
-function QrPreview({ code, url }: { code: string; url: string }) {
+function QrPreview({ code, url, onPress }: { code: string; url: string; onPress?: () => void }) {
   const { colors } = useTheme();
   const [svg, setSvg] = useState<string | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -397,10 +426,21 @@ function QrPreview({ code, url }: { code: string; url: string }) {
   }, [colors.background, colors.foreground, url]);
 
   return (
-    <View style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+    <Pressable
+      style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+    >
       {svg ? <SvgXml xml={svg} width={126} height={126} /> : <ActivityIndicator color={colors.primary} />}
       <Text style={[styles.qrText, { color: colors.foreground }]}>{code}</Text>
-    </View>
+      {hovered && Platform.OS === "web" ? (
+        <View style={[styles.qrHint, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+          <Text style={[styles.qrHintTitle, { color: colors.foreground }]}>Passport PDF</Text>
+          <Text style={[styles.qrHintText, { color: colors.mutedForeground }]}>Click to export the yacht specification, QR access, reports and service history.</Text>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -453,6 +493,9 @@ const styles = StyleSheet.create({
   timelineText: { flex: 1 },
   timelineTitle: { fontFamily: "Inter_700Bold", fontSize: 14, lineHeight: 19 },
   dateText: { fontFamily: "Inter_600SemiBold", fontSize: 11, width: 82, textAlign: "right" },
-  qrBox: { width: Platform.OS === "web" ? 190 : "100%", padding: 14, borderLeftWidth: Platform.OS === "web" ? 1 : 0, borderTopWidth: Platform.OS === "web" ? 0 : 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  qrBox: { width: Platform.OS === "web" ? 190 : "100%", padding: 14, borderLeftWidth: Platform.OS === "web" ? 1 : 0, borderTopWidth: Platform.OS === "web" ? 0 : 1, alignItems: "center", justifyContent: "center", gap: 10, position: "relative" },
   qrText: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2 },
+  qrHint: { position: "absolute", right: 12, bottom: 12, width: 210, borderWidth: 1, borderRadius: 8, padding: 10 },
+  qrHintTitle: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  qrHintText: { fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15, marginTop: 4 },
 });

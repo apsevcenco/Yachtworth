@@ -18,6 +18,7 @@ const SUPPORTED_DOCUMENT_TYPES = [
   "fleet_charter_report",
   "survey_report",
   "maintenance_report",
+  "digital_passport",
 ] as const satisfies readonly GenerateDocumentRequest["documentType"][];
 
 function isSupportedDocumentType(

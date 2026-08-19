@@ -3,6 +3,7 @@ import { buildCharterModel, buildFleetCharterModel } from "./builders/charter";
 import { buildCostModel } from "./builders/cost";
 import { buildListingModel } from "./builders/listing";
 import { buildMaintenanceModel } from "./builders/maintenance";
+import { buildDigitalPassportModel } from "./builders/digitalPassport";
 import { buildRoiModel } from "./builders/roi";
 import { buildSurveyModel } from "./builders/survey";
 import { buildValuationModel } from "./builders/valuation";
@@ -17,6 +18,7 @@ import {
   type GeneratedDocument,
   type CharterReportData,
   type CostReportData,
+  type DigitalPassportReportData,
   type FleetCharterReportData,
   type ListingReportData,
   type MaintenanceReportData,
@@ -48,7 +50,8 @@ export async function generateDocument(
     req.documentType !== "charter_report" &&
     req.documentType !== "fleet_charter_report" &&
     req.documentType !== "survey_report" &&
-    req.documentType !== "maintenance_report"
+    req.documentType !== "maintenance_report" &&
+    req.documentType !== "digital_passport"
   ) {
     throw Object.assign(new Error(`Unsupported documentType: ${req.documentType}`), {
       statusCode: 501,
@@ -208,6 +211,20 @@ export async function generateDocument(
       buffer,
       contentType: PDF_CONTENT_TYPE,
       fileName: `${fileBase}_maintenance.pdf`,
+    };
+  }
+
+  if (req.documentType === "digital_passport") {
+    const reportData = (req.reportData ?? {}) as DigitalPassportReportData;
+    const fileBase = safeFileBase(yacht?.name ?? "digital_passport", "digital_passport");
+    const html = renderModelToPdfHtml(
+      buildDigitalPassportModel({ yacht, reportData, settings, template }),
+    );
+    const buffer = await renderPdf(html);
+    return {
+      buffer,
+      contentType: PDF_CONTENT_TYPE,
+      fileName: `${fileBase}_digital_passport.pdf`,
     };
   }
 
