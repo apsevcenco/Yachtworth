@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Pressable,
   Share,
@@ -21,7 +22,7 @@ import { SvgXml } from "react-native-svg";
 
 import { useTheme } from "@/hooks/useColors";
 import { getDigitalPassport, type DigitalPassport } from "@/lib/digitalPassport";
-import { exportDigitalPassportDocument } from "@/lib/documentExport";
+import { exportDigitalPassportDocument, storeDigitalPassportDocument } from "@/lib/documentExport";
 
 function fmtDate(value?: unknown): string {
   if (typeof value !== "string" || !value) return "-";
@@ -76,6 +77,8 @@ export default function DigitalPassportScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isAcid } = useTheme();
   const [exporting, setExporting] = useState(false);
+  const [storingPassport, setStoringPassport] = useState(false);
+  const [storedPdfUrl, setStoredPdfUrl] = useState<string | null>(null);
 
   const passportQ = useQuery({
     queryKey: ["digital-passport", id],
@@ -114,6 +117,28 @@ export default function DigitalPassportScreen() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const prepareStoredPassport = async (): Promise<string | null> => {
+    if (!data) return null;
+    if (storedPdfUrl) return storedPdfUrl;
+    if (storingPassport) return null;
+    try {
+      setStoringPassport(true);
+      const stored = await storeDigitalPassportDocument(data);
+      setStoredPdfUrl(stored.url);
+      return stored.url;
+    } catch (err) {
+      Alert.alert("Digital Passport", err instanceof Error ? err.message : "Could not store passport PDF.");
+      return null;
+    } finally {
+      setStoringPassport(false);
+    }
+  };
+
+  const openStoredPassport = async () => {
+    const url = await prepareStoredPassport();
+    if (url) await Linking.openURL(url);
   };
 
   return (
@@ -173,7 +198,14 @@ export default function DigitalPassportScreen() {
                   </Pressable>
                 </View>
               </View>
-              <QrPreview code={data.passport.yachtworth_id} url={data.passport.access_url} onPress={exportPassport} />
+              <QrPreview
+                code={data.passport.yachtworth_id}
+                url={storedPdfUrl ?? data.passport.access_url}
+                pdfUrl={storedPdfUrl}
+                loadingPdf={storingPassport}
+                onPreparePdf={prepareStoredPassport}
+                onPress={openStoredPassport}
+              />
             </View>
 
             <Section title="Access">
@@ -306,7 +338,21 @@ function ModuleTile({ icon, label, value }: { icon: React.ComponentProps<typeof 
   );
 }
 
-function QrPreview({ code, url, onPress }: { code: string; url: string; onPress?: () => void }) {
+function QrPreview({
+  code,
+  url,
+  pdfUrl,
+  loadingPdf,
+  onPreparePdf,
+  onPress,
+}: {
+  code: string;
+  url: string;
+  pdfUrl?: string | null;
+  loadingPdf?: boolean;
+  onPreparePdf?: () => void | Promise<unknown>;
+  onPress?: () => void;
+}) {
   const { colors } = useTheme();
   const [svg, setSvg] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -335,7 +381,10 @@ function QrPreview({ code, url, onPress }: { code: string; url: string; onPress?
     <Pressable
       style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
+      onHoverIn={() => {
+        setHovered(true);
+        void onPreparePdf?.();
+      }}
       onHoverOut={() => setHovered(false)}
     >
       {svg ? (
@@ -351,7 +400,22 @@ function QrPreview({ code, url, onPress }: { code: string; url: string; onPress?
       {hovered && Platform.OS === "web" ? (
         <View style={[styles.qrHint, { backgroundColor: colors.card, borderColor: colors.primary }]}>
           <Text style={[styles.qrHintTitle, { color: colors.foreground }]}>Passport PDF</Text>
-          <Text style={[styles.qrHintText, { color: colors.mutedForeground }]}>Click to export specifications, reports and service history.</Text>
+          {loadingPdf ? (
+            <View style={styles.qrHintLoader}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.qrHintText, { color: colors.mutedForeground }]}>Preparing stored PDF...</Text>
+            </View>
+          ) : pdfUrl ? (
+            <View style={styles.pdfPreviewFrame}>
+              {React.createElement("iframe" as never, {
+                src: pdfUrl,
+                title: "Digital Passport PDF",
+                style: { width: "100%", height: "100%", border: 0, borderRadius: 6 },
+              })}
+            </View>
+          ) : (
+            <Text style={[styles.qrHintText, { color: colors.mutedForeground }]}>Hover prepares the stored PDF. Click the QR to open it.</Text>
+          )}
         </View>
       ) : null}
     </Pressable>
@@ -406,7 +470,9 @@ const styles = StyleSheet.create({
   qrGrid: { width: 116, height: 116, flexDirection: "row", flexWrap: "wrap" },
   qrCell: { width: 23.2, height: 23.2 },
   qrText: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2 },
-  qrHint: { position: "absolute", right: 10, bottom: 10, width: 190, borderWidth: 1, borderRadius: 8, padding: 10 },
+  qrHint: { position: "absolute", right: 10, bottom: 10, width: 260, minHeight: 150, borderWidth: 1, borderRadius: 8, padding: 10 },
   qrHintTitle: { fontFamily: "Inter_700Bold", fontSize: 12 },
   qrHintText: { fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15, marginTop: 4 },
+  qrHintLoader: { minHeight: 104, alignItems: "center", justifyContent: "center", gap: 8 },
+  pdfPreviewFrame: { height: 112, marginTop: 8, overflow: "hidden", borderRadius: 6 },
 });

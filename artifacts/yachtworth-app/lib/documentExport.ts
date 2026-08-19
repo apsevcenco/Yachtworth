@@ -202,6 +202,36 @@ async function downloadDocument(
   }
 }
 
+export type StoredDocument = {
+  url: string;
+  path: string;
+  fileName: string;
+  expires_in_seconds: number;
+};
+
+async function storeDocument(body: unknown): Promise<StoredDocument> {
+  const base = getBaseUrl() ?? "";
+  const url = `${base}/api/documents/store`;
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    throw new Error(`Store failed (HTTP ${res.status})${json?.error ? `: ${String(json.error).slice(0, 200)}` : ""}`);
+  }
+  return json as StoredDocument;
+}
+
 export async function exportProposalDocument(input: {
   yacht: ProposalYachtSnapshot;
   equipment: ProposalEquipmentItem[];
@@ -1130,20 +1160,24 @@ export async function exportMaintenanceDocument(input: MaintenanceDocumentExport
   );
 }
 
-export async function exportDigitalPassportDocument(input: DigitalPassport): Promise<void> {
+function digitalPassportFileBase(input: DigitalPassport): string {
   const yacht = input.yacht;
-  const base =
+  return (
     ((typeof yacht.name === "string" ? yacht.name : null) || "digital_passport")
       .replace(/[^\w\s-]/g, "")
       .trim()
       .replace(/\s+/g, "_")
-      .slice(0, 60) || "digital_passport";
+      .slice(0, 60) || "digital_passport"
+  );
+}
 
-  await downloadDocument(
-    {
+function buildDigitalPassportBody(input: DigitalPassport) {
+  const yacht = input.yacht;
+  return {
       documentType: "digital_passport",
       format: "pdf",
       template: "premium",
+      storageKey: `digital-passports/${yacht.id}/latest.pdf`,
       yachtProfile: {
         name: typeof yacht.name === "string" && yacht.name ? yacht.name : input.passport.title,
         builder: typeof yacht.brand === "string" ? yacht.brand : null,
@@ -1165,6 +1199,8 @@ export async function exportDigitalPassportDocument(input: DigitalPassport): Pro
         engine_count: typeof yacht.engine_count === "number" ? yacht.engine_count : null,
         total_hp: typeof yacht.total_hp === "number" ? yacht.total_hp : null,
         engine_hours: typeof yacht.engine_hours === "number" ? yacht.engine_hours : null,
+        engine_hours_port: typeof yacht.engine_hours_port === "number" ? yacht.engine_hours_port : null,
+        engine_hours_starboard: typeof yacht.engine_hours_starboard === "number" ? yacht.engine_hours_starboard : null,
         max_speed_knots: typeof yacht.max_speed_knots === "number" ? yacht.max_speed_knots : null,
         cruising_speed_knots: typeof yacht.cruising_speed_knots === "number" ? yacht.cruising_speed_knots : null,
         range_nm: typeof yacht.range_nm === "number" ? yacht.range_nm : null,
@@ -1195,8 +1231,18 @@ export async function exportDigitalPassportDocument(input: DigitalPassport): Pro
         confidential: false,
         engine: "adaptive",
       },
-    },
+    };
+}
+
+export async function exportDigitalPassportDocument(input: DigitalPassport): Promise<void> {
+  const base = digitalPassportFileBase(input);
+  await downloadDocument(
+    buildDigitalPassportBody(input),
     "pdf",
     `${base}_digital_passport.pdf`,
   );
+}
+
+export async function storeDigitalPassportDocument(input: DigitalPassport): Promise<StoredDocument> {
+  return storeDocument(buildDigitalPassportBody(input));
 }
