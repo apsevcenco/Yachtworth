@@ -2083,6 +2083,7 @@ export const CalculateRoiResponse = zod.object({
       category: zod.string(),
       amount_eur: zod.number(),
       formula: zod.string().nullish(),
+      period: zod.enum(["monthly", "annual", "percentage"]).nullish(),
     }),
   ),
   revenue_by_month: zod.array(
@@ -3934,6 +3935,7 @@ export const GetRoiCalculationResponse = zod.object({
         category: zod.string(),
         amount_eur: zod.number(),
         formula: zod.string().nullish(),
+        period: zod.enum(["monthly", "annual", "percentage"]).nullish(),
       }),
     ),
     revenue_by_month: zod.array(

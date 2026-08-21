@@ -184,6 +184,7 @@ export interface RoiExpenseLine {
   category?: string | null;
   amount_eur?: number | null;
   formula?: string | null;
+  period?: "monthly" | "annual" | "percentage" | null;
 }
 
 export interface RoiYearlyPoint {

@@ -2569,6 +2569,9 @@ components:
           type: number
         formula:
           type: ["string", "null"]
+        period:
+          type: ["string", "null"]
+          enum: [monthly, annual, percentage, null]
     MonthlyPoint:
       type: object
       required: [month, value_eur]

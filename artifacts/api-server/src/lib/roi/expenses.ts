@@ -5,6 +5,7 @@ export interface ExpenseLine {
   category: string;
   amount_eur: number;
   formula: string | null;
+  period?: "monthly" | "annual" | "percentage";
 }
 
 // Used only as a last-resort if neither owner override nor DB seed has a value.
@@ -154,6 +155,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
         category: label,
         amount_eur: Math.round(v * count),
         formula: `Owner-provided: €${Math.round(v)}/mo × ${count}`,
+        period: "monthly",
       };
     }
     if (!alwaysEstimate) return null;
@@ -161,6 +163,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
       category: label,
       amount_eur: Math.round(fallback * 12),
       formula: `Estimated €${Math.round(fallback)}/mo × 12 (region ${region})`,
+      period: "monthly",
     };
   };
 
@@ -176,6 +179,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
         category: label,
         amount_eur: Math.round(v),
         formula: `Owner-provided: €${Math.round(v)}/yr`,
+        period: "annual",
       };
     }
     if (!alwaysEstimate) return null;
@@ -183,6 +187,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
       category: label,
       amount_eur: Math.round(fallback),
       formula: `Estimated €${Math.round(fallback)}/yr`,
+      period: "annual",
     };
   };
 
@@ -198,6 +203,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
         category: "Social security / payroll charges",
         amount_eur: Math.round(fixedMonthly * count),
         formula: `Owner-provided: €${Math.round(fixedMonthly)}/mo × ${count}`,
+        period: "monthly",
       } satisfies ExpenseLine;
     }
     const pct = Number(yacht.social_security_pct ?? 0);
@@ -206,6 +212,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
       category: "Social security / payroll charges",
       amount_eur: Math.round(crewLine.amount_eur * (pct / 100)),
       formula: `${pct}% × annual crew payroll`,
+      period: "percentage",
     } satisfies ExpenseLine;
   })();
 
@@ -252,6 +259,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
       category: "Management fee",
       amount_eur: Math.round(mgmtAnnual),
       formula: mgmtFormula,
+      period: ownerOverride != null ? "monthly" : "percentage",
     });
   }
 
@@ -265,6 +273,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
       category: "Charter broker commission",
       amount_eur: Math.round(charterCommission),
       formula: `${ccPct}% of gross charter revenue`,
+      period: "percentage",
     });
   }
 

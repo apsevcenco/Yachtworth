@@ -72,6 +72,9 @@ const L = {
   keyFigures: "Key Figures",
   methodology: "How This Was Calculated",
   expenseBreakdown: "Expense Breakdown",
+  monthlyExpenses: "Monthly / Season-Based Expenses",
+  annualExpenses: "Annual Expenses",
+  percentageExpenses: "Revenue & Payroll Percentage Costs",
   projection: "Cumulative Cash · 5 Years",
   depreciation: "Yacht Value · 5-Year Depreciation",
   exitScenario: "5-Year Exit Scenario",
@@ -108,6 +111,18 @@ function isMeaningfulExpense(e: RoiExpenseLine): boolean {
   if (amount == null || amount === 0) return false;
   const formula = e.formula ? String(e.formula).trim().toLowerCase() : "";
   return formula !== "not applicable";
+}
+
+function expensePeriod(e: RoiExpenseLine): "monthly" | "annual" | "percentage" {
+  const explicit = e.period ? String(e.period).toLowerCase() : "";
+  if (explicit === "monthly" || explicit === "annual" || explicit === "percentage") {
+    return explicit;
+  }
+  const formula = e.formula ? String(e.formula).toLowerCase() : "";
+  if (formula.includes("/mo")) return "monthly";
+  if (formula.includes("/yr")) return "annual";
+  if (formula.includes("%")) return "percentage";
+  return "annual";
 }
 
 function yearlyRows(
@@ -293,12 +308,22 @@ export function buildRoiModel(input: {
     ? reportData.expenses.filter(isMeaningfulExpense)
     : [];
   if (expenseList.length) {
-    body.push({
-      kind: "table",
-      heading: L.expenseBreakdown,
-      columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
-      rows: expenseRows(expenseList, money),
-    });
+    body.push({ kind: "heading", level: 2, text: L.expenseBreakdown });
+    const monthlyExpenses = expenseList.filter((e) => expensePeriod(e) === "monthly");
+    const annualExpenses = expenseList.filter((e) => expensePeriod(e) === "annual");
+    const percentageExpenses = expenseList.filter((e) => expensePeriod(e) === "percentage");
+    const pushExpenseTable = (heading: string, items: RoiExpenseLine[]) => {
+      if (!items.length) return;
+      body.push({
+        kind: "table",
+        heading,
+        columns: [{ widthPct: 70 }, { align: "right", widthPct: 30 }],
+        rows: expenseRows(items, money),
+      });
+    };
+    pushExpenseTable(L.monthlyExpenses, monthlyExpenses);
+    pushExpenseTable(L.annualExpenses, annualExpenses);
+    pushExpenseTable(L.percentageExpenses, percentageExpenses);
     detailStarted = true;
   }
 

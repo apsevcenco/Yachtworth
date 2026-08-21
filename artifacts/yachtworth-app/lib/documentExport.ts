@@ -477,6 +477,7 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
         category: e.category,
         amount_eur: e.amount_eur,
         formula: e.formula ?? null,
+        period: e.period ?? null,
       })),
       projection5y: (result.roi_projection_5y ?? []).map((p) => ({
         year_offset: p.year_offset,

@@ -1242,6 +1242,8 @@ export interface ExpenseBreakdown {
   amount_eur: number;
   /** @nullable */
   formula?: string | null;
+  /** @nullable */
+  period?: "monthly" | "annual" | "percentage" | null;
 }
 
 export interface MonthlyPoint {
