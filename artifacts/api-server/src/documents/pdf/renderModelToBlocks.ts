@@ -94,7 +94,7 @@ function coverBlock(c: CoverSpec): DocBlock {
     )
     .join("");
   const html = `<div class="cover">
-    ${photo ? `<img class="cover-photo" src="${esc(photo)}" />` : ""}
+    ${photo ? `<img class="cover-photo-bg" src="${esc(photo)}" /><img class="cover-photo" src="${esc(photo)}" />` : ""}
     ${photo ? `<div class="cover-overlay"></div>` : `<div class="cover-frame"></div>`}
     ${logo ? `<img class="cover-logo" src="${esc(logo)}" />` : ""}
     <div class="cover-date">${esc(c.date)}</div>
