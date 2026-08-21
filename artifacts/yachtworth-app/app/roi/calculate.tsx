@@ -797,7 +797,7 @@ export default function RoiCalculateScreen() {
         photo_url: titlePhotoUrl ?? headerStr("photo_url"),
         photo_urls: headerPhotoUrls,
       };
-      router.replace({
+      router.push({
         pathname: "/roi/result",
         params: {
           data: JSON.stringify(result),
