@@ -503,6 +503,10 @@ function buildRoiBody(result: RoiCalculation, header: RoiHeader | undefined) {
         exit_result_pct: result.exit_scenario.exit_result_pct,
         total_loan_paid_eur: result.exit_scenario.total_loan_paid_eur ?? null,
         exit_result_after_loan_eur: result.exit_scenario.exit_result_after_loan_eur ?? null,
+        discount_adjustment:
+          (result.exit_scenario as typeof result.exit_scenario & {
+            discount_adjustment?: unknown;
+          }).discount_adjustment ?? null,
       } : null,
       legalDisclaimer: result.legal_disclaimer ?? null,
     },

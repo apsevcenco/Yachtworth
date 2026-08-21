@@ -142,6 +142,18 @@ export interface RoiExitScenario {
   exit_result_pct: number;
   total_loan_paid_eur: number | null;
   exit_result_after_loan_eur: number | null;
+  discount_adjustment?: RoiDiscountAdjustment | null;
+}
+
+export interface RoiDiscountAdjustment {
+  enabled: true;
+  market_price_eur: number;
+  purchase_discount_pct: number;
+  actual_purchase_price_eur: number;
+  discount_buffer_eur: number;
+  market_value_at_sale_eur: number;
+  market_depreciation_absorbed_eur: number;
+  excess_depreciation_eur: number;
 }
 
 /**
@@ -239,6 +251,70 @@ function regionIncomeLine(label: string, ri: RoiRegionIncome): string {
   );
 }
 
+function numeric(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function buildDiscountAdjustedDepreciation(args: {
+  yacht: YachtRow;
+  purchase: number;
+  years: number;
+}): {
+  curve: { year_offset: number; value_eur: number }[];
+  adjustment: RoiDiscountAdjustment | null;
+} | null {
+  if (!args.yacht.discount_adjusted_depreciation) return null;
+  const marketPrice = numeric(args.yacht.discount_market_price_eur);
+  const discountPct = numeric(args.yacht.discount_percent);
+  if (
+    marketPrice == null ||
+    discountPct == null ||
+    marketPrice <= 0 ||
+    discountPct <= 0 ||
+    args.purchase <= 0 ||
+    marketPrice <= args.purchase
+  ) {
+    return null;
+  }
+
+  const marketCurve = depreciationCurve(
+    marketPrice,
+    args.years,
+    args.yacht.year_built ?? null,
+  );
+  const discountBuffer = Math.max(0, marketPrice - args.purchase);
+  const curve = marketCurve.map((point) => {
+    const marketDrop = Math.max(0, marketPrice - point.value_eur);
+    const excessDrop = Math.max(0, marketDrop - discountBuffer);
+    return {
+      year_offset: point.year_offset,
+      value_eur: Math.max(0, Math.round(args.purchase - excessDrop)),
+    };
+  });
+  const finalMarket = marketCurve.length
+    ? marketCurve[marketCurve.length - 1].value_eur
+    : marketPrice;
+  const marketDropAtSale = Math.max(0, marketPrice - finalMarket);
+  const excessAtSale = Math.max(0, marketDropAtSale - discountBuffer);
+
+  return {
+    curve,
+    adjustment: {
+      enabled: true,
+      market_price_eur: Math.round(marketPrice),
+      purchase_discount_pct: Math.round(discountPct * 10) / 10,
+      actual_purchase_price_eur: Math.round(args.purchase),
+      discount_buffer_eur: Math.round(discountBuffer),
+      market_value_at_sale_eur: Math.round(finalMarket),
+      market_depreciation_absorbed_eur: Math.round(
+        Math.min(discountBuffer, marketDropAtSale),
+      ),
+      excess_depreciation_eur: Math.round(excessAtSale),
+    },
+  };
+}
+
 function depreciationRateForAge(age: number): number {
   if (age <= 1) return 0.10;
   if (age <= 5) return 0.07;
@@ -273,10 +349,11 @@ function buildMethodology(args: {
   hasPurchasePrice: boolean;
   charterCommissionPct: number;
   managementFeePct: number;
-  ownerManagementFee: boolean;
-  dual: RoiDualRegionBreakdown | null;
-  repositioningWasEstimated: boolean;
-}): string {
+    ownerManagementFee: boolean;
+    dual: RoiDualRegionBreakdown | null;
+    repositioningWasEstimated: boolean;
+    discountAdjustment: RoiDiscountAdjustment | null;
+  }): string {
   const lines: string[] = [];
 
   if (args.dual) {
@@ -367,12 +444,21 @@ function buildMethodology(args: {
   lines.push(
     "• Cumulative cash flow projects the year-1 net result forward at 3.0% annual growth.",
   );
-  lines.push(
-    `• ${depreciationAssumption(args.yacht.year_built)}`,
-  );
+    lines.push(
+      `• ${depreciationAssumption(args.yacht.year_built)}`,
+    );
+    if (args.discountAdjustment) {
+      const d = args.discountAdjustment;
+      lines.push(
+        `• Stock/show-boat discount adjustment is enabled: market-new value €${money(d.market_price_eur)}, actual purchase price €${money(d.actual_purchase_price_eur)}, discount buffer €${money(d.discount_buffer_eur)} (${d.purchase_discount_pct.toFixed(1)}%).`,
+      );
+      lines.push(
+        "• The normal depreciation curve is first applied to the market-new value. The owner's purchase-price value only starts falling once market depreciation exceeds the discount buffer.",
+      );
+    }
 
-  return lines.join("\n");
-}
+    return lines.join("\n");
+  }
 
 function comparableRateRange(
   comparables: ComputedRevenue["comparables"],
@@ -759,7 +845,16 @@ export async function calculateRoi(
 
   // ── 5. Projections + breakdowns ───────────────────────────────────
   const todayValue = purchase > 0 ? purchase : capital;
-  const depreciation = depreciationCurve(todayValue, 5, yacht.year_built ?? null);
+  const standardDepreciation = depreciationCurve(
+    todayValue,
+    5,
+    yacht.year_built ?? null,
+  );
+  const discountDepreciation =
+    purchase > 0
+      ? buildDiscountAdjustedDepreciation({ yacht, purchase, years: 5 })
+      : null;
+  const depreciation = discountDepreciation?.curve ?? standardDepreciation;
   const projection = roiProjection5y(net, 5);
   const revByMonth = monthlySeasonal(revenue.annual_gross_eur);
 
@@ -793,6 +888,7 @@ export async function calculateRoi(
       total_loan_paid_eur: totalLoanPaid,
       exit_result_after_loan_eur:
         exitResultAfterLoan != null ? Math.round(exitResultAfterLoan) : null,
+      discount_adjustment: discountDepreciation?.adjustment ?? null,
     };
   }
 
@@ -822,6 +918,7 @@ export async function calculateRoi(
     ownerManagementFee: yacht.monthly_management_fee_eur != null,
     dual: dualBreakdown,
     repositioningWasEstimated,
+    discountAdjustment: discountDepreciation?.adjustment ?? null,
   });
 
   return {

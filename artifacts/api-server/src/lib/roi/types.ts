@@ -26,6 +26,9 @@ export interface YachtRow {
   flag?: string | null;
   commercial_registration?: boolean | null;
   purchase_price_eur?: number | string | null;
+  discount_adjusted_depreciation?: boolean | null;
+  discount_market_price_eur?: number | string | null;
+  discount_percent?: number | string | null;
   purchase_year?: number | null;
   financing_type?: string | null;
   loan_amount_eur?: number | string | null;

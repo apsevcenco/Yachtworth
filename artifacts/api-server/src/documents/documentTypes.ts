@@ -202,15 +202,25 @@ export interface RoiComparableLine {
 
 /** Exit scenario — sale after 5 years. Present only when purchase price was entered. */
 export interface RoiExitScenarioData {
-  purchase_price_eur?: number | null;
-  charter_income_5y_eur?: number | null;
-  vessel_value_at_sale_eur?: number | null;
+    purchase_price_eur?: number | null;
+    charter_income_5y_eur?: number | null;
+    vessel_value_at_sale_eur?: number | null;
   total_return_eur?: number | null;
   exit_result_eur?: number | null;
-  exit_result_pct?: number | null;
-  total_loan_paid_eur?: number | null;
-  exit_result_after_loan_eur?: number | null;
-}
+    exit_result_pct?: number | null;
+    total_loan_paid_eur?: number | null;
+    exit_result_after_loan_eur?: number | null;
+    discount_adjustment?: {
+      enabled?: boolean | null;
+      market_price_eur?: number | null;
+      purchase_discount_pct?: number | null;
+      actual_purchase_price_eur?: number | null;
+      discount_buffer_eur?: number | null;
+      market_value_at_sale_eur?: number | null;
+      market_depreciation_absorbed_eur?: number | null;
+      excess_depreciation_eur?: number | null;
+    } | null;
+  }
 
 /** Charter-ROI-specific content (NOT yacht specs). */
 export interface RoiReportData {

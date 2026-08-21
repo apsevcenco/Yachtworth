@@ -1834,6 +1834,9 @@ export const CalculateRoiBody = zod.object({
             .describe(
               "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
             ),
+          discount_adjusted_depreciation: zod.boolean().nullish(),
+          discount_market_price_eur: zod.number().min(0).nullish(),
+          discount_percent: zod.number().min(0).max(100).nullish(),
           monthly_crew_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyCrewEurMin)
@@ -2113,6 +2116,18 @@ export const CalculateRoiResponse = zod.object({
           .describe(
             "exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.",
           ),
+        discount_adjustment: zod
+          .object({
+            enabled: zod.literal(true),
+            market_price_eur: zod.number(),
+            purchase_discount_pct: zod.number(),
+            actual_purchase_price_eur: zod.number(),
+            discount_buffer_eur: zod.number(),
+            market_value_at_sale_eur: zod.number(),
+            market_depreciation_absorbed_eur: zod.number(),
+            excess_depreciation_eur: zod.number(),
+          })
+          .nullish(),
       }),
       zod.null(),
     ])
@@ -3351,10 +3366,13 @@ export const GetRoiCalculationResponse = zod.object({
               .min(
                 getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin,
               )
-              .nullish()
-              .describe(
-                "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
-              ),
+            .nullish()
+            .describe(
+              "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
+            ),
+            discount_adjusted_depreciation: zod.boolean().nullish(),
+            discount_market_price_eur: zod.number().min(0).nullish(),
+            discount_percent: zod.number().min(0).max(100).nullish(),
             monthly_crew_eur: zod
               .number()
               .min(getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin)
@@ -3653,6 +3671,18 @@ export const GetRoiCalculationResponse = zod.object({
             .describe(
               "exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.",
             ),
+          discount_adjustment: zod
+            .object({
+              enabled: zod.literal(true),
+              market_price_eur: zod.number(),
+              purchase_discount_pct: zod.number(),
+              actual_purchase_price_eur: zod.number(),
+              discount_buffer_eur: zod.number(),
+              market_value_at_sale_eur: zod.number(),
+              market_depreciation_absorbed_eur: zod.number(),
+              excess_depreciation_eur: zod.number(),
+            })
+            .nullish(),
         }),
         zod.null(),
       ])

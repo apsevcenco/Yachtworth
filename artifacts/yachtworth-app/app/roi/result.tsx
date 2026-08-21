@@ -94,6 +94,16 @@ function sectionLines(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+type DiscountAdjustment = {
+  market_price_eur?: number | null;
+  purchase_discount_pct?: number | null;
+  actual_purchase_price_eur?: number | null;
+  discount_buffer_eur?: number | null;
+  market_value_at_sale_eur?: number | null;
+  market_depreciation_absorbed_eur?: number | null;
+  excess_depreciation_eur?: number | null;
+};
+
 function assumptionLines(data: RoiCalculation): string[] {
   const lines = sectionLines(data.methodology);
   const picked = lines.filter(
@@ -212,6 +222,13 @@ export default function RoiResultScreen() {
   const netPositive = data.net_profit_eur >= 0;
   const paybackDisplay =
     data.payback_years >= 999 ? "—" : `${data.payback_years.toFixed(1)} yr`;
+  const discountAdjustment = (
+    data.exit_scenario as
+      | (NonNullable<RoiCalculation["exit_scenario"]> & {
+          discount_adjustment?: DiscountAdjustment | null;
+        })
+      | undefined
+  )?.discount_adjustment;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
@@ -344,6 +361,42 @@ export default function RoiResultScreen() {
                 {signedEur(-data.exit_scenario.purchase_price_eur)}
               </Text>
             </View>
+            {discountAdjustment ? (
+              <>
+                <View style={styles.expRow}>
+                  <Text style={styles.expCat}>Market price as new</Text>
+                  <Text style={styles.expAmount}>
+                    {eur(discountAdjustment.market_price_eur)}
+                  </Text>
+                </View>
+                <View style={styles.expRow}>
+                  <Text style={styles.expCat}>Purchase discount</Text>
+                  <Text style={styles.expAmount}>
+                    {discountAdjustment.purchase_discount_pct != null
+                      ? `${discountAdjustment.purchase_discount_pct.toFixed(1)}%`
+                      : "—"}
+                  </Text>
+                </View>
+                <View style={styles.expRow}>
+                  <Text style={styles.expCat}>Discount buffer</Text>
+                  <Text style={styles.expAmount}>
+                    {eur(discountAdjustment.discount_buffer_eur)}
+                  </Text>
+                </View>
+                <View style={styles.expRow}>
+                  <Text style={styles.expCat}>Market depreciation absorbed</Text>
+                  <Text style={styles.expAmount}>
+                    {eur(discountAdjustment.market_depreciation_absorbed_eur)}
+                  </Text>
+                </View>
+                <View style={styles.expRow}>
+                  <Text style={styles.expCat}>Depreciation beyond buffer</Text>
+                  <Text style={styles.expAmount}>
+                    {eur(discountAdjustment.excess_depreciation_eur)}
+                  </Text>
+                </View>
+              </>
+            ) : null}
             <View style={styles.expRow}>
               <Text style={styles.expCat}>Charter income (5 years)</Text>
               <Text style={styles.expAmount}>
@@ -418,8 +471,9 @@ export default function RoiResultScreen() {
             ) : null}
 
             <Text style={styles.exitNote}>
-              Based on the same 5-year depreciation curve and cumulative cash-flow
-              projection used above. Actual sale price may vary with market conditions.
+              {discountAdjustment
+                ? "Based on the same depreciation percentages, applied first to market-new value. The discount buffer protects the purchase-price value until market depreciation exceeds it."
+                : "Based on the same 5-year depreciation curve and cumulative cash-flow projection used above. Actual sale price may vary with market conditions."}
             </Text>
           </Card>
         ) : null}

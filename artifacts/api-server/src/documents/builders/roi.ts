@@ -332,6 +332,16 @@ export function buildRoiModel(input: {
     const exitFigures: { label: string; value: string }[] = [];
     if (exit.purchase_price_eur != null)
       exitFigures.push({ label: "Purchase price", value: money(exit.purchase_price_eur) });
+    if (exit.discount_adjustment?.market_price_eur != null)
+      exitFigures.push({ label: "Market price as new", value: money(exit.discount_adjustment.market_price_eur) });
+    if (exit.discount_adjustment?.purchase_discount_pct != null)
+      exitFigures.push({ label: "Purchase discount", value: `${exit.discount_adjustment.purchase_discount_pct.toFixed(1)}%` });
+    if (exit.discount_adjustment?.discount_buffer_eur != null)
+      exitFigures.push({ label: "Discount buffer", value: money(exit.discount_adjustment.discount_buffer_eur) });
+    if (exit.discount_adjustment?.market_depreciation_absorbed_eur != null)
+      exitFigures.push({ label: "Market depreciation absorbed", value: money(exit.discount_adjustment.market_depreciation_absorbed_eur) });
+    if (exit.discount_adjustment?.excess_depreciation_eur != null)
+      exitFigures.push({ label: "Depreciation beyond buffer", value: money(exit.discount_adjustment.excess_depreciation_eur) });
     if (exit.charter_income_5y_eur != null)
       exitFigures.push({ label: "Charter income (5yr)", value: money(exit.charter_income_5y_eur) });
     if (exit.vessel_value_at_sale_eur != null)

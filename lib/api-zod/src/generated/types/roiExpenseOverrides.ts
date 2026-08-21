@@ -20,6 +20,19 @@ export interface RoiExpenseOverrides {
    * @nullable
    */
   purchase_price_eur?: number | null;
+  /** @nullable */
+  discount_adjusted_depreciation?: boolean | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  discount_market_price_eur?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  discount_percent?: number | null;
   /**
    * @minimum 0
    * @nullable

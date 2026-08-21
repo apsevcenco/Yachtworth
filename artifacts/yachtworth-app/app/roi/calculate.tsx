@@ -219,6 +219,9 @@ export default function RoiCalculateScreen() {
   const [lowRate, setLowRate] = useState("");
   const [lowUnits, setLowUnits] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
+  const [discountMode, setDiscountMode] = useState(false);
+  const [discountMarketPrice, setDiscountMarketPrice] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
   // Crew / expenses / financing — prefilled from the yacht where available,
@@ -343,6 +346,21 @@ export default function RoiCalculateScreen() {
     setFin(hydrateFinancialsFromYacht(ov));
     const pp = ov.purchase_price_eur;
     if (typeof pp === "number" && Number.isFinite(pp)) setPurchasePrice(String(pp));
+    if (ov.discount_adjusted_depreciation === true) {
+      setDiscountMode(true);
+      if (
+        typeof ov.discount_market_price_eur === "number" &&
+        Number.isFinite(ov.discount_market_price_eur)
+      ) {
+        setDiscountMarketPrice(String(ov.discount_market_price_eur));
+      }
+      if (
+        typeof ov.discount_percent === "number" &&
+        Number.isFinite(ov.discount_percent)
+      ) {
+        setDiscountPercent(String(ov.discount_percent));
+      }
+    }
   }, [editId, editQ.data]);
 
   const updateFin = useCallback(
@@ -438,6 +456,22 @@ export default function RoiCalculateScreen() {
     () => computeCrewMonthlyTotal(fin.crew_breakdown),
     [fin.crew_breakdown],
   );
+
+  const discountDerivedPurchase = useMemo(() => {
+    if (!discountMode) return null;
+    const market = parseNum(discountMarketPrice);
+    const pct = parseNum(discountPercent);
+    if (market == null || market <= 0 || pct == null || pct <= 0 || pct >= 100) {
+      return null;
+    }
+    return Math.round(market * (1 - pct / 100));
+  }, [discountMode, discountMarketPrice, discountPercent]);
+
+  useEffect(() => {
+    if (discountMode && discountDerivedPurchase != null) {
+      setPurchasePrice(String(discountDerivedPurchase));
+    }
+  }, [discountDerivedPurchase, discountMode]);
 
   // Unified passport for the read-only summary — from the saved My Yacht (when a
   // yacht_id was passed) or the manual snapshot. ROI never writes back to it.
@@ -562,9 +596,26 @@ export default function RoiCalculateScreen() {
         e.marinaRegion2Months = "Total max 12 months";
       }
     }
+    if (discountMode) {
+      if (!discountMarketPrice.trim()) e.discountMarketPrice = "Required";
+      else if (!DEC_RE.test(discountMarketPrice)) e.discountMarketPrice = "Invalid amount";
+      else if ((parseNum(discountMarketPrice) ?? 0) <= 0) {
+        e.discountMarketPrice = "Must be > 0";
+      }
+
+      if (!discountPercent.trim()) e.discountPercent = "Required";
+      else if (!DEC_RE.test(discountPercent)) e.discountPercent = "Invalid %";
+      else {
+        const pct = parseNum(discountPercent) ?? 0;
+        if (pct <= 0 || pct >= 100) e.discountPercent = "Use 1-99%";
+      }
+    }
     return e;
   }, [
     dualRegion,
+    discountMarketPrice,
+    discountMode,
+    discountPercent,
     highRate,
     highUnits,
     isManual,
@@ -590,9 +641,20 @@ export default function RoiCalculateScreen() {
     try {
       // Purchase price is an ROI-only input — fold it into the overrides so the
       // engine uses it for payback / depreciation. Never saved to the yacht.
-      const overrides = buildRoiOverrides(fin) ?? {};
-      const pp = parseNum(purchasePrice);
+      const overrides = (buildRoiOverrides(fin) ?? {}) as Record<string, unknown>;
+      const pp = discountMode && discountDerivedPurchase != null
+        ? discountDerivedPurchase
+        : parseNum(purchasePrice);
       if (pp != null && pp >= 0) overrides.purchase_price_eur = pp;
+      if (discountMode && discountDerivedPurchase != null) {
+        const marketPrice = parseNum(discountMarketPrice);
+        const pct = parseNum(discountPercent);
+        if (marketPrice != null && pct != null) {
+          overrides.discount_adjusted_depreciation = true;
+          overrides.discount_market_price_eur = marketPrice;
+          overrides.discount_percent = pct;
+        }
+      }
       const hasOverrides = Object.keys(overrides).length > 0;
       const manualRows = [
         {
@@ -813,7 +875,63 @@ export default function RoiCalculateScreen() {
               onChangeText={setPurchasePrice}
               suffix="€"
               placeholder="1500000"
+              disabled={discountMode}
             />
+            <Pressable
+              onPress={() => setDiscountMode((v) => !v)}
+              style={({ pressed }) => [
+                styles.discountToggle,
+                discountMode && styles.discountToggleActive,
+                { opacity: pressed ? 0.78 : 1 },
+              ]}
+            >
+              <Feather
+                name={discountMode ? "check-circle" : "circle"}
+                size={18}
+                color={discountMode ? GOLD : MUTED}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.discountToggleTitle}>
+                  Stock / show-boat discount
+                </Text>
+                <Text style={styles.discountToggleText}>
+                  Use market-new value and purchase discount before applying the
+                  same depreciation curve.
+                </Text>
+              </View>
+            </Pressable>
+            {discountMode ? (
+              <View style={styles.discountBox}>
+                <Field
+                  label="Market price as new (€)"
+                  error={showErrors ? errors.discountMarketPrice : undefined}
+                >
+                  <MoneyInput
+                    value={discountMarketPrice}
+                    onChangeText={setDiscountMarketPrice}
+                    suffix="€"
+                    placeholder="3000000"
+                  />
+                </Field>
+                <Field
+                  label="Purchase discount (%)"
+                  error={showErrors ? errors.discountPercent : undefined}
+                >
+                  <MoneyInput
+                    value={discountPercent}
+                    onChangeText={setDiscountPercent}
+                    suffix="%"
+                    placeholder="30"
+                  />
+                </Field>
+                <Text style={styles.fieldHint}>
+                  Actual purchase price:{" "}
+                  {discountDerivedPurchase != null
+                    ? `€ ${discountDerivedPurchase.toLocaleString("en-US")}`
+                    : "—"}
+                </Text>
+              </View>
+            ) : null}
           </Section>
 
           <Section label="REGION">
@@ -1859,6 +1977,41 @@ const styles = StyleSheet.create({
   },
   fieldError: { color: ERROR, fontFamily: "Inter_500Medium", fontSize: 11, marginTop: 6 },
   fieldHint: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 6 },
+  discountToggle: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(247,243,236,0.12)",
+    backgroundColor: "rgba(247,243,236,0.04)",
+    padding: 12,
+  },
+  discountToggleActive: {
+    borderColor: "rgba(201,169,97,0.55)",
+    backgroundColor: "rgba(201,169,97,0.10)",
+  },
+  discountToggleTitle: {
+    color: IVORY,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+  },
+  discountToggleText: {
+    color: MUTED,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 3,
+  },
+  discountBox: {
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.18)",
+    backgroundColor: "rgba(8,22,51,0.58)",
+    padding: 12,
+  },
   moneyWrap: {
     flexDirection: "row",
     alignItems: "center",

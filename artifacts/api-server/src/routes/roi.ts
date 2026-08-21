@@ -43,6 +43,8 @@ const router: IRouter = Router();
 // per-calculation. crew_breakdown / financing_type are handled separately.
 const OVERRIDABLE_NUMERIC_KEYS = [
   "purchase_price_eur",
+  "discount_market_price_eur",
+  "discount_percent",
   "monthly_crew_eur",
   "monthly_mooring_eur",
   "monthly_fuel_eur",
@@ -95,6 +97,10 @@ function applyRoiOverrides(
       merged.loan_rate_pct = null;
       merged.loan_term_years = null;
     }
+  }
+  const discountFlag = overrides["discount_adjusted_depreciation"];
+  if (typeof discountFlag === "boolean") {
+    merged.discount_adjusted_depreciation = discountFlag;
   }
   return merged;
 }
