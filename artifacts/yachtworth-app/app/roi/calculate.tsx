@@ -12,10 +12,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/expo";
 import { AIRateEstimator } from "../../components/AIRateEstimator";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   LayoutAnimation,
   Platform,
@@ -29,6 +32,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnits } from "../../hooks/useUnits";
+import { uploadProposalPhoto } from "../../lib/proposalPhotoUpload";
 import {
   ANNUAL_FIELDS,
   buildRoiOverrides,
@@ -225,6 +229,8 @@ export default function RoiCalculateScreen() {
   const [discountMode, setDiscountMode] = useState(false);
   const [discountMarketPrice, setDiscountMarketPrice] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
+  const [titlePhotoUrl, setTitlePhotoUrl] = useState<string | null>(null);
+  const [titlePhotoBusy, setTitlePhotoBusy] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
 
   // Crew / expenses / financing — prefilled from the yacht where available,
@@ -384,6 +390,39 @@ export default function RoiCalculateScreen() {
 
   const mutation = useCalculateRoi();
   const deleteMutation = useDeleteRoiCalculation();
+
+  const uploadTitlePhoto = async (uri: string) => {
+    setTitlePhotoBusy(true);
+    try {
+      const url = await uploadProposalPhoto(uri);
+      setTitlePhotoUrl(url);
+    } catch (err) {
+      Alert.alert(
+        "Title photo upload failed",
+        err instanceof Error ? err.message : "Could not upload the photo.",
+      );
+    } finally {
+      setTitlePhotoBusy(false);
+    }
+  };
+
+  const pickTitlePhoto = async () => {
+    if (Platform.OS !== "web") {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Photo library access needed", "Enable photo access in Settings.");
+        return;
+      }
+    }
+    const r = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 1,
+    });
+    if (r.canceled || !r.assets?.[0]?.uri) return;
+    await uploadTitlePhoto(r.assets[0].uri);
+  };
 
   const isManual = pricingMode !== "ai";
   const dualMarinaLocksMooring = dualRegion;
@@ -744,15 +783,19 @@ export default function RoiCalculateScreen() {
         const arr = v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
         return arr.length ? arr : null;
       };
+      const yachtPhotoUrls = headerStrArr("photo_urls") ?? [];
+      const headerPhotoUrls = titlePhotoUrl
+        ? [titlePhotoUrl, ...yachtPhotoUrls.filter((url) => url !== titlePhotoUrl)]
+        : headerStrArr("photo_urls");
       const header = {
         yachtName: headerStr("name"),
         builder: headerStr("brand") ?? headerStr("builder"),
         model: headerStr("model"),
         regionLabel:
           REGION_OPTS.find((r) => r.v === region)?.l ?? null,
-        cover_photo_url: headerStr("cover_photo_url"),
-        photo_url: headerStr("photo_url"),
-        photo_urls: headerStrArr("photo_urls"),
+        cover_photo_url: titlePhotoUrl ?? headerStr("cover_photo_url"),
+        photo_url: titlePhotoUrl ?? headerStr("photo_url"),
+        photo_urls: headerPhotoUrls,
       };
       router.replace({
         pathname: "/roi/result",
@@ -868,6 +911,54 @@ export default function RoiCalculateScreen() {
               </Text>
             </View>
           ) : null}
+
+          <Section
+            label="TITLE PHOTO"
+            sublabel="Optional cover image for this ROI report only. It does not update My Yachts."
+          >
+            <View style={styles.titlePhotoBox}>
+              {titlePhotoUrl ? (
+                <Image source={{ uri: titlePhotoUrl }} style={styles.titlePhotoImage} contentFit="cover" />
+              ) : (
+                <View style={styles.titlePhotoEmpty}>
+                  <Feather name="image" size={22} color={GOLD} />
+                  <Text style={styles.titlePhotoEmptyText}>No report cover photo</Text>
+                </View>
+              )}
+              <View style={styles.titlePhotoActions}>
+                <Pressable
+                  onPress={() => void pickTitlePhoto()}
+                  disabled={titlePhotoBusy}
+                  style={({ pressed }) => [
+                    styles.titlePhotoBtn,
+                    { opacity: pressed || titlePhotoBusy ? 0.68 : 1 },
+                  ]}
+                >
+                  {titlePhotoBusy ? (
+                    <ActivityIndicator color={GOLD} size="small" />
+                  ) : (
+                    <Feather name={titlePhotoUrl ? "refresh-cw" : "upload"} size={16} color={GOLD} />
+                  )}
+                  <Text style={styles.titlePhotoBtnText}>
+                    {titlePhotoUrl ? "Replace photo" : "Add photo"}
+                  </Text>
+                </Pressable>
+                {titlePhotoUrl ? (
+                  <Pressable
+                    onPress={() => setTitlePhotoUrl(null)}
+                    disabled={titlePhotoBusy}
+                    style={({ pressed }) => [
+                      styles.titlePhotoRemove,
+                      { opacity: pressed || titlePhotoBusy ? 0.68 : 1 },
+                    ]}
+                  >
+                    <Feather name="x" size={16} color={MUTED} />
+                    <Text style={styles.titlePhotoRemoveText}>Remove</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          </Section>
 
           <Section
             label="PURCHASE PRICE"
@@ -2091,6 +2182,69 @@ const styles = StyleSheet.create({
     borderColor: "rgba(201,169,97,0.18)",
     backgroundColor: "rgba(8,22,51,0.58)",
     padding: 12,
+  },
+  titlePhotoBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: "rgba(247,243,236,0.04)",
+    overflow: "hidden",
+  },
+  titlePhotoImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    backgroundColor: NAVY_DEEP,
+  },
+  titlePhotoEmpty: {
+    aspectRatio: 16 / 9,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: NAVY_DEEP,
+  },
+  titlePhotoEmptyText: {
+    color: MUTED,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  titlePhotoActions: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 12,
+  },
+  titlePhotoBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(201,169,97,0.55)",
+    backgroundColor: "rgba(201,169,97,0.10)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  titlePhotoBtnText: {
+    color: GOLD,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+  },
+  titlePhotoRemove: {
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    backgroundColor: "rgba(247,243,236,0.04)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  titlePhotoRemoveText: {
+    color: MUTED,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
   },
   moneyWrap: {
     flexDirection: "row",
