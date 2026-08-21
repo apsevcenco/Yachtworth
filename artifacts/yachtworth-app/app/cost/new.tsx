@@ -132,6 +132,7 @@ const ANNUAL_FIELDS = [
 
 type MonthlyKey = (typeof MONTHLY_FIELDS)[number]["key"];
 type AnnualKey = (typeof ANNUAL_FIELDS)[number]["key"];
+type SocialSecurityMode = "percent" | "fixed_monthly";
 
 interface FormState {
   yacht_name: string;
@@ -145,7 +146,10 @@ interface FormState {
   crew: Record<string, CrewRow>;
   monthly: Record<MonthlyKey, string>;
   annual: Record<AnnualKey, string>;
+  social_security_mode: SocialSecurityMode;
   social_security_pct: string;
+  social_security_fixed_monthly_eur: string;
+  social_security_fixed_months: number;
   broker_commission_pct: string;
   financing_type: FinType | null;
   loan_amount_eur: string;
@@ -195,7 +199,10 @@ const INITIAL: FormState = {
     antifouling_eur: "",
     refit_reserve_eur: "",
   },
+  social_security_mode: "percent",
   social_security_pct: "",
+  social_security_fixed_monthly_eur: "",
+  social_security_fixed_months: 12,
   broker_commission_pct: "",
   financing_type: null,
   loan_amount_eur: "",
@@ -358,6 +365,9 @@ function mergeYachtIntoCostForm(
         f.annual.refit_reserve_eur || monthlyFromYacht("annual_refit_reserve_eur"),
     },
     social_security_pct: f.social_security_pct,
+    social_security_mode: f.social_security_mode,
+    social_security_fixed_monthly_eur: f.social_security_fixed_monthly_eur,
+    social_security_fixed_months: f.social_security_fixed_months,
     broker_commission_pct:
       f.broker_commission_pct ||
       moneyToStr(y["charter_commission_pct"] as number | null | undefined),
@@ -529,11 +539,27 @@ export default function CostNewScreen() {
         if (n < 0 || n > 100) e.broker = "0–100 %";
       }
     }
-    if (form.social_security_pct) {
+    if (form.social_security_mode === "percent" && form.social_security_pct) {
       if (!DEC_RE.test(form.social_security_pct)) e.social_security = "Invalid";
       else {
         const n = parseNum(form.social_security_pct)!;
         if (n < 0 || n > 100) e.social_security = "0–100 %";
+      }
+    }
+    if (
+      form.social_security_mode === "fixed_monthly" &&
+      form.social_security_fixed_monthly_eur
+    ) {
+      if (!DEC_RE.test(form.social_security_fixed_monthly_eur)) {
+        e.social_security_fixed = "Invalid";
+      } else if ((parseNum(form.social_security_fixed_monthly_eur) ?? 0) < 0) {
+        e.social_security_fixed = "Must be >= 0";
+      }
+      if (
+        form.social_security_fixed_months < 1 ||
+        form.social_security_fixed_months > 12
+      ) {
+        e.social_security_fixed = "Months must be 1-12";
       }
     }
     // Step 3 — Financing
@@ -560,7 +586,7 @@ export default function CostNewScreen() {
   const stepHasError = useMemo(() => {
     return [
       ["yacht_class", "region", "usage_type", "length", "year_built"],
-      ["crew", "social_security"],
+      ["crew", "social_security", "social_security_fixed"],
       [
         ...MONTHLY_FIELDS.map((f) => `m_${f.key}`),
         ...ANNUAL_FIELDS.map((f) => `a_${f.key}`),
@@ -646,7 +672,16 @@ export default function CostNewScreen() {
         crew_travel_training_eur: num(form.annual.crew_travel_training_eur),
         refit_reserve_eur: num(form.annual.refit_reserve_eur),
       },
+      social_security_mode: form.social_security_mode,
       social_security_pct: num(form.social_security_pct),
+      social_security_fixed_monthly_eur:
+        form.social_security_mode === "fixed_monthly"
+          ? num(form.social_security_fixed_monthly_eur)
+          : null,
+      social_security_fixed_months:
+        form.social_security_mode === "fixed_monthly"
+          ? form.social_security_fixed_months
+          : null,
       broker_commission_pct: num(form.broker_commission_pct),
       financing: {
         type: form.financing_type!,
@@ -1026,10 +1061,23 @@ function Step2Crew({
       const months = Math.min(12, Math.max(1, r.months));
       sum += s * months * qty;
     }
-    const social = parseNum(form.social_security_pct);
-    if (social != null && social > 0) sum += sum * (Math.min(100, social) / 100);
+    if (form.social_security_mode === "percent") {
+      const social = parseNum(form.social_security_pct);
+      if (social != null && social > 0) sum += sum * (Math.min(100, social) / 100);
+    } else {
+      const fixed = parseNum(form.social_security_fixed_monthly_eur);
+      if (fixed != null && fixed > 0) {
+        sum += fixed * Math.min(12, Math.max(1, form.social_security_fixed_months));
+      }
+    }
     return sum;
-  }, [form.crew, form.social_security_pct]);
+  }, [
+    form.crew,
+    form.social_security_fixed_monthly_eur,
+    form.social_security_fixed_months,
+    form.social_security_mode,
+    form.social_security_pct,
+  ]);
 
   return (
     <View>
@@ -1138,18 +1186,104 @@ function Step2Crew({
       {errors.crew ? <Text style={styles.fieldError}>{errors.crew}</Text> : null}
 
       <Field
-        label="Social security / payroll uplift"
-        error={errors.social_security}
-        hint="Applied to each enabled crew role and shown as separate lines in the result."
+        label="Social security / payroll charges"
+        error={
+          form.social_security_mode === "percent"
+            ? errors.social_security
+            : errors.social_security_fixed
+        }
+        hint={
+          form.social_security_mode === "percent"
+            ? "Applied to each enabled crew role and shown as separate lines in the result."
+            : "Fixed contribution shown as one separate crew-cost line in the result."
+        }
       >
-        <MoneyInput
-          value={form.social_security_pct}
-          onChangeText={(v) =>
-            setForm((s) => ({ ...s, social_security_pct: v }))
-          }
-          suffix="%"
-          placeholder="0"
-        />
+        <View style={styles.pillRow}>
+          {[
+            { v: "percent" as const, l: "Percentage" },
+            { v: "fixed_monthly" as const, l: "Fixed monthly" },
+          ].map((opt) => {
+            const active = form.social_security_mode === opt.v;
+            return (
+              <Pressable
+                key={opt.v}
+                onPress={() =>
+                  setForm((s) => ({ ...s, social_security_mode: opt.v }))
+                }
+                style={[styles.pill, active && styles.pillActive]}
+              >
+                <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                  {opt.l}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {form.social_security_mode === "percent" ? (
+          <MoneyInput
+            value={form.social_security_pct}
+            onChangeText={(v) =>
+              setForm((s) => ({ ...s, social_security_pct: v }))
+            }
+            suffix="%"
+            placeholder="0"
+          />
+        ) : (
+          <View style={{ gap: 10 }}>
+            <MoneyInput
+              value={form.social_security_fixed_monthly_eur}
+              onChangeText={(v) =>
+                setForm((s) => ({
+                  ...s,
+                  social_security_fixed_monthly_eur: v,
+                }))
+              }
+              suffix="€ / mo"
+              placeholder="1200"
+            />
+            <View style={styles.crewControlsRow}>
+              <Text style={styles.monthsLabel}>Months / year</Text>
+              <View style={styles.qtyStepper}>
+                <Pressable
+                  onPress={() =>
+                    setForm((s) => ({
+                      ...s,
+                      social_security_fixed_months: Math.max(
+                        1,
+                        s.social_security_fixed_months - 1,
+                      ),
+                    }))
+                  }
+                  hitSlop={6}
+                  style={styles.qtyBtn}
+                >
+                  <Feather name="minus" size={14} color={GOLD} />
+                </Pressable>
+                <View style={styles.qtyBox}>
+                  <Text style={styles.qtyValue}>
+                    {form.social_security_fixed_months}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() =>
+                    setForm((s) => ({
+                      ...s,
+                      social_security_fixed_months: Math.min(
+                        12,
+                        s.social_security_fixed_months + 1,
+                      ),
+                    }))
+                  }
+                  hitSlop={6}
+                  style={styles.qtyBtn}
+                >
+                  <Feather name="plus" size={14} color={GOLD} />
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
       </Field>
 
       <View style={styles.totalCard}>

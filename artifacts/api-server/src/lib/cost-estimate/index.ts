@@ -144,7 +144,21 @@ export function computeCostEstimate(
   // ---- Crew ----
   const crewLines: CostBreakdownEntry[] = [];
   let crewTotal = 0;
-  const socialSecurityPct = clampPct(input.social_security_pct ?? 0);
+  const socialSecurityMode =
+    input.social_security_mode === "fixed_monthly" ? "fixed_monthly" : "percent";
+  const socialSecurityPct =
+    socialSecurityMode === "percent" ? clampPct(input.social_security_pct ?? 0) : 0;
+  const socialSecurityFixedMonthly =
+    socialSecurityMode === "fixed_monthly"
+      ? Math.max(0, Number(input.social_security_fixed_monthly_eur ?? 0) || 0)
+      : 0;
+  const socialSecurityFixedMonths =
+    socialSecurityMode === "fixed_monthly"
+      ? Math.min(
+          12,
+          Math.max(1, Math.floor(Number(input.social_security_fixed_months ?? 12) || 12)),
+        )
+      : 12;
   const socialSecurityLines: CostBreakdownEntry[] = [];
   let socialSecurityTotal = 0;
   for (const pos of input.crew ?? []) {
@@ -171,6 +185,15 @@ export function computeCostEstimate(
         socialSecurityTotal += social;
       }
     }
+  }
+  if (socialSecurityFixedMonthly > 0) {
+    const social = Math.round(socialSecurityFixedMonthly * socialSecurityFixedMonths);
+    socialSecurityLines.push({
+      category: "Social security · fixed contribution",
+      amount_eur: social,
+      formula: `€${Math.round(socialSecurityFixedMonthly).toLocaleString("en-US")}/mo × ${socialSecurityFixedMonths}`,
+    });
+    socialSecurityTotal += social;
   }
   crewLines.push(...socialSecurityLines);
   crewTotal += socialSecurityTotal;

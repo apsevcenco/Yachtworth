@@ -57,6 +57,31 @@ export function roiProjection5y(
 }
 
 /**
+ * 5-year cumulative cash projection for a new charter program.
+ * Year 1 uses the calculated charter income as-is; year 2 assumes +20%
+ * charter activity; year 3 adds another +10%; years 4-5 hold that mature
+ * charter level. Operating expenses still inflate by 3%/yr.
+ */
+export function roiProjection5yCharterRamp(
+  annualRevenueYear1Eur: number,
+  annualExpensesYear1Eur: number,
+  yearsAhead = 5,
+): { year_offset: number; value_eur: number }[] {
+  const out: { year_offset: number; value_eur: number }[] = [];
+  let cum = 0;
+  const expenseInflation = 0.03;
+  const revenueFactors = [1, 1.2, 1.32];
+  for (let y = 1; y <= yearsAhead; y++) {
+    const revenueFactor = revenueFactors[Math.min(y - 1, revenueFactors.length - 1)]!;
+    const revenue = annualRevenueYear1Eur * revenueFactor;
+    const expenses = annualExpensesYear1Eur * Math.pow(1 + expenseInflation, y - 1);
+    cum += revenue - expenses;
+    out.push({ year_offset: y, value_eur: Math.round(cum) });
+  }
+  return out;
+}
+
+/**
  * Spread an annual figure across 12 months with a simple
  * Mediterranean-ish seasonality (June–Aug peak, Dec–Feb low).
  * Sum of weights == 12 so total preserved.

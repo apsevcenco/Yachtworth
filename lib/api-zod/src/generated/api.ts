@@ -2516,6 +2516,9 @@ export const CalculateCostEstimateBody = zod.object({
     .describe(
       "Payroll\/social-security uplift applied to enabled crew salary lines and shown per role.",
     ),
+  social_security_mode: zod.enum(["percent", "fixed_monthly"]).nullish(),
+  social_security_fixed_monthly_eur: zod.number().min(0).nullish(),
+  social_security_fixed_months: zod.number().min(1).max(12).nullish(),
   financing: zod.object({
     type: zod.enum(["cash", "loan"]),
     loan_amount_eur: zod
@@ -2915,6 +2918,9 @@ export const GetCostEstimateResponse = zod.object({
       .describe(
         "Payroll\/social-security uplift applied to enabled crew salary lines and shown per role.",
       ),
+    social_security_mode: zod.enum(["percent", "fixed_monthly"]).nullish(),
+    social_security_fixed_monthly_eur: zod.number().min(0).nullish(),
+    social_security_fixed_months: zod.number().min(1).max(12).nullish(),
     financing: zod.object({
       type: zod.enum(["cash", "loan"]),
       loan_amount_eur: zod

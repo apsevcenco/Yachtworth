@@ -60,5 +60,23 @@ export interface CostEstimateInput {
    * @nullable
    */
   social_security_pct?: number | null;
+  /**
+   * Social charges calculation mode. Percent keeps the legacy percentage uplift; fixed_monthly uses a fixed monthly amount times selected months.
+   * @nullable
+   */
+  social_security_mode?: "percent" | "fixed_monthly" | null;
+  /**
+   * Fixed social-security contribution per month.
+   * @minimum 0
+   * @nullable
+   */
+  social_security_fixed_monthly_eur?: number | null;
+  /**
+   * Number of months for fixed social-security contribution.
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  social_security_fixed_months?: number | null;
   financing: CostFinancingInput;
 }

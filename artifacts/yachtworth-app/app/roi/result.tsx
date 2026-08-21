@@ -109,11 +109,12 @@ function assumptionLines(data: RoiCalculation): string[] {
   const picked = lines.filter(
     (line) =>
       line.includes("3.0% annual growth") ||
+      line.includes("year 2 +20%") ||
       line.includes("depreciation curve") ||
       line.includes("Repositioning between"),
   );
   const fallback = [
-    "Cumulative cash flow projects the year-1 net result forward at 3.0% annual growth.",
+    "Cumulative cash flow models charter ramp-up: year 2 +20% charter income, year 3 +10% additional charter income, then stable charter activity; operating expenses inflate at 3.0%/yr.",
     "Comparable listings show source domains; different-builder examples are marked as secondary comparables.",
   ];
   return picked.length ? picked : fallback;
