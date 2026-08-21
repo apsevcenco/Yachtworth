@@ -109,7 +109,7 @@ function coverBlock(c: CoverSpec): DocBlock {
   return {
     id: "cover",
     type: "cover",
-    estimatedHeight: 265,
+    estimatedHeight: 261,
     standalone: true,
     fillExempt: true,
     html,

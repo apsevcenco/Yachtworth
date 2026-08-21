@@ -159,7 +159,7 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   /* cover (full-bleed photo OR premium solid-navy text cover — never a placeholder) */
   .cover {
     page-break-after: always;
-    height: 265mm;
+    height: 261mm;
     background: ${t.coverBg};
     color: ${t.coverText};
     position: relative;
@@ -167,9 +167,12 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
   }
   .cover-photo {
     position: absolute;
-    inset: 12mm;
+    top: 10mm;
+    right: 12mm;
+    bottom: 92mm;
+    left: 12mm;
     width: calc(100% - 24mm);
-    height: calc(100% - 24mm);
+    height: calc(100% - 102mm);
     object-fit: contain;
     border-radius: 3px;
   }
