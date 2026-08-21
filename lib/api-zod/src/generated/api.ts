@@ -1571,6 +1571,11 @@ export const calculateRoiBodyOverridesOneCrewBreakdownItemCountMax = 50;
 
 export const calculateRoiBodyOverridesOnePurchasePriceEurMin = 0;
 
+export const calculateRoiBodyOverridesOneDiscountMarketPriceEurMin = 0;
+
+export const calculateRoiBodyOverridesOneDiscountPercentMin = 0;
+export const calculateRoiBodyOverridesOneDiscountPercentMax = 100;
+
 export const calculateRoiBodyOverridesOneSocialSecurityPctMin = 0;
 export const calculateRoiBodyOverridesOneSocialSecurityPctMax = 100;
 
@@ -1869,6 +1874,23 @@ export const CalculateRoiBody = zod.object({
             .describe(
               "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
             ),
+          discount_adjusted_depreciation: zod
+            .boolean()
+            .nullish()
+            .describe(
+              "Applies the stock\/show-boat discount depreciation model for this ROI calculation only.",
+            ),
+          discount_market_price_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneDiscountMarketPriceEurMin)
+            .nullish()
+            .describe("Market-new value before the purchase discount."),
+          discount_percent: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneDiscountPercentMin)
+            .max(calculateRoiBodyOverridesOneDiscountPercentMax)
+            .nullish()
+            .describe("Purchase discount from market-new value."),
           social_security_mode: zod
             .union([
               zod.literal("percent"),
@@ -3307,6 +3329,11 @@ export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemCountMax
 
 export const getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin = 0;
 
+export const getRoiCalculationResponseInputOverridesOneDiscountMarketPriceEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneDiscountPercentMin = 0;
+export const getRoiCalculationResponseInputOverridesOneDiscountPercentMax = 100;
+
 export const getRoiCalculationResponseInputOverridesOneSocialSecurityPctMin = 0;
 export const getRoiCalculationResponseInputOverridesOneSocialSecurityPctMax = 100;
 
@@ -3651,6 +3678,25 @@ export const GetRoiCalculationResponse = zod.object({
               .describe(
                 "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
               ),
+            discount_adjusted_depreciation: zod
+              .boolean()
+              .nullish()
+              .describe(
+                "Applies the stock\/show-boat discount depreciation model for this ROI calculation only.",
+              ),
+            discount_market_price_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneDiscountMarketPriceEurMin,
+              )
+              .nullish()
+              .describe("Market-new value before the purchase discount."),
+            discount_percent: zod
+              .number()
+              .min(getRoiCalculationResponseInputOverridesOneDiscountPercentMin)
+              .max(getRoiCalculationResponseInputOverridesOneDiscountPercentMax)
+              .nullish()
+              .describe("Purchase discount from market-new value."),
             social_security_mode: zod
               .union([
                 zod.literal("percent"),

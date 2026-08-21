@@ -22,6 +22,24 @@ export interface RoiExpenseOverrides {
    */
   purchase_price_eur?: number | null;
   /**
+   * Applies the stock/show-boat discount depreciation model for this ROI calculation only.
+   * @nullable
+   */
+  discount_adjusted_depreciation?: boolean | null;
+  /**
+   * Market-new value before the purchase discount.
+   * @minimum 0
+   * @nullable
+   */
+  discount_market_price_eur?: number | null;
+  /**
+   * Purchase discount from market-new value.
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  discount_percent?: number | null;
+  /**
    * Social charges mode for this ROI calculation only.
    * @nullable
    */

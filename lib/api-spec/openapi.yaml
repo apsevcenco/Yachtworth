@@ -2333,6 +2333,20 @@ components:
             Yacht purchase price for THIS calculation (capital base for ROI /
             payback / depreciation). Lives only in ROI — entered on the scenario
             screen, prefilled from a saved yacht when present, never written back.
+        discount_adjusted_depreciation:
+          type: ["boolean", "null"]
+          description: >-
+            Applies the stock/show-boat discount depreciation model for this ROI
+            calculation only.
+        discount_market_price_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Market-new value before the purchase discount.
+        discount_percent:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+          description: Purchase discount from market-new value.
         social_security_mode:
           type: ["string", "null"]
           enum: [percent, fixed_monthly, null]
