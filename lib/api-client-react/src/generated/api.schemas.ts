@@ -96,11 +96,13 @@ export interface ValuationInput {
    * @nullable
    */
   model?: string | null;
+  year_built: number;
+  region?: string;
   /**
    * @minimum 1940
    * @maximum 2100
    */
-  year_built: number;
+  usage_type?: string;
   /**
    * @minimum 1940
    * @maximum 2100
@@ -164,6 +166,18 @@ export interface ValuationInput {
   crew?: number | null;
 }
 
+/**
+ * @nullable
+ */
+export type ComparableVatStatus =
+  | (typeof ComparableVatStatus)[keyof typeof ComparableVatStatus]
+  | null;
+
+export const ComparableVatStatus = {
+  paid: "paid",
+  not_paid: "not_paid",
+} as const;
+
 export interface Comparable {
   /** @nullable */
   builder?: string | null;
@@ -176,7 +190,7 @@ export interface Comparable {
   /** @nullable */
   location?: string | null;
   /** @nullable */
-  vat_status?: "paid" | "not_paid" | null;
+  vat_status?: ComparableVatStatus;
   /** @nullable */
   condition?: string | null;
   price: string;
@@ -304,6 +318,7 @@ export const OccupancyTarget = {
  * How the charter rate is determined:
 * manual_daily  — user provides daily rate + number of charter days
 * manual_weekly — user provides weekly rate + number of charter weeks
+* manual_monthly — user provides monthly rate + number of charter months
 * ai            — engine asks AI (web-search) for plausible rate + weeks
 
  */
@@ -312,6 +327,7 @@ export type PricingMode = (typeof PricingMode)[keyof typeof PricingMode];
 export const PricingMode = {
   manual_daily: "manual_daily",
   manual_weekly: "manual_weekly",
+  manual_monthly: "manual_monthly",
   ai: "ai",
 } as const;
 
@@ -526,19 +542,6 @@ export interface YachtInput {
    * @nullable
    */
   purchase_price_eur?: number | null;
-  /** @nullable */
-  discount_adjusted_depreciation?: boolean | null;
-  /**
-   * @minimum 0
-   * @nullable
-   */
-  discount_market_price_eur?: number | null;
-  /**
-   * @minimum 0
-   * @maximum 100
-   * @nullable
-   */
-  discount_percent?: number | null;
   /**
    * @minimum 1900
    * @maximum 2100
@@ -833,6 +836,19 @@ export interface RoiYachtSnapshot {
 }
 
 /**
+ * Social charges mode for this ROI calculation only.
+ * @nullable
+ */
+export type RoiExpenseOverridesSocialSecurityMode =
+  | (typeof RoiExpenseOverridesSocialSecurityMode)[keyof typeof RoiExpenseOverridesSocialSecurityMode]
+  | null;
+
+export const RoiExpenseOverridesSocialSecurityMode = {
+  percent: "percent",
+  fixed_monthly: "fixed_monthly",
+} as const;
+
+/**
  * Optional overrides for the ROI calculation. crew_breakdown is stored for history/re-open; the engine uses monthly_crew_eur as the crew total.
  */
 export interface RoiExpenseOverrides {
@@ -845,6 +861,31 @@ export interface RoiExpenseOverrides {
    */
   purchase_price_eur?: number | null;
   /**
+   * Social charges mode for this ROI calculation only.
+   * @nullable
+   */
+  social_security_mode?: RoiExpenseOverridesSocialSecurityMode;
+  /**
+   * Payroll/social charges percentage applied to annual crew payroll.
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  social_security_pct?: number | null;
+  /**
+   * Fixed monthly social charges amount.
+   * @minimum 0
+   * @nullable
+   */
+  social_security_fixed_monthly_eur?: number | null;
+  /**
+   * Number of months for fixed social charges.
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  social_security_fixed_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
@@ -855,35 +896,77 @@ export interface RoiExpenseOverrides {
    */
   monthly_mooring_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_mooring_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_fuel_eur?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_fuel_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   monthly_provisioning_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_provisioning_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_communications_eur?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_communications_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   monthly_maintenance_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_maintenance_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_management_fee_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_management_fee_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_misc_eur?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_misc_months?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -905,11 +988,13 @@ export interface RoiExpenseOverrides {
    */
   annual_antifouling_eur?: number | null;
   /**
+   * Main engine(s) annual service.
    * @minimum 0
    * @nullable
    */
   engine_service_eur?: number | null;
   /**
+   * Generator(s) annual service.
    * @minimum 0
    * @nullable
    */
@@ -956,7 +1041,7 @@ export interface RoiCalculationInput {
   occupancy_target?: OccupancyTarget | null;
   pricing_mode: PricingMode;
   /**
-   * Per-day rate for manual_daily, per-week rate for manual_weekly
+   * Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly
    * @minimum 0
    * @nullable
    */
@@ -1010,7 +1095,7 @@ export interface RoiCalculationInput {
   target_weeks?: number | null;
   /** AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null. */
   charter_type?: CharterType | null;
-  /** AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions. */
+  /** Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). In AI mode each region is estimated separately; in manual mode region 1 and region 2 use the owner-entered manual rates and units. null = single-region. Max 2 regions. */
   region_2?: CharterRegion | null;
   /** AI dual-region only. Season basis for region_2 (high | shoulder | low | mixed). "mixed" = the region's full charter window. Ignored unless region_2 is set. Region 1 always uses its full window. */
   season_2?: CharterSeason | null;
@@ -1019,32 +1104,32 @@ export interface RoiCalculationInput {
   /** AI dual-region only. Occupancy posture for region_2. Defaults to realistic. Ignored unless region_2 is set. */
   occupancy_target_2?: OccupancyTarget | null;
   /**
-   * AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.
+   * Dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.
    * @minimum 0
    * @nullable
    */
   repositioning_cost_eur?: number | null;
   /**
-   * AI dual-region only. Monthly mooring rate for region 1.
+   * Dual-region only. Monthly mooring rate for region 1.
    * @minimum 0
    * @nullable
    */
   marina_region_1_monthly_eur?: number | null;
   /**
-   * AI dual-region only. Months per year in the region 1 marina.
+   * Dual-region only. Months per year in the region 1 marina.
    * @minimum 1
    * @maximum 12
    * @nullable
    */
   marina_region_1_months?: number | null;
   /**
-   * AI dual-region only. Monthly mooring rate for region 2.
+   * Dual-region only. Monthly mooring rate for region 2.
    * @minimum 0
    * @nullable
    */
   marina_region_2_monthly_eur?: number | null;
   /**
-   * AI dual-region only. Months per year in the region 2 marina.
+   * Dual-region only. Months per year in the region 2 marina.
    * @minimum 1
    * @maximum 12
    * @nullable
@@ -1187,6 +1272,7 @@ export type RoiRegionIncomeCharterType =
 export const RoiRegionIncomeCharterType = {
   weekly: "weekly",
   daily: "daily",
+  monthly: "monthly",
 } as const;
 
 export interface RoiRegionIncome {
@@ -1240,17 +1326,6 @@ export interface RoiExitScenario {
    * @nullable
    */
   exit_result_after_loan_eur?: number | null;
-  /** @nullable */
-  discount_adjustment?: {
-    enabled: true;
-    market_price_eur: number;
-    purchase_discount_pct: number;
-    actual_purchase_price_eur: number;
-    discount_buffer_eur: number;
-    market_value_at_sale_eur: number;
-    market_depreciation_absorbed_eur: number;
-    excess_depreciation_eur: number;
-  } | null;
 }
 
 export interface RoiCalculation {
@@ -1386,9 +1461,13 @@ export interface CostMonthlyExpenses {
   /**
    * @minimum 0
    * @nullable
-  */
+   */
   mooring_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   mooring_months?: number | null;
   /**
    * Marina utilities and local services not included in berth.
@@ -1396,28 +1475,44 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   utilities_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   utilities_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   fuel_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   fuel_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   provisioning_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   provisioning_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   communications_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   communications_months?: number | null;
   /**
    * Monthly yacht management fee.
@@ -1425,14 +1520,22 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   management_fee_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   management_fee_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   maintenance_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   maintenance_months?: number | null;
   /**
    * Monthly miscellaneous / contingency allowance.
@@ -1440,7 +1543,11 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   misc_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   misc_months?: number | null;
 }
 
@@ -1559,6 +1666,18 @@ export interface CostFinancingInput {
   term_years?: number | null;
 }
 
+/**
+ * @nullable
+ */
+export type CostEstimateInputSocialSecurityMode =
+  | (typeof CostEstimateInputSocialSecurityMode)[keyof typeof CostEstimateInputSocialSecurityMode]
+  | null;
+
+export const CostEstimateInputSocialSecurityMode = {
+  percent: "percent",
+  fixed_monthly: "fixed_monthly",
+} as const;
+
 export interface CostEstimateInput {
   /**
    * Optional link to a yacht profile (uuid). When set, the cost estimate appears in that yacht's History tab.
@@ -1606,11 +1725,8 @@ export interface CostEstimateInput {
    * @nullable
    */
   social_security_pct?: number | null;
-  /**
-   * Social charges calculation mode. Percent keeps the legacy percentage uplift; fixed_monthly uses a fixed monthly amount times selected months.
-   * @nullable
-   */
-  social_security_mode?: "percent" | "fixed_monthly" | null;
+  /** @nullable */
+  social_security_mode?: CostEstimateInputSocialSecurityMode;
   /**
    * Fixed social-security contribution per month.
    * @minimum 0
@@ -1666,8 +1782,8 @@ export interface CostEstimateResult {
   yacht_class: YachtType;
   length_meters: number;
   year_built: number;
-  region?: string;
-  usage_type?: string;
+  region?: OperationRegion;
+  usage_type?: UsageType;
 }
 
 export interface CostEstimate {
@@ -2536,13 +2652,30 @@ export const SurveyStatus = {
   complete: "complete",
 } as const;
 
+export interface SurveyLooseObject {
+  [key: string]: unknown;
+}
+
+/**
+ * @nullable
+ */
+export type SurveyReportInputBrandingMode =
+  | (typeof SurveyReportInputBrandingMode)[keyof typeof SurveyReportInputBrandingMode]
+  | null;
+
+export const SurveyReportInputBrandingMode = {
+  white_label: "white_label",
+  yachtworth: "yachtworth",
+  surveyor: "surveyor",
+} as const;
+
 export interface SurveyReportInput {
   /** @nullable */
   yacht_id?: string | null;
   /** @nullable */
   report_type?: string | null;
   /** @nullable */
-  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
+  branding_mode?: SurveyReportInputBrandingMode;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;
@@ -2631,11 +2764,24 @@ export interface SurveyReportInput {
   overall_condition?: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type SurveyReportPatchBrandingMode =
+  | (typeof SurveyReportPatchBrandingMode)[keyof typeof SurveyReportPatchBrandingMode]
+  | null;
+
+export const SurveyReportPatchBrandingMode = {
+  white_label: "white_label",
+  yachtworth: "yachtworth",
+  surveyor: "surveyor",
+} as const;
+
 export interface SurveyReportPatch {
   /** @nullable */
   report_type?: string | null;
   /** @nullable */
-  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
+  branding_mode?: SurveyReportPatchBrandingMode;
   /** @nullable */
   vessel_name?: string | null;
   /** @nullable */
@@ -2723,6 +2869,19 @@ export interface SurveyReportPatch {
   status?: SurveyStatus | null;
 }
 
+/**
+ * @nullable
+ */
+export type SurveyReportBrandingMode =
+  | (typeof SurveyReportBrandingMode)[keyof typeof SurveyReportBrandingMode]
+  | null;
+
+export const SurveyReportBrandingMode = {
+  white_label: "white_label",
+  yachtworth: "yachtworth",
+  surveyor: "surveyor",
+} as const;
+
 export interface SurveyReport {
   id: string;
   clerk_user_id: string;
@@ -2730,7 +2889,7 @@ export interface SurveyReport {
   yacht_id?: string | null;
   report_type?: string;
   /** @nullable */
-  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
+  branding_mode?: SurveyReportBrandingMode;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;
@@ -2852,7 +3011,7 @@ export interface SurveyItemInput {
   estimated_cost_eur?: number | null;
   /** @nullable */
   due_date?: string | null;
-  section_data?: { [key: string]: unknown };
+  section_data?: SurveyLooseObject;
   sync_status?: string;
   sort_order?: number;
 }
@@ -2890,7 +3049,7 @@ export interface SurveyItem {
   estimated_cost_eur?: number | null;
   /** @nullable */
   due_date?: string | null;
-  section_data?: { [key: string]: unknown };
+  section_data?: SurveyLooseObject;
   sync_status?: string;
   sort_order?: number;
   updated_at?: string;
@@ -2927,6 +3086,27 @@ export interface SurveyRpmRow {
   speed?: number | null;
 }
 
+export type SurveySeaTrialInputRpmTableColumnsItem = {
+  /** @nullable */
+  id?: string | null;
+  /** @nullable */
+  label?: string | null;
+};
+
+/**
+ * @nullable
+ */
+export type SurveySeaTrialInputRpmTableRowsItemCells = {
+  [key: string]: string | number | null;
+} | null;
+
+export type SurveySeaTrialInputRpmTableRowsItem = {
+  /** @nullable */
+  id?: string | null;
+  /** @nullable */
+  cells?: SurveySeaTrialInputRpmTableRowsItemCells;
+};
+
 export interface SurveySeaTrialInput {
   /** @nullable */
   trial_date?: string | null;
@@ -2938,18 +3118,8 @@ export interface SurveySeaTrialInput {
   sea_state?: string | null;
   /** @nullable */
   narrative?: string | null;
-  rpm_table_columns?: {
-    /** @nullable */
-    id?: string | null;
-    /** @nullable */
-    label?: string | null;
-  }[];
-  rpm_table_rows?: {
-    /** @nullable */
-    id?: string | null;
-    /** @nullable */
-    cells?: Record<string, string | number | null> | null;
-  }[];
+  rpm_table_columns?: SurveySeaTrialInputRpmTableColumnsItem[];
+  rpm_table_rows?: SurveySeaTrialInputRpmTableRowsItem[];
   rpm_table?: SurveyRpmRow[];
   /** @nullable */
   tickover_rpm?: number | null;
@@ -2963,6 +3133,27 @@ export interface SurveySeaTrialInput {
   additional_observations?: string | null;
 }
 
+export type SurveySeaTrialRpmTableColumnsItem = {
+  /** @nullable */
+  id?: string | null;
+  /** @nullable */
+  label?: string | null;
+};
+
+/**
+ * @nullable
+ */
+export type SurveySeaTrialRpmTableRowsItemCells = {
+  [key: string]: string | number | null;
+} | null;
+
+export type SurveySeaTrialRpmTableRowsItem = {
+  /** @nullable */
+  id?: string | null;
+  /** @nullable */
+  cells?: SurveySeaTrialRpmTableRowsItemCells;
+};
+
 export interface SurveySeaTrial {
   report_id: string;
   /** @nullable */
@@ -2975,18 +3166,8 @@ export interface SurveySeaTrial {
   sea_state?: string | null;
   /** @nullable */
   narrative?: string | null;
-  rpm_table_columns?: {
-    /** @nullable */
-    id?: string | null;
-    /** @nullable */
-    label?: string | null;
-  }[];
-  rpm_table_rows?: {
-    /** @nullable */
-    id?: string | null;
-    /** @nullable */
-    cells?: Record<string, string | number | null> | null;
-  }[];
+  rpm_table_columns?: SurveySeaTrialRpmTableColumnsItem[];
+  rpm_table_rows?: SurveySeaTrialRpmTableRowsItem[];
   rpm_table?: SurveyRpmRow[];
   /** @nullable */
   tickover_rpm?: number | null;

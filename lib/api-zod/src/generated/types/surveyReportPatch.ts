@@ -5,13 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SurveyReportPatchBrandingMode } from "./surveyReportPatchBrandingMode";
 import type { SurveyStatus } from "./surveyStatus";
 
 export interface SurveyReportPatch {
   /** @nullable */
   report_type?: string | null;
   /** @nullable */
-  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
+  branding_mode?: SurveyReportPatchBrandingMode;
   /** @nullable */
   vessel_name?: string | null;
   /** @nullable */

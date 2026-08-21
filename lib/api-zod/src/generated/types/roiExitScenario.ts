@@ -29,15 +29,4 @@ export interface RoiExitScenario {
    * @nullable
    */
   exit_result_after_loan_eur?: number | null;
-  /** @nullable */
-  discount_adjustment?: {
-    enabled: true;
-    market_price_eur: number;
-    purchase_discount_pct: number;
-    actual_purchase_price_eur: number;
-    discount_buffer_eur: number;
-    market_value_at_sale_eur: number;
-    market_depreciation_absorbed_eur: number;
-    excess_depreciation_eur: number;
-  } | null;
 }

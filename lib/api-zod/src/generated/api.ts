@@ -21,8 +21,8 @@ plus deterministic sanity check + condition multiplier.
 
  * @summary Create AI yacht market estimate
  */
-export const createValuationBodyYearBuiltMin = 1940;
-export const createValuationBodyYearBuiltMax = 2100;
+export const createValuationBodyUsageTypeMin = 1940;
+export const createValuationBodyUsageTypeMax = 2100;
 
 export const createValuationBodyRefitYearMin = 1940;
 export const createValuationBodyRefitYearMax = 2100;
@@ -65,10 +65,13 @@ export const CreateValuationBody = zod.object({
     .string()
     .nullish()
     .describe("Model\/range (required when mode=builder unless bypass)"),
-  year_built: zod
-    .number()
-    .min(createValuationBodyYearBuiltMin)
-    .max(createValuationBodyYearBuiltMax),
+  year_built: zod.number(),
+  region: zod.string().optional(),
+  usage_type: zod
+    .string()
+    .min(createValuationBodyUsageTypeMin)
+    .max(createValuationBodyUsageTypeMax)
+    .optional(),
   refit_year: zod
     .number()
     .min(createValuationBodyRefitYearMin)
@@ -148,8 +151,12 @@ export const CreateValuationResponse = zod.object({
       length: zod.string().nullish(),
       location: zod.string().nullish(),
       vat_status: zod
-        .union([zod.enum(["paid", "not_paid"]), zod.null()])
-        .optional(),
+        .union([
+          zod.literal("paid"),
+          zod.literal("not_paid"),
+          zod.literal(null),
+        ])
+        .nullish(),
       condition: zod.string().nullish(),
       price: zod.string(),
       source_url: zod.string().nullish(),
@@ -220,8 +227,8 @@ export const GetEstimateParams = zod.object({
   id: zod.coerce.string(),
 });
 
-export const getEstimateResponseRequestYearBuiltMin = 1940;
-export const getEstimateResponseRequestYearBuiltMax = 2100;
+export const getEstimateResponseRequestUsageTypeMin = 1940;
+export const getEstimateResponseRequestUsageTypeMax = 2100;
 
 export const getEstimateResponseRequestRefitYearMin = 1940;
 export const getEstimateResponseRequestRefitYearMax = 2100;
@@ -267,10 +274,13 @@ export const GetEstimateResponse = zod.object({
       .string()
       .nullish()
       .describe("Model\/range (required when mode=builder unless bypass)"),
-    year_built: zod
-      .number()
-      .min(getEstimateResponseRequestYearBuiltMin)
-      .max(getEstimateResponseRequestYearBuiltMax),
+    year_built: zod.number(),
+    region: zod.string().optional(),
+    usage_type: zod
+      .string()
+      .min(getEstimateResponseRequestUsageTypeMin)
+      .max(getEstimateResponseRequestUsageTypeMax)
+      .optional(),
     refit_year: zod
       .number()
       .min(getEstimateResponseRequestRefitYearMin)
@@ -359,8 +369,12 @@ export const GetEstimateResponse = zod.object({
         length: zod.string().nullish(),
         location: zod.string().nullish(),
         vat_status: zod
-          .union([zod.enum(["paid", "not_paid"]), zod.null()])
-          .optional(),
+          .union([
+            zod.literal("paid"),
+            zod.literal("not_paid"),
+            zod.literal(null),
+          ])
+          .nullish(),
         condition: zod.string().nullish(),
         price: zod.string(),
         source_url: zod.string().nullish(),
@@ -1510,7 +1524,7 @@ export const ReplaceYachtEquipmentResponse = zod.object({
 
 /**
  * Runs the Charter ROI engine for the user's yacht. Pricing is set by
-`pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
+`pricing_mode` — manual_daily / manual_weekly / manual_monthly require manual rate inputs
 and `manual_charter_units`; ai mode estimates rate via web search and
 falls back to a deterministic regional heuristic if the AI call fails.
 Result is persisted to roi_calculations.
@@ -1542,12 +1556,10 @@ export const calculateRoiBodyRepositioningCostEurMin = 0;
 
 export const calculateRoiBodyMarinaRegion1MonthlyEurMin = 0;
 
-export const calculateRoiBodyMarinaRegion1MonthsMin = 1;
 export const calculateRoiBodyMarinaRegion1MonthsMax = 12;
 
 export const calculateRoiBodyMarinaRegion2MonthlyEurMin = 0;
 
-export const calculateRoiBodyMarinaRegion2MonthsMin = 1;
 export const calculateRoiBodyMarinaRegion2MonthsMax = 12;
 
 export const calculateRoiBodyOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
@@ -1559,21 +1571,42 @@ export const calculateRoiBodyOverridesOneCrewBreakdownItemCountMax = 50;
 
 export const calculateRoiBodyOverridesOnePurchasePriceEurMin = 0;
 
+export const calculateRoiBodyOverridesOneSocialSecurityPctMin = 0;
+export const calculateRoiBodyOverridesOneSocialSecurityPctMax = 100;
+
+export const calculateRoiBodyOverridesOneSocialSecurityFixedMonthlyEurMin = 0;
+
+export const calculateRoiBodyOverridesOneSocialSecurityFixedMonthsMax = 12;
+
 export const calculateRoiBodyOverridesOneMonthlyCrewEurMin = 0;
 
 export const calculateRoiBodyOverridesOneMonthlyMooringEurMin = 0;
 
+export const calculateRoiBodyOverridesOneMonthlyMooringMonthsMax = 12;
+
 export const calculateRoiBodyOverridesOneMonthlyFuelEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyFuelMonthsMax = 12;
 
 export const calculateRoiBodyOverridesOneMonthlyProvisioningEurMin = 0;
 
+export const calculateRoiBodyOverridesOneMonthlyProvisioningMonthsMax = 12;
+
 export const calculateRoiBodyOverridesOneMonthlyCommunicationsEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyCommunicationsMonthsMax = 12;
 
 export const calculateRoiBodyOverridesOneMonthlyMaintenanceEurMin = 0;
 
+export const calculateRoiBodyOverridesOneMonthlyMaintenanceMonthsMax = 12;
+
 export const calculateRoiBodyOverridesOneMonthlyManagementFeeEurMin = 0;
 
+export const calculateRoiBodyOverridesOneMonthlyManagementFeeMonthsMax = 12;
+
 export const calculateRoiBodyOverridesOneMonthlyMiscEurMin = 0;
+
+export const calculateRoiBodyOverridesOneMonthlyMiscMonthsMax = 12;
 
 export const calculateRoiBodyOverridesOneAnnualInsuranceEurMin = 0;
 
@@ -1653,7 +1686,9 @@ export const CalculateRoiBody = zod.object({
     .number()
     .min(calculateRoiBodyManualRateEurMin)
     .nullish()
-    .describe("Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly"),
+    .describe(
+      "Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly",
+    ),
   manual_charter_units: zod
     .number()
     .min(calculateRoiBodyManualCharterUnitsMin)
@@ -1773,7 +1808,7 @@ export const CalculateRoiBody = zod.object({
     .describe("Dual-region only. Monthly mooring rate for region 1."),
   marina_region_1_months: zod
     .number()
-    .min(calculateRoiBodyMarinaRegion1MonthsMin)
+    .min(1)
     .max(calculateRoiBodyMarinaRegion1MonthsMax)
     .nullish()
     .describe("Dual-region only. Months per year in the region 1 marina."),
@@ -1784,7 +1819,7 @@ export const CalculateRoiBody = zod.object({
     .describe("Dual-region only. Monthly mooring rate for region 2."),
   marina_region_2_months: zod
     .number()
-    .min(calculateRoiBodyMarinaRegion2MonthsMin)
+    .min(1)
     .max(calculateRoiBodyMarinaRegion2MonthsMax)
     .nullish()
     .describe("Dual-region only. Months per year in the region 2 marina."),
@@ -1834,9 +1869,33 @@ export const CalculateRoiBody = zod.object({
             .describe(
               "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
             ),
-          discount_adjusted_depreciation: zod.boolean().nullish(),
-          discount_market_price_eur: zod.number().min(0).nullish(),
-          discount_percent: zod.number().min(0).max(100).nullish(),
+          social_security_mode: zod
+            .union([
+              zod.literal("percent"),
+              zod.literal("fixed_monthly"),
+              zod.literal(null),
+            ])
+            .nullish()
+            .describe("Social charges mode for this ROI calculation only."),
+          social_security_pct: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneSocialSecurityPctMin)
+            .max(calculateRoiBodyOverridesOneSocialSecurityPctMax)
+            .nullish()
+            .describe(
+              "Payroll\/social charges percentage applied to annual crew payroll.",
+            ),
+          social_security_fixed_monthly_eur: zod
+            .number()
+            .min(calculateRoiBodyOverridesOneSocialSecurityFixedMonthlyEurMin)
+            .nullish()
+            .describe("Fixed monthly social charges amount."),
+          social_security_fixed_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneSocialSecurityFixedMonthsMax)
+            .nullish()
+            .describe("Number of months for fixed social charges."),
           monthly_crew_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyCrewEurMin)
@@ -1845,29 +1904,64 @@ export const CalculateRoiBody = zod.object({
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyMooringEurMin)
             .nullish(),
+          monthly_mooring_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyMooringMonthsMax)
+            .nullish(),
           monthly_fuel_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyFuelEurMin)
+            .nullish(),
+          monthly_fuel_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyFuelMonthsMax)
             .nullish(),
           monthly_provisioning_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyProvisioningEurMin)
             .nullish(),
+          monthly_provisioning_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyProvisioningMonthsMax)
+            .nullish(),
           monthly_communications_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyCommunicationsEurMin)
+            .nullish(),
+          monthly_communications_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyCommunicationsMonthsMax)
             .nullish(),
           monthly_maintenance_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyMaintenanceEurMin)
             .nullish(),
+          monthly_maintenance_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyMaintenanceMonthsMax)
+            .nullish(),
           monthly_management_fee_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyManagementFeeEurMin)
             .nullish(),
+          monthly_management_fee_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyManagementFeeMonthsMax)
+            .nullish(),
           monthly_misc_eur: zod
             .number()
             .min(calculateRoiBodyOverridesOneMonthlyMiscEurMin)
+            .nullish(),
+          monthly_misc_months: zod
+            .number()
+            .min(1)
+            .max(calculateRoiBodyOverridesOneMonthlyMiscMonthsMax)
             .nullish(),
           annual_insurance_eur: zod
             .number()
@@ -2116,18 +2210,6 @@ export const CalculateRoiResponse = zod.object({
           .describe(
             "exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.",
           ),
-        discount_adjustment: zod
-          .object({
-            enabled: zod.literal(true),
-            market_price_eur: zod.number(),
-            purchase_discount_pct: zod.number(),
-            actual_purchase_price_eur: zod.number(),
-            discount_buffer_eur: zod.number(),
-            market_value_at_sale_eur: zod.number(),
-            market_depreciation_absorbed_eur: zod.number(),
-            excess_depreciation_eur: zod.number(),
-          })
-          .nullish(),
       }),
       zod.null(),
     ])
@@ -2259,19 +2341,35 @@ export const calculateCostEstimateBodyCrewItemMonthsPerYearMax = 12;
 
 export const calculateCostEstimateBodyMonthlyExpensesMooringEurMin = 0;
 
+export const calculateCostEstimateBodyMonthlyExpensesMooringMonthsMax = 12;
+
 export const calculateCostEstimateBodyMonthlyExpensesUtilitiesEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesUtilitiesMonthsMax = 12;
 
 export const calculateCostEstimateBodyMonthlyExpensesFuelEurMin = 0;
 
+export const calculateCostEstimateBodyMonthlyExpensesFuelMonthsMax = 12;
+
 export const calculateCostEstimateBodyMonthlyExpensesProvisioningEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesProvisioningMonthsMax = 12;
 
 export const calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin = 0;
 
+export const calculateCostEstimateBodyMonthlyExpensesCommunicationsMonthsMax = 12;
+
 export const calculateCostEstimateBodyMonthlyExpensesManagementFeeEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesManagementFeeMonthsMax = 12;
 
 export const calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin = 0;
 
+export const calculateCostEstimateBodyMonthlyExpensesMaintenanceMonthsMax = 12;
+
 export const calculateCostEstimateBodyMonthlyExpensesMiscEurMin = 0;
+
+export const calculateCostEstimateBodyMonthlyExpensesMiscMonthsMax = 12;
 
 export const calculateCostEstimateBodyAnnualExpensesInsuranceEurMin = 0;
 
@@ -2310,6 +2408,10 @@ export const calculateCostEstimateBodyBrokerCommissionPctMax = 100;
 
 export const calculateCostEstimateBodySocialSecurityPctMin = 0;
 export const calculateCostEstimateBodySocialSecurityPctMax = 100;
+
+export const calculateCostEstimateBodySocialSecurityFixedMonthlyEurMin = 0;
+
+export const calculateCostEstimateBodySocialSecurityFixedMonthsMax = 12;
 
 export const calculateCostEstimateBodyFinancingLoanAmountEurMin = 0;
 
@@ -2388,45 +2490,77 @@ export const CalculateCostEstimateBody = zod.object({
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMooringEurMin)
       .nullish(),
-    mooring_months: zod.number().min(1).max(12).nullish(),
+    mooring_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesMooringMonthsMax)
+      .nullish(),
     utilities_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesUtilitiesEurMin)
       .nullish()
       .describe("Marina utilities and local services not included in berth."),
-    utilities_months: zod.number().min(1).max(12).nullish(),
+    utilities_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesUtilitiesMonthsMax)
+      .nullish(),
     fuel_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesFuelEurMin)
       .nullish(),
-    fuel_months: zod.number().min(1).max(12).nullish(),
+    fuel_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesFuelMonthsMax)
+      .nullish(),
     provisioning_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesProvisioningEurMin)
       .nullish(),
-    provisioning_months: zod.number().min(1).max(12).nullish(),
+    provisioning_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesProvisioningMonthsMax)
+      .nullish(),
     communications_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin)
       .nullish(),
-    communications_months: zod.number().min(1).max(12).nullish(),
+    communications_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesCommunicationsMonthsMax)
+      .nullish(),
     management_fee_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesManagementFeeEurMin)
       .nullish()
       .describe("Monthly yacht management fee."),
-    management_fee_months: zod.number().min(1).max(12).nullish(),
+    management_fee_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesManagementFeeMonthsMax)
+      .nullish(),
     maintenance_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin)
       .nullish(),
-    maintenance_months: zod.number().min(1).max(12).nullish(),
+    maintenance_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesMaintenanceMonthsMax)
+      .nullish(),
     misc_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMiscEurMin)
       .nullish()
       .describe("Monthly miscellaneous \/ contingency allowance."),
-    misc_months: zod.number().min(1).max(12).nullish(),
+    misc_months: zod
+      .number()
+      .min(1)
+      .max(calculateCostEstimateBodyMonthlyExpensesMiscMonthsMax)
+      .nullish(),
   }),
   annual_expenses: zod.object({
     insurance_eur: zod
@@ -2524,9 +2658,24 @@ export const CalculateCostEstimateBody = zod.object({
     .describe(
       "Payroll\/social-security uplift applied to enabled crew salary lines and shown per role.",
     ),
-  social_security_mode: zod.enum(["percent", "fixed_monthly"]).nullish(),
-  social_security_fixed_monthly_eur: zod.number().min(0).nullish(),
-  social_security_fixed_months: zod.number().min(1).max(12).nullish(),
+  social_security_mode: zod
+    .union([
+      zod.literal("percent"),
+      zod.literal("fixed_monthly"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  social_security_fixed_monthly_eur: zod
+    .number()
+    .min(calculateCostEstimateBodySocialSecurityFixedMonthlyEurMin)
+    .nullish()
+    .describe("Fixed social-security contribution per month."),
+  social_security_fixed_months: zod
+    .number()
+    .min(1)
+    .max(calculateCostEstimateBodySocialSecurityFixedMonthsMax)
+    .nullish()
+    .describe("Number of months for fixed social-security contribution."),
   financing: zod.object({
     type: zod.enum(["cash", "loan"]),
     loan_amount_eur: zod
@@ -2606,8 +2755,17 @@ export const CalculateCostEstimateResponse = zod.object({
     ]),
     length_meters: zod.number(),
     year_built: zod.number(),
-    region: zod.string().optional(),
-    usage_type: zod.string().optional(),
+    region: zod
+      .enum([
+        "mediterranean",
+        "northern_europe",
+        "caribbean",
+        "asia_pacific",
+        "middle_east",
+        "global",
+      ])
+      .optional(),
+    usage_type: zod.enum(["private", "mixed", "charter_focused"]).optional(),
   }),
 });
 
@@ -2663,19 +2821,35 @@ export const getCostEstimateResponseInputCrewItemMonthsPerYearMax = 12;
 
 export const getCostEstimateResponseInputMonthlyExpensesMooringEurMin = 0;
 
+export const getCostEstimateResponseInputMonthlyExpensesMooringMonthsMax = 12;
+
 export const getCostEstimateResponseInputMonthlyExpensesUtilitiesEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesUtilitiesMonthsMax = 12;
 
 export const getCostEstimateResponseInputMonthlyExpensesFuelEurMin = 0;
 
+export const getCostEstimateResponseInputMonthlyExpensesFuelMonthsMax = 12;
+
 export const getCostEstimateResponseInputMonthlyExpensesProvisioningEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesProvisioningMonthsMax = 12;
 
 export const getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin = 0;
 
+export const getCostEstimateResponseInputMonthlyExpensesCommunicationsMonthsMax = 12;
+
 export const getCostEstimateResponseInputMonthlyExpensesManagementFeeEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesManagementFeeMonthsMax = 12;
 
 export const getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin = 0;
 
+export const getCostEstimateResponseInputMonthlyExpensesMaintenanceMonthsMax = 12;
+
 export const getCostEstimateResponseInputMonthlyExpensesMiscEurMin = 0;
+
+export const getCostEstimateResponseInputMonthlyExpensesMiscMonthsMax = 12;
 
 export const getCostEstimateResponseInputAnnualExpensesInsuranceEurMin = 0;
 
@@ -2714,6 +2888,10 @@ export const getCostEstimateResponseInputBrokerCommissionPctMax = 100;
 
 export const getCostEstimateResponseInputSocialSecurityPctMin = 0;
 export const getCostEstimateResponseInputSocialSecurityPctMax = 100;
+
+export const getCostEstimateResponseInputSocialSecurityFixedMonthlyEurMin = 0;
+
+export const getCostEstimateResponseInputSocialSecurityFixedMonthsMax = 12;
 
 export const getCostEstimateResponseInputFinancingLoanAmountEurMin = 0;
 
@@ -2796,45 +2974,77 @@ export const GetCostEstimateResponse = zod.object({
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMooringEurMin)
         .nullish(),
-      mooring_months: zod.number().min(1).max(12).nullish(),
+      mooring_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesMooringMonthsMax)
+        .nullish(),
       utilities_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesUtilitiesEurMin)
         .nullish()
         .describe("Marina utilities and local services not included in berth."),
-      utilities_months: zod.number().min(1).max(12).nullish(),
+      utilities_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesUtilitiesMonthsMax)
+        .nullish(),
       fuel_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesFuelEurMin)
         .nullish(),
-      fuel_months: zod.number().min(1).max(12).nullish(),
+      fuel_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesFuelMonthsMax)
+        .nullish(),
       provisioning_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesProvisioningEurMin)
         .nullish(),
-      provisioning_months: zod.number().min(1).max(12).nullish(),
+      provisioning_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesProvisioningMonthsMax)
+        .nullish(),
       communications_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin)
         .nullish(),
-      communications_months: zod.number().min(1).max(12).nullish(),
+      communications_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesCommunicationsMonthsMax)
+        .nullish(),
       management_fee_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesManagementFeeEurMin)
         .nullish()
         .describe("Monthly yacht management fee."),
-      management_fee_months: zod.number().min(1).max(12).nullish(),
+      management_fee_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesManagementFeeMonthsMax)
+        .nullish(),
       maintenance_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin)
         .nullish(),
-      maintenance_months: zod.number().min(1).max(12).nullish(),
+      maintenance_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesMaintenanceMonthsMax)
+        .nullish(),
       misc_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMiscEurMin)
         .nullish()
         .describe("Monthly miscellaneous \/ contingency allowance."),
-      misc_months: zod.number().min(1).max(12).nullish(),
+      misc_months: zod
+        .number()
+        .min(1)
+        .max(getCostEstimateResponseInputMonthlyExpensesMiscMonthsMax)
+        .nullish(),
     }),
     annual_expenses: zod.object({
       insurance_eur: zod
@@ -2851,7 +3061,9 @@ export const GetCostEstimateResponse = zod.object({
         .nullish(),
       commercial_compliance_eur: zod
         .number()
-        .min(getCostEstimateResponseInputAnnualExpensesCommercialComplianceEurMin)
+        .min(
+          getCostEstimateResponseInputAnnualExpensesCommercialComplianceEurMin,
+        )
         .nullish()
         .describe(
           "Commercial coding, charter compliance and related certificates.",
@@ -2934,9 +3146,24 @@ export const GetCostEstimateResponse = zod.object({
       .describe(
         "Payroll\/social-security uplift applied to enabled crew salary lines and shown per role.",
       ),
-    social_security_mode: zod.enum(["percent", "fixed_monthly"]).nullish(),
-    social_security_fixed_monthly_eur: zod.number().min(0).nullish(),
-    social_security_fixed_months: zod.number().min(1).max(12).nullish(),
+    social_security_mode: zod
+      .union([
+        zod.literal("percent"),
+        zod.literal("fixed_monthly"),
+        zod.literal(null),
+      ])
+      .nullish(),
+    social_security_fixed_monthly_eur: zod
+      .number()
+      .min(getCostEstimateResponseInputSocialSecurityFixedMonthlyEurMin)
+      .nullish()
+      .describe("Fixed social-security contribution per month."),
+    social_security_fixed_months: zod
+      .number()
+      .min(1)
+      .max(getCostEstimateResponseInputSocialSecurityFixedMonthsMax)
+      .nullish()
+      .describe("Number of months for fixed social-security contribution."),
     financing: zod.object({
       type: zod.enum(["cash", "loan"]),
       loan_amount_eur: zod
@@ -3012,8 +3239,17 @@ export const GetCostEstimateResponse = zod.object({
     ]),
     length_meters: zod.number(),
     year_built: zod.number(),
-    region: zod.string().optional(),
-    usage_type: zod.string().optional(),
+    region: zod
+      .enum([
+        "mediterranean",
+        "northern_europe",
+        "caribbean",
+        "asia_pacific",
+        "middle_east",
+        "global",
+      ])
+      .optional(),
+    usage_type: zod.enum(["private", "mixed", "charter_focused"]).optional(),
   }),
 });
 
@@ -3056,12 +3292,10 @@ export const getRoiCalculationResponseInputRepositioningCostEurMin = 0;
 
 export const getRoiCalculationResponseInputMarinaRegion1MonthlyEurMin = 0;
 
-export const getRoiCalculationResponseInputMarinaRegion1MonthsMin = 1;
 export const getRoiCalculationResponseInputMarinaRegion1MonthsMax = 12;
 
 export const getRoiCalculationResponseInputMarinaRegion2MonthlyEurMin = 0;
 
-export const getRoiCalculationResponseInputMarinaRegion2MonthsMin = 1;
 export const getRoiCalculationResponseInputMarinaRegion2MonthsMax = 12;
 
 export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemMonthlySalaryEurMin = 0;
@@ -3073,21 +3307,42 @@ export const getRoiCalculationResponseInputOverridesOneCrewBreakdownItemCountMax
 
 export const getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin = 0;
 
+export const getRoiCalculationResponseInputOverridesOneSocialSecurityPctMin = 0;
+export const getRoiCalculationResponseInputOverridesOneSocialSecurityPctMax = 100;
+
+export const getRoiCalculationResponseInputOverridesOneSocialSecurityFixedMonthlyEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneSocialSecurityFixedMonthsMax = 12;
+
 export const getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneMonthlyMooringEurMin = 0;
 
+export const getRoiCalculationResponseInputOverridesOneMonthlyMooringMonthsMax = 12;
+
 export const getRoiCalculationResponseInputOverridesOneMonthlyFuelEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyFuelMonthsMax = 12;
 
 export const getRoiCalculationResponseInputOverridesOneMonthlyProvisioningEurMin = 0;
 
+export const getRoiCalculationResponseInputOverridesOneMonthlyProvisioningMonthsMax = 12;
+
 export const getRoiCalculationResponseInputOverridesOneMonthlyCommunicationsEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyCommunicationsMonthsMax = 12;
 
 export const getRoiCalculationResponseInputOverridesOneMonthlyMaintenanceEurMin = 0;
 
+export const getRoiCalculationResponseInputOverridesOneMonthlyMaintenanceMonthsMax = 12;
+
 export const getRoiCalculationResponseInputOverridesOneMonthlyManagementFeeEurMin = 0;
 
+export const getRoiCalculationResponseInputOverridesOneMonthlyManagementFeeMonthsMax = 12;
+
 export const getRoiCalculationResponseInputOverridesOneMonthlyMiscEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneMonthlyMiscMonthsMax = 12;
 
 export const getRoiCalculationResponseInputOverridesOneAnnualInsuranceEurMin = 0;
 
@@ -3096,6 +3351,10 @@ export const getRoiCalculationResponseInputOverridesOneAnnualRegistrationEurMin 
 export const getRoiCalculationResponseInputOverridesOneAnnualClassificationEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneAnnualAntifoulingEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneEngineServiceEurMin = 0;
+
+export const getRoiCalculationResponseInputOverridesOneGeneratorServiceEurMin = 0;
 
 export const getRoiCalculationResponseInputOverridesOneAnnualRefitReserveEurMin = 0;
 
@@ -3327,7 +3586,7 @@ export const GetRoiCalculationResponse = zod.object({
       .describe("Dual-region only. Monthly mooring rate for region 1."),
     marina_region_1_months: zod
       .number()
-      .min(getRoiCalculationResponseInputMarinaRegion1MonthsMin)
+      .min(1)
       .max(getRoiCalculationResponseInputMarinaRegion1MonthsMax)
       .nullish()
       .describe("Dual-region only. Months per year in the region 1 marina."),
@@ -3338,7 +3597,7 @@ export const GetRoiCalculationResponse = zod.object({
       .describe("Dual-region only. Monthly mooring rate for region 2."),
     marina_region_2_months: zod
       .number()
-      .min(getRoiCalculationResponseInputMarinaRegion2MonthsMin)
+      .min(1)
       .max(getRoiCalculationResponseInputMarinaRegion2MonthsMax)
       .nullish()
       .describe("Dual-region only. Months per year in the region 2 marina."),
@@ -3388,13 +3647,45 @@ export const GetRoiCalculationResponse = zod.object({
               .min(
                 getRoiCalculationResponseInputOverridesOnePurchasePriceEurMin,
               )
-            .nullish()
-            .describe(
-              "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
-            ),
-            discount_adjusted_depreciation: zod.boolean().nullish(),
-            discount_market_price_eur: zod.number().min(0).nullish(),
-            discount_percent: zod.number().min(0).max(100).nullish(),
+              .nullish()
+              .describe(
+                "Yacht purchase price for THIS calculation (capital base for ROI \/ payback \/ depreciation). Lives only in ROI — entered on the scenario screen, prefilled from a saved yacht when present, never written back.",
+              ),
+            social_security_mode: zod
+              .union([
+                zod.literal("percent"),
+                zod.literal("fixed_monthly"),
+                zod.literal(null),
+              ])
+              .nullish()
+              .describe("Social charges mode for this ROI calculation only."),
+            social_security_pct: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneSocialSecurityPctMin,
+              )
+              .max(
+                getRoiCalculationResponseInputOverridesOneSocialSecurityPctMax,
+              )
+              .nullish()
+              .describe(
+                "Payroll\/social charges percentage applied to annual crew payroll.",
+              ),
+            social_security_fixed_monthly_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneSocialSecurityFixedMonthlyEurMin,
+              )
+              .nullish()
+              .describe("Fixed monthly social charges amount."),
+            social_security_fixed_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneSocialSecurityFixedMonthsMax,
+              )
+              .nullish()
+              .describe("Number of months for fixed social charges."),
             monthly_crew_eur: zod
               .number()
               .min(getRoiCalculationResponseInputOverridesOneMonthlyCrewEurMin)
@@ -3405,14 +3696,35 @@ export const GetRoiCalculationResponse = zod.object({
                 getRoiCalculationResponseInputOverridesOneMonthlyMooringEurMin,
               )
               .nullish(),
+            monthly_mooring_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyMooringMonthsMax,
+              )
+              .nullish(),
             monthly_fuel_eur: zod
               .number()
               .min(getRoiCalculationResponseInputOverridesOneMonthlyFuelEurMin)
+              .nullish(),
+            monthly_fuel_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyFuelMonthsMax,
+              )
               .nullish(),
             monthly_provisioning_eur: zod
               .number()
               .min(
                 getRoiCalculationResponseInputOverridesOneMonthlyProvisioningEurMin,
+              )
+              .nullish(),
+            monthly_provisioning_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyProvisioningMonthsMax,
               )
               .nullish(),
             monthly_communications_eur: zod
@@ -3421,10 +3733,24 @@ export const GetRoiCalculationResponse = zod.object({
                 getRoiCalculationResponseInputOverridesOneMonthlyCommunicationsEurMin,
               )
               .nullish(),
+            monthly_communications_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyCommunicationsMonthsMax,
+              )
+              .nullish(),
             monthly_maintenance_eur: zod
               .number()
               .min(
                 getRoiCalculationResponseInputOverridesOneMonthlyMaintenanceEurMin,
+              )
+              .nullish(),
+            monthly_maintenance_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyMaintenanceMonthsMax,
               )
               .nullish(),
             monthly_management_fee_eur: zod
@@ -3433,9 +3759,23 @@ export const GetRoiCalculationResponse = zod.object({
                 getRoiCalculationResponseInputOverridesOneMonthlyManagementFeeEurMin,
               )
               .nullish(),
+            monthly_management_fee_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyManagementFeeMonthsMax,
+              )
+              .nullish(),
             monthly_misc_eur: zod
               .number()
               .min(getRoiCalculationResponseInputOverridesOneMonthlyMiscEurMin)
+              .nullish(),
+            monthly_misc_months: zod
+              .number()
+              .min(1)
+              .max(
+                getRoiCalculationResponseInputOverridesOneMonthlyMiscMonthsMax,
+              )
               .nullish(),
             annual_insurance_eur: zod
               .number()
@@ -3461,6 +3801,20 @@ export const GetRoiCalculationResponse = zod.object({
                 getRoiCalculationResponseInputOverridesOneAnnualAntifoulingEurMin,
               )
               .nullish(),
+            engine_service_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneEngineServiceEurMin,
+              )
+              .nullish()
+              .describe("Main engine(s) annual service."),
+            generator_service_eur: zod
+              .number()
+              .min(
+                getRoiCalculationResponseInputOverridesOneGeneratorServiceEurMin,
+              )
+              .nullish()
+              .describe("Generator(s) annual service."),
             annual_refit_reserve_eur: zod
               .number()
               .min(
@@ -3693,18 +4047,6 @@ export const GetRoiCalculationResponse = zod.object({
             .describe(
               "exit_result_eur − total_loan_paid_eur. Present only when loan-financed; null otherwise.",
             ),
-          discount_adjustment: zod
-            .object({
-              enabled: zod.literal(true),
-              market_price_eur: zod.number(),
-              purchase_discount_pct: zod.number(),
-              actual_purchase_price_eur: zod.number(),
-              discount_buffer_eur: zod.number(),
-              market_value_at_sale_eur: zod.number(),
-              market_depreciation_absorbed_eur: zod.number(),
-              excess_depreciation_eur: zod.number(),
-            })
-            .nullish(),
         }),
         zod.null(),
       ])
@@ -5274,27 +5616,29 @@ export const GetSurveyReportResponse = zod.object({
     clerk_user_id: zod.string(),
     yacht_id: zod.string().nullish(),
     report_type: zod.string().optional(),
-    branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish().optional(),
+    branding_mode: zod
+      .enum(["white_label", "yachtworth", "surveyor"])
+      .nullish(),
     vessel_name: zod.string(),
     vessel_type: zod.string().nullish(),
     manufacturer: zod.string().nullish(),
     model: zod.string().nullish(),
     year_built: zod.number().nullish(),
-    loa_meters: zod.number().nullish().optional(),
-    lwl_meters: zod.number().nullish().optional(),
-    beam_meters: zod.number().nullish().optional(),
-    draft_meters: zod.number().nullish().optional(),
-    displacement_text: zod.string().nullish().optional(),
-    hull_material: zod.string().nullish().optional(),
-    deck_material: zod.string().nullish().optional(),
-    keel_type: zod.string().nullish().optional(),
-    engines_text: zod.string().nullish().optional(),
-    transmissions_text: zod.string().nullish().optional(),
-    fuel_capacity_l: zod.number().nullish().optional(),
-    fresh_water_l: zod.number().nullish().optional(),
-    black_water_l: zod.string().nullish().optional(),
-    grey_water_l: zod.string().nullish().optional(),
-    specification_source: zod.string().nullish().optional(),
+    loa_meters: zod.number().nullish(),
+    lwl_meters: zod.number().nullish(),
+    beam_meters: zod.number().nullish(),
+    draft_meters: zod.number().nullish(),
+    displacement_text: zod.string().nullish(),
+    hull_material: zod.string().nullish(),
+    deck_material: zod.string().nullish(),
+    keel_type: zod.string().nullish(),
+    engines_text: zod.string().nullish(),
+    transmissions_text: zod.string().nullish(),
+    fuel_capacity_l: zod.number().nullish(),
+    fresh_water_l: zod.number().nullish(),
+    black_water_l: zod.string().nullish(),
+    grey_water_l: zod.string().nullish(),
+    specification_source: zod.string().nullish(),
     flag: zod.string().nullish(),
     hin: zod.string().nullish(),
     lying: zod.string().nullish(),
@@ -5302,8 +5646,8 @@ export const GetSurveyReportResponse = zod.object({
     survey_purpose: zod.string().nullish(),
     weather_conditions: zod.string().nullish(),
     sea_state: zod.string().nullish(),
-    intended_use: zod.string().nullish().optional(),
-    survey_scope: zod.string().nullish().optional(),
+    intended_use: zod.string().nullish(),
+    survey_scope: zod.string().nullish(),
     standards_referenced: zod.array(zod.string()).optional(),
     limitations: zod.array(zod.string()).optional(),
     client_name: zod.string().nullish(),
@@ -5356,15 +5700,15 @@ export const GetSurveyReportResponse = zod.object({
       moisture_level: zod
         .union([zod.enum(["Low", "Medium", "High"]), zod.null()])
         .optional(),
-      inspected_status: zod.string().nullish().optional(),
-      defect_description: zod.string().nullish().optional(),
-      test_method: zod.string().nullish().optional(),
-      regulatory_reference: zod.string().nullish().optional(),
+      inspected_status: zod.string().nullish(),
+      defect_description: zod.string().nullish(),
+      test_method: zod.string().nullish(),
+      regulatory_reference: zod.string().nullish(),
       safety_critical: zod.boolean().optional(),
       insurance_critical: zod.boolean().optional(),
       compliance_critical: zod.boolean().optional(),
-      estimated_cost_eur: zod.number().nullish().optional(),
-      due_date: zod.string().nullish().optional(),
+      estimated_cost_eur: zod.number().nullish(),
+      due_date: zod.string().nullish(),
       section_data: zod.record(zod.string(), zod.unknown()).optional(),
       sync_status: zod.string().optional(),
       sort_order: zod.number().optional(),
@@ -5393,7 +5737,12 @@ export const GetSurveyReportResponse = zod.object({
           .array(
             zod.object({
               id: zod.string().nullish(),
-              cells: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.null()])).nullish(),
+              cells: zod
+                .record(
+                  zod.string(),
+                  zod.union([zod.string(), zod.number(), zod.null()]),
+                )
+                .nullish(),
             }),
           )
           .optional(),
@@ -5481,7 +5830,7 @@ export const UpdateSurveyReportResponse = zod.object({
   clerk_user_id: zod.string(),
   yacht_id: zod.string().nullish(),
   report_type: zod.string().optional(),
-  branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish().optional(),
+  branding_mode: zod.enum(["white_label", "yachtworth", "surveyor"]).nullish(),
   vessel_name: zod.string(),
   vessel_type: zod.string().nullish(),
   manufacturer: zod.string().nullish(),
@@ -5509,8 +5858,8 @@ export const UpdateSurveyReportResponse = zod.object({
   survey_purpose: zod.string().nullish(),
   weather_conditions: zod.string().nullish(),
   sea_state: zod.string().nullish(),
-  intended_use: zod.string().nullish().optional(),
-  survey_scope: zod.string().nullish().optional(),
+  intended_use: zod.string().nullish(),
+  survey_scope: zod.string().nullish(),
   standards_referenced: zod.array(zod.string()).optional(),
   limitations: zod.array(zod.string()).optional(),
   client_name: zod.string().nullish(),
@@ -5587,15 +5936,15 @@ export const ReplaceSurveyItemsBody = zod.object({
       moisture_level: zod
         .union([zod.enum(["Low", "Medium", "High"]), zod.null()])
         .optional(),
-      inspected_status: zod.string().nullish().optional(),
-      defect_description: zod.string().nullish().optional(),
-      test_method: zod.string().nullish().optional(),
-      regulatory_reference: zod.string().nullish().optional(),
+      inspected_status: zod.string().nullish(),
+      defect_description: zod.string().nullish(),
+      test_method: zod.string().nullish(),
+      regulatory_reference: zod.string().nullish(),
       safety_critical: zod.boolean().optional(),
       insurance_critical: zod.boolean().optional(),
       compliance_critical: zod.boolean().optional(),
-      estimated_cost_eur: zod.number().nullish().optional(),
-      due_date: zod.string().nullish().optional(),
+      estimated_cost_eur: zod.number().nullish(),
+      due_date: zod.string().nullish(),
       section_data: zod.record(zod.string(), zod.unknown()).optional(),
       sync_status: zod.string().optional(),
       sort_order: zod.number().optional(),
@@ -5635,15 +5984,15 @@ export const ReplaceSurveyItemsResponse = zod.object({
       moisture_level: zod
         .union([zod.enum(["Low", "Medium", "High"]), zod.null()])
         .optional(),
-      inspected_status: zod.string().nullish().optional(),
-      defect_description: zod.string().nullish().optional(),
-      test_method: zod.string().nullish().optional(),
-      regulatory_reference: zod.string().nullish().optional(),
+      inspected_status: zod.string().nullish(),
+      defect_description: zod.string().nullish(),
+      test_method: zod.string().nullish(),
+      regulatory_reference: zod.string().nullish(),
       safety_critical: zod.boolean().optional(),
       insurance_critical: zod.boolean().optional(),
       compliance_critical: zod.boolean().optional(),
-      estimated_cost_eur: zod.number().nullish().optional(),
-      due_date: zod.string().nullish().optional(),
+      estimated_cost_eur: zod.number().nullish(),
+      due_date: zod.string().nullish(),
       section_data: zod.record(zod.string(), zod.unknown()).optional(),
       sync_status: zod.string().optional(),
       sort_order: zod.number().optional(),
@@ -5678,7 +6027,12 @@ export const UpsertSurveySeaTrialBody = zod.object({
     .array(
       zod.object({
         id: zod.string().nullish(),
-        cells: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.null()])).nullish(),
+        cells: zod
+          .record(
+            zod.string(),
+            zod.union([zod.string(), zod.number(), zod.null()]),
+          )
+          .nullish(),
       }),
     )
     .optional(),
@@ -5720,7 +6074,12 @@ export const UpsertSurveySeaTrialResponse = zod.object({
     .array(
       zod.object({
         id: zod.string().nullish(),
-        cells: zod.record(zod.string(), zod.union([zod.string(), zod.number(), zod.null()])).nullish(),
+        cells: zod
+          .record(
+            zod.string(),
+            zod.union([zod.string(), zod.number(), zod.null()]),
+          )
+          .nullish(),
       }),
     )
     .optional(),

@@ -37,11 +37,13 @@ export interface ValuationInput {
    * @nullable
    */
   model?: string | null;
+  year_built: number;
+  region?: string;
   /**
    * @minimum 1940
    * @maximum 2100
    */
-  year_built: number;
+  usage_type?: string;
   /**
    * @minimum 1940
    * @maximum 2100

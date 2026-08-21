@@ -10,9 +10,13 @@ export interface CostMonthlyExpenses {
   /**
    * @minimum 0
    * @nullable
-  */
+   */
   mooring_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   mooring_months?: number | null;
   /**
    * Marina utilities and local services not included in berth.
@@ -20,28 +24,44 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   utilities_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   utilities_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   fuel_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   fuel_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   provisioning_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   provisioning_months?: number | null;
   /**
    * @minimum 0
    * @nullable
-  */
+   */
   communications_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   communications_months?: number | null;
   /**
    * Monthly yacht management fee.
@@ -49,14 +69,22 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   management_fee_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   management_fee_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   maintenance_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   maintenance_months?: number | null;
   /**
    * Monthly miscellaneous / contingency allowance.
@@ -64,6 +92,10 @@ export interface CostMonthlyExpenses {
    * @nullable
    */
   misc_eur?: number | null;
-  /** @minimum 1 @maximum 12 @nullable */
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
   misc_months?: number | null;
 }

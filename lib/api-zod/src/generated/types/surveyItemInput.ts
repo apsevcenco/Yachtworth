@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SurveyCondition } from "./surveyCondition";
+import type { SurveyLooseObject } from "./surveyLooseObject";
 import type { SurveyMoistureLevel } from "./surveyMoistureLevel";
 import type { SurveyRecLevel } from "./surveyRecLevel";
 
@@ -40,7 +41,7 @@ export interface SurveyItemInput {
   estimated_cost_eur?: number | null;
   /** @nullable */
   due_date?: string | null;
-  section_data?: { [key: string]: unknown };
+  section_data?: SurveyLooseObject;
   sync_status?: string;
   sort_order?: number;
 }

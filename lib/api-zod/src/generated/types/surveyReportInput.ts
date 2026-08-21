@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SurveyReportInputBrandingMode } from "./surveyReportInputBrandingMode";
 
 export interface SurveyReportInput {
   /** @nullable */
@@ -12,7 +13,7 @@ export interface SurveyReportInput {
   /** @nullable */
   report_type?: string | null;
   /** @nullable */
-  branding_mode?: "white_label" | "yachtworth" | "surveyor" | null;
+  branding_mode?: SurveyReportInputBrandingMode;
   vessel_name: string;
   /** @nullable */
   vessel_type?: string | null;

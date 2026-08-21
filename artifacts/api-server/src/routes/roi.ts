@@ -45,14 +45,24 @@ const OVERRIDABLE_NUMERIC_KEYS = [
   "purchase_price_eur",
   "discount_market_price_eur",
   "discount_percent",
+  "social_security_pct",
+  "social_security_fixed_monthly_eur",
+  "social_security_fixed_months",
   "monthly_crew_eur",
   "monthly_mooring_eur",
+  "monthly_mooring_months",
   "monthly_fuel_eur",
+  "monthly_fuel_months",
   "monthly_provisioning_eur",
+  "monthly_provisioning_months",
   "monthly_communications_eur",
+  "monthly_communications_months",
   "monthly_maintenance_eur",
+  "monthly_maintenance_months",
   "monthly_management_fee_eur",
+  "monthly_management_fee_months",
   "monthly_misc_eur",
+  "monthly_misc_months",
   "annual_insurance_eur",
   "annual_registration_eur",
   "annual_classification_eur",
@@ -101,6 +111,10 @@ function applyRoiOverrides(
   const discountFlag = overrides["discount_adjusted_depreciation"];
   if (typeof discountFlag === "boolean") {
     merged.discount_adjusted_depreciation = discountFlag;
+  }
+  const socialMode = overrides["social_security_mode"];
+  if (socialMode === "percent" || socialMode === "fixed_monthly") {
+    merged.social_security_mode = socialMode;
   }
   return merged;
 }

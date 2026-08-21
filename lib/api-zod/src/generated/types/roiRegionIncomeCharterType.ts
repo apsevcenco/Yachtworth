@@ -15,4 +15,5 @@ export type RoiRegionIncomeCharterType =
 export const RoiRegionIncomeCharterType = {
   weekly: "weekly",
   daily: "daily",
+  monthly: "monthly",
 } as const;

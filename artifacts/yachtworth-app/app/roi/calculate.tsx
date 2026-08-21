@@ -36,10 +36,13 @@ import {
   EMPTY_FINANCIALS,
   hydrateFinancialsFromYacht,
   MONTHLY_FIELDS,
+  MONTHLY_MONTH_KEYS,
   roleSupportsCount,
   type CrewRow,
   type FinancialsState,
   type FinancingType,
+  type MonthlyKey,
+  type SocialSecurityMode,
 } from "../../lib/roiFinancials";
 
 const NAVY = "#0B1E3F";
@@ -1284,10 +1287,76 @@ export default function RoiCalculateScreen() {
                 feeds the ROI engine.
               </Text>
 
+              <Text style={styles.subLabel}>SOCIAL CHARGES</Text>
+              <View style={styles.pillRow}>
+                {[
+                  { v: "percent" as const, l: "Percent" },
+                  { v: "fixed_monthly" as const, l: "Fixed monthly" },
+                ].map((opt) => {
+                  const active = fin.social_security_mode === opt.v;
+                  return (
+                    <Pressable
+                      key={opt.v}
+                      onPress={() =>
+                        updateFin("social_security_mode", opt.v as SocialSecurityMode)
+                      }
+                      style={[styles.pill, active && styles.pillActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.pillText,
+                          active && styles.pillTextActive,
+                        ]}
+                      >
+                        {opt.l}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {fin.social_security_mode === "fixed_monthly" ? (
+                <Field
+                  label="Fixed social charges"
+                  hint="Use this when the flag or payroll setup charges a fixed monthly contribution."
+                >
+                  <View style={styles.monthlyInputRow}>
+                    <View style={{ flex: 1 }}>
+                      <MoneyInput
+                        value={fin.social_security_fixed_monthly_eur}
+                        onChangeText={(v) =>
+                          updateFin("social_security_fixed_monthly_eur", v)
+                        }
+                        suffix="€ / mo"
+                        placeholder="2500"
+                      />
+                    </View>
+                    <MonthStepper
+                      value={fin.social_security_fixed_months}
+                      onChange={(m) =>
+                        updateFin("social_security_fixed_months", m)
+                      }
+                    />
+                  </View>
+                </Field>
+              ) : (
+                <Field
+                  label="Social charges"
+                  hint="% applied to the annual crew payroll and shown as a separate ROI expense line."
+                >
+                  <MoneyInput
+                    value={fin.social_security_pct}
+                    onChangeText={(v) => updateFin("social_security_pct", v)}
+                    suffix="%"
+                    placeholder="30"
+                  />
+                </Field>
+              )}
+
               <Text style={styles.subLabel}>MONTHLY · € PER MONTH</Text>
               {MONTHLY_FIELDS.map((f) => {
                 const locked =
                   dualMarinaLocksMooring && f.key === "monthly_mooring_eur";
+                const monthsKey = MONTHLY_MONTH_KEYS[f.key as MonthlyKey];
                 return (
                   <Field
                     key={f.key}
@@ -1298,12 +1367,22 @@ export default function RoiCalculateScreen() {
                         : f.hint
                     }
                   >
-                    <MoneyInput
-                      value={fin[f.key]}
-                      onChangeText={(v) => updateFin(f.key, v)}
-                      suffix="€ / mo"
-                      disabled={locked}
-                    />
+                    <View style={styles.monthlyInputRow}>
+                      <View style={{ flex: 1 }}>
+                        <MoneyInput
+                          value={fin[f.key]}
+                          onChangeText={(v) => updateFin(f.key, v)}
+                          suffix="€ / mo"
+                          disabled={locked}
+                        />
+                      </View>
+                      {!locked ? (
+                        <MonthStepper
+                          value={fin[monthsKey]}
+                          onChange={(m) => updateFin(monthsKey, m)}
+                        />
+                      ) : null}
+                    </View>
                   </Field>
                 );
               })}
@@ -1951,6 +2030,7 @@ const styles = StyleSheet.create({
   },
   collapseBody: { marginBottom: 8 },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  monthlyInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 9,

@@ -1118,7 +1118,7 @@ export const useReplaceYachtEquipment = <
 
 /**
  * Runs the Charter ROI engine for the user's yacht. Pricing is set by
-`pricing_mode` — manual_daily / manual_weekly require `manual_rate_eur`
+`pricing_mode` — manual_daily / manual_weekly / manual_monthly require manual rate inputs
 and `manual_charter_units`; ai mode estimates rate via web search and
 falls back to a deterministic regional heuristic if the AI call fails.
 Result is persisted to roi_calculations.

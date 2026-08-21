@@ -7,6 +7,7 @@
  */
 import type { CrewMember } from "./crewMember";
 import type { FinancingType } from "./financingType";
+import type { RoiExpenseOverridesSocialSecurityMode } from "./roiExpenseOverridesSocialSecurityMode";
 
 /**
  * Optional overrides for the ROI calculation. crew_breakdown is stored for history/re-open; the engine uses monthly_crew_eur as the crew total.
@@ -20,19 +21,31 @@ export interface RoiExpenseOverrides {
    * @nullable
    */
   purchase_price_eur?: number | null;
-  /** @nullable */
-  discount_adjusted_depreciation?: boolean | null;
   /**
-   * @minimum 0
+   * Social charges mode for this ROI calculation only.
    * @nullable
    */
-  discount_market_price_eur?: number | null;
+  social_security_mode?: RoiExpenseOverridesSocialSecurityMode;
   /**
+   * Payroll/social charges percentage applied to annual crew payroll.
    * @minimum 0
    * @maximum 100
    * @nullable
    */
-  discount_percent?: number | null;
+  social_security_pct?: number | null;
+  /**
+   * Fixed monthly social charges amount.
+   * @minimum 0
+   * @nullable
+   */
+  social_security_fixed_monthly_eur?: number | null;
+  /**
+   * Number of months for fixed social charges.
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  social_security_fixed_months?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -44,35 +57,77 @@ export interface RoiExpenseOverrides {
    */
   monthly_mooring_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_mooring_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_fuel_eur?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_fuel_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   monthly_provisioning_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_provisioning_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_communications_eur?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_communications_months?: number | null;
   /**
    * @minimum 0
    * @nullable
    */
   monthly_maintenance_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_maintenance_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_management_fee_eur?: number | null;
   /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_management_fee_months?: number | null;
+  /**
    * @minimum 0
    * @nullable
    */
   monthly_misc_eur?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 12
+   * @nullable
+   */
+  monthly_misc_months?: number | null;
   /**
    * @minimum 0
    * @nullable
@@ -94,11 +149,13 @@ export interface RoiExpenseOverrides {
    */
   annual_antifouling_eur?: number | null;
   /**
+   * Main engine(s) annual service.
    * @minimum 0
    * @nullable
    */
   engine_service_eur?: number | null;
   /**
+   * Generator(s) annual service.
    * @minimum 0
    * @nullable
    */

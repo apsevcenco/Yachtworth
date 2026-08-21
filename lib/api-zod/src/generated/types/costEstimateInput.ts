@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CostAnnualExpenses } from "./costAnnualExpenses";
+import type { CostEstimateInputSocialSecurityMode } from "./costEstimateInputSocialSecurityMode";
 import type { CostFinancingInput } from "./costFinancingInput";
 import type { CostMonthlyExpenses } from "./costMonthlyExpenses";
 import type { CrewPositionInput } from "./crewPositionInput";
@@ -60,11 +61,8 @@ export interface CostEstimateInput {
    * @nullable
    */
   social_security_pct?: number | null;
-  /**
-   * Social charges calculation mode. Percent keeps the legacy percentage uplift; fixed_monthly uses a fixed monthly amount times selected months.
-   * @nullable
-   */
-  social_security_mode?: "percent" | "fixed_monthly" | null;
+  /** @nullable */
+  social_security_mode?: CostEstimateInputSocialSecurityMode;
   /**
    * Fixed social-security contribution per month.
    * @minimum 0

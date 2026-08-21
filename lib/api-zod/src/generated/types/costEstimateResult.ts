@@ -7,6 +7,8 @@
  */
 import type { CostBreakdownEntry } from "./costBreakdownEntry";
 import type { CostCategorySummary } from "./costCategorySummary";
+import type { OperationRegion } from "./operationRegion";
+import type { UsageType } from "./usageType";
 import type { YachtType } from "./yachtType";
 
 export interface CostEstimateResult {
@@ -35,6 +37,6 @@ export interface CostEstimateResult {
   yacht_class: YachtType;
   length_meters: number;
   year_built: number;
-  region?: string;
-  usage_type?: string;
+  region?: OperationRegion;
+  usage_type?: UsageType;
 }

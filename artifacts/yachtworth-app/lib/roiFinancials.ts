@@ -77,6 +77,19 @@ export const ANNUAL_FIELDS = [
 export type MonthlyKey = (typeof MONTHLY_FIELDS)[number]["key"];
 export type AnnualKey = (typeof ANNUAL_FIELDS)[number]["key"];
 export type FinancingType = "cash" | "loan";
+export type SocialSecurityMode = "percent" | "fixed_monthly";
+
+export const MONTHLY_MONTH_KEYS = {
+  monthly_mooring_eur: "monthly_mooring_months",
+  monthly_fuel_eur: "monthly_fuel_months",
+  monthly_provisioning_eur: "monthly_provisioning_months",
+  monthly_communications_eur: "monthly_communications_months",
+  monthly_maintenance_eur: "monthly_maintenance_months",
+  monthly_management_fee_eur: "monthly_management_fee_months",
+  monthly_misc_eur: "monthly_misc_months",
+} as const satisfies Record<MonthlyKey, string>;
+
+export type MonthlyMonthsKey = (typeof MONTHLY_MONTH_KEYS)[MonthlyKey];
 
 // ── Small parsing helpers ───────────────────────────────────────────────
 export function parseNum(v: string): number | null {
@@ -192,13 +205,24 @@ export function crewBreakdownToApi(
 // ── Financials state used by the ROI scenario screen ────────────────────
 export interface FinancialsState {
   crew_breakdown: CrewRow[];
+  social_security_mode: SocialSecurityMode;
+  social_security_pct: string;
+  social_security_fixed_monthly_eur: string;
+  social_security_fixed_months: number;
   monthly_mooring_eur: string;
+  monthly_mooring_months: number;
   monthly_fuel_eur: string;
+  monthly_fuel_months: number;
   monthly_provisioning_eur: string;
+  monthly_provisioning_months: number;
   monthly_communications_eur: string;
+  monthly_communications_months: number;
   monthly_maintenance_eur: string;
+  monthly_maintenance_months: number;
   monthly_management_fee_eur: string;
+  monthly_management_fee_months: number;
   monthly_misc_eur: string;
+  monthly_misc_months: number;
   annual_insurance_eur: string;
   annual_registration_eur: string;
   annual_classification_eur: string;
@@ -215,13 +239,24 @@ export interface FinancialsState {
 
 export const EMPTY_FINANCIALS: FinancialsState = {
   crew_breakdown: INITIAL_CREW,
+  social_security_mode: "percent",
+  social_security_pct: "",
+  social_security_fixed_monthly_eur: "",
+  social_security_fixed_months: 12,
   monthly_mooring_eur: "",
+  monthly_mooring_months: 12,
   monthly_fuel_eur: "",
+  monthly_fuel_months: 12,
   monthly_provisioning_eur: "",
+  monthly_provisioning_months: 12,
   monthly_communications_eur: "",
+  monthly_communications_months: 12,
   monthly_maintenance_eur: "",
+  monthly_maintenance_months: 12,
   monthly_management_fee_eur: "",
+  monthly_management_fee_months: 12,
   monthly_misc_eur: "",
+  monthly_misc_months: 12,
   annual_insurance_eur: "",
   annual_registration_eur: "",
   annual_classification_eur: "",
@@ -248,6 +283,11 @@ function numStr(v: unknown): string {
   return "";
 }
 
+function monthCount(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 && n <= 12 ? Math.round(n) : 12;
+}
+
 /**
  * Prefill the financials form from a saved yacht. A My Yacht profile usually has
  * no expense data, so most fields come back empty — that's expected, the user
@@ -262,13 +302,25 @@ export function hydrateFinancialsFromYacht(
       y.crew_breakdown,
       y.monthly_crew_eur != null ? Number(y.monthly_crew_eur) : null,
     ),
+    social_security_mode:
+      y.social_security_mode === "fixed_monthly" ? "fixed_monthly" : "percent",
+    social_security_pct: numStr(y.social_security_pct),
+    social_security_fixed_monthly_eur: numStr(y.social_security_fixed_monthly_eur),
+    social_security_fixed_months: monthCount(y.social_security_fixed_months),
     monthly_mooring_eur: numStr(y.monthly_mooring_eur),
+    monthly_mooring_months: monthCount(y.monthly_mooring_months),
     monthly_fuel_eur: numStr(y.monthly_fuel_eur),
+    monthly_fuel_months: monthCount(y.monthly_fuel_months),
     monthly_provisioning_eur: numStr(y.monthly_provisioning_eur),
+    monthly_provisioning_months: monthCount(y.monthly_provisioning_months),
     monthly_communications_eur: numStr(y.monthly_communications_eur),
+    monthly_communications_months: monthCount(y.monthly_communications_months),
     monthly_maintenance_eur: numStr(y.monthly_maintenance_eur),
+    monthly_maintenance_months: monthCount(y.monthly_maintenance_months),
     monthly_management_fee_eur: numStr(y.monthly_management_fee_eur),
+    monthly_management_fee_months: monthCount(y.monthly_management_fee_months),
     monthly_misc_eur: numStr(y.monthly_misc_eur),
+    monthly_misc_months: monthCount(y.monthly_misc_months),
     annual_insurance_eur: numStr(y.annual_insurance_eur),
     annual_registration_eur: numStr(y.annual_registration_eur),
     annual_classification_eur: numStr(y.annual_classification_eur),
@@ -290,14 +342,25 @@ export function hydrateFinancialsFromYacht(
 export interface RoiOverrides {
   crew_breakdown?: { role: string; monthly_salary_eur: number; months_per_year: number; count: number }[];
   purchase_price_eur?: number;
+  social_security_mode?: SocialSecurityMode;
+  social_security_pct?: number;
+  social_security_fixed_monthly_eur?: number;
+  social_security_fixed_months?: number;
   monthly_crew_eur?: number;
   monthly_mooring_eur?: number;
+  monthly_mooring_months?: number;
   monthly_fuel_eur?: number;
+  monthly_fuel_months?: number;
   monthly_provisioning_eur?: number;
+  monthly_provisioning_months?: number;
   monthly_communications_eur?: number;
+  monthly_communications_months?: number;
   monthly_maintenance_eur?: number;
+  monthly_maintenance_months?: number;
   monthly_management_fee_eur?: number;
+  monthly_management_fee_months?: number;
   monthly_misc_eur?: number;
+  monthly_misc_months?: number;
   annual_insurance_eur?: number;
   annual_registration_eur?: number;
   annual_classification_eur?: number;
@@ -327,6 +390,21 @@ export function buildRoiOverrides(state: FinancialsState): RoiOverrides | null {
     o.monthly_crew_eur = computeCrewMonthlyTotal(state.crew_breakdown);
   }
 
+  if (state.social_security_mode === "fixed_monthly") {
+    const fixed = parseNum(state.social_security_fixed_monthly_eur);
+    if (fixed != null && fixed >= 0) {
+      o.social_security_mode = "fixed_monthly";
+      o.social_security_fixed_monthly_eur = fixed;
+      o.social_security_fixed_months = monthCount(state.social_security_fixed_months);
+    }
+  } else {
+    const pct = parseNum(state.social_security_pct);
+    if (pct != null && pct >= 0) {
+      o.social_security_mode = "percent";
+      o.social_security_pct = pct;
+    }
+  }
+
   const numericKeys: (keyof FinancialsState & keyof RoiOverrides)[] = [
     "monthly_mooring_eur",
     "monthly_fuel_eur",
@@ -346,7 +424,13 @@ export function buildRoiOverrides(state: FinancialsState): RoiOverrides | null {
   ];
   for (const k of numericKeys) {
     const n = parseNum(state[k] as string);
-    if (n != null && n >= 0) o[k] = n as never;
+    if (n != null && n >= 0) {
+      o[k] = n as never;
+      if (k in MONTHLY_MONTH_KEYS) {
+        const monthsKey = MONTHLY_MONTH_KEYS[k as MonthlyKey];
+        o[monthsKey] = monthCount(state[monthsKey]);
+      }
+    }
   }
 
   if (state.financing_type) {

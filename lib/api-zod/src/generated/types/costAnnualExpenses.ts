@@ -20,7 +20,7 @@ export interface CostAnnualExpenses {
   /**
    * @minimum 0
    * @nullable
-  */
+   */
   classification_eur?: number | null;
   /**
    * Commercial coding, charter compliance and related certificates.
@@ -90,7 +90,7 @@ export interface CostAnnualExpenses {
    * Watermaker membrane replacement & service
    * @minimum 0
    * @nullable
-  */
+   */
   watermaker_service_eur?: number | null;
   /**
    * Crew travel, uniforms, training and certificates.

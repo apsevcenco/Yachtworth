@@ -2333,30 +2333,76 @@ components:
             Yacht purchase price for THIS calculation (capital base for ROI /
             payback / depreciation). Lives only in ROI — entered on the scenario
             screen, prefilled from a saved yacht when present, never written back.
+        social_security_mode:
+          type: ["string", "null"]
+          enum: [percent, fixed_monthly, null]
+          description: Social charges mode for this ROI calculation only.
+        social_security_pct:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+          description: Payroll/social charges percentage applied to annual crew payroll.
+        social_security_fixed_monthly_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Fixed monthly social charges amount.
+        social_security_fixed_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
+          description: Number of months for fixed social charges.
         monthly_crew_eur:
           type: ["number", "null"]
           minimum: 0
         monthly_mooring_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_mooring_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         monthly_fuel_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_fuel_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         monthly_provisioning_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_provisioning_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         monthly_communications_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_communications_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         monthly_maintenance_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_maintenance_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         monthly_management_fee_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_management_fee_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         monthly_misc_eur:
           type: ["number", "null"]
           minimum: 0
+        monthly_misc_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         annual_insurance_eur:
           type: ["number", "null"]
           minimum: 0
@@ -2831,30 +2877,62 @@ components:
         mooring_eur:
           type: ["number", "null"]
           minimum: 0
+        mooring_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         utilities_eur:
           type: ["number", "null"]
           minimum: 0
           description: Marina utilities and local services not included in berth.
+        utilities_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         fuel_eur:
           type: ["number", "null"]
           minimum: 0
+        fuel_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         provisioning_eur:
           type: ["number", "null"]
           minimum: 0
+        provisioning_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         communications_eur:
           type: ["number", "null"]
           minimum: 0
+        communications_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         management_fee_eur:
           type: ["number", "null"]
           minimum: 0
           description: Monthly yacht management fee.
+        management_fee_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         maintenance_eur:
           type: ["number", "null"]
           minimum: 0
+        maintenance_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
         misc_eur:
           type: ["number", "null"]
           minimum: 0
           description: Monthly miscellaneous / contingency allowance.
+        misc_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
     CostAnnualExpenses:
       type: object
       properties:
@@ -2990,6 +3068,18 @@ components:
           minimum: 0
           maximum: 100
           description: Payroll/social-security uplift applied to enabled crew salary lines and shown per role.
+        social_security_mode:
+          type: ["string", "null"]
+          enum: [percent, fixed_monthly, null]
+        social_security_fixed_monthly_eur:
+          type: ["number", "null"]
+          minimum: 0
+          description: Fixed social-security contribution per month.
+        social_security_fixed_months:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 12
+          description: Number of months for fixed social-security contribution.
         financing:
           $ref: "#/components/schemas/CostFinancingInput"
     CostBreakdownEntry:
@@ -3085,6 +3175,10 @@ components:
           type: number
         year_built:
           type: integer
+        region:
+          $ref: "#/components/schemas/OperationRegion"
+        usage_type:
+          $ref: "#/components/schemas/UsageType"
     CostEstimate:
       type: object
       required: [result]

@@ -26,7 +26,7 @@ export interface RoiCalculationInput {
   occupancy_target?: OccupancyTarget | null;
   pricing_mode: PricingMode;
   /**
-   * Per-day rate for manual_daily, per-week rate for manual_weekly
+   * Per-day rate for manual_daily, per-week rate for manual_weekly, per-month rate for manual_monthly
    * @minimum 0
    * @nullable
    */
@@ -80,7 +80,7 @@ export interface RoiCalculationInput {
   target_weeks?: number | null;
   /** AI mode only. weekly | daily. Only consulted for regions with a daily-charter model (Caribbean = both, Middle East = daily-only); ignored elsewhere and for manual modes. Defaults to the region's primary basis when null. */
   charter_type?: CharterType | null;
-  /** AI mode only. Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). When set (and pricing_mode=ai), charter income is computed for BOTH regions and summed. null = single-region, which is byte-identical to the previous behaviour. Manual modes ignore this field. Max 2 regions. */
+  /** Optional SECOND charter region for a dual-region scenario (e.g. Mediterranean summer + Caribbean winter). In AI mode each region is estimated separately; in manual mode region 1 and region 2 use the owner-entered manual rates and units. null = single-region. Max 2 regions. */
   region_2?: CharterRegion | null;
   /** AI dual-region only. Season basis for region_2 (high | shoulder | low | mixed). "mixed" = the region's full charter window. Ignored unless region_2 is set. Region 1 always uses its full window. */
   season_2?: CharterSeason | null;
@@ -89,32 +89,32 @@ export interface RoiCalculationInput {
   /** AI dual-region only. Occupancy posture for region_2. Defaults to realistic. Ignored unless region_2 is set. */
   occupancy_target_2?: OccupancyTarget | null;
   /**
-   * AI dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.
+   * Dual-region only. Annual cost of repositioning the yacht between the two regions (both ways combined). Added as a single expense line. Ignored when region_2 is null.
    * @minimum 0
    * @nullable
    */
   repositioning_cost_eur?: number | null;
   /**
-   * AI dual-region only. Monthly mooring rate for region 1.
+   * Dual-region only. Monthly mooring rate for region 1.
    * @minimum 0
    * @nullable
    */
   marina_region_1_monthly_eur?: number | null;
   /**
-   * AI dual-region only. Months per year in the region 1 marina.
+   * Dual-region only. Months per year in the region 1 marina.
    * @minimum 1
    * @maximum 12
    * @nullable
    */
   marina_region_1_months?: number | null;
   /**
-   * AI dual-region only. Monthly mooring rate for region 2.
+   * Dual-region only. Monthly mooring rate for region 2.
    * @minimum 0
    * @nullable
    */
   marina_region_2_monthly_eur?: number | null;
   /**
-   * AI dual-region only. Months per year in the region 2 marina.
+   * Dual-region only. Months per year in the region 2 marina.
    * @minimum 1
    * @maximum 12
    * @nullable

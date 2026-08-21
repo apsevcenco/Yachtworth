@@ -16,6 +16,11 @@ const REGION_MULT: Record<string, number> = {
   middle_east: 1.15,
 };
 
+function months(v: number | string | null | undefined): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 && n <= 12 ? Math.round(n) : 12;
+}
+
 /**
  * Compute every default expense field. Each line prefers a value from
  * `expense_rates` (seeded data) and only falls back to the hard-coded
@@ -140,13 +145,15 @@ export function buildExpenses(args: BuildExpensesArgs): {
     override: number | string | null | undefined,
     fallback: number,
     alwaysEstimate = false,
+    monthsOverride?: number | string | null,
   ): ExpenseLine | null => {
+    const count = months(monthsOverride);
     const v = override == null ? null : Number(override);
     if (v != null && isFinite(v)) {
       return {
         category: label,
-        amount_eur: Math.round(v * 12),
-        formula: `Owner-provided: €${Math.round(v)}/mo × 12`,
+        amount_eur: Math.round(v * count),
+        formula: `Owner-provided: €${Math.round(v)}/mo × ${count}`,
       };
     }
     if (!alwaysEstimate) return null;
@@ -179,16 +186,40 @@ export function buildExpenses(args: BuildExpensesArgs): {
     };
   };
 
+  const crewLine = pickMonthly("Crew", yacht.monthly_crew_eur, defaults.crewMonthly);
+  const socialMode =
+    yacht.social_security_mode === "fixed_monthly" ? "fixed_monthly" : "percent";
+  const socialLine = (() => {
+    if (socialMode === "fixed_monthly") {
+      const fixedMonthly = Number(yacht.social_security_fixed_monthly_eur ?? 0);
+      const count = months(yacht.social_security_fixed_months);
+      if (!isFinite(fixedMonthly) || fixedMonthly <= 0) return null;
+      return {
+        category: "Social security / payroll charges",
+        amount_eur: Math.round(fixedMonthly * count),
+        formula: `Owner-provided: €${Math.round(fixedMonthly)}/mo × ${count}`,
+      } satisfies ExpenseLine;
+    }
+    const pct = Number(yacht.social_security_pct ?? 0);
+    if (!crewLine || !isFinite(pct) || pct <= 0) return null;
+    return {
+      category: "Social security / payroll charges",
+      amount_eur: Math.round(crewLine.amount_eur * (pct / 100)),
+      formula: `${pct}% × annual crew payroll`,
+    } satisfies ExpenseLine;
+  })();
+
   const lines: ExpenseLine[] = (
     [
-      pickMonthly("Crew", yacht.monthly_crew_eur, defaults.crewMonthly),
-      pickMonthly("Mooring / berth", yacht.monthly_mooring_eur, defaults.mooringMonthly),
-      pickMonthly("Fuel", yacht.monthly_fuel_eur, defaults.fuelMonthly),
-      pickMonthly("Provisioning", yacht.monthly_provisioning_eur, defaults.provisioningMonthly),
-      pickMonthly("Communications", yacht.monthly_communications_eur, defaults.commsMonthly),
+      crewLine,
+      socialLine,
+      pickMonthly("Mooring / berth", yacht.monthly_mooring_eur, defaults.mooringMonthly, false, yacht.monthly_mooring_months),
+      pickMonthly("Fuel", yacht.monthly_fuel_eur, defaults.fuelMonthly, false, yacht.monthly_fuel_months),
+      pickMonthly("Provisioning", yacht.monthly_provisioning_eur, defaults.provisioningMonthly, false, yacht.monthly_provisioning_months),
+      pickMonthly("Communications", yacht.monthly_communications_eur, defaults.commsMonthly, false, yacht.monthly_communications_months),
       // Exception — maintenance always shown with regional estimate.
-      pickMonthly("Routine maintenance", yacht.monthly_maintenance_eur, defaults.maintenanceMonthly, true),
-      pickMonthly("Misc operating", yacht.monthly_misc_eur, defaults.miscMonthly),
+      pickMonthly("Routine maintenance", yacht.monthly_maintenance_eur, defaults.maintenanceMonthly, true, yacht.monthly_maintenance_months),
+      pickMonthly("Misc operating", yacht.monthly_misc_eur, defaults.miscMonthly, false, yacht.monthly_misc_months),
       pickAnnual("Insurance", yacht.annual_insurance_eur, defaults.insuranceAnnual),
       pickAnnual("Registration / flag", yacht.annual_registration_eur, defaults.registrationAnnual),
       pickAnnual("Classification & survey", yacht.annual_classification_eur, defaults.classificationAnnual),
@@ -202,7 +233,7 @@ export function buildExpenses(args: BuildExpensesArgs): {
   // Management fee — owner's manual monthly fee on the yacht, then an optional
   // per-calculation % override. No fee if neither is provided.
   const ownerOverride = yacht.monthly_management_fee_eur != null
-    ? Number(yacht.monthly_management_fee_eur) * 12
+    ? Number(yacht.monthly_management_fee_eur) * months(yacht.monthly_management_fee_months)
     : null;
   const managementFeePct =
     managementFeeOverridePct != null ? managementFeeOverridePct : 0;
@@ -210,7 +241,8 @@ export function buildExpenses(args: BuildExpensesArgs): {
   let mgmtFormula = "";
   if (ownerOverride != null && isFinite(ownerOverride) && ownerOverride > 0) {
     mgmtAnnual = ownerOverride;
-    mgmtFormula = `Owner-provided: €${Math.round(ownerOverride / 12)}/mo × 12`;
+    const count = months(yacht.monthly_management_fee_months);
+    mgmtFormula = `Owner-provided: €${Math.round(ownerOverride / count)}/mo × ${count}`;
   } else if (managementFeePct > 0) {
     mgmtAnnual = annualGrossRevenueEur * (managementFeePct / 100);
     mgmtFormula = `${managementFeePct}% of gross charter revenue`;

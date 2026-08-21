@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ComparableVatStatus } from "./comparableVatStatus";
 
 export interface Comparable {
   /** @nullable */
@@ -18,7 +19,7 @@ export interface Comparable {
   /** @nullable */
   location?: string | null;
   /** @nullable */
-  vat_status?: "paid" | "not_paid" | null;
+  vat_status?: ComparableVatStatus;
   /** @nullable */
   condition?: string | null;
   price: string;

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SurveyRpmRow } from "./surveyRpmRow";
+import type { SurveySeaTrialRpmTableColumnsItem } from "./surveySeaTrialRpmTableColumnsItem";
+import type { SurveySeaTrialRpmTableRowsItem } from "./surveySeaTrialRpmTableRowsItem";
 
 export interface SurveySeaTrial {
   report_id: string;
@@ -19,18 +21,8 @@ export interface SurveySeaTrial {
   sea_state?: string | null;
   /** @nullable */
   narrative?: string | null;
-  rpm_table_columns?: {
-    /** @nullable */
-    id?: string | null;
-    /** @nullable */
-    label?: string | null;
-  }[];
-  rpm_table_rows?: {
-    /** @nullable */
-    id?: string | null;
-    /** @nullable */
-    cells?: Record<string, string | number | null> | null;
-  }[];
+  rpm_table_columns?: SurveySeaTrialRpmTableColumnsItem[];
+  rpm_table_rows?: SurveySeaTrialRpmTableRowsItem[];
   rpm_table?: SurveyRpmRow[];
   /** @nullable */
   tickover_rpm?: number | null;
