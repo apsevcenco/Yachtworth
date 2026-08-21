@@ -165,22 +165,13 @@ export function adaptiveCss(t: RenderTheme, confidential: boolean): string {
     position: relative;
     overflow: hidden;
   }
-  .cover-photo-bg {
-    position: absolute;
-    inset: -5mm;
-    width: calc(100% + 10mm);
-    height: calc(100% + 10mm);
-    object-fit: cover;
-    filter: blur(14px);
-    opacity: 0.72;
-    transform: scale(1.03);
-  }
   .cover-photo {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    inset: 12mm;
+    width: calc(100% - 24mm);
+    height: calc(100% - 24mm);
     object-fit: contain;
+    border-radius: 3px;
   }
   .cover-logo {
     position: absolute;
