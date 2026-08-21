@@ -364,6 +364,15 @@ export function buildRoiModel(input: {
         layout: "pairs",
         emptyText: L.none,
       });
+      if (exit.discount_adjustment) {
+        body.push({
+          kind: "paragraph",
+          heading: "Discounted Purchase Logic",
+          panel: true,
+          text:
+            "This scenario treats the yacht as purchased below market-new value. The standard depreciation curve is applied to the market-new value first; the owner's purchase-price value is protected until the discount buffer is consumed. The 5-year cash-flow uses year 1 as calculated, year 2 at 1.15x year-1 charter income, year 3 at 1.23x year-1 charter income, then stable charter activity.",
+        });
+      }
       detailStarted = true;
     }
   }

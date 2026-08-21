@@ -110,6 +110,9 @@ function assumptionLines(data: RoiCalculation): string[] {
     (line) =>
       line.includes("3.0% annual growth") ||
       line.includes("year 2 +15%") ||
+      line.includes("Stock/show-boat discount") ||
+      line.includes("discount buffer") ||
+      line.includes("purchase-price value") ||
       line.includes("depreciation curve") ||
       line.includes("Repositioning between"),
   );
@@ -473,7 +476,7 @@ export default function RoiResultScreen() {
 
             <Text style={styles.exitNote}>
               {discountAdjustment
-                ? "Based on the same depreciation percentages, applied first to market-new value. The discount buffer protects the purchase-price value until market depreciation exceeds it."
+                ? "Discounted purchase scenario: the yacht is treated as bought below market-new value. The normal depreciation curve is applied to market-new value first; the owner purchase-price value remains protected until the discount buffer is consumed. The 5-year cash-flow uses year 1 as calculated, year 2 at 1.15x year-1 charter income, year 3 at 1.23x year-1 charter income, then stable."
                 : "Based on the same 5-year depreciation curve and cumulative cash-flow projection used above. Actual sale price may vary with market conditions."}
             </Text>
           </Card>
