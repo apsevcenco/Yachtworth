@@ -802,6 +802,7 @@ export default function RoiCalculateScreen() {
         params: {
           data: JSON.stringify(result),
           header: JSON.stringify(header),
+          ...(yachtId ? { yacht_id: yachtId } : {}),
         },
       });
     } catch {

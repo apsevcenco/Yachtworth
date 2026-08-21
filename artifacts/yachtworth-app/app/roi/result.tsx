@@ -5,7 +5,7 @@ import {
   type RoiCalculation,
 } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -130,6 +130,7 @@ export default function RoiResultScreen() {
     data?: string;
     id?: string;
     header?: string;
+    yacht_id?: string;
   }>();
 
   const inlineData: RoiCalculation | null = useMemo(() => {
@@ -182,6 +183,19 @@ export default function RoiResultScreen() {
   }, [params.header, detailQuery.data]);
 
   const [exporting, setExporting] = useState(false);
+  const returnYachtId =
+    typeof params.yacht_id === "string" && params.yacht_id
+      ? params.yacht_id
+      : typeof detailQuery.data?.yacht_id === "string" && detailQuery.data.yacht_id
+        ? detailQuery.data.yacht_id
+        : null;
+  const goToScenario = useCallback(() => {
+    router.replace(
+      returnYachtId
+        ? { pathname: "/roi/calculate", params: { yacht_id: returnYachtId } }
+        : "/roi/calculate",
+    );
+  }, [returnYachtId, router]);
 
   // Primary export: backend adaptive document engine (V2). Produces the
   // professionally laid-out, page-packed PDF.
@@ -203,7 +217,7 @@ export default function RoiResultScreen() {
   if (idParam && !inlineData && detailQuery.isLoading) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
-        <TopBar onBack={() => router.back()} title="ROI result" />
+        <TopBar onBack={goToScenario} title="ROI result" />
         <View style={styles.empty}>
           <ActivityIndicator color={GOLD} />
         </View>
@@ -214,7 +228,7 @@ export default function RoiResultScreen() {
   if (!data) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + 72 }]}>
-        <TopBar onBack={() => router.back()} title="ROI result" />
+        <TopBar onBack={goToScenario} title="ROI result" />
         <View style={styles.empty}>
           <Feather name="alert-circle" size={26} color={GOLD} />
           <Text style={styles.emptyTitle}>Could not load result</Text>
@@ -236,7 +250,7 @@ export default function RoiResultScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
-      <TopBar onBack={() => router.back()} title="ROI result" />
+      <TopBar onBack={goToScenario} title="ROI result" />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 24,
@@ -545,7 +559,7 @@ export default function RoiResultScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.back()}
+          onPress={goToScenario}
           style={({ pressed }) => [
             styles.secondaryBtn,
             { opacity: pressed ? 0.85 : 1 },
