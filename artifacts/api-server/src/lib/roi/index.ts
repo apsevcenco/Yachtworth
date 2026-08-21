@@ -442,7 +442,7 @@ function buildMethodology(args: {
   lines.push("");
   lines.push("4. Depreciation & 5-year outlook");
   lines.push(
-    "• Cumulative cash flow models charter ramp-up from the calculated year-1 scenario: year 2 +20% charter income, year 3 +10% additional charter income, then stable charter activity; operating expenses inflate at 3.0%/yr.",
+    "• Cumulative cash flow models charter ramp-up from the calculated year-1 scenario: year 2 +15% charter income, year 3 +23% total charter income, then stable charter activity; operating expenses inflate at 3.0%/yr.",
   );
     lines.push(
       `• ${depreciationAssumption(args.yacht.year_built)}`,

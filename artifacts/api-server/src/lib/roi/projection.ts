@@ -58,8 +58,8 @@ export function roiProjection5y(
 
 /**
  * 5-year cumulative cash projection for a new charter program.
- * Year 1 uses the calculated charter income as-is; year 2 assumes +20%
- * charter activity; year 3 adds another +10%; years 4-5 hold that mature
+ * Year 1 uses the calculated charter income as-is; year 2 assumes +15%
+ * charter activity; year 3 reaches +23% total; years 4-5 hold that mature
  * charter level. Operating expenses still inflate by 3%/yr.
  */
 export function roiProjection5yCharterRamp(
@@ -70,7 +70,7 @@ export function roiProjection5yCharterRamp(
   const out: { year_offset: number; value_eur: number }[] = [];
   let cum = 0;
   const expenseInflation = 0.03;
-  const revenueFactors = [1, 1.2, 1.32];
+  const revenueFactors = [1, 1.15, 1.23];
   for (let y = 1; y <= yearsAhead; y++) {
     const revenueFactor = revenueFactors[Math.min(y - 1, revenueFactors.length - 1)]!;
     const revenue = annualRevenueYear1Eur * revenueFactor;
