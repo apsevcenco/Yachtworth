@@ -251,6 +251,43 @@ function flowParagraphLines(raw: string): string[] {
   return out;
 }
 
+function roiMethodologyBlocks(node: ParagraphNode): DocBlock[] {
+  const lines = flowParagraphLines(node.text ?? "");
+  if (!lines.length) {
+    return [
+      {
+        id: nextId("para"),
+        type: "paragraph",
+        estimatedHeight: measureNode(node),
+        html: leafHtml(node),
+      },
+    ];
+  }
+
+  const groups: string[][] = [];
+  let current: string[] = [];
+  for (const line of lines) {
+    if (/^\d+\.\s+/.test(line) && current.length) {
+      groups.push(current);
+      current = [];
+    }
+    current.push(line);
+  }
+  if (current.length) groups.push(current);
+
+  const cls = node.muted ? ` class="muted"` : "";
+  return groups.map((group, idx) => ({
+    id: nextId("roi-method"),
+    type: idx === 0 && node.heading ? "roi-item" : "roi-line",
+    estimatedHeight:
+      (idx === 0 && node.heading ? 9.5 : 0) +
+      group.reduce((sum, line) => sum + flowLineHeight(line), 0),
+    html: `${idx === 0 ? eyebrow(node.heading) : ""}${group
+      .map((line) => `<p${cls}>${esc(line)}</p>`)
+      .join("")}`,
+  }));
+}
+
 function panelParagraphBlocks(
   node: ParagraphNode,
   typePrefix: string,
@@ -291,6 +328,9 @@ function panelParagraphBlocks(
 function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[] {
   if (node.panel) {
     return panelParagraphBlocks(node, typePrefix, flowLineHeight);
+  }
+  if (typePrefix === "roi" && node.heading === "How This Was Calculated") {
+    return roiMethodologyBlocks(node);
   }
   const lines = flowParagraphLines(node.text ?? "");
   if (!lines.length) {
