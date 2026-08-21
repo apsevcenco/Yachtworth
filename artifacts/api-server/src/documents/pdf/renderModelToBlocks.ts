@@ -228,6 +228,10 @@ function flowLineHeight(text: string): number {
   return Math.max(4.6, Math.ceil(text.length / 112) * 4.6);
 }
 
+function roiLineHeight(text: string): number {
+  return Math.max(4.6, Math.ceil(text.length / 150) * 4.6);
+}
+
 function flowParagraphLines(raw: string): string[] {
   const lines = raw.split(/\n/).map((line) => line.trim()).filter(Boolean);
   const out: string[] = [];
@@ -249,43 +253,6 @@ function flowParagraphLines(raw: string): string[] {
     if (buffer) out.push(buffer);
   }
   return out;
-}
-
-function roiMethodologyBlocks(node: ParagraphNode): DocBlock[] {
-  const lines = flowParagraphLines(node.text ?? "");
-  if (!lines.length) {
-    return [
-      {
-        id: nextId("para"),
-        type: "paragraph",
-        estimatedHeight: measureNode(node),
-        html: leafHtml(node),
-      },
-    ];
-  }
-
-  const groups: string[][] = [];
-  let current: string[] = [];
-  for (const line of lines) {
-    if (/^\d+\.\s+/.test(line) && current.length) {
-      groups.push(current);
-      current = [];
-    }
-    current.push(line);
-  }
-  if (current.length) groups.push(current);
-
-  const cls = node.muted ? ` class="muted"` : "";
-  return groups.map((group, idx) => ({
-    id: nextId("roi-method"),
-    type: idx === 0 && node.heading ? "roi-item" : "roi-line",
-    estimatedHeight:
-      (idx === 0 && node.heading ? 9.5 : 0) +
-      group.reduce((sum, line) => sum + flowLineHeight(line), 0),
-    html: `${idx === 0 ? eyebrow(node.heading) : ""}${group
-      .map((line) => `<p${cls}>${esc(line)}</p>`)
-      .join("")}`,
-  }));
 }
 
 function panelParagraphBlocks(
@@ -329,9 +296,6 @@ function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[
   if (node.panel) {
     return panelParagraphBlocks(node, typePrefix, flowLineHeight);
   }
-  if (typePrefix === "roi" && node.heading === "How This Was Calculated") {
-    return roiMethodologyBlocks(node);
-  }
   const lines = flowParagraphLines(node.text ?? "");
   if (!lines.length) {
     return [
@@ -345,10 +309,11 @@ function flowParagraphBlocks(node: ParagraphNode, typePrefix: string): DocBlock[
   }
 
   const cls = node.muted ? ` class="muted"` : "";
+  const lineHeight = typePrefix === "roi" ? roiLineHeight : flowLineHeight;
   return lines.map((line, idx) => ({
     id: nextId(`${typePrefix}-line`),
     type: idx === 0 && node.heading ? `${typePrefix}-item` : `${typePrefix}-line`,
-    estimatedHeight: (idx === 0 && node.heading ? 9.5 : 0) + flowLineHeight(line),
+    estimatedHeight: (idx === 0 && node.heading ? 9.5 : 0) + lineHeight(line),
     html: `${idx === 0 ? eyebrow(node.heading) : ""}<p${cls}>${esc(line)}</p>`,
   }));
 }
