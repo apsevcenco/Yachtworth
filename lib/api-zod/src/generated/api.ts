@@ -2388,37 +2388,45 @@ export const CalculateCostEstimateBody = zod.object({
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMooringEurMin)
       .nullish(),
+    mooring_months: zod.number().min(1).max(12).nullish(),
     utilities_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesUtilitiesEurMin)
       .nullish()
       .describe("Marina utilities and local services not included in berth."),
+    utilities_months: zod.number().min(1).max(12).nullish(),
     fuel_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesFuelEurMin)
       .nullish(),
+    fuel_months: zod.number().min(1).max(12).nullish(),
     provisioning_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesProvisioningEurMin)
       .nullish(),
+    provisioning_months: zod.number().min(1).max(12).nullish(),
     communications_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesCommunicationsEurMin)
       .nullish(),
+    communications_months: zod.number().min(1).max(12).nullish(),
     management_fee_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesManagementFeeEurMin)
       .nullish()
       .describe("Monthly yacht management fee."),
+    management_fee_months: zod.number().min(1).max(12).nullish(),
     maintenance_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMaintenanceEurMin)
       .nullish(),
+    maintenance_months: zod.number().min(1).max(12).nullish(),
     misc_eur: zod
       .number()
       .min(calculateCostEstimateBodyMonthlyExpensesMiscEurMin)
       .nullish()
       .describe("Monthly miscellaneous \/ contingency allowance."),
+    misc_months: zod.number().min(1).max(12).nullish(),
   }),
   annual_expenses: zod.object({
     insurance_eur: zod
@@ -2788,37 +2796,45 @@ export const GetCostEstimateResponse = zod.object({
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMooringEurMin)
         .nullish(),
+      mooring_months: zod.number().min(1).max(12).nullish(),
       utilities_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesUtilitiesEurMin)
         .nullish()
         .describe("Marina utilities and local services not included in berth."),
+      utilities_months: zod.number().min(1).max(12).nullish(),
       fuel_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesFuelEurMin)
         .nullish(),
+      fuel_months: zod.number().min(1).max(12).nullish(),
       provisioning_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesProvisioningEurMin)
         .nullish(),
+      provisioning_months: zod.number().min(1).max(12).nullish(),
       communications_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesCommunicationsEurMin)
         .nullish(),
+      communications_months: zod.number().min(1).max(12).nullish(),
       management_fee_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesManagementFeeEurMin)
         .nullish()
         .describe("Monthly yacht management fee."),
+      management_fee_months: zod.number().min(1).max(12).nullish(),
       maintenance_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMaintenanceEurMin)
         .nullish(),
+      maintenance_months: zod.number().min(1).max(12).nullish(),
       misc_eur: zod
         .number()
         .min(getCostEstimateResponseInputMonthlyExpensesMiscEurMin)
         .nullish()
         .describe("Monthly miscellaneous \/ contingency allowance."),
+      misc_months: zod.number().min(1).max(12).nullish(),
     }),
     annual_expenses: zod.object({
       insurance_eur: zod

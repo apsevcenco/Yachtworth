@@ -145,6 +145,7 @@ interface FormState {
   usage_type: Usage | null;
   crew: Record<string, CrewRow>;
   monthly: Record<MonthlyKey, string>;
+  monthlyMonths: Record<MonthlyKey, number>;
   annual: Record<AnnualKey, string>;
   social_security_mode: SocialSecurityMode;
   social_security_pct: string;
@@ -180,6 +181,16 @@ const INITIAL: FormState = {
     management_fee_eur: "",
     maintenance_eur: "",
     misc_eur: "",
+  },
+  monthlyMonths: {
+    mooring_eur: 12,
+    utilities_eur: 12,
+    fuel_eur: 12,
+    provisioning_eur: 12,
+    communications_eur: 12,
+    management_fee_eur: 12,
+    maintenance_eur: 12,
+    misc_eur: 12,
   },
   annual: {
     commercial_compliance_eur: "",
@@ -349,6 +360,7 @@ function mergeYachtIntoCostForm(
         f.monthly.maintenance_eur || monthlyFromYacht("monthly_maintenance_eur"),
       misc_eur: f.monthly.misc_eur || monthlyFromYacht("monthly_misc_eur"),
     },
+    monthlyMonths: f.monthlyMonths,
     annual: {
       ...f.annual,
       insurance_eur:
@@ -646,13 +658,21 @@ export default function CostNewScreen() {
       }),
       monthly_expenses: {
         mooring_eur: num(form.monthly.mooring_eur),
+        mooring_months: form.monthlyMonths.mooring_eur,
         utilities_eur: num(form.monthly.utilities_eur),
+        utilities_months: form.monthlyMonths.utilities_eur,
         fuel_eur: num(form.monthly.fuel_eur),
+        fuel_months: form.monthlyMonths.fuel_eur,
         provisioning_eur: num(form.monthly.provisioning_eur),
+        provisioning_months: form.monthlyMonths.provisioning_eur,
         communications_eur: num(form.monthly.communications_eur),
+        communications_months: form.monthlyMonths.communications_eur,
         management_fee_eur: num(form.monthly.management_fee_eur),
+        management_fee_months: form.monthlyMonths.management_fee_eur,
         maintenance_eur: num(form.monthly.maintenance_eur),
+        maintenance_months: form.monthlyMonths.maintenance_eur,
         misc_eur: num(form.monthly.misc_eur),
+        misc_months: form.monthlyMonths.misc_eur,
       },
       annual_expenses: {
         insurance_eur: num(form.annual.insurance_eur),
@@ -1310,6 +1330,14 @@ function Step3Expenses({
 }) {
   const updateM = (k: MonthlyKey, v: string) =>
     setForm((f) => ({ ...f, monthly: { ...f.monthly, [k]: v } }));
+  const updateMonthlyMonths = (k: MonthlyKey, months: number) =>
+    setForm((f) => ({
+      ...f,
+      monthlyMonths: {
+        ...f.monthlyMonths,
+        [k]: Math.min(12, Math.max(1, months)),
+      },
+    }));
   const updateA = (k: AnnualKey, v: string) =>
     setForm((f) => ({ ...f, annual: { ...f.annual, [k]: v } }));
 
@@ -1336,6 +1364,32 @@ function Step3Expenses({
             onChangeText={(v) => updateM(f.key, v)}
             suffix="€ / mo"
           />
+          <View style={styles.crewControlsRow}>
+            <Text style={styles.monthsLabel}>Months / year</Text>
+            <View style={styles.qtyStepper}>
+              <Pressable
+                onPress={() =>
+                  updateMonthlyMonths(f.key, form.monthlyMonths[f.key] - 1)
+                }
+                hitSlop={6}
+                style={styles.qtyBtn}
+              >
+                <Feather name="minus" size={14} color={GOLD} />
+              </Pressable>
+              <View style={styles.qtyBox}>
+                <Text style={styles.qtyValue}>{form.monthlyMonths[f.key]}</Text>
+              </View>
+              <Pressable
+                onPress={() =>
+                  updateMonthlyMonths(f.key, form.monthlyMonths[f.key] + 1)
+                }
+                hitSlop={6}
+                style={styles.qtyBtn}
+              >
+                <Feather name="plus" size={14} color={GOLD} />
+              </Pressable>
+            </View>
+          </View>
         </Field>
       ))}
 

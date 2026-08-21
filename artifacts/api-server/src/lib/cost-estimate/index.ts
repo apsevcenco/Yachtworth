@@ -202,24 +202,35 @@ export function computeCostEstimate(
   const monthly = input.monthly_expenses;
   const monthlyLines: CostBreakdownEntry[] = [];
   let operationsTotal = 0;
-  const pushMonthly = (label: string, monthlyAmount: number | null | undefined, formulaHint?: string) => {
+  const monthCount = (raw: number | null | undefined): number => {
+    const n = Math.floor(Number(raw ?? 12));
+    if (!isFinite(n)) return 12;
+    return Math.min(12, Math.max(1, n));
+  };
+  const pushMonthly = (
+    label: string,
+    monthlyAmount: number | null | undefined,
+    monthsRaw?: number | null,
+    formulaHint?: string,
+  ) => {
     const v = Number(monthlyAmount ?? 0);
     if (!isFinite(v) || v <= 0) return;
-    const annual = Math.round(v * 12);
+    const months = monthCount(monthsRaw);
+    const annual = Math.round(v * months);
     monthlyLines.push({
       category: label,
       amount_eur: annual,
-      formula: formulaHint ?? `€${Math.round(v).toLocaleString("en-US")}/mo × 12`,
+      formula: formulaHint ?? `€${Math.round(v).toLocaleString("en-US")}/mo × ${months}`,
     });
     operationsTotal += annual;
   };
-  pushMonthly("Mooring / berth", monthly.mooring_eur);
-  pushMonthly("Marina utilities", monthly.utilities_eur);
-  pushMonthly("Fuel", monthly.fuel_eur);
-  pushMonthly("Provisioning", monthly.provisioning_eur);
-  pushMonthly("Communications", monthly.communications_eur);
-  pushMonthly("Yacht management fee", monthly.management_fee_eur);
-  pushMonthly("Miscellaneous / contingency", monthly.misc_eur);
+  pushMonthly("Mooring / berth", monthly.mooring_eur, monthly.mooring_months);
+  pushMonthly("Marina utilities", monthly.utilities_eur, monthly.utilities_months);
+  pushMonthly("Fuel", monthly.fuel_eur, monthly.fuel_months);
+  pushMonthly("Provisioning", monthly.provisioning_eur, monthly.provisioning_months);
+  pushMonthly("Communications", monthly.communications_eur, monthly.communications_months);
+  pushMonthly("Yacht management fee", monthly.management_fee_eur, monthly.management_fee_months);
+  pushMonthly("Miscellaneous / contingency", monthly.misc_eur, monthly.misc_months);
 
   // ---- Annual maintenance & technical ----
   const annual = input.annual_expenses;
@@ -231,11 +242,12 @@ export function computeCostEstimate(
   {
     const v = Number(monthly.maintenance_eur ?? 0);
     if (isFinite(v) && v > 0) {
-      const yearly = Math.round(v * 12);
+      const months = monthCount(monthly.maintenance_months);
+      const yearly = Math.round(v * months);
       maintenanceLines.push({
         category: "Routine maintenance",
         amount_eur: yearly,
-        formula: `€${Math.round(v).toLocaleString("en-US")}/mo × 12`,
+        formula: `€${Math.round(v).toLocaleString("en-US")}/mo × ${months}`,
       });
       maintenanceTotal += yearly;
     }
