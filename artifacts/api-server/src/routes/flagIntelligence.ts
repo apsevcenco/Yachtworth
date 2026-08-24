@@ -49,6 +49,7 @@ function parseInput(body: Record<string, unknown>): FlagComparisonInput {
           ? "new_registration"
           : null,
     mortgage_needed: typeof body["mortgage_needed"] === "boolean" ? body["mortgage_needed"] : null,
+    planned_charter_days: toNumber(body["planned_charter_days"]),
   };
 }
 

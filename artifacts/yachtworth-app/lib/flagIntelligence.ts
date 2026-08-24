@@ -17,6 +17,7 @@ export type FlagComparisonInput = {
   intended_cruising_area?: string | null;
   registration_type?: "new_registration" | "reflag" | null;
   mortgage_needed?: boolean | null;
+  planned_charter_days?: number | null;
 };
 
 export type LegalPartner = {
@@ -125,6 +126,9 @@ export type FlagComparisonResult = FlagRegistry & {
   eligibility_summary?: string | null;
   tax_vat_summary?: string | null;
   charter_summary?: string | null;
+  charter_limit_summary?: string | null;
+  size_summary?: string | null;
+  cost_summary?: string | null;
   compliance_summary?: string | null;
   decision_drivers?: string[] | null;
 };

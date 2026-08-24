@@ -55,6 +55,7 @@ type FormState = {
   intended_cruising_area: string;
   registration_type: "new_registration" | "reflag";
   mortgage_needed: boolean;
+  planned_charter_days: string;
 };
 
 const DEFAULT_FORM: FormState = {
@@ -74,6 +75,7 @@ const DEFAULT_FORM: FormState = {
   intended_cruising_area: "EU summer charter",
   registration_type: "new_registration",
   mortgage_needed: true,
+  planned_charter_days: "80",
 };
 
 const MODES: Array<{ key: Mode; title: string; subtitle: string; icon: React.ComponentProps<typeof Feather>["name"] }> = [
@@ -108,6 +110,7 @@ function asInput(form: FormState): FlagComparisonInput {
     intended_cruising_area: form.intended_cruising_area.trim() || null,
     registration_type: form.registration_type,
     mortgage_needed: form.mortgage_needed,
+    planned_charter_days: toNumber(form.planned_charter_days),
   };
 }
 
@@ -480,6 +483,7 @@ function Advice({
           <Field label="Owner residency" value={form.owner_residency} onChangeText={(v) => setForm((f) => ({ ...f, owner_residency: v }))} />
           <Field label="Company country" value={form.company_country} onChangeText={(v) => setForm((f) => ({ ...f, company_country: v }))} />
           <Field label="Crew nationality" value={form.crew_nationality} onChangeText={(v) => setForm((f) => ({ ...f, crew_nationality: v }))} />
+          <Field label="Planned charter days / year" value={form.planned_charter_days} keyboardType="numeric" onChangeText={(v) => setForm((f) => ({ ...f, planned_charter_days: v }))} />
           <Field label="Navigation area" value={form.navigation_area} multiline onChangeText={(v) => setForm((f) => ({ ...f, navigation_area: v }))} />
           <Field label="Intended cruising area" value={form.intended_cruising_area} multiline onChangeText={(v) => setForm((f) => ({ ...f, intended_cruising_area: v }))} />
         </View>
@@ -513,6 +517,9 @@ function Advice({
                       {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
                     </View>
                     <Text style={[styles.rankSub, { color: colors.mutedForeground }]}>{flag.fit_summary}</Text>
+                    <Text style={[styles.rankSub, { color: colors.mutedForeground }]}>
+                      Registry fees only: registration {money(flag.registration_cost_eur)} / annual {money(flag.annual_fee_eur)}
+                    </Text>
                   </View>
                   <Text style={[styles.score, { color: scoreColor(flag.score) }]}>{flag.score}</Text>
                 </Pressable>
@@ -533,9 +540,12 @@ function Advice({
                     <Text style={styles.scoreBadgeText}>{selected.score}/100</Text>
                   </View>
                 </View>
+                <TextBlock title="Size Fit" text={textOrVerify(selected.size_summary)} />
+                <TextBlock title="Registry Cost" text={textOrVerify(selected.cost_summary)} />
                 <TextBlock title="Eligibility" text={textOrVerify(selected.eligibility_summary)} />
                 <TextBlock title="VAT / Tax" text={textOrVerify(selected.tax_vat_summary)} />
                 <TextBlock title="Charter Use" text={textOrVerify(selected.charter_summary)} />
+                <TextBlock title="Charter Day Limit" text={textOrVerify(selected.charter_limit_summary)} />
                 <TextBlock title="Compliance" text={textOrVerify(selected.compliance_summary)} />
                 {selected.decision_drivers?.length ? (
                   <InfoList title="Decision Logic" items={selected.decision_drivers} icon="compass" />

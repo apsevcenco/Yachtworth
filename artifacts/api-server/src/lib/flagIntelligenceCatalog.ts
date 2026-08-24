@@ -63,6 +63,7 @@ export type FlagComparisonInput = {
   intended_cruising_area?: string | null;
   registration_type?: "new_registration" | "reflag" | null;
   mortgage_needed?: boolean | null;
+  planned_charter_days?: number | null;
 };
 
 export type FlagComparisonResult = FlagRegistry & {
@@ -74,6 +75,9 @@ export type FlagComparisonResult = FlagRegistry & {
   eligibility_summary?: string;
   tax_vat_summary?: string;
   charter_summary?: string;
+  charter_limit_summary?: string;
+  size_summary?: string;
+  cost_summary?: string;
   compliance_summary?: string;
   decision_drivers?: string[];
 };
@@ -479,6 +483,31 @@ function isRedEnsignOrOpen(flag: FlagRegistry & Record<string, unknown>): boolea
   return flag.registry_type === "open" || flag.registry_type === "commonwealth" || hasAny(text, ["red ensign", "open registry", "category 1"]);
 }
 
+function yachtSizeTier(input: FlagComparisonInput): "small" | "mid" | "large" | "superyacht" | "unknown" {
+  const loa = input.loa_m ?? null;
+  const gt = input.gt ?? null;
+  if (loa == null && gt == null) return "unknown";
+  if ((loa ?? 0) >= 40 || (gt ?? 0) >= 500) return "superyacht";
+  if ((loa ?? 0) >= 24 || (gt ?? 0) >= 150) return "large";
+  if ((loa ?? 0) >= 12 || (gt ?? 0) >= 20) return "mid";
+  return "small";
+}
+
+function extractLimitedCharterDays(text: string): number | null {
+  const lower = text.toLowerCase();
+  const matches = [...lower.matchAll(/(?:up to|maximum|limit(?:ed)?|allowed|permit(?:ted)?|authori[sz]ed|charter)\D{0,80}(\d{1,3})\s*(?:day|days)\b/g)];
+  const charterMatches = matches
+    .map((match) => Number(match[1]))
+    .filter((value) => Number.isFinite(value) && value > 0 && value <= 365);
+  if (charterMatches.length) return Math.max(...charterMatches);
+  const direct = lower.match(/\b(80|84|90|120)\s*(?:day|days)\b/);
+  return direct ? Number(direct[1]) : null;
+}
+
+function formatEur(value: number): string {
+  return `EUR ${Math.round(value).toLocaleString("en-GB")}`;
+}
+
 export function compareFlagRegistries(
   input: FlagComparisonInput,
   registries = FALLBACK_FLAG_REGISTRIES,
@@ -489,6 +518,9 @@ export function compareFlagRegistries(
   const highValue = (input.value_eur ?? 0) >= 1_000_000 || Boolean(input.mortgage_needed);
   const gt = input.gt ?? null;
   const loa = input.loa_m ?? null;
+  const value = input.value_eur ?? null;
+  const sizeTier = yachtSizeTier(input);
+  const plannedCharterDays = input.planned_charter_days ?? null;
   const estimatedFirstYearCost = (flag: FlagRegistry): number | null => {
     if (flag.registration_cost_eur == null && flag.annual_fee_eur == null) return null;
     return (flag.registration_cost_eur ?? 0) + (flag.annual_fee_eur ?? 0);
@@ -508,6 +540,10 @@ export function compareFlagRegistries(
       const vatLevel = vatExposureLevel(flag as FlagRegistry & Record<string, unknown>);
       const redEnsignOrOpen = isRedEnsignOrOpen(flag as FlagRegistry & Record<string, unknown>);
       const hasLimitedCharterRoute = hasAny(text, ["yet", "pylc", "pycr", "limited charter"]);
+      const limitedCharterDays = extractLimitedCharterDays(text);
+      const firstYearCostRatio = firstYearCost != null && value != null && value > 0 ? firstYearCost / value : null;
+      const isPremiumLargeYachtFlag = redEnsignOrOpen || hasAny(text, ["large yacht code", "ly3", "pylc", "passenger yacht code", "mca", "category 1"]);
+      const isSimplifiedSmallYachtRoute = hasAny(text, ["under 24", "up to 24", "24 m", "24m", "reja24", "simplified", "private yachts under"]);
       const hasEuEligibilityBarrier =
         nonEuOwner &&
         euFlag &&
@@ -518,6 +554,35 @@ export function compareFlagRegistries(
       }
       if (wantsEuCharter) {
         decisionDrivers.push("EU charter profile: flag choice is separated from VAT, customs, cabotage and local charter-permit exposure.");
+      }
+      if (sizeTier !== "unknown") {
+        decisionDrivers.push(`${loa ?? "Unknown"} m / ${gt ?? "unknown"} GT profile is treated as ${sizeTier}; size changes the weight of class, yacht-code, mortgage and fee factors.`);
+      }
+      if (plannedCharterDays != null && wantsEuCharter) {
+        decisionDrivers.push(`Planned EU charter use is ${plannedCharterDays} days/year, so any limited-charter allowance is checked against that target.`);
+      }
+
+      if (sizeTier === "small" || sizeTier === "mid") {
+        if (isSimplifiedSmallYachtRoute) {
+          score += 5;
+          positives.push("Size fits a simplified or lower-burden private-yacht registration route.");
+        }
+        if (firstYearCost != null && firstYearCost > 2_000 && value != null && value < 1_000_000) {
+          score -= 7;
+          risks.push("Registry fees are heavy for a smaller / lower-value yacht profile.");
+        }
+      } else if (sizeTier === "large" || sizeTier === "superyacht") {
+        if (isPremiumLargeYachtFlag || flag.classification_required) {
+          score += sizeTier === "superyacht" ? 8 : 6;
+          positives.push("Size profile benefits from a large-yacht registry, class workflow and strong market acceptance.");
+        } else {
+          score -= sizeTier === "superyacht" ? 12 : 7;
+          risks.push("Large-yacht support, class workflow and commercial code depth look weaker for this size profile.");
+        }
+        if (isSimplifiedSmallYachtRoute && !isPremiumLargeYachtFlag) {
+          score -= 6;
+          risks.push("Stored data points mainly to a small-yacht/simplified route rather than a large-yacht programme.");
+        }
       }
 
       if (wantsCommercial) {
@@ -582,6 +647,20 @@ export function compareFlagRegistries(
           if (wantsEuCharter && hasLimitedCharterRoute) {
             score += 5;
             positives.push("Limited-charter/YET/PYLC-type pathway is relevant for occasional EU charter use when eligibility and local rules are satisfied.");
+            if (limitedCharterDays != null && plannedCharterDays != null) {
+              if (plannedCharterDays <= limitedCharterDays) {
+                score += 6;
+                positives.push(`Planned ${plannedCharterDays} charter days fit within the stored ${limitedCharterDays}-day limited-charter guidance.`);
+              } else {
+                score -= 12;
+                risks.push(`Planned ${plannedCharterDays} charter days exceed the stored ${limitedCharterDays}-day limited-charter guidance.`);
+              }
+            } else if (limitedCharterDays != null) {
+              score += 2;
+              positives.push(`Stored intelligence references a limited-charter allowance of up to ${limitedCharterDays} days.`);
+            } else {
+              risks.push("Limited-charter route is referenced, but the exact annual day allowance still needs verification.");
+            }
           }
         }
       }
@@ -601,17 +680,32 @@ export function compareFlagRegistries(
 
       if (firstYearCost != null) {
         if (firstYearCost <= 700) {
-          score += 5;
+          score += value != null && value < 750_000 ? 8 : 5;
           positives.push("Low first-year registry cost for the profile.");
         } else if (firstYearCost <= 1_500) {
           score += 2;
         } else if (firstYearCost >= 3_000) {
-          score -= 8;
+          score -= value != null && value < 1_500_000 ? 12 : 8;
           risks.push("First-year registry cost is relatively high versus lower-cost alternatives.");
         } else if (firstYearCost >= 2_000) {
           score -= 4;
           risks.push("Registry cost should be compared against lower-cost alternatives.");
         }
+        if (firstYearCostRatio != null) {
+          if (firstYearCostRatio >= 0.01) {
+            score -= 10;
+            risks.push("First-year registry cost exceeds 1% of vessel value, which is inefficient for this budget.");
+          } else if (firstYearCostRatio >= 0.005) {
+            score -= 5;
+            risks.push("First-year registry cost is above 0.5% of vessel value and should be justified by legal or market benefits.");
+          } else if (firstYearCostRatio <= 0.001 && value != null && value < 2_000_000) {
+            score += 3;
+            positives.push("Registry cost is very light relative to vessel value.");
+          }
+        }
+      } else {
+        score -= 2;
+        risks.push("Registry fee data is incomplete, so cost ranking is less reliable.");
       }
 
       if (flag.code === "malta" && companyCountry.includes("malta")) {
@@ -966,6 +1060,13 @@ export function compareFlagRegistries(
         finalScore = Math.min(finalScore, nonEuOwner ? 78 : 86);
       }
       if (wantsEuCharter && !euFlag && !hasLimitedCharterRoute && !redEnsignOrOpen) finalScore = Math.min(finalScore, 78);
+      if ((sizeTier === "large" || sizeTier === "superyacht") && !isPremiumLargeYachtFlag && !flag.classification_required) {
+        finalScore = Math.min(finalScore, sizeTier === "superyacht" ? 70 : 80);
+      }
+      if (plannedCharterDays != null && limitedCharterDays != null && plannedCharterDays > limitedCharterDays) {
+        finalScore = Math.min(finalScore, 72);
+      }
+      if (firstYearCostRatio != null && firstYearCostRatio >= 0.01) finalScore = Math.min(finalScore, 76);
       if (wantsCommercial && risks.length >= 3) finalScore = Math.min(finalScore, 82);
       if (risks.length >= 5) finalScore = Math.min(finalScore, 74);
       const recommendation: FlagComparisonResult["recommendation"] =
@@ -974,8 +1075,42 @@ export function compareFlagRegistries(
           : finalScore >= 74
             ? "suitable"
             : finalScore >= 55
-              ? "possible"
-              : "not_recommended";
+            ? "possible"
+            : "not_recommended";
+      const sizeSummary =
+        sizeTier === "unknown"
+          ? "No LOA / GT entered, so size-specific registration thresholds could not be fully assessed."
+          : `${loa ?? "Unknown"} m / ${gt ?? "unknown"} GT is assessed as a ${sizeTier} profile. ${
+              sizeTier === "large" || sizeTier === "superyacht"
+                ? "Large-yacht code depth, class workflow, mortgage and insurance acceptance are weighted heavily."
+                : "Simplified registration, survey burden and proportional registry cost are weighted more heavily."
+            }`;
+      const costSummary =
+        firstYearCost == null
+          ? "Registration-cost data is incomplete for this flag; fee ranking should be verified before relying on the score."
+          : `${formatEur(firstYearCost)} estimated first-year registry cost${
+              firstYearCostRatio != null ? `, about ${(firstYearCostRatio * 100).toFixed(2)}% of vessel value` : ""
+            }, excluding lawyer, agent, tax-advice, survey, class and document-legalisation fees. ${
+              firstYearCost <= 700
+                ? "This is treated as low-cost."
+                : firstYearCost >= 3_000
+                  ? "This is treated as a high-cost registry unless justified by legal, banking or commercial benefits."
+                  : "This is treated as a mid-range registry cost."
+            }`;
+      const charterLimitSummary =
+        wantsEuCharter && !euFlag
+          ? limitedCharterDays != null
+            ? plannedCharterDays != null
+              ? plannedCharterDays <= limitedCharterDays
+                ? `Stored intelligence references up to ${limitedCharterDays} limited-charter days; planned use is ${plannedCharterDays} days, so the day count fits the stored allowance.`
+                : `Stored intelligence references up to ${limitedCharterDays} limited-charter days; planned use is ${plannedCharterDays} days, so this needs a different permit/commercial structure.`
+              : `Stored intelligence references up to ${limitedCharterDays} limited-charter days. Enter planned charter days to test the profile directly.`
+            : hasLimitedCharterRoute
+              ? "A limited-charter/YET/PYLC-type route is referenced, but the annual day limit is not verified in the stored data."
+              : "No limited-charter day allowance is detected in stored data; EU charter use must be checked through VAT, customs, cabotage and local permits."
+          : wantsEuCharter
+            ? "EU flag profile: charter-day limits are driven more by local commercial licensing, VAT and operational rules than by offshore limited-charter allowances."
+            : "Charter-day limits are not a primary driver because this profile is not marked as EU commercial charter.";
 
       return {
         ...flag,
@@ -1005,6 +1140,9 @@ export function compareFlagRegistries(
               : "Commercial registration is available; local charter permits and operating-area rules still need to be checked."
             : "Commercial registration is not supported for this profile."
           : "Private registration profile; charter rules are not the primary driver unless charter is enabled.",
+        charter_limit_summary: charterLimitSummary,
+        size_summary: sizeSummary,
+        cost_summary: costSummary,
         compliance_summary: [
           flag.classification_required || (loa != null && loa >= 24)
             ? "Class/survey workflow should be expected or confirmed for a large yacht."
