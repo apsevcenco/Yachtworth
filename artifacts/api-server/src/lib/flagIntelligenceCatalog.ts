@@ -78,6 +78,8 @@ export type FlagComparisonResult = FlagRegistry & {
   charter_limit_summary?: string;
   size_summary?: string;
   cost_summary?: string;
+  first_year_registry_cost_eur?: number | null;
+  registry_cost_breakdown?: string[];
   compliance_summary?: string;
   decision_drivers?: string[];
 };
@@ -506,6 +508,33 @@ function extractLimitedCharterDays(text: string): number | null {
 
 function formatEur(value: number): string {
   return `EUR ${Math.round(value).toLocaleString("en-GB")}`;
+}
+
+function buildRegistryCostBreakdown(flag: FlagRegistry, firstYearCost: number | null): string[] {
+  const items: string[] = [];
+  if (flag.registration_cost_eur != null) {
+    items.push(`Initial registration fee: ${formatEur(flag.registration_cost_eur)}`);
+  } else {
+    items.push("Initial registration fee: To verify");
+  }
+  if (flag.annual_fee_eur != null) {
+    items.push(`Annual registry fee: ${formatEur(flag.annual_fee_eur)}`);
+  } else {
+    items.push("Annual registry fee: To verify");
+  }
+  if (firstYearCost != null) {
+    items.push(`First-year registry cost: ${formatEur(firstYearCost)} = initial registration fee + annual registry fee.`);
+  } else {
+    items.push("First-year registry cost: To verify because one or more registry-fee components are missing.");
+  }
+  if (flag.radio_license) {
+    items.push("Radio licence / MMSI: available or normally supported, fee not included unless separately confirmed.");
+  }
+  if (flag.mortgage_available) {
+    items.push("Mortgage registration: available, fee not included unless separately confirmed.");
+  }
+  items.push("Excluded: lawyer fees, agent fees, company setup, tax advice, survey, class, inspection, translations, notarisation, apostille/legalisation and courier costs.");
+  return items;
 }
 
 export function compareFlagRegistries(
@@ -1111,6 +1140,7 @@ export function compareFlagRegistries(
           : wantsEuCharter
             ? "EU flag profile: charter-day limits are driven more by local commercial licensing, VAT and operational rules than by offshore limited-charter allowances."
             : "Charter-day limits are not a primary driver because this profile is not marked as EU commercial charter.";
+      const registryCostBreakdown = buildRegistryCostBreakdown(flag, firstYearCost);
 
       return {
         ...flag,
@@ -1143,6 +1173,8 @@ export function compareFlagRegistries(
         charter_limit_summary: charterLimitSummary,
         size_summary: sizeSummary,
         cost_summary: costSummary,
+        first_year_registry_cost_eur: firstYearCost,
+        registry_cost_breakdown: registryCostBreakdown,
         compliance_summary: [
           flag.classification_required || (loa != null && loa >= 24)
             ? "Class/survey workflow should be expected or confirmed for a large yacht."

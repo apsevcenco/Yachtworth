@@ -518,7 +518,7 @@ function Advice({
                     </View>
                     <Text style={[styles.rankSub, { color: colors.mutedForeground }]}>{flag.fit_summary}</Text>
                     <Text style={[styles.rankSub, { color: colors.mutedForeground }]}>
-                      Registry fees only: registration {money(flag.registration_cost_eur)} / annual {money(flag.annual_fee_eur)}
+                      First-year registry cost: {money(flag.first_year_registry_cost_eur ?? null)} / registration {money(flag.registration_cost_eur)} / annual {money(flag.annual_fee_eur)}
                     </Text>
                   </View>
                   <Text style={[styles.score, { color: scoreColor(flag.score) }]}>{flag.score}</Text>
@@ -542,6 +542,7 @@ function Advice({
                 </View>
                 <TextBlock title="Size Fit" text={textOrVerify(selected.size_summary)} />
                 <TextBlock title="Registry Cost" text={textOrVerify(selected.cost_summary)} />
+                <InfoList title="Registry Cost Breakdown" items={selected.registry_cost_breakdown?.length ? selected.registry_cost_breakdown : ["Fee components are not verified for this flag yet."]} icon="dollar-sign" />
                 <TextBlock title="Eligibility" text={textOrVerify(selected.eligibility_summary)} />
                 <TextBlock title="VAT / Tax" text={textOrVerify(selected.tax_vat_summary)} />
                 <TextBlock title="Charter Use" text={textOrVerify(selected.charter_summary)} />

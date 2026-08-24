@@ -129,6 +129,8 @@ export type FlagComparisonResult = FlagRegistry & {
   charter_limit_summary?: string | null;
   size_summary?: string | null;
   cost_summary?: string | null;
+  first_year_registry_cost_eur?: number | null;
+  registry_cost_breakdown?: string[] | null;
   compliance_summary?: string | null;
   decision_drivers?: string[] | null;
 };
