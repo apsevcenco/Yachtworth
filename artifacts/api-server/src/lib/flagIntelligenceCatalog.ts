@@ -464,6 +464,18 @@ function isLikelyNonEuOwner(input: FlagComparisonInput): boolean {
   return !/\b(eu|eea|european|swiss|switzerland|uk|united kingdom|british|malta|maltese|france|french|italy|italian|spain|spanish|germany|german|netherlands|dutch|portugal|portuguese|cyprus|cypriot|poland|polish|luxembourg)\b/i.test(text);
 }
 
+function isLikelyEuOwner(input: FlagComparisonInput): boolean {
+  const text = [input.owner_nationality, input.owner_residency].filter(Boolean).join(" ").toLowerCase();
+  if (!text || /\b(non[-\s]?eu|not\s+(an?\s+)?eu|outside\s+the\s+eu|third[-\s]?country)\b/i.test(text)) return false;
+  return /\b(eu|eea|european|malta|maltese|france|french|italy|italian|spain|spanish|germany|german|netherlands|dutch|portugal|portuguese|cyprus|cypriot|poland|polish|luxembourg|austria|austrian|belgium|belgian|croatia|croatian|greece|greek|ireland|irish|sweden|swedish|denmark|danish|finland|finnish)\b/i.test(text);
+}
+
+function isLikelyEuCompany(input: FlagComparisonInput): boolean {
+  const text = (input.company_country ?? "").toLowerCase();
+  if (!text || /\b(non[-\s]?eu|offshore|third[-\s]?country|uae|emirates|dubai|bvi|cayman|marshall|panama|belize|bahamas|bermuda|jersey|guernsey|isle of man|uk|united kingdom)\b/i.test(text)) return false;
+  return /\b(eu|eea|malta|france|italy|spain|germany|netherlands|portugal|cyprus|poland|luxembourg|austria|belgium|croatia|greece|ireland|sweden|denmark|finland)\b/i.test(text);
+}
+
 function isEuOperatingArea(input: FlagComparisonInput): boolean {
   const text = inputText(input);
   return hasAny(text, ["eu", "europe", "med", "mediterranean", "france", "italy", "spain", "greece", "croatia", "malta", "cote d'azur", "côte d'azur", "riviera", "corsica", "sardinia", "balearic"]);
@@ -550,6 +562,7 @@ function buildVatConditions(
     hasEuEligibilityBarrier: boolean;
     hasLimitedCharterRoute: boolean;
     limitedCharterDays: number | null;
+    euControlledCharterProfile: boolean;
   },
 ): string[] {
   const company = input.company_country?.trim();
@@ -588,6 +601,9 @@ function buildVatConditions(
     }
   } else {
     items.push("Under a non-EU / offshore flag, EU VAT is separate from registration. The flag can work, but Temporary Admission, customs status, cabotage and local charter permissions must be handled independently.");
+    if (options.euControlledCharterProfile) {
+      items.push("Because the profile is EU-owned or EU-company controlled with EU charter use, the system does not treat an offshore flag as the direct legal/VAT answer; use of an offshore flag would need a separate compliant ownership/operator and local charter-permit structure.");
+    }
     if (options.nonEuOwner) {
       items.push("VAT may be deferred or not charged as EU import VAT only if the yacht remains under a valid non-EU / Temporary Admission or approved commercial-charter structure and does not breach EU customs/VAT conditions.");
     }
@@ -630,6 +646,9 @@ export function compareFlagRegistries(
   };
   const companyCountry = (input.company_country ?? "").toLowerCase();
   const nonEuOwner = isLikelyNonEuOwner(input);
+  const euOwner = isLikelyEuOwner(input);
+  const euCompany = isLikelyEuCompany(input);
+  const euControlledCharterProfile = wantsEuCharter && (euOwner || euCompany);
 
   return registries
     .map((flag) => {
@@ -657,6 +676,9 @@ export function compareFlagRegistries(
       }
       if (wantsEuCharter) {
         decisionDrivers.push("EU charter profile: flag choice is separated from VAT, customs, cabotage and local charter-permit exposure.");
+      }
+      if (euControlledCharterProfile) {
+        decisionDrivers.push("EU owner/company + EU charter profile: offshore flags are treated as structurally weak unless a separate compliant non-EU ownership/operator structure is entered.");
       }
       if (sizeTier !== "unknown") {
         decisionDrivers.push(`${loa ?? "Unknown"} m / ${gt ?? "unknown"} GT profile is treated as ${sizeTier}; size changes the weight of class, yacht-code, mortgage and fee factors.`);
@@ -743,11 +765,17 @@ export function compareFlagRegistries(
         } else {
           score -= wantsEuCharter ? 4 : 7;
           risks.push("Non-EU flag: EU VAT, customs, cabotage and local charter permissions must be structured separately.");
-          if (wantsEuCharter && redEnsignOrOpen) {
+          if (wantsEuCharter && euControlledCharterProfile) {
+            score -= 28;
+            risks.push("EU owner/company with Mediterranean commercial charter is not a natural offshore-flag profile; EU flag/operator/VAT structure should normally rank ahead of offshore registration.");
+          } else if (wantsEuCharter && redEnsignOrOpen) {
             score += 8;
             positives.push("Offshore / Red Ensign structure can be appropriate for non-EU ownership if EU charter VAT and local permits are handled separately.");
           }
-          if (wantsEuCharter && hasLimitedCharterRoute) {
+          if (wantsEuCharter && hasLimitedCharterRoute && euControlledCharterProfile) {
+            score -= 8;
+            risks.push("Limited-charter/YET/PYLC-type routes do not replace a compliant EU commercial/VAT structure for an EU-owned or EU-company charter profile.");
+          } else if (wantsEuCharter && hasLimitedCharterRoute) {
             score += 5;
             positives.push("Limited-charter/YET/PYLC-type pathway is relevant for occasional EU charter use when eligibility and local rules are satisfied.");
             if (limitedCharterDays != null && plannedCharterDays != null) {
@@ -1162,6 +1190,9 @@ export function compareFlagRegistries(
       if (wantsCommercial && euFlag && /high|20%|21%|22%|23%|25%/.test(flag.vat_notes?.toLowerCase() ?? "")) {
         finalScore = Math.min(finalScore, nonEuOwner ? 78 : 86);
       }
+      if (euControlledCharterProfile && !euFlag) {
+        finalScore = Math.min(finalScore, 54);
+      }
       if (wantsEuCharter && !euFlag && !hasLimitedCharterRoute && !redEnsignOrOpen) finalScore = Math.min(finalScore, 78);
       if ((sizeTier === "large" || sizeTier === "superyacht") && !isPremiumLargeYachtFlag && !flag.classification_required) {
         finalScore = Math.min(finalScore, sizeTier === "superyacht" ? 70 : 80);
@@ -1224,6 +1255,7 @@ export function compareFlagRegistries(
         hasEuEligibilityBarrier,
         hasLimitedCharterRoute,
         limitedCharterDays,
+        euControlledCharterProfile,
       });
 
       return {
@@ -1235,6 +1267,8 @@ export function compareFlagRegistries(
         risks: risks.slice(0, 5),
         eligibility_summary: hasEuEligibilityBarrier
           ? "Conditional: this profile appears to need an EU/EEA ownership, resident representative, manager, permanent establishment or equivalent qualifying structure."
+          : euControlledCharterProfile && !euFlag
+            ? "Not a direct fit: EU owner/company with EU commercial charter should normally use an EU-compliant flag/operator/VAT structure unless a separate compliant offshore ownership and local charter framework is created."
           : nonEuOwner && !euFlag
             ? "Generally compatible with non-EU ownership, subject to the registry's company/agent route and KYC."
             : nonEuOwner
@@ -1243,7 +1277,9 @@ export function compareFlagRegistries(
         tax_vat_summary: wantsEuCharter
           ? euFlag
             ? `EU charter profile: this flag may simplify EU operation, but VAT/tax exposure is assessed as ${vatLevel}. Confirm VAT, charter licensing, corporate tax and crew/social charges before relying on it.`
-            : `EU charter profile under a non-EU flag: VAT, customs, Temporary Admission, cabotage and local charter permits remain separate from the flag registration. Exposure is assessed as ${vatLevel}.`
+            : euControlledCharterProfile
+              ? `EU owner/company + EU charter profile under a non-EU flag: this is treated as structurally weak. VAT, customs, cabotage, operator substance and local charter permits cannot be solved by the flag alone. Exposure is assessed as ${vatLevel}.`
+              : `EU charter profile under a non-EU flag: VAT, customs, Temporary Admission, cabotage and local charter permits remain separate from the flag registration. Exposure is assessed as ${vatLevel}.`
           : vatLevel === "unknown"
             ? "No specific VAT/tax conclusion can be made from the stored data."
             : `VAT/tax exposure from stored data is assessed as ${vatLevel}.`,
