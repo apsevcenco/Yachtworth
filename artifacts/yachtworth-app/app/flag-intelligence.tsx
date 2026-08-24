@@ -533,6 +533,13 @@ function Advice({
                     <Text style={styles.scoreBadgeText}>{selected.score}/100</Text>
                   </View>
                 </View>
+                <TextBlock title="Eligibility" text={textOrVerify(selected.eligibility_summary)} />
+                <TextBlock title="VAT / Tax" text={textOrVerify(selected.tax_vat_summary)} />
+                <TextBlock title="Charter Use" text={textOrVerify(selected.charter_summary)} />
+                <TextBlock title="Compliance" text={textOrVerify(selected.compliance_summary)} />
+                {selected.decision_drivers?.length ? (
+                  <InfoList title="Decision Logic" items={selected.decision_drivers} icon="compass" />
+                ) : null}
                 <InfoList title="Why it fits" items={selected.positives.length ? selected.positives : selected.advantages} icon="check" />
                 <InfoList title="Risks to review" items={selected.risks.length ? selected.risks : selected.disadvantages} icon="alert-triangle" />
               </View>

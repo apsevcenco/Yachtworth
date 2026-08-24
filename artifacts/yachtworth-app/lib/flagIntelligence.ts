@@ -122,6 +122,11 @@ export type FlagComparisonResult = FlagRegistry & {
   fit_summary: string;
   positives: string[];
   risks: string[];
+  eligibility_summary?: string | null;
+  tax_vat_summary?: string | null;
+  charter_summary?: string | null;
+  compliance_summary?: string | null;
+  decision_drivers?: string[] | null;
 };
 
 export type FlagComparisonResponse = {

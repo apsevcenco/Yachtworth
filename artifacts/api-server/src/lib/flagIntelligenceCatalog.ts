@@ -71,6 +71,11 @@ export type FlagComparisonResult = FlagRegistry & {
   fit_summary: string;
   positives: string[];
   risks: string[];
+  eligibility_summary?: string;
+  tax_vat_summary?: string;
+  charter_summary?: string;
+  compliance_summary?: string;
+  decision_drivers?: string[];
 };
 
 export const FALLBACK_FLAG_REGISTRIES: FlagRegistry[] = [
@@ -417,12 +422,70 @@ function flagText(flag: FlagRegistry & Record<string, unknown>): string {
     .toLowerCase();
 }
 
+function inputText(input: FlagComparisonInput): string {
+  return [
+    input.navigation_area,
+    input.intended_cruising_area,
+    input.owner_nationality,
+    input.owner_residency,
+    input.company_country,
+    input.crew_nationality,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function hasAny(text: string, words: string[]): boolean {
+  return words.some((word) => text.includes(word));
+}
+
+function isEuFlag(flag: FlagRegistry & Record<string, unknown>): boolean {
+  const advisor = typeof flag["advisor"] === "object" && flag["advisor"] ? flag["advisor"] as Record<string, unknown> : {};
+  return EU_CODES.has(flag.code) || advisor["is_eu_flag"] === true || flag.registry_type === "eu";
+}
+
+function isLikelyNonEuOwner(input: FlagComparisonInput): boolean {
+  const text = [input.owner_nationality, input.owner_residency].filter(Boolean).join(" ").toLowerCase();
+  if (!text) return false;
+  if (/\b(non[-\s]?eu|not\s+(an?\s+)?eu|not\s+european|outside\s+the\s+eu|third[-\s]?country)\b/i.test(text)) {
+    return true;
+  }
+  if (/\b(russia|russian|ukraine|ukrainian|turkey|turkish|usa|american|canada|canadian|uae|emirates|dubai|saudi|qatar|china|chinese|india|indian|israel|israeli|monaco)\b/i.test(text)) {
+    return true;
+  }
+  return !/\b(eu|eea|european|swiss|switzerland|uk|united kingdom|british|malta|maltese|france|french|italy|italian|spain|spanish|germany|german|netherlands|dutch|portugal|portuguese|cyprus|cypriot|poland|polish|luxembourg)\b/i.test(text);
+}
+
+function isEuOperatingArea(input: FlagComparisonInput): boolean {
+  const text = inputText(input);
+  return hasAny(text, ["eu", "europe", "med", "mediterranean", "france", "italy", "spain", "greece", "croatia", "malta", "cote d'azur", "côte d'azur", "riviera", "corsica", "sardinia", "balearic"]);
+}
+
+function isEuCharterProfile(input: FlagComparisonInput): boolean {
+  return (input.use_type === "commercial" || Boolean(input.charter)) && isEuOperatingArea(input);
+}
+
+function vatExposureLevel(flag: FlagRegistry & Record<string, unknown>): "low" | "medium" | "high" | "unknown" {
+  const text = flagText(flag);
+  if (hasAny(text, ["high", "20% vat", "21% vat", "22% vat", "23% vat", "25%", "vat due", "import vat", "registration tax"])) return "high";
+  if (hasAny(text, ["low", "vat refund", "zero vat", "0% vat", "temporary admission", "ta rules", "tonnage tax", "proper structuring"])) return "low";
+  if (hasAny(text, ["medium", "non-eu", "customs", "vat", "ta"])) return "medium";
+  return "unknown";
+}
+
+function isRedEnsignOrOpen(flag: FlagRegistry & Record<string, unknown>): boolean {
+  const text = flagText(flag);
+  return flag.registry_type === "open" || flag.registry_type === "commonwealth" || hasAny(text, ["red ensign", "open registry", "category 1"]);
+}
+
 export function compareFlagRegistries(
   input: FlagComparisonInput,
   registries = FALLBACK_FLAG_REGISTRIES,
 ): FlagComparisonResult[] {
   const wantsCommercial = input.use_type === "commercial" || Boolean(input.charter);
-  const wantsEu = textIncludes(input, ["eu", "europe", "med", "france", "italy", "spain", "greece", "croatia", "malta"]);
+  const wantsEu = isEuOperatingArea(input);
+  const wantsEuCharter = isEuCharterProfile(input);
   const highValue = (input.value_eur ?? 0) >= 1_000_000 || Boolean(input.mortgage_needed);
   const gt = input.gt ?? null;
   const loa = input.loa_m ?? null;
@@ -430,19 +493,32 @@ export function compareFlagRegistries(
     if (flag.registration_cost_eur == null && flag.annual_fee_eur == null) return null;
     return (flag.registration_cost_eur ?? 0) + (flag.annual_fee_eur ?? 0);
   };
-  const ownerText = [input.owner_nationality, input.owner_residency].filter(Boolean).join(" ").toLowerCase();
   const companyCountry = (input.company_country ?? "").toLowerCase();
-  const isLikelyNonEuOwner =
-    Boolean(ownerText) &&
-    !/(eu|eea|swiss|switzerland|uk|united kingdom|british|malta|maltese|france|french|italy|italian|spain|spanish|germany|german|netherlands|dutch|portugal|portuguese|cyprus|cypriot)/i.test(ownerText);
+  const nonEuOwner = isLikelyNonEuOwner(input);
 
   return registries
     .map((flag) => {
       let score = 40;
       const positives: string[] = [];
       const risks: string[] = [];
+      const decisionDrivers: string[] = [];
       const text = flagText(flag as FlagRegistry & Record<string, unknown>);
       const firstYearCost = estimatedFirstYearCost(flag);
+      const euFlag = isEuFlag(flag as FlagRegistry & Record<string, unknown>);
+      const vatLevel = vatExposureLevel(flag as FlagRegistry & Record<string, unknown>);
+      const redEnsignOrOpen = isRedEnsignOrOpen(flag as FlagRegistry & Record<string, unknown>);
+      const hasLimitedCharterRoute = hasAny(text, ["yet", "pylc", "pycr", "limited charter"]);
+      const hasEuEligibilityBarrier =
+        nonEuOwner &&
+        euFlag &&
+        hasAny(text, ["50%", "eu/eea", "eu owner", "nationality test", "residence", "resident", "permanent establishment", "substance"]);
+
+      if (nonEuOwner) {
+        decisionDrivers.push("Owner profile is treated as non-EU / third-country unless a qualifying EU structure is entered.");
+      }
+      if (wantsEuCharter) {
+        decisionDrivers.push("EU charter profile: flag choice is separated from VAT, customs, cabotage and local charter-permit exposure.");
+      }
 
       if (wantsCommercial) {
         if (flag.commercial_available) {
@@ -484,17 +560,43 @@ export function compareFlagRegistries(
       }
 
       if (wantsEu) {
-        if (EU_CODES.has(flag.code)) {
-          score += 8;
-          positives.push("EU flag profile fits the intended cruising/charter area.");
+        if (euFlag) {
+          const euBonus = wantsEuCharter && nonEuOwner ? 2 : 8;
+          score += euBonus;
+          positives.push(
+            wantsEuCharter && nonEuOwner
+              ? "EU flag can simplify some EU-area operations, but it is not automatically the best answer for a non-EU charter owner."
+              : "EU flag profile fits the intended cruising/charter area.",
+          );
           if (text.includes("vat") && text.includes("charter")) {
-            score += 3;
+            score += wantsEuCharter && nonEuOwner ? 1 : 3;
             positives.push("EU VAT / charter framework is documented.");
           }
         } else {
-          score -= wantsCommercial ? 10 : 7;
-          risks.push("EU VAT, cabotage and charter rules require separate legal review.");
+          score -= wantsEuCharter ? 4 : 7;
+          risks.push("Non-EU flag: EU VAT, customs, cabotage and local charter permissions must be structured separately.");
+          if (wantsEuCharter && redEnsignOrOpen) {
+            score += 8;
+            positives.push("Offshore / Red Ensign structure can be appropriate for non-EU ownership if EU charter VAT and local permits are handled separately.");
+          }
+          if (wantsEuCharter && hasLimitedCharterRoute) {
+            score += 5;
+            positives.push("Limited-charter/YET/PYLC-type pathway is relevant for occasional EU charter use when eligibility and local rules are satisfied.");
+          }
         }
+      }
+
+      if (wantsEuCharter && vatLevel === "high") {
+        score -= euFlag ? 8 : 4;
+        risks.push("VAT/tax exposure is high for this profile and should materially reduce the recommendation.");
+      } else if (wantsEuCharter && vatLevel === "low") {
+        score += 5;
+        positives.push("VAT/tax profile appears comparatively favourable in the stored flag intelligence.");
+      }
+
+      if (hasEuEligibilityBarrier) {
+        score -= 12;
+        risks.push("Non-EU owner may need an EU/EEA company, representative, manager or qualifying control structure before this flag is legally workable.");
       }
 
       if (firstYearCost != null) {
@@ -606,7 +708,7 @@ export function compareFlagRegistries(
         positives.push("Madeira MAR can be strong for commercial yachts because VAT refund / zero VAT operating advantages are documented.");
       }
 
-      if (flag.code === "portugal_madeira" && isLikelyNonEuOwner && text.includes("no nationality restrictions")) {
+      if (flag.code === "portugal_madeira" && nonEuOwner && text.includes("no nationality restrictions")) {
         score += 6;
         positives.push("Madeira MAR has no owner nationality restrictions, which helps non-EU owners seeking an EU flag.");
       }
@@ -621,7 +723,7 @@ export function compareFlagRegistries(
         positives.push("Cyprus provides a mature tonnage tax framework for qualifying commercial shipping activities.");
       }
 
-      if (flag.code === "cyprus" && isLikelyNonEuOwner && (text.includes("50%") || text.includes("eu/eea"))) {
+      if (flag.code === "cyprus" && nonEuOwner && (text.includes("50%") || text.includes("eu/eea"))) {
         score -= 7;
         risks.push("Cyprus requires an EU/EEA ownership or qualifying control structure for non-EU owners.");
       }
@@ -679,7 +781,7 @@ export function compareFlagRegistries(
         risks.push("Dutch Seabrief is strictly non-commercial; charter requires the full merchant register route.");
       }
 
-      if (flag.code === "netherlands" && isLikelyNonEuOwner && text.includes("nationality test")) {
+      if (flag.code === "netherlands" && nonEuOwner && text.includes("nationality test")) {
         score -= 5;
         risks.push("Dutch registration can require a nationality test and Dutch/EU connection for non-EU owners.");
       }
@@ -804,7 +906,7 @@ export function compareFlagRegistries(
         positives.push("Luxembourg is a full EU flag with strong legal and commercial-shipping reputation.");
       }
 
-      if (flag.code === "luxembourg" && isLikelyNonEuOwner) {
+      if (flag.code === "luxembourg" && nonEuOwner) {
         score -= 10;
         risks.push("Luxembourg has major residence/substance eligibility barriers for non-EU or non-resident owners.");
       }
@@ -829,7 +931,7 @@ export function compareFlagRegistries(
         risks.push("Crew social security exposure can be material if the yacht is based in France for extended periods.");
       }
 
-      if (isLikelyNonEuOwner && text.includes("non-eu individuals no")) {
+      if (nonEuOwner && text.includes("non-eu individuals no")) {
         score -= 8;
         risks.push("Non-EU individual personal registration is not the direct route; a company or recognised legal entity structure is required.");
       }
@@ -856,10 +958,14 @@ export function compareFlagRegistries(
       let finalScore = Math.max(0, Math.min(100, Math.round(score - risks.length)));
       if (wantsCommercial && !flag.commercial_available) finalScore = Math.min(finalScore, 45);
       if (gt != null && flag.max_gt != null && gt > flag.max_gt) finalScore = Math.min(finalScore, 35);
-      if (wantsEu && !EU_CODES.has(flag.code)) finalScore = Math.min(finalScore, wantsCommercial ? 82 : 86);
-      if (wantsCommercial && EU_CODES.has(flag.code) && /high|20%|21%|22%|23%|25%/.test(flag.vat_notes?.toLowerCase() ?? "")) {
-        finalScore = Math.min(finalScore, 86);
+      if (hasEuEligibilityBarrier) finalScore = Math.min(finalScore, 72);
+      if (wantsEuCharter && euFlag && nonEuOwner && vatLevel === "high") {
+        finalScore = Math.min(finalScore, 78);
       }
+      if (wantsCommercial && euFlag && /high|20%|21%|22%|23%|25%/.test(flag.vat_notes?.toLowerCase() ?? "")) {
+        finalScore = Math.min(finalScore, nonEuOwner ? 78 : 86);
+      }
+      if (wantsEuCharter && !euFlag && !hasLimitedCharterRoute && !redEnsignOrOpen) finalScore = Math.min(finalScore, 78);
       if (wantsCommercial && risks.length >= 3) finalScore = Math.min(finalScore, 82);
       if (risks.length >= 5) finalScore = Math.min(finalScore, 74);
       const recommendation: FlagComparisonResult["recommendation"] =
@@ -878,6 +984,35 @@ export function compareFlagRegistries(
         fit_summary: buildFitSummary(flag, input, finalScore),
         positives: positives.slice(0, 5),
         risks: risks.slice(0, 5),
+        eligibility_summary: hasEuEligibilityBarrier
+          ? "Conditional: this profile appears to need an EU/EEA ownership, resident representative, manager, permanent establishment or equivalent qualifying structure."
+          : nonEuOwner && !euFlag
+            ? "Generally compatible with non-EU ownership, subject to the registry's company/agent route and KYC."
+            : nonEuOwner
+              ? "Possible for a non-EU owner only if the flag's qualifying ownership/company route is satisfied."
+              : "No major owner-eligibility blocker detected from the stored flag intelligence.",
+        tax_vat_summary: wantsEuCharter
+          ? euFlag
+            ? `EU charter profile: this flag may simplify EU operation, but VAT/tax exposure is assessed as ${vatLevel}. Confirm VAT, charter licensing, corporate tax and crew/social charges before relying on it.`
+            : `EU charter profile under a non-EU flag: VAT, customs, Temporary Admission, cabotage and local charter permits remain separate from the flag registration. Exposure is assessed as ${vatLevel}.`
+          : vatLevel === "unknown"
+            ? "No specific VAT/tax conclusion can be made from the stored data."
+            : `VAT/tax exposure from stored data is assessed as ${vatLevel}.`,
+        charter_summary: wantsCommercial
+          ? flag.commercial_available
+            ? hasLimitedCharterRoute
+              ? "Commercial registration is available, and the stored data references a limited-charter/YET/PYLC-type route that may matter for occasional charter use."
+              : "Commercial registration is available; local charter permits and operating-area rules still need to be checked."
+            : "Commercial registration is not supported for this profile."
+          : "Private registration profile; charter rules are not the primary driver unless charter is enabled.",
+        compliance_summary: [
+          flag.classification_required || (loa != null && loa >= 24)
+            ? "Class/survey workflow should be expected or confirmed for a large yacht."
+            : "Class/survey burden appears lighter for this profile.",
+          flag.mortgage_available ? "Mortgage registration available." : "Mortgage support must be confirmed.",
+          flag.radio_license ? "Radio licence / MMSI route available or normally supported." : "Radio licence route to verify.",
+        ].join(" "),
+        decision_drivers: decisionDrivers.slice(0, 4),
       };
     })
     .sort((a, b) => b.score - a.score || a.flag_name.localeCompare(b.flag_name));
