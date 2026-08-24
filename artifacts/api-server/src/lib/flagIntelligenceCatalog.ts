@@ -74,6 +74,7 @@ export type FlagComparisonResult = FlagRegistry & {
   risks: string[];
   eligibility_summary?: string;
   tax_vat_summary?: string;
+  vat_conditions?: string[];
   charter_summary?: string;
   charter_limit_summary?: string;
   size_summary?: string;
@@ -534,6 +535,79 @@ function buildRegistryCostBreakdown(flag: FlagRegistry, firstYearCost: number | 
     items.push("Mortgage registration: available, fee not included unless separately confirmed.");
   }
   items.push("Excluded: lawyer fees, agent fees, company setup, tax advice, survey, class, inspection, translations, notarisation, apostille/legalisation and courier costs.");
+  return items;
+}
+
+function buildVatConditions(
+  flag: FlagRegistry,
+  input: FlagComparisonInput,
+  options: {
+    euFlag: boolean;
+    vatLevel: "low" | "medium" | "high" | "unknown";
+    nonEuOwner: boolean;
+    wantsEuCharter: boolean;
+    wantsEu: boolean;
+    hasEuEligibilityBarrier: boolean;
+    hasLimitedCharterRoute: boolean;
+    limitedCharterDays: number | null;
+  },
+): string[] {
+  const company = input.company_country?.trim();
+  const owner = input.owner_nationality?.trim();
+  const items: string[] = [];
+  items.push(
+    `Profile checked: ${owner || "owner nationality not entered"} owner, ${company || "company country not entered"} company, ${input.use_type ?? "use type not entered"} use${input.charter ? ", charter enabled" : ""}.`,
+  );
+
+  if (options.wantsEuCharter) {
+    items.push("VAT is normally relevant because the profile includes EU / Mediterranean commercial charter use.");
+    items.push("VAT may be payable when the yacht is imported or released for free circulation in the EU, used privately by an EU-resident owner, or chartered in EU waters without a valid commercial VAT / local charter structure.");
+  } else if (options.wantsEu) {
+    items.push("VAT may become relevant because the yacht is intended to operate in EU waters, especially if it is imported, sold, chartered, or used privately by an EU-resident owner.");
+  } else {
+    items.push("EU VAT is not a primary driver unless the yacht later enters EU waters, is imported into the EU, or starts EU charter activity.");
+  }
+
+  if (options.euFlag) {
+    if (input.charter || input.use_type === "commercial") {
+      items.push("Under an EU commercial flag, VAT is not automatically eliminated; it must be handled through the correct commercial operator, VAT registration, charter invoicing and local charter-permit rules.");
+      if (flag.code === "malta") {
+        items.push("For Malta, the favourable position depends on a genuine commercial yacht structure and correct Malta/EU VAT treatment; a non-EU owner or UAE/non-EU company still needs a qualifying ownership/operator route.");
+      } else if (flag.code === "portugal_madeira") {
+        items.push("For Madeira MAR, VAT advantages depend on qualifying commercial operation and the documented Madeira/Portuguese tax framework, not simply on the flag name.");
+      } else if (flag.code === "france") {
+        items.push("For France/RIF, stored intelligence indicates normal French VAT and tax exposure can remain high; it is not treated as a VAT optimisation flag.");
+      } else {
+        items.push("For this EU flag, confirm whether commercial VAT recovery, exemption, or reverse-charge treatment is actually available for the ownership and charter structure.");
+      }
+    } else {
+      items.push("For private EU use, VAT is generally expected if the yacht is EU-imported or used by an EU-resident owner without a valid relief/exemption.");
+    }
+    if (options.hasEuEligibilityBarrier) {
+      items.push("Before VAT planning, eligibility itself is conditional: this profile may need an EU/EEA company, representative, manager, permanent establishment or qualifying control route.");
+    }
+  } else {
+    items.push("Under a non-EU / offshore flag, EU VAT is separate from registration. The flag can work, but Temporary Admission, customs status, cabotage and local charter permissions must be handled independently.");
+    if (options.nonEuOwner) {
+      items.push("VAT may be deferred or not charged as EU import VAT only if the yacht remains under a valid non-EU / Temporary Admission or approved commercial-charter structure and does not breach EU customs/VAT conditions.");
+    }
+    if (options.hasLimitedCharterRoute) {
+      items.push(
+        options.limitedCharterDays != null
+          ? `Stored data references a limited-charter route up to ${options.limitedCharterDays} days; exceeding that use can require full commercial/VAT/local permit treatment.`
+          : "Stored data references a limited-charter route, but the exact permitted days must be verified before relying on it.",
+      );
+    }
+  }
+
+  if (options.vatLevel === "high") {
+    items.push("System conclusion: VAT/tax exposure is high for this profile, so this flag should not be recommended mainly for VAT efficiency.");
+  } else if (options.vatLevel === "low") {
+    items.push("System conclusion: stored intelligence indicates comparatively favourable VAT/tax treatment, but only if the legal and operational conditions above are satisfied.");
+  } else {
+    items.push(`System conclusion: VAT/tax exposure is assessed as ${options.vatLevel}; specialist VAT advice is still required before implementation.`);
+  }
+
   return items;
 }
 
@@ -1141,6 +1215,16 @@ export function compareFlagRegistries(
             ? "EU flag profile: charter-day limits are driven more by local commercial licensing, VAT and operational rules than by offshore limited-charter allowances."
             : "Charter-day limits are not a primary driver because this profile is not marked as EU commercial charter.";
       const registryCostBreakdown = buildRegistryCostBreakdown(flag, firstYearCost);
+      const vatConditions = buildVatConditions(flag, input, {
+        euFlag,
+        vatLevel,
+        nonEuOwner,
+        wantsEuCharter,
+        wantsEu,
+        hasEuEligibilityBarrier,
+        hasLimitedCharterRoute,
+        limitedCharterDays,
+      });
 
       return {
         ...flag,
@@ -1163,6 +1247,7 @@ export function compareFlagRegistries(
           : vatLevel === "unknown"
             ? "No specific VAT/tax conclusion can be made from the stored data."
             : `VAT/tax exposure from stored data is assessed as ${vatLevel}.`,
+        vat_conditions: vatConditions,
         charter_summary: wantsCommercial
           ? flag.commercial_available
             ? hasLimitedCharterRoute

@@ -125,6 +125,7 @@ export type FlagComparisonResult = FlagRegistry & {
   risks: string[];
   eligibility_summary?: string | null;
   tax_vat_summary?: string | null;
+  vat_conditions?: string[] | null;
   charter_summary?: string | null;
   charter_limit_summary?: string | null;
   size_summary?: string | null;

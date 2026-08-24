@@ -545,6 +545,7 @@ function Advice({
                 <InfoList title="Registry Cost Breakdown" items={selected.registry_cost_breakdown?.length ? selected.registry_cost_breakdown : ["Fee components are not verified for this flag yet."]} icon="dollar-sign" />
                 <TextBlock title="Eligibility" text={textOrVerify(selected.eligibility_summary)} />
                 <TextBlock title="VAT / Tax" text={textOrVerify(selected.tax_vat_summary)} />
+                <InfoList title="VAT Conditions" items={selected.vat_conditions?.length ? selected.vat_conditions : ["VAT conditions require specialist verification for this profile."]} icon="percent" />
                 <TextBlock title="Charter Use" text={textOrVerify(selected.charter_summary)} />
                 <TextBlock title="Charter Day Limit" text={textOrVerify(selected.charter_limit_summary)} />
                 <TextBlock title="Compliance" text={textOrVerify(selected.compliance_summary)} />
