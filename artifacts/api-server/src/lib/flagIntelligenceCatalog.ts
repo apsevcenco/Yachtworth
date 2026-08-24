@@ -493,6 +493,76 @@ function vatExposureLevel(flag: FlagRegistry & Record<string, unknown>): "low" |
   return "unknown";
 }
 
+function hasCommercialVatExemptionOption(flag: FlagRegistry & Record<string, unknown>): boolean {
+  const text = flagText(flag);
+  if (["malta", "portugal_madeira"].includes(flag.code)) return true;
+  return hasAny(text, [
+    "article 148",
+    "high seas",
+    "navigation on the high seas",
+    "commercial yacht exemption",
+    "vat exemption",
+    "exempt from vat",
+    "vat recovery",
+    "vat recover",
+    "vat refund",
+    "input vat",
+    "zero vat",
+    "commercial vat exemption",
+    "vat deduction",
+    "commercial operator",
+    "genuine commercial use",
+  ]);
+}
+
+function profiledVatExposureLevel(
+  flag: FlagRegistry & Record<string, unknown>,
+  input: FlagComparisonInput,
+  options: {
+    euFlag: boolean;
+    wantsEuCharter: boolean;
+    nonEuOwner: boolean;
+    euControlledCharterProfile: boolean;
+  },
+): "low" | "medium" | "high" | "unknown" {
+  const base = vatExposureLevel(flag);
+  const text = flagText(flag);
+  if (!options.wantsEuCharter) return base;
+
+  if (!options.euFlag) {
+    if (options.euControlledCharterProfile) return "high";
+    if (hasAny(text, ["temporary admission", "ta rules", "yet", "pylc", "pycr", "limited charter"])) return "medium";
+    return base === "low" ? "medium" : base;
+  }
+
+  const hasCommercialVatOption = hasCommercialVatExemptionOption(flag);
+
+  if (flag.code === "portugal_madeira") {
+    if (input.use_type === "commercial" || input.charter) return "low";
+    return base === "high" ? "medium" : base;
+  }
+
+  if (flag.code === "malta") {
+    if (input.use_type === "commercial" || input.charter) return "low";
+    return base === "high" ? "medium" : base;
+  }
+
+  if (flag.code === "cyprus" && (input.use_type === "commercial" || input.charter) && hasAny(text, ["tonnage tax", "tax benefits"])) {
+    return base === "high" ? "medium" : base;
+  }
+
+  if (["france", "italy", "spain", "netherlands", "luxembourg", "united-kingdom"].includes(flag.code)) {
+    if ((input.use_type === "commercial" || input.charter) && hasCommercialVatOption) return base === "high" ? "medium" : base;
+    if (hasAny(text, ["vat due", "import vat", "registration tax", "20% vat", "21% vat", "22% vat", "23% vat", "25%", "high"])) return "high";
+  }
+
+  if (base === "high" && hasCommercialVatOption && hasAny(text, ["proper structuring", "vat refund", "tonnage tax", "international shipping register", "vat deduction", "article 148", "high seas"])) {
+    return "medium";
+  }
+
+  return base;
+}
+
 function isRedEnsignOrOpen(flag: FlagRegistry & Record<string, unknown>): boolean {
   const text = flagText(flag);
   return flag.registry_type === "open" || flag.registry_type === "commonwealth" || hasAny(text, ["red ensign", "open registry", "category 1"]);
@@ -563,6 +633,7 @@ function buildVatConditions(
     hasLimitedCharterRoute: boolean;
     limitedCharterDays: number | null;
     euControlledCharterProfile: boolean;
+    hasCommercialVatExemptionOption: boolean;
   },
 ): string[] {
   const company = input.company_country?.trim();
@@ -584,10 +655,15 @@ function buildVatConditions(
   if (options.euFlag) {
     if (input.charter || input.use_type === "commercial") {
       items.push("Under an EU commercial flag, VAT is not automatically eliminated; it must be handled through the correct commercial operator, VAT registration, charter invoicing and local charter-permit rules.");
+      if (options.hasCommercialVatExemptionOption) {
+        items.push("Stored intelligence indicates a possible legal commercial-yacht VAT exemption/recovery route for this flag or regime. This depends on the yacht being operated as a genuine commercial charter vessel, the operator's VAT registration, charter activity, high-seas/commercial-use conditions where applicable, invoicing and the member-state implementation of EU VAT rules.");
+      } else {
+        items.push("No verified commercial-yacht VAT exemption/recovery route is detected in stored data for this flag; do not assume VAT can be avoided or recovered merely because the yacht is commercially registered.");
+      }
       if (flag.code === "malta") {
-        items.push("For Malta, the favourable position depends on a genuine commercial yacht structure and correct Malta/EU VAT treatment; a non-EU owner or UAE/non-EU company still needs a qualifying ownership/operator route.");
+        items.push("For Malta, the favourable position depends on a genuine commercial charter operation and correct Malta/EU VAT treatment; VAT relief/recovery is tied to the commercial operator and documents, not simply to ownership by a company.");
       } else if (flag.code === "portugal_madeira") {
-        items.push("For Madeira MAR, VAT advantages depend on qualifying commercial operation and the documented Madeira/Portuguese tax framework, not simply on the flag name.");
+        items.push("For Madeira MAR, VAT advantages depend on qualifying commercial operation and the documented Madeira/Portuguese tax framework; the key question is the commercial charter/operator position and documented use of the vessel.");
       } else if (flag.code === "france") {
         items.push("For France/RIF, stored intelligence indicates normal French VAT and tax exposure can remain high; it is not treated as a VAT optimisation flag.");
       } else {
@@ -659,8 +735,14 @@ export function compareFlagRegistries(
       const text = flagText(flag as FlagRegistry & Record<string, unknown>);
       const firstYearCost = estimatedFirstYearCost(flag);
       const euFlag = isEuFlag(flag as FlagRegistry & Record<string, unknown>);
-      const vatLevel = vatExposureLevel(flag as FlagRegistry & Record<string, unknown>);
       const redEnsignOrOpen = isRedEnsignOrOpen(flag as FlagRegistry & Record<string, unknown>);
+      const commercialVatExemptionOption = hasCommercialVatExemptionOption(flag as FlagRegistry & Record<string, unknown>);
+      const vatLevel = profiledVatExposureLevel(flag as FlagRegistry & Record<string, unknown>, input, {
+        euFlag,
+        wantsEuCharter,
+        nonEuOwner,
+        euControlledCharterProfile,
+      });
       const hasLimitedCharterRoute = hasAny(text, ["yet", "pylc", "pycr", "limited charter"]);
       const limitedCharterDays = extractLimitedCharterDays(text);
       const firstYearCostRatio = firstYearCost != null && value != null && value > 0 ? firstYearCost / value : null;
@@ -761,6 +843,12 @@ export function compareFlagRegistries(
           if (text.includes("vat") && text.includes("charter")) {
             score += wantsEuCharter && nonEuOwner ? 1 : 3;
             positives.push("EU VAT / charter framework is documented.");
+          }
+          if (wantsEuCharter && commercialVatExemptionOption) {
+            score += flag.code === "malta" || flag.code === "portugal_madeira" ? 6 : 3;
+            positives.push("Stored data supports a legal commercial-yacht VAT exemption/recovery route when the charter operator, use and documentation are correctly structured.");
+          } else if (wantsEuCharter) {
+            risks.push("No verified commercial-yacht VAT exemption/recovery route is detected for this flag in stored data.");
           }
         } else {
           score -= wantsEuCharter ? 4 : 7;
@@ -1187,7 +1275,7 @@ export function compareFlagRegistries(
       if (wantsEuCharter && euFlag && nonEuOwner && vatLevel === "high") {
         finalScore = Math.min(finalScore, 78);
       }
-      if (wantsCommercial && euFlag && /high|20%|21%|22%|23%|25%/.test(flag.vat_notes?.toLowerCase() ?? "")) {
+      if (wantsCommercial && euFlag && vatLevel === "high") {
         finalScore = Math.min(finalScore, nonEuOwner ? 78 : 86);
       }
       if (euControlledCharterProfile && !euFlag) {
@@ -1256,6 +1344,7 @@ export function compareFlagRegistries(
         hasLimitedCharterRoute,
         limitedCharterDays,
         euControlledCharterProfile,
+        hasCommercialVatExemptionOption: commercialVatExemptionOption,
       });
 
       return {
