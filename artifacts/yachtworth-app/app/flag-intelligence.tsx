@@ -16,12 +16,10 @@ import {
   compareFlags,
   estimateFlagFees,
   getFlagRegistries,
-  getFlagScenarioRanking,
   type FlagComparisonInput,
   type FlagComparisonResult,
   type FlagFeeEstimateResponse,
   type FlagRegistry,
-  type FlagScenarioRankingResponse,
 } from "../lib/flagIntelligence";
 import { RegistryFlag } from "../components/RegistryFlag";
 import { useTheme } from "../hooks/useColors";
@@ -37,6 +35,7 @@ const GREEN = "#7BD389";
 const RED = "#E77777";
 
 type Mode = "flags" | "advice" | "comparison" | "fees";
+type CompareCategory = "overview" | "cost" | "vat" | "eu" | "commercial" | "eligibility" | "survey" | "mortgage" | "crew" | "timing" | "risks" | "full";
 
 type FormState = {
   loa_m: string;
@@ -213,8 +212,6 @@ export default function FlagIntelligenceScreen() {
   const [feeResult, setFeeResult] = useState<FlagFeeEstimateResponse | null>(null);
   const [feeLoading, setFeeLoading] = useState(false);
   const [feeError, setFeeError] = useState<string | null>(null);
-  const [scenarioRanking, setScenarioRanking] = useState<FlagScenarioRankingResponse | null>(null);
-  const [scenarioRankingError, setScenarioRankingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,19 +219,12 @@ export default function FlagIntelligenceScreen() {
       setFlagsLoading(true);
       setFlagsError(null);
       try {
-        const [response, ranking] = await Promise.all([
-          getFlagRegistries(),
-          getFlagScenarioRanking().catch((err) => {
-            setScenarioRankingError(err instanceof Error ? err.message : String(err));
-            return null;
-          }),
-        ]);
+        const response = await getFlagRegistries();
         if (cancelled) return;
         setFlags(response.registries);
         setExpandedCode(response.registries[0]?.code ?? null);
-        setComparisonCodes(response.registries.slice(0, 3).map((f) => f.code));
+        setComparisonCodes(response.registries.slice(0, 2).map((f) => f.code));
         setFeeFlag(response.registries[0]?.code ?? "");
-        setScenarioRanking(ranking);
       } catch (err) {
         if (!cancelled) setFlagsError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -253,8 +243,8 @@ export default function FlagIntelligenceScreen() {
   );
 
   const comparisonFlags = useMemo(() => {
-    const codes = comparisonCodes.length ? comparisonCodes : flags.slice(0, 3).map((f) => f.code);
-    return codes.map((code) => flags.find((flag) => flag.code === code)).filter((flag): flag is FlagRegistry => Boolean(flag));
+    const codes = comparisonCodes.length ? comparisonCodes.slice(0, 2) : flags.slice(0, 2).map((f) => f.code);
+    return codes.map((code) => flags.find((flag) => flag.code === code)).filter((flag): flag is FlagRegistry => Boolean(flag)).slice(0, 2);
   }, [comparisonCodes, flags]);
 
   async function runCompare() {
@@ -265,7 +255,7 @@ export default function FlagIntelligenceScreen() {
       const response = await compareFlags(asInput(form));
       setResults(response.results);
       setSelectedCode(response.results[0]?.code ?? null);
-      if (response.results.length) setComparisonCodes(response.results.slice(0, 3).map((f) => f.code));
+      if (response.results.length >= 2) setComparisonCodes(response.results.slice(0, 2).map((f) => f.code));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -273,10 +263,15 @@ export default function FlagIntelligenceScreen() {
     }
   }
 
-  function toggleComparison(code: string) {
+  function selectComparison(code: string, slot: 0 | 1) {
     setComparisonCodes((current) => {
-      if (current.includes(code)) return current.filter((c) => c !== code);
-      return [...current, code].slice(-4);
+      const next = current.length ? current.slice(0, 2) : flags.slice(0, 2).map((f) => f.code);
+      next[slot] = code;
+      if (next[0] === next[1]) {
+        const fallback = flags.find((flag) => flag.code !== code)?.code;
+        next[slot === 0 ? 1 : 0] = fallback ?? code;
+      }
+      return next.filter(Boolean).slice(0, 2);
     });
   }
 
@@ -376,9 +371,7 @@ export default function FlagIntelligenceScreen() {
             flags={flags}
             comparisonFlags={comparisonFlags}
             comparisonCodes={comparisonCodes}
-            scenarioRanking={scenarioRanking}
-            scenarioRankingError={scenarioRankingError}
-            onToggle={toggleComparison}
+            onSelect={selectComparison}
           />
           ) : (
             <FeeEstimate
@@ -567,99 +560,255 @@ function Comparison({
   flags,
   comparisonFlags,
   comparisonCodes,
-  scenarioRanking,
-  scenarioRankingError,
-  onToggle,
+  onSelect,
 }: {
   flags: FlagRegistry[];
   comparisonFlags: FlagRegistry[];
   comparisonCodes: string[];
-  scenarioRanking: FlagScenarioRankingResponse | null;
-  scenarioRankingError: string | null;
-  onToggle: (code: string) => void;
+  onSelect: (code: string, slot: 0 | 1) => void;
 }) {
-  const rankingItems = scenarioRanking?.items ?? [];
+  const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
+  const [category, setCategory] = useState<CompareCategory>("overview");
+  const left = comparisonFlags[0];
+  const right = comparisonFlags[1];
+  const categories: Array<{ key: CompareCategory; label: string; icon: React.ComponentProps<typeof Feather>["name"] }> = [
+    { key: "overview", label: "Overview", icon: "grid" },
+    { key: "cost", label: "Cost", icon: "dollar-sign" },
+    { key: "vat", label: "VAT / Tax", icon: "percent" },
+    { key: "eu", label: "EU Use", icon: "globe" },
+    { key: "commercial", label: "Charter", icon: "briefcase" },
+    { key: "eligibility", label: "Eligibility", icon: "user-check" },
+    { key: "survey", label: "Survey / Class", icon: "check-square" },
+    { key: "mortgage", label: "Mortgage", icon: "shield" },
+    { key: "crew", label: "Crew", icon: "users" },
+    { key: "timing", label: "Timing", icon: "clock" },
+    { key: "risks", label: "Risks", icon: "alert-triangle" },
+    { key: "full", label: "Full Text", icon: "book-open" },
+  ];
+  const rows = left && right ? comparisonRows(category, left, right) : [];
   return (
     <View style={styles.panel}>
       <Text style={styles.panelTitle}>Comparison</Text>
-      <Text style={styles.panelCopy}>Select up to four flags to compare the core commercial and ownership criteria.</Text>
-      {scenarioRankingError ? <Text style={styles.warningText}>Scenario ranking is not loaded yet: {scenarioRankingError}</Text> : null}
-      {rankingItems.length ? (
-        <View style={styles.scenarioPanel}>
-          <View style={styles.scenarioHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sectionHeading}>Scenario ranking</Text>
-              <Text style={styles.bodyText}>{scenarioRanking?.scenario?.scenario_name ?? "Budget profile ranking"}</Text>
-            </View>
-            <StatusBadge label="needs review" tone="gold" />
-          </View>
-          <View style={styles.scenarioGrid}>
-            {rankingItems.slice(0, 8).map((item) => {
-              const registry = item.registry;
-              return (
-                <View key={item.id} style={styles.scenarioCard}>
-                  <View style={styles.scenarioRankLine}>
-                    <Text style={styles.rankNumber}>{item.rank ?? "-"}</Text>
-                    {registry ? <RegistryFlag registry={registry} size="sm" decorative /> : null}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rankTitle}>{registry?.flag_name ?? "Unknown flag"}</Text>
-                      <Text style={styles.rankSub}>{item.overall_label ?? item.recommendation_label ?? "Scenario fit to review"}</Text>
-                    </View>
-                    <Text style={[styles.score, { color: scoreColor(item.score ?? 0) }]}>{item.score ?? "-"}</Text>
-                  </View>
-                  <View style={styles.scenarioFactRow}>
-                    <Fact label="1st year" value={money(item.first_year_cost_eur_est)} />
-                    <Fact label="EU VAT" value={textOrVerify(item.eu_vat_exposure_rating)} />
-                    <Fact label="France base" value={textOrVerify(item.france_base_compatibility)} />
-                    <Fact label="Language" value={textOrVerify(item.language_fit)} />
-                  </View>
-                  <View style={styles.statusRow}>
-                    <StatusBadge label={item.recommended ? "recommended" : "not preferred"} tone={item.recommended ? "green" : "red"} />
-                    <StatusBadge label={statusLabel(item.validation_status)} tone="gold" />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
+      <Text style={styles.panelCopy}>Choose exactly two flags, then filter the comparison by cost, VAT, EU use, commercial charter, ownership, class, mortgage, crew, timing or full text.</Text>
+      <View style={styles.compareSlotRow}>
+        {[0, 1].map((slot) => {
+          const flag = comparisonFlags[slot];
+          return (
+            <Pressable key={slot} onPress={() => setActiveSlot(slot as 0 | 1)} style={[styles.compareSlot, activeSlot === slot && styles.compareSlotActive]}>
+              <Text style={[styles.compareSlotLabel, activeSlot === slot && styles.compareSlotLabelActive]}>Flag {slot === 0 ? "A" : "B"}</Text>
+              <Text style={styles.compareSlotValue}>{flag?.flag_name ?? "Select flag"}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
         {flags.map((flag) => (
-          <Pressable key={flag.code} onPress={() => onToggle(flag.code)} style={[styles.compareChip, comparisonCodes.includes(flag.code) && styles.compareChipActive]}>
+          <Pressable key={flag.code} onPress={() => onSelect(flag.code, activeSlot)} style={[styles.compareChip, comparisonCodes.includes(flag.code) && styles.compareChipActive]}>
             <RegistryFlag registry={flag} size="xs" decorative />
             <Text style={[styles.compareChipText, comparisonCodes.includes(flag.code) && styles.compareChipTextActive]}>{flag.flag_name}</Text>
           </Pressable>
         ))}
       </ScrollView>
-
-      <View style={styles.comparisonGrid}>
-        {comparisonFlags.map((flag) => (
-          <View key={flag.code} style={styles.comparisonCard}>
-            <View style={styles.compareHeader}>
-              <RegistryFlag registry={flag} size="md" />
-              <View style={{ flex: 1 }}>
-                <View style={styles.nameLine}>
-                  <Text style={styles.compareTitle}>{flag.flag_name}</Text>
-                  {flag.registry_badge ? <StatusBadge label={flag.registry_badge} tone="gold" /> : null}
-                </View>
-                {flag.flag_note ? <Text style={styles.flagNote}>{flag.flag_note}</Text> : null}
-              </View>
-            </View>
-            <Fact label="Registration" value={money(flag.registration_cost_eur)} />
-            <Fact label="Annual fee" value={money(flag.annual_fee_eur)} />
-            <Fact label="Commercial use" value={yesNo(flag.commercial_available)} />
-            <Fact label="Private use" value={yesNo(flag.private_available)} />
-            <Fact label="Mortgage" value={yesNo(flag.mortgage_available)} />
-            <Fact label="Temporary registration" value={yesNo(flag.temporary_registration)} />
-            <Fact label="Permanent registration" value={yesNo(flag.permanent_registration)} />
-            <Fact label="Radio license" value={yesNo(flag.radio_license)} />
-            <Fact label="Survey" value={flag.survey_required ? "Required" : "Case by case"} />
-            <Fact label="Class" value={flag.classification_required ? "Required" : "Case by case"} />
-            <Fact label="Processing" value={processing(flag)} />
-            <Fact label="Accepted class" value={flag.accepted_class.length ? flag.accepted_class.join(", ") : "To verify"} />
-          </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareFilterRow}>
+        {categories.map((item) => (
+          <Pressable key={item.key} onPress={() => setCategory(item.key)} style={[styles.compareFilter, category === item.key && styles.compareFilterActive]}>
+            <Feather name={item.icon} size={14} color={category === item.key ? GOLD : MUTED} />
+            <Text style={[styles.compareFilterText, category === item.key && styles.compareFilterTextActive]}>{item.label}</Text>
+          </Pressable>
         ))}
+      </ScrollView>
+      {left && right ? (
+        category === "full" ? (
+          <View style={styles.fullCompareGrid}>
+            <CompareArticle flag={left} />
+            <CompareArticle flag={right} />
+          </View>
+        ) : (
+          <View style={styles.compareTable}>
+            <View style={styles.compareTableHeader}>
+              <View style={styles.compareMetricCell}>
+                <Text style={styles.compareMetricTitle}>{categories.find((item) => item.key === category)?.label}</Text>
+              </View>
+              <CompareFlagHeader flag={left} />
+              <CompareFlagHeader flag={right} />
+            </View>
+            {rows.map((row) => (
+              <View key={row.label} style={styles.compareRow}>
+                <View style={styles.compareMetricCell}>
+                  <Text style={styles.compareMetricLabel}>{row.label}</Text>
+                </View>
+                <View style={styles.compareValueCell}>
+                  <Text style={styles.compareValueText}>{row.left}</Text>
+                </View>
+                <View style={styles.compareValueCell}>
+                  <Text style={styles.compareValueText}>{row.right}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )
+      ) : (
+        <Text style={styles.warningText}>Select two flags to compare.</Text>
+      )}
+    </View>
+  );
+}
+
+type CompareRow = { label: string; left: string; right: string };
+
+function compareRow(label: string, left: string | null | undefined, right: string | null | undefined): CompareRow {
+  return { label, left: textOrVerify(left), right: textOrVerify(right) };
+}
+
+function firstYearRegistryCost(flag: FlagRegistry): string {
+  const total = (flag.registration_cost_eur ?? 0) + (flag.annual_fee_eur ?? 0);
+  if (flag.registration_cost_eur == null && flag.annual_fee_eur == null) return "To verify";
+  return `${money(total)} (${money(flag.registration_cost_eur)} registration + ${money(flag.annual_fee_eur)} annual)`;
+}
+
+function listText(items: string[] | null | undefined): string {
+  return items?.length ? items.join("; ") : "To verify";
+}
+
+function euUseSummary(flag: FlagRegistry): string {
+  const advisor = flag.advisor;
+  if (advisor?.is_eu_flag) {
+    return "EU flag. Suitable for EU-based operation subject to the flag state's VAT, commercial and local charter rules.";
+  }
+  return "Non-EU flag. EU use normally depends on Temporary Admission, customs/VAT position, charter permits and local operating limits.";
+}
+
+function commercialVatSummary(flag: FlagRegistry): string {
+  const note = flag.advisor?.vat_tax_note ?? flag.vat_notes;
+  if (!note) return "To verify";
+  return note;
+}
+
+function comparisonRows(category: CompareCategory, left: FlagRegistry, right: FlagRegistry): CompareRow[] {
+  const leftAdvisor = left.advisor;
+  const rightAdvisor = right.advisor;
+  switch (category) {
+    case "cost":
+      return [
+        compareRow("Initial registration", money(left.registration_cost_eur), money(right.registration_cost_eur)),
+        compareRow("Annual registry fee", money(left.annual_fee_eur), money(right.annual_fee_eur)),
+        compareRow("First-year registry cost", firstYearRegistryCost(left), firstYearRegistryCost(right)),
+        compareRow("Mortgage registration", yesNo(left.mortgage_available), yesNo(right.mortgage_available)),
+        compareRow("Radio licence", yesNo(left.radio_license), yesNo(right.radio_license)),
+        compareRow("External costs", "Legal, company, class, survey, VAT/tax and crew costs excluded unless stored as confirmed registry fees.", "Legal, company, class, survey, VAT/tax and crew costs excluded unless stored as confirmed registry fees."),
+      ];
+    case "vat":
+      return [
+        compareRow("VAT / tax note", commercialVatSummary(left), commercialVatSummary(right)),
+        compareRow("Commercial yacht VAT treatment", commercialVatSummary(left), commercialVatSummary(right)),
+        compareRow("EU VAT exposure", euUseSummary(left), euUseSummary(right)),
+        compareRow("Corporate / ownership note", leftAdvisor?.foreign_company_ownership ?? left.company_restrictions, rightAdvisor?.foreign_company_ownership ?? right.company_restrictions),
+      ];
+    case "eu":
+      return [
+        compareRow("EU flag", yesNo(Boolean(leftAdvisor?.is_eu_flag)), yesNo(Boolean(rightAdvisor?.is_eu_flag))),
+        compareRow("EU / Mediterranean use", euUseSummary(left), euUseSummary(right)),
+        compareRow("Owner eligibility", leftAdvisor?.owner_eligibility ?? left.owner_nationality_restrictions, rightAdvisor?.owner_eligibility ?? right.owner_nationality_restrictions),
+        compareRow("Local agent / establishment", leftAdvisor?.local_agent_requirement, rightAdvisor?.local_agent_requirement),
+        compareRow("Charter suitability", statusLabel(leftAdvisor?.commercial_registration_status), statusLabel(rightAdvisor?.commercial_registration_status)),
+      ];
+    case "commercial":
+      return [
+        compareRow("Commercial registration", statusLabel(leftAdvisor?.commercial_registration_status), statusLabel(rightAdvisor?.commercial_registration_status)),
+        compareRow("Commercial minimum LOA", leftAdvisor?.commercial_minimum_loa, rightAdvisor?.commercial_minimum_loa),
+        compareRow("Commercial yacht code", leftAdvisor?.commercial_yacht_code, rightAdvisor?.commercial_yacht_code),
+        compareRow("Passenger limit", leftAdvisor?.passenger_limit_notes, rightAdvisor?.passenger_limit_notes),
+        compareRow("Required documents", leftAdvisor?.required_documents_summary, rightAdvisor?.required_documents_summary),
+      ];
+    case "eligibility":
+      return [
+        compareRow("Owner eligibility", leftAdvisor?.owner_eligibility ?? left.owner_nationality_restrictions, rightAdvisor?.owner_eligibility ?? right.owner_nationality_restrictions),
+        compareRow("Foreign company ownership", leftAdvisor?.foreign_company_ownership ?? left.company_restrictions, rightAdvisor?.foreign_company_ownership ?? right.company_restrictions),
+        compareRow("Local / resident agent", leftAdvisor?.local_agent_requirement, rightAdvisor?.local_agent_requirement),
+        compareRow("Private availability", yesNo(left.private_available), yesNo(right.private_available)),
+        compareRow("Commercial availability", yesNo(left.commercial_available), yesNo(right.commercial_available)),
+      ];
+    case "survey":
+      return [
+        compareRow("Survey required", left.survey_required ? "Required" : "Case by case", right.survey_required ? "Required" : "Case by case"),
+        compareRow("Survey / inspection", leftAdvisor?.survey_inspection_requirement, rightAdvisor?.survey_inspection_requirement),
+        compareRow("Classification required", left.classification_required ? "Required" : "Case by case", right.classification_required ? "Required" : "Case by case"),
+        compareRow("Classification detail", leftAdvisor?.classification_requirement, rightAdvisor?.classification_requirement),
+        compareRow("Accepted class", listText(left.accepted_class), listText(right.accepted_class)),
+      ];
+    case "mortgage":
+      return [
+        compareRow("Mortgage available", yesNo(left.mortgage_available), yesNo(right.mortgage_available)),
+        compareRow("Mortgage status", leftAdvisor?.mortgage_registration_status, rightAdvisor?.mortgage_registration_status),
+        compareRow("Insurance acceptance", left.insurance_notes, right.insurance_notes),
+        compareRow("Registry family", leftAdvisor?.registry_family ?? left.registry_type, rightAdvisor?.registry_family ?? right.registry_type),
+      ];
+    case "crew":
+      return [
+        compareRow("Crew note", leftAdvisor?.crew_note ?? left.crew_restrictions, rightAdvisor?.crew_note ?? right.crew_restrictions),
+        compareRow("Minimum safe manning", leftAdvisor?.minimum_safe_manning, rightAdvisor?.minimum_safe_manning),
+        compareRow("Commercial operations", statusLabel(leftAdvisor?.commercial_registration_status), statusLabel(rightAdvisor?.commercial_registration_status)),
+      ];
+    case "timing":
+      return [
+        compareRow("Processing time", leftAdvisor?.indicative_processing_time ?? processing(left), rightAdvisor?.indicative_processing_time ?? processing(right)),
+        compareRow("Provisional registration", leftAdvisor?.provisional_registration_status, rightAdvisor?.provisional_registration_status),
+        compareRow("Provisional validity", leftAdvisor?.provisional_validity, rightAdvisor?.provisional_validity),
+        compareRow("Permanent validity", leftAdvisor?.permanent_validity, rightAdvisor?.permanent_validity),
+      ];
+    case "risks":
+      return [
+        compareRow("Advantages", leftAdvisor?.objective_advantages ?? listText(left.advantages), rightAdvisor?.objective_advantages ?? listText(right.advantages)),
+        compareRow("Limitations / risks", leftAdvisor?.limitations_and_risks ?? listText(left.disadvantages), rightAdvisor?.limitations_and_risks ?? listText(right.disadvantages)),
+        compareRow("Missing verification", leftAdvisor?.missing_verification_notes, rightAdvisor?.missing_verification_notes),
+        compareRow("Data quality", statusLabel(leftAdvisor?.data_quality_status), statusLabel(rightAdvisor?.data_quality_status)),
+      ];
+    case "overview":
+    default:
+      return [
+        compareRow("Registry family", leftAdvisor?.registry_family ?? left.registry_type, rightAdvisor?.registry_family ?? right.registry_type),
+        compareRow("Country / territory", leftAdvisor?.country_or_territory ?? left.country, rightAdvisor?.country_or_territory ?? right.country),
+        compareRow("EU flag", yesNo(Boolean(leftAdvisor?.is_eu_flag)), yesNo(Boolean(rightAdvisor?.is_eu_flag))),
+        compareRow("Private registration", statusLabel(leftAdvisor?.private_registration_status), statusLabel(rightAdvisor?.private_registration_status)),
+        compareRow("Commercial registration", statusLabel(leftAdvisor?.commercial_registration_status), statusLabel(rightAdvisor?.commercial_registration_status)),
+        compareRow("Processing", leftAdvisor?.indicative_processing_time ?? processing(left), rightAdvisor?.indicative_processing_time ?? processing(right)),
+        compareRow("Coverage", statusLabel(leftAdvisor?.coverage_status), statusLabel(rightAdvisor?.coverage_status)),
+      ];
+  }
+}
+
+function CompareFlagHeader({ flag }: { flag: FlagRegistry }) {
+  return (
+    <View style={styles.compareHeaderCell}>
+      <RegistryFlag registry={flag} size="xs" decorative />
+      <Text style={styles.compareHeaderTitle}>{flag.flag_name}</Text>
+      <Text style={styles.compareHeaderSub}>{flag.registry_badge ?? flag.country}</Text>
+    </View>
+  );
+}
+
+function CompareArticle({ flag }: { flag: FlagRegistry }) {
+  const advisor = flag.advisor;
+  return (
+    <View style={styles.fullCompareCard}>
+      <View style={styles.compareHeader}>
+        <RegistryFlag registry={flag} size="sm" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.compareTitle}>{flag.flag_name}</Text>
+          <Text style={styles.detailSub}>{advisor?.registry_family ?? flag.registry_type}</Text>
+        </View>
       </View>
+      <TextBlock title="Registry" text={`${textOrVerify(advisor?.official_registry_name)}. ${textOrVerify(advisor?.country_or_territory ?? flag.country)}.`} />
+      <TextBlock title="Eligibility" text={textOrVerify(advisor?.owner_eligibility ?? flag.owner_nationality_restrictions)} />
+      <TextBlock title="Company / agent" text={textOrVerify(advisor?.foreign_company_ownership ?? advisor?.local_agent_requirement ?? flag.company_restrictions)} />
+      <TextBlock title="Registration / use" text={`Private: ${statusLabel(advisor?.private_registration_status)}. Commercial: ${statusLabel(advisor?.commercial_registration_status)}. ${textOrVerify(advisor?.required_documents_summary)}`} />
+      <TextBlock title="VAT / tax" text={commercialVatSummary(flag)} />
+      <TextBlock title="Survey / class" text={`${textOrVerify(advisor?.survey_inspection_requirement)} ${textOrVerify(advisor?.classification_requirement)}`} />
+      <TextBlock title="Crew" text={textOrVerify(advisor?.crew_note ?? flag.crew_restrictions)} />
+      <TextBlock title="Mortgage / insurance" text={`${textOrVerify(advisor?.mortgage_registration_status)} ${textOrVerify(flag.insurance_notes)}`} />
+      <InfoList title="Advantages" items={flag.advantages} icon="check" />
+      <InfoList title="Risks" items={flag.disadvantages} icon="alert-triangle" />
+      {advisor?.advisor_sections?.length ? <AdvisorSections sections={advisor.advisor_sections} /> : null}
     </View>
   );
 }
@@ -1054,6 +1203,30 @@ const styles = StyleSheet.create({
   compareChipActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.14)" },
   compareChipText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
   compareChipTextActive: { color: GOLD },
+  compareSlotRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  compareSlot: { flex: 1, minHeight: 68, borderRadius: 12, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12, justifyContent: "center" },
+  compareSlotActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.12)" },
+  compareSlotLabel: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase" },
+  compareSlotLabelActive: { color: GOLD },
+  compareSlotValue: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 14, lineHeight: 19, marginTop: 5 },
+  compareFilterRow: { gap: 8, paddingBottom: 14 },
+  compareFilter: { minHeight: 38, borderRadius: 999, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 },
+  compareFilterActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.13)" },
+  compareFilterText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
+  compareFilterTextActive: { color: GOLD },
+  compareTable: { borderWidth: 1, borderColor: DIVIDER, borderRadius: 14, overflow: "hidden", backgroundColor: NAVY },
+  compareTableHeader: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: DIVIDER, backgroundColor: "rgba(20,42,82,0.86)" },
+  compareRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: DIVIDER },
+  compareMetricCell: { width: Platform.OS === "web" ? "24%" : 116, padding: 10, borderRightWidth: 1, borderRightColor: DIVIDER, justifyContent: "center" },
+  compareMetricTitle: { color: GOLD, fontFamily: "Inter_800ExtraBold", fontSize: 12, letterSpacing: 1, textTransform: "uppercase" },
+  compareMetricLabel: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 12, lineHeight: 17 },
+  compareHeaderCell: { flex: 1, minWidth: 126, padding: 10, borderRightWidth: 1, borderRightColor: DIVIDER, gap: 5 },
+  compareHeaderTitle: { color: IVORY, fontFamily: "Inter_800ExtraBold", fontSize: 13, lineHeight: 18 },
+  compareHeaderSub: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 10, lineHeight: 14, textTransform: "capitalize" },
+  compareValueCell: { flex: 1, minWidth: 126, padding: 10, borderRightWidth: 1, borderRightColor: DIVIDER },
+  compareValueText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, lineHeight: 17 },
+  fullCompareGrid: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 12, alignItems: "flex-start" },
+  fullCompareCard: { flex: 1, width: Platform.OS === "web" ? undefined : "100%", borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: NAVY, padding: 12 },
   feeResult: { marginTop: 14, borderTopWidth: 1, borderTopColor: DIVIDER, paddingTop: 14 },
   scenarioPanel: { borderRadius: 14, borderWidth: 1, borderColor: "rgba(201,169,97,0.32)", backgroundColor: "rgba(201,169,97,0.07)", padding: 12, marginBottom: 14 },
   scenarioHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 12 },
