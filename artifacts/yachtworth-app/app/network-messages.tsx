@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   cardIcon: { width: 42, height: 42, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   cardBody: { flex: 1, minWidth: 0 },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  cardTitle: { flex: 1, fontFamily: "Inter_700Bold", fontSize: 15 },
+  cardTitle: { flex: 1, fontFamily: "Gilroy-Bold", fontSize: 15 , fontWeight: "700"},
   cardDate: { fontFamily: "Inter_500Medium", fontSize: 11 },
   cardMeta: { fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
   lastMessage: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, marginTop: 7 },
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   unreadText: { fontFamily: "Inter_700Bold", fontSize: 11 },
   center: { alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 8, padding: 24 },
   muted: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, textAlign: "center" },
-  emptyTitle: { fontFamily: "Inter_700Bold", fontSize: 18 },
+  emptyTitle: { fontFamily: "Gilroy-Bold", fontSize: 18 , fontWeight: "700"},
   primaryButton: { minHeight: 46, borderRadius: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16, marginTop: 4 },
   primaryText: { fontFamily: "Inter_700Bold", fontSize: 14 },
 });

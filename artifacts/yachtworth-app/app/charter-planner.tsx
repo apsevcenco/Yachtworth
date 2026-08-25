@@ -1452,7 +1452,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: IVORY,
-    fontFamily: "Gilroy-Bold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 28,
     marginTop: 4,
     marginBottom: 14,
@@ -1500,6 +1500,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: "center",
     marginBottom: 6,
+    fontWeight: "700",
   },
   emptyText: {
     color: MUTED,
@@ -1565,6 +1566,7 @@ const styles = StyleSheet.create({
     color: IVORY,
     fontFamily: "Gilroy-Bold",
     fontSize: 18,
+    fontWeight: "700",
   },
   yachtSub: {
     color: MUTED,
@@ -1648,6 +1650,7 @@ const styles = StyleSheet.create({
     color: NAVY_DEEP,
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
+    fontWeight: "700",
   },
 
   // Modal
@@ -1678,6 +1681,7 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-Bold",
     fontSize: 20,
     marginBottom: 12,
+    fontWeight: "700",
   },
   sheetWarn: {
     color: "#FF8A8A",
@@ -1754,6 +1758,7 @@ const styles = StyleSheet.create({
     color: IVORY,
     fontFamily: "Gilroy-Bold",
     fontSize: 18,
+    fontWeight: "700",
   },
   todayPill: {
     paddingHorizontal: 12,

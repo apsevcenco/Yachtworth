@@ -534,5 +534,5 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
-  emptyTitle: { color: IVORY, fontFamily: "Gilroy-Regular", fontSize: 20, marginTop: 14 },
+  emptyTitle: { color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 20, marginTop: 14 , fontWeight: "700"},
 });

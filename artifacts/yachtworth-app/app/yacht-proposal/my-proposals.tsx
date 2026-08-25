@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   itemWrapLast: { borderBottomWidth: 0 },
   item: { flex: 1, flexDirection: "row", alignItems: "center", padding: 14, gap: 8 },
   itemHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  itemTitle: { flex: 1, color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  itemTitle: { flex: 1, color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 15 , fontWeight: "700"},
   itemDate: { color: FAINT, fontFamily: "Inter_400Regular", fontSize: 11, marginLeft: 8 },
   itemChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   chip: {

@@ -2891,7 +2891,7 @@ function RevLine({
       <Text
         style={[
           styles.revLineValue,
-          bold && { fontFamily: "Gilroy-Bold", fontSize: 18 },
+          bold && { fontFamily: "Gilroy-Bold", fontSize: 18 , fontWeight: "700"},
           gold && { color: GOLD },
         ]}
       >
@@ -2950,7 +2950,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: IVORY,
-    fontFamily: "Gilroy-Bold",
+    fontFamily: "Gilroy-ExtraBold",
     fontSize: 26,
     marginTop: 4,
     marginBottom: 14,
@@ -2983,6 +2983,7 @@ const styles = StyleSheet.create({
     color: IVORY,
     fontFamily: "Gilroy-Bold",
     fontSize: 16,
+    fontWeight: "700",
   },
   sectionBody: {
     paddingHorizontal: 14,
@@ -3115,6 +3116,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     minWidth: 30,
     textAlign: "center",
+    fontWeight: "700",
   },
   toggleRow: {
     flexDirection: "row",
@@ -3147,6 +3149,7 @@ const styles = StyleSheet.create({
     color: IVORY,
     fontFamily: "Gilroy-Bold",
     fontSize: 18,
+    fontWeight: "700",
   },
   revenueBox: {
     marginTop: 16,
@@ -3207,8 +3210,9 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-Bold",
     fontSize: 14,
     letterSpacing: 1.5,
+    fontWeight: "700",
   },
-  plProfitValue: { fontFamily: "Gilroy-Bold", fontSize: 20 },
+  plProfitValue: { fontFamily: "Gilroy-Bold", fontSize: 20 , fontWeight: "700"},
   plMarginRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -3242,6 +3246,7 @@ const styles = StyleSheet.create({
     color: GOLD,
     fontFamily: "Gilroy-Bold",
     fontSize: 16,
+    fontWeight: "700",
   },
   distRemoveBtn: {
     width: 36,
@@ -3260,6 +3265,7 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
     minWidth: 80,
     textAlign: "right",
+    fontWeight: "700",
   },
   addDistBtn: {
     flexDirection: "row",
@@ -3317,6 +3323,7 @@ const styles = StyleSheet.create({
     color: NAVY_DEEP,
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
+    fontWeight: "700",
   },
   primaryBtn: {
     backgroundColor: GOLD,
@@ -3329,12 +3336,14 @@ const styles = StyleSheet.create({
     color: NAVY_DEEP,
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
+    fontWeight: "700",
   },
   emptyTitle: {
     color: IVORY,
     fontFamily: "Gilroy-Bold",
     fontSize: 18,
     marginTop: 8,
+    fontWeight: "700",
   },
   emptyText: {
     color: MUTED,
@@ -3384,6 +3393,7 @@ const styles = StyleSheet.create({
     fontFamily: "Gilroy-Bold",
     fontSize: 20,
     marginBottom: 12,
+    fontWeight: "700",
   },
   yachtRow: {
     flexDirection: "row",
@@ -3396,7 +3406,7 @@ const styles = StyleSheet.create({
     borderColor: DIVIDER,
     marginBottom: 8,
   },
-  yachtName: { color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 15 },
+  yachtName: { color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 15 , fontWeight: "700"},
   yachtMeta: {
     color: MUTED,
     fontFamily: "Inter_400Regular",

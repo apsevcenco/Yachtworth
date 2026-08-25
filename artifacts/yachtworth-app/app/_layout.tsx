@@ -581,6 +581,7 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     "Gilroy-Regular": require("../assets/fonts/Gilroy-Regular.otf"),
+    "Gilroy-Bold": require("../assets/fonts/Gilroy-Regular.otf"),
     "Gilroy-ExtraBold": require("../assets/fonts/Gilroy-ExtraBold.otf"),
   });
 

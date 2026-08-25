@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  cardTitle: { flex: 1, color: IVORY, fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  cardTitle: { flex: 1, color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 15 , fontWeight: "700"},
   cardSub: {
     color: MUTED,
     fontFamily: "Inter_400Regular",

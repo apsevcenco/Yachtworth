@@ -911,5 +911,5 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { color: IVORY, fontFamily: "Gilroy-Regular", fontSize: 20, marginTop: 14 },
+  emptyTitle: { color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 20, marginTop: 14 , fontWeight: "700"},
 });
