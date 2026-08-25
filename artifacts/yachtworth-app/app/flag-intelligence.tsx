@@ -34,7 +34,7 @@ const DIVIDER = "rgba(247,243,236,0.1)";
 const GREEN = "#7BD389";
 const RED = "#E77777";
 
-type Mode = "flags" | "advice" | "comparison" | "fees";
+type Mode = "flags" | "advice" | "comparison";
 type CompareCategory = "overview" | "cost" | "vat" | "eu" | "commercial" | "eligibility" | "survey" | "mortgage" | "crew" | "timing" | "risks" | "full";
 
 type FormState = {
@@ -81,7 +81,6 @@ const MODES: Array<{ key: Mode; title: string; subtitle: string; icon: React.Com
   { key: "flags", title: "All Flags", subtitle: "Open a flag card and review registry terms", icon: "list" },
   { key: "advice", title: "Registration Advice", subtitle: "Profile the yacht and get a ranked recommendation", icon: "compass" },
   { key: "comparison", title: "Comparison", subtitle: "Compare selected registries side by side", icon: "columns" },
-  { key: "fees", title: "Fee Estimate", subtitle: "Preliminary confirmed registry-fee estimate", icon: "dollar-sign" },
 ];
 
 function toNumber(value: string): number | null {
@@ -352,7 +351,17 @@ export default function FlagIntelligenceScreen() {
             <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>{flagsError}</Text>
           </View>
         ) : mode === "flags" ? (
-          <AllFlags flags={flags} expandedCode={expandedCode} onToggle={(code) => setExpandedCode((current) => (current === code ? null : code))} />
+          <AllFlags
+            flags={flags}
+            expandedCode={expandedCode}
+            onToggle={(code) => setExpandedCode((current) => (current === code ? null : code))}
+            feeFlag={feeFlag}
+            onFeeFlagChange={setFeeFlag}
+            feeResult={feeResult}
+            feeLoading={feeLoading}
+            feeError={feeError}
+            onRunFeeEstimate={runFeeEstimate}
+          />
         ) : mode === "advice" ? (
           <Advice
             form={form}
@@ -366,31 +375,39 @@ export default function FlagIntelligenceScreen() {
             runCompare={runCompare}
           />
         ) : (
-          mode === "comparison" ? (
           <Comparison
             flags={flags}
             comparisonFlags={comparisonFlags}
             comparisonCodes={comparisonCodes}
             onSelect={selectComparison}
           />
-          ) : (
-            <FeeEstimate
-              flags={flags}
-              selectedCode={feeFlag}
-              onSelect={setFeeFlag}
-              result={feeResult}
-              loading={feeLoading}
-              error={feeError}
-              onRun={runFeeEstimate}
-            />
-          )
         )}
       </ScrollView>
     </View>
   );
 }
 
-function AllFlags({ flags, expandedCode, onToggle }: { flags: FlagRegistry[]; expandedCode: string | null; onToggle: (code: string) => void }) {
+function AllFlags({
+  flags,
+  expandedCode,
+  onToggle,
+  feeFlag,
+  onFeeFlagChange,
+  feeResult,
+  feeLoading,
+  feeError,
+  onRunFeeEstimate,
+}: {
+  flags: FlagRegistry[];
+  expandedCode: string | null;
+  onToggle: (code: string) => void;
+  feeFlag: string;
+  onFeeFlagChange: (code: string) => void;
+  feeResult: FlagFeeEstimateResponse | null;
+  feeLoading: boolean;
+  feeError: string | null;
+  onRunFeeEstimate: () => void;
+}) {
   const { colors, isAcid } = useTheme();
   return (
     <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }, isAcid ? styles.acidPanelGlow : null]}>
@@ -421,6 +438,15 @@ function AllFlags({ flags, expandedCode, onToggle }: { flags: FlagRegistry[]; ex
           </View>
         );
       })}
+      <FeeEstimate
+        flags={flags}
+        selectedCode={feeFlag}
+        onSelect={onFeeFlagChange}
+        result={feeResult}
+        loading={feeLoading}
+        error={feeError}
+        onRun={onRunFeeEstimate}
+      />
     </View>
   );
 }
@@ -587,7 +613,7 @@ function Comparison({
   ];
   const rows = left && right ? comparisonRows(category, left, right) : [];
   return (
-    <View style={styles.panel}>
+    <View style={[styles.panel, styles.feeEstimatePanel]}>
       <Text style={styles.panelTitle}>Comparison</Text>
       <Text style={styles.panelCopy}>Choose exactly two flags, then filter the comparison by cost, VAT, EU use, commercial charter, ownership, class, mortgage, crew, timing or full text.</Text>
       <View style={styles.compareSlotRow}>
@@ -832,9 +858,9 @@ function FeeEstimate({
 }) {
   return (
     <View style={styles.panel}>
-      <Text style={styles.panelTitle}>Preliminary Fee Estimate</Text>
+      <Text style={styles.panelTitle}>Registration Cost Calculator</Text>
       <Text style={styles.panelCopy}>
-        Uses confirmed registry fee rules only. External legal, company, class, survey, tax, VAT, insurance and crew costs are excluded unless explicitly stored as official registry fees.
+        Quick confirmed registry-fee estimate for the selected flag. External legal, company, class, survey, tax, VAT, insurance and crew costs are excluded unless explicitly stored as official registry fees.
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.compareSelectRow}>
         {flags.map((flag) => (
@@ -847,7 +873,7 @@ function FeeEstimate({
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       <Pressable onPress={onRun} disabled={loading || !selectedCode} style={[styles.primaryButton, loading && { opacity: 0.7 }]}>
         {loading ? <ActivityIndicator color={NAVY} /> : <Feather name="dollar-sign" size={18} color={NAVY} />}
-        <Text style={styles.primaryText}>Calculate confirmed fees</Text>
+        <Text style={styles.primaryText}>Estimate registry cost</Text>
       </Pressable>
       {result ? (
         <View style={styles.feeResult}>
@@ -1129,6 +1155,7 @@ const styles = StyleSheet.create({
   layout: { gap: 14 },
   webLayout: { flexDirection: "row", alignItems: "flex-start" },
   panel: { backgroundColor: NAVY_DEEP, borderWidth: 1, borderColor: DIVIDER, borderRadius: 16, padding: 18 },
+  feeEstimatePanel: { marginTop: 14 },
   formPanel: { flex: 1.05 },
   resultPanel: { flex: 1 },
   panelTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 18, marginBottom: 14 },
