@@ -34,9 +34,29 @@ router.use("/maintenance", softClerkAuth(), requireAuth());
 const ATTACHMENT_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 const MAINTENANCE_ATTACHMENTS_BUCKET = process.env.MAINTENANCE_ATTACHMENTS_BUCKET || "maintenance-attachments";
 
+// Deliberately excludes image/svg+xml and any text/html-adjacent type: these
+// attachments get served back via signed Supabase Storage URLs, and a browser
+// opening one directly will render whatever content-type is stored on the
+// object inline. Accepting an attacker-chosen type here would let an upload
+// masquerade as HTML/SVG and execute script when a teammate opens the link.
+const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "application/pdf",
+]);
+
 const attachmentUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: ATTACHMENT_UPLOAD_MAX_BYTES, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error(`Unsupported file type: ${file.mimetype}. Allowed: PDF or image (png, jpeg, webp).`));
+      return;
+    }
+    cb(null, true);
+  },
 });
 
 const attachmentUploadMw: RequestHandler = (req, res, next) => {
@@ -52,7 +72,7 @@ const attachmentUploadMw: RequestHandler = (req, res, next) => {
       res.status(400).json({ error: err.message });
       return;
     }
-    next(err);
+    res.status(400).json({ error: err instanceof Error ? err.message : "Invalid file" });
   });
 };
 
@@ -1144,7 +1164,10 @@ router.post("/maintenance/yachts/:yachtId/documents/upload", attachmentUploadMw,
   }
 
   const p = body(req);
-  const mimeType = req.file.mimetype || s(p["mime_type"]) || "application/octet-stream";
+  // req.file.mimetype is already constrained to ALLOWED_ATTACHMENT_MIME_TYPES
+  // by the multer fileFilter above — a client-supplied mime_type body field is
+  // never trusted for what actually gets stored as the object's content-type.
+  const mimeType = req.file.mimetype;
   const ext = fileExtension(req.file.originalname, mimeType);
   const safeName = storageFileName(req.file.originalname);
   const objectPath = `maintenance/${yachtId}/${Date.now()}_${Math.random().toString(36).slice(2, 10)}_${safeName}.${ext}`;

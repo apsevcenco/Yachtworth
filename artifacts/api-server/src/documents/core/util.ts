@@ -20,12 +20,42 @@ export function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Only https URLs are allowed as image sources (matches legacy templates). */
+/**
+ * Hostnames we trust as image sources for server-rendered documents. Document
+ * generation is rendered by a headless browser that will fetch whatever URL
+ * appears here — accepting arbitrary attacker-supplied hosts turns "paste a
+ * photo URL" into an SSRF primitive (the server, not the browser, makes the
+ * request, and can be pointed at internal/cloud-metadata addresses via a
+ * redirect from an otherwise-innocuous https:// URL). Since every legitimate
+ * photo/logo/signature already lives in our own Supabase Storage bucket, we
+ * only trust that one origin instead of trying to blocklist "bad" hosts.
+ */
+const TRUSTED_IMAGE_HOSTS: ReadonlySet<string> = (() => {
+  const supabaseUrl = process.env["SUPABASE_URL"];
+  if (!supabaseUrl) return new Set();
+  try {
+    return new Set([new URL(supabaseUrl).hostname.toLowerCase()]);
+  } catch {
+    return new Set();
+  }
+})();
+
+/** True only for https URLs pointing at our own trusted storage host. */
 export function isHttps(u: unknown): u is string {
-  return typeof u === "string" && /^https:\/\//i.test(u);
+  if (typeof u !== "string") return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(u);
+  } catch {
+    return false;
+  }
+  return (
+    parsed.protocol === "https:" &&
+    TRUSTED_IMAGE_HOSTS.has(parsed.hostname.toLowerCase())
+  );
 }
 
-/** Ordered, de-duplicated list of usable (https) yacht photo URLs. */
+/** Ordered, de-duplicated list of usable (trusted-host) yacht photo URLs. */
 export function photoList(y: YachtProfile): string[] {
   const out: string[] = [];
   if (isHttps(y.cover_photo_url)) out.push(y.cover_photo_url);

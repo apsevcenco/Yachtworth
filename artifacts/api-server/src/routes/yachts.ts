@@ -27,9 +27,23 @@ import { isUuid } from "../lib/validators";
 const MAX_PHOTOS_PER_YACHT = 10;
 const PHOTO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5 MB raw
 
+// Excludes image/svg+xml deliberately: these files are stored in a PUBLIC
+// bucket served via getPublicUrl (no auth, no signed link) with the
+// client-supplied content-type attached, so an SVG (or anything HTML-adjacent)
+// would let an attacker publish a script that executes for anyone who opens
+// the plain public URL.
+const ALLOWED_PHOTO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+
 const photoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: PHOTO_UPLOAD_MAX_BYTES, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_PHOTO_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error(`Unsupported file type: ${file.mimetype}. Allowed: PNG, JPEG, or WebP images.`));
+      return;
+    }
+    cb(null, true);
+  },
 });
 
 /**
@@ -50,7 +64,7 @@ const photoUploadMw: import("express").RequestHandler = (req, res, next) => {
       res.status(400).json({ error: err.message });
       return;
     }
-    next(err);
+    res.status(400).json({ error: err instanceof Error ? err.message : "Invalid file" });
   });
 };
 

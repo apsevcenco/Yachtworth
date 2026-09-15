@@ -66,7 +66,7 @@ function clampPct(v: unknown): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/** Accept https URLs and inline base64 raster images (used by signatures). */
+/** Accept trusted-storage https URLs and inline base64 raster images (used by signatures). */
 function isImageSrc(u: unknown): u is string {
   return (
     isHttps(u) ||
