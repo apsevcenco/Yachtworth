@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type AiRateEstimateRequestSeason = typeof AiRateEstimateRequestSeason[keyof typeof AiRateEstimateRequestSeason];
+export type AiRateEstimateResultSeason = typeof AiRateEstimateResultSeason[keyof typeof AiRateEstimateResultSeason] | null;
 
 
-export const AiRateEstimateRequestSeason = {
+export const AiRateEstimateResultSeason = {
   high: 'high',
   shoulder: 'shoulder',
   low: 'low',

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { createHash } from "node:crypto";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { softClerkAuth } from "../middlewares/clerkAuth";
+import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import {
   COST_ESTIMATES_TABLE,
   ESTIMATES_TABLE,
@@ -44,13 +44,20 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
-router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
+// Internal diagnostic endpoint. Disabled in production: it previously ran an
+// UNFILTERED query per table (`select id, clerk_user_id limit 100`, not
+// scoped with forClerkUser) and returned hashes of every visible user's
+// clerk_user_id plus cross-tenant row counts to ANY authenticated caller —
+// a real cross-tenant data leak once "any authenticated user" means "any of
+// our customers", not just the team debugging locally.
+router.get("/debug/auth-status", softClerkAuth(), requireAuth(), async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   const sb = getSupabase();
   const counts: Record<string, number | null> = {};
-  const visibleItems: Record<string, number | null> = {};
-  const serverFilteredCounts: Record<string, number | null> = {};
   const totalCounts: Record<string, number | null> = {};
-  const ownerHashes: Record<string, string[]> = {};
   const countErrors: Record<string, string> = {};
   const supabaseUrl = process.env["SUPABASE_URL"];
   const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -87,22 +94,6 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       );
       counts[key] = count ?? null;
       if (error) countErrors[key] = error.message;
-
-      const { data: rows, error: rowsError } = await sb
-        .from(table)
-        .select("id, clerk_user_id")
-        .limit(100);
-      serverFilteredCounts[key] = rows?.length ?? null;
-      visibleItems[key] = serverFilteredCounts[key];
-      ownerHashes[key] = Array.from(
-        new Set(
-          (rows ?? [])
-            .map((row) => row.clerk_user_id)
-            .filter((value): value is string => typeof value === "string")
-            .map((value) => hashValue(value)),
-        ),
-      );
-      if (rowsError) countErrors[`${key}Rows`] = rowsError.message;
     }
   }
 
@@ -112,9 +103,6 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
       hasAuthorizationHeader: Boolean(req.headers.authorization),
       userIdPresent: Boolean(req.userId),
       userId: req.userId ?? null,
-      userIdHex: req.userId
-        ? Buffer.from(req.userId, "utf8").toString("hex")
-        : null,
       userIdHash: req.userId ? hashValue(req.userId) : null,
     },
     config: {
@@ -130,10 +118,7 @@ router.get("/debug/auth-status", softClerkAuth(), async (req, res) => {
           : null,
     },
     counts,
-    visibleItems,
-    serverFilteredCounts,
     totalCounts,
-    ownerHashes,
     countErrors,
   });
 });

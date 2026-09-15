@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RoiCalculationConfidence = typeof RoiCalculationConfidence[keyof typeof RoiCalculationConfidence];
+export type AiRateEstimateResultConfidence = typeof AiRateEstimateResultConfidence[keyof typeof AiRateEstimateResultConfidence] | null;
 
 
-export const RoiCalculationConfidence = {
+export const AiRateEstimateResultConfidence = {
   high: 'high',
   medium: 'medium',
   low: 'low',
