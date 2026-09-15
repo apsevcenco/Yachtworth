@@ -1131,7 +1131,7 @@ function Step2Crew({
               <View
                 style={[
                   styles.checkbox,
-                  row.enabled && { backgroundColor: GOLD, borderColor: GOLD },
+                  row.enabled && { backgroundColor: "rgba(201,169,97,0.10)", borderColor: GOLD },
                 ]}
               >
                 {row.enabled && <Feather name="check" size={14} color={NAVY} />}
@@ -1617,8 +1617,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 6,
   },
-  stepDotActive: { backgroundColor: GOLD, borderColor: GOLD },
-  stepDotDone: { backgroundColor: GOLD, borderColor: GOLD },
+  stepDotActive: { backgroundColor: "rgba(201,169,97,0.10)", borderColor: GOLD },
+  stepDotDone: { backgroundColor: "rgba(201,169,97,0.10)", borderColor: GOLD },
   stepDotText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 12 },
   stepLabel: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 11, letterSpacing: 0.4 },
   stepLabelActive: { color: IVORY },
@@ -1644,7 +1644,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderColor: DIVIDER,
     borderWidth: 1,
-    backgroundColor: NAVY_DEEP,
+    backgroundColor: "rgba(201,169,97,0.10)",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -1655,7 +1655,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderColor: DIVIDER,
     borderWidth: 1,
-    backgroundColor: NAVY_DEEP,
+    backgroundColor: "rgba(201,169,97,0.10)",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -1676,7 +1676,7 @@ const styles = StyleSheet.create({
   },
   savedYachtName: {
     color: IVORY,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 14,
   },
   savedYachtMeta: {
@@ -1901,7 +1901,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   errorBanner: {
     color: ERROR,
     fontFamily: "Inter_500Medium",

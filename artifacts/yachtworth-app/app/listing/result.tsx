@@ -7,7 +7,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -632,16 +632,16 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: NAVY_ELEV,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderWidth: 1,
     borderColor: DIVIDER,
   },
-  actionBtnPrimary: { backgroundColor: GOLD, borderColor: GOLD },
+  actionBtnPrimary: { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD },
   actionBtnDim: { opacity: 0.6 },
   actionBtnText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 13,
   },
-  actionBtnTextPrimary: { color: NAVY, fontFamily: "Inter_700Bold" },
+  actionBtnTextPrimary: { color: GOLD, fontFamily: "Gilroy-Regular" },
 });

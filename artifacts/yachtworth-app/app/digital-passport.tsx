@@ -4,7 +4,7 @@ import {
   useListYachts,
   type Yacht,
 } from "@workspace/api-client-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@workspace/api-client-react";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
@@ -196,9 +196,9 @@ export default function DigitalPassportToolScreen() {
             <Feather name="anchor" size={30} color={colors.primary} />
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>No yacht to passport yet</Text>
             <Text style={[styles.muted, { color: colors.mutedForeground }]}>Add a yacht profile first, then Yachtworth can generate its digital passport.</Text>
-            <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={() => router.push("/my-yacht/edit" as never)}>
+            <Pressable style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]} onPress={() => router.push("/my-yacht/edit" as never)}>
               <Feather name="plus" size={16} color={colors.background} />
-              <Text style={[styles.primaryText, { color: colors.background }]}>Add yacht</Text>
+              <Text style={[styles.primaryText, { color: colors.primary }]}>Add yacht</Text>
             </Pressable>
           </View>
         ) : (
@@ -271,9 +271,9 @@ export default function DigitalPassportToolScreen() {
                     <Text style={[styles.heroTitle, { color: colors.foreground }]}>{data.passport.title}</Text>
                     <Text style={[styles.muted, { color: colors.mutedForeground }]}>Last activity: {fmtDate(data.passport.last_activity_at)}</Text>
                     <View style={styles.heroActions}>
-                      <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={() => router.push(`/my-yacht/passport/${activeId}` as never)}>
+                      <Pressable style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]} onPress={() => router.push(`/my-yacht/passport/${activeId}` as never)}>
                         <Feather name="maximize-2" size={16} color={colors.background} />
-                        <Text style={[styles.primaryText, { color: colors.background }]}>Open full passport</Text>
+                        <Text style={[styles.primaryText, { color: colors.primary }]}>Open full passport</Text>
                       </Pressable>
                       <Pressable style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={copyLink}>
                         <Feather name="copy" size={16} color={colors.primary} />
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontFamily: "Gilroy-ExtraBold", fontSize: 30, lineHeight: 36, marginTop: 8 },
   heroActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 16 },
   primaryButton: { minHeight: 44, borderRadius: 8, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  primaryText: { fontFamily: "Inter_700Bold", fontSize: 13 },
+  primaryText: { fontFamily: "Gilroy-Regular", fontSize: 13 },
   secondaryButton: { minHeight: 44, borderRadius: 8, borderWidth: 1, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   secondaryText: { fontFamily: "Inter_700Bold", fontSize: 13 },
   card: { borderWidth: 1, borderRadius: 12, padding: 16, gap: 14 },

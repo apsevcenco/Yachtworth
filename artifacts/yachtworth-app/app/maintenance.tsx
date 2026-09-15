@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@workspace/api-client-react";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useTheme } from "@/hooks/useColors";
 import { exportMaintenanceDocument } from "@/lib/documentExport";
 import {
   createDefect,
@@ -186,6 +187,7 @@ function Field({
   placeholder?: string;
   multiline?: boolean;
 }) {
+  const { isAcid } = useTheme();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -195,14 +197,15 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor="rgba(247,243,236,0.35)"
         multiline={multiline}
-        style={[styles.input, multiline && styles.inputTall]}
+        style={[styles.input, isAcid && styles.acidInput, multiline && styles.inputTall]}
       />
     </View>
   );
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
+  const { isAcid } = useTheme();
+  return <View style={[styles.card, isAcid && styles.acidPanel]}>{children}</View>;
 }
 
 function Empty({ text }: { text: string }) {
@@ -220,6 +223,7 @@ function StatusPill({ value }: { value?: string | null }) {
 }
 
 export default function MaintenanceScreen() {
+  const { colors, isAcid } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -327,7 +331,7 @@ export default function MaintenanceScreen() {
   );
 
   return (
-    <View style={[styles.root, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
+    <View style={[styles.root, isAcid && { backgroundColor: colors.background }, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 56 }]}>
       {loading ? (
         <ScrollView contentContainerStyle={styles.scroll}>
           {pageHeader}
@@ -352,7 +356,7 @@ export default function MaintenanceScreen() {
               <Pressable
                 key={item.id}
                 onPress={() => setSelectedYachtId(item.id)}
-                style={[styles.yachtChip, item.id === yachtId && styles.yachtChipActive]}
+                style={[styles.yachtChip, isAcid && styles.acidChip, item.id === yachtId && styles.yachtChipActive, isAcid && item.id === yachtId && styles.acidSelected]}
               >
                 <Text style={[styles.yachtChipText, item.id === yachtId && styles.yachtChipTextActive]}>
                   {yachtTitle(item)}
@@ -368,9 +372,9 @@ export default function MaintenanceScreen() {
                   <Pressable
                     key={item.key}
                     onPress={() => setTab(item.key)}
-                    style={[styles.tab, tab === item.key && styles.tabActive]}
+                    style={[styles.tab, isAcid && styles.acidChip, tab === item.key && styles.tabActive, isAcid && tab === item.key && styles.acidSelected]}
                   >
-                    <Feather name={item.icon} size={17} color={tab === item.key ? NAVY : GOLD} />
+                    <Feather name={item.icon} size={17} color={tab === item.key && isAcid ? GOLD : tab === item.key ? NAVY : GOLD} />
                     <Text style={[styles.tabText, tab === item.key && styles.tabTextActive]}>{item.label}</Text>
                   </Pressable>
                 ))}
@@ -2491,8 +2495,9 @@ function SectionList<T>({ title, items, render, empty }: { title: string; items:
 }
 
 function Row({ title, meta, status }: { title: string; meta?: string | null; status?: string | null }) {
+  const { isAcid } = useTheme();
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, isAcid && styles.acidPanel]}>
       <View style={styles.rowText}>
         <Text style={styles.rowTitle}>{title}</Text>
         {meta ? <Text style={styles.rowMeta}>{meta}</Text> : null}
@@ -2524,7 +2529,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, maxWidth: 1100 },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
   tab: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: LINE, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: NAVY_DEEP },
-  tabActive: { backgroundColor: GOLD, borderColor: GOLD },
+  tabActive: { backgroundColor: "rgba(201,169,97,0.10)", borderColor: GOLD },
   tabText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   tabTextActive: { color: NAVY },
   yachtName: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 22, marginBottom: 10 },
@@ -2533,8 +2538,8 @@ const styles = StyleSheet.create({
   card: { minWidth: 130, flexGrow: 1, borderRadius: 8, borderWidth: 1, borderColor: LINE, backgroundColor: PANEL, padding: 14 },
   metricValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 28 },
   metricLabel: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
-  primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginVertical: 10 },
-  primaryButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginVertical: 10 },
+  primaryButtonText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   disabled: { opacity: 0.45 },
   form: { borderWidth: 1, borderColor: LINE, backgroundColor: NAVY_DEEP, borderRadius: 8, padding: 16, marginBottom: 18 },
   list: { marginTop: 8, marginBottom: 18 },
@@ -2545,7 +2550,7 @@ const styles = StyleSheet.create({
   inputTall: { minHeight: 94, textAlignVertical: "top" },
   toggleGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   toggle: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: PANEL, paddingHorizontal: 12, paddingVertical: 10 },
-  toggleActive: { backgroundColor: GOLD, borderColor: GOLD },
+  toggleActive: { backgroundColor: "rgba(201,169,97,0.10)", borderColor: GOLD },
   toggleText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   toggleTextActive: { color: NAVY },
   detailGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
@@ -2587,4 +2592,24 @@ const styles = StyleSheet.create({
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   pillText: { fontFamily: "Inter_700Bold", fontSize: 11, textTransform: "uppercase" },
   empty: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 14 },
+  acidPanel: {
+    backgroundColor: "rgba(29,0,43,0.88)",
+    borderColor: "rgba(255,56,232,0.46)",
+    shadowColor: "#C8FF00",
+    shadowOpacity: Platform.OS === "web" ? 0.16 : 0,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  acidChip: {
+    backgroundColor: "rgba(29,0,43,0.72)",
+    borderColor: "rgba(255,56,232,0.42)",
+  },
+  acidSelected: {
+    backgroundColor: "rgba(200,255,0,0.13)",
+    borderColor: "#C8FF00",
+  },
+  acidInput: {
+    backgroundColor: "rgba(7,0,11,0.68)",
+    borderColor: "rgba(255,56,232,0.38)",
+  },
 });

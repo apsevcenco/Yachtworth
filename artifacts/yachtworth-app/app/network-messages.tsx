@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -70,8 +70,8 @@ export default function NetworkMessagesScreen() {
             <Feather name="message-circle" size={30} color={colors.primary} />
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No conversations yet</Text>
             <Text style={[styles.muted, { color: colors.mutedForeground }]}>Open a marketplace listing and start a conversation with a Yachtworth participant.</Text>
-            <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={() => router.push("/marketplace" as never)}>
-              <Text style={[styles.primaryText, { color: colors.background }]}>Open marketplace</Text>
+            <Pressable style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]} onPress={() => router.push("/marketplace" as never)}>
+              <Text style={[styles.primaryText, { color: colors.primary }]}>Open marketplace</Text>
               <Feather name="arrow-up-right" size={16} color={colors.background} />
             </Pressable>
           </View>
@@ -113,7 +113,7 @@ function ConversationCard({ item, onOpen }: { item: NetworkConversation; onOpen:
       </View>
       {unread > 0 ? (
         <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.unreadText, { color: colors.background }]}>{unread > 99 ? "99+" : unread}</Text>
+          <Text style={[styles.unreadText, { color: colors.primary }]}>{unread > 99 ? "99+" : unread}</Text>
         </View>
       ) : (
         <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
@@ -149,5 +149,5 @@ const styles = StyleSheet.create({
   muted: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, textAlign: "center" },
   emptyTitle: { fontFamily: "Gilroy-Bold", fontSize: 18 , fontWeight: "700"},
   primaryButton: { minHeight: 46, borderRadius: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16, marginTop: 4 },
-  primaryText: { fontFamily: "Inter_700Bold", fontSize: 14 },
+  primaryText: { fontFamily: "Gilroy-Regular", fontSize: 14 },
 });

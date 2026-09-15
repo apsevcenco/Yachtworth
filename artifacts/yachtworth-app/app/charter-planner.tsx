@@ -12,7 +12,7 @@ import {
   type Client,
   type Yacht,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
@@ -29,6 +29,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../hooks/useColors";
 import { exportFleetCsv } from "../lib/charterExports";
 import { exportFleetDocument } from "../lib/documentExport";
 
@@ -204,6 +205,7 @@ function chartersThisMonthCount(charters: Charter[]): number {
 }
 
 export default function CharterPlannerScreen() {
+  const { colors, isAcid } = useTheme();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const router = useRouter();
@@ -244,7 +246,7 @@ export default function CharterPlannerScreen() {
   const loading = !isLoaded || (isSignedIn && yachtsQuery.isLoading);
 
   return (
-    <View style={{ flex: 1, backgroundColor: NAVY }}>
+    <View style={[styles.root, isAcid && { backgroundColor: colors.background }]}>
       <Pressable
         onPress={() =>
           router.canGoBack() ? router.back() : router.replace("/(tabs)/tools")
@@ -268,7 +270,7 @@ export default function CharterPlannerScreen() {
         <Text style={styles.title}>My Fleet</Text>
 
         <View
-          style={styles.tabsRow}
+          style={[styles.tabsRow, isAcid && styles.acidPanel]}
           accessibilityRole="tablist"
         >
           {(
@@ -286,7 +288,7 @@ export default function CharterPlannerScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={`${t.l} tab`}
-                style={[styles.tabBtn, active && styles.tabBtnActive]}
+                style={[styles.tabBtn, active && styles.tabBtnActive, isAcid && active && styles.acidSelected]}
               >
                 <Text style={[styles.tabText, active && styles.tabTextActive]}>
                   {t.l}
@@ -307,7 +309,7 @@ export default function CharterPlannerScreen() {
         showsVerticalScrollIndicator={false}
       >
         {!isSignedIn && isLoaded ? (
-          <View style={styles.empty}>
+          <View style={[styles.empty, isAcid && styles.acidEmpty]}>
             <View style={styles.emptyIcon}>
               <Feather name="lock" size={26} color={GOLD} />
             </View>
@@ -406,10 +408,11 @@ function FleetTab({
   onTapYacht: (y: Yacht) => void;
   onEditYacht: (y: Yacht) => void;
 }) {
+  const { isAcid } = useTheme();
   if (yachts.length === 0) {
     return (
-      <View style={styles.empty}>
-        <View style={styles.emptyIcon}>
+      <View style={[styles.empty, isAcid && styles.acidEmpty]}>
+        <View style={[styles.emptyIcon, isAcid && styles.acidIcon]}>
           <Feather name="anchor" size={28} color={GOLD} />
         </View>
         <Text style={styles.emptyTitle}>No yachts in your fleet yet.</Text>
@@ -473,10 +476,10 @@ function FleetTab({
             onPress={() => onTapYacht(y)}
             accessibilityRole="button"
             accessibilityLabel={`${yachtTitle(y)}, ${today.label}`}
-            style={({ pressed }) => [styles.card, { opacity: pressed ? 0.9 : 1 }]}
+            style={({ pressed }) => [styles.card, isAcid && styles.acidPanel, { opacity: pressed ? 0.9 : 1 }]}
           >
             <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
+              <View style={[styles.cardIcon, isAcid && styles.acidIcon]}>
                 <Feather name="anchor" size={22} color={GOLD} />
               </View>
               <View style={{ flex: 1 }}>
@@ -612,6 +615,7 @@ function CalendarTab({
   onTapCharter: (c: Charter) => void;
   onTapDay: (yachtId: string, dateIso: string) => void;
 }) {
+  const { isAcid } = useTheme();
   const now = new Date();
   const [monthCursor, setMonthCursor] = useState({
     y: now.getFullYear(),
@@ -700,8 +704,8 @@ function CalendarTab({
 
   if (yachts.length === 0) {
     return (
-      <View style={styles.empty}>
-        <View style={styles.emptyIcon}>
+      <View style={[styles.empty, isAcid && styles.acidEmpty]}>
+        <View style={[styles.emptyIcon, isAcid && styles.acidIcon]}>
           <Feather name="calendar" size={28} color={GOLD} />
         </View>
         <Text style={styles.emptyTitle}>No yachts to schedule yet.</Text>
@@ -1009,6 +1013,7 @@ function ClientsTab({
   signedIn: boolean;
   onTapClient: (c: Client) => void;
 }) {
+  const { isAcid } = useTheme();
   const [search, setSearch] = useState("");
   const q = useListClients({
     query: {
@@ -1038,8 +1043,8 @@ function ClientsTab({
 
   if (q.isError) {
     return (
-      <View style={styles.empty}>
-        <View style={styles.emptyIcon}>
+      <View style={[styles.empty, isAcid && styles.acidEmpty]}>
+        <View style={[styles.emptyIcon, isAcid && styles.acidIcon]}>
           <Feather name="alert-circle" size={26} color={GOLD} />
         </View>
         <Text style={styles.emptyTitle}>Could not load clients</Text>
@@ -1065,8 +1070,8 @@ function ClientsTab({
 
   if (all.length === 0) {
     return (
-      <View style={styles.empty}>
-        <View style={styles.emptyIcon}>
+      <View style={[styles.empty, isAcid && styles.acidEmpty]}>
+        <View style={[styles.emptyIcon, isAcid && styles.acidIcon]}>
           <Feather name="users" size={26} color={GOLD} />
         </View>
         <Text style={styles.emptyTitle}>No clients yet.</Text>
@@ -1204,6 +1209,7 @@ function AddYachtModal({
   onSaved: () => void;
   atLimit: boolean;
 }) {
+  const { isAcid } = useTheme();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [type, setType] = useState<YachtTypeKey | null>(null);
@@ -1288,7 +1294,7 @@ function AddYachtModal({
         style={styles.modalRoot}
       >
         <Pressable style={styles.modalBackdrop} onPress={handleClose} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={[styles.sheet, isAcid && styles.acidSheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Add Yacht</Text>
           {atLimit ? (
@@ -1415,6 +1421,7 @@ function Field({
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   multiline?: boolean;
 }) {
+  const { isAcid } = useTheme();
   return (
     <View style={{ marginBottom: 10 }}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -1426,13 +1433,14 @@ function Field({
         keyboardType={keyboardType ?? "default"}
         autoCapitalize={autoCapitalize ?? "sentences"}
         multiline={multiline}
-        style={[styles.input, multiline && { height: 70, paddingTop: 10 }]}
+        style={[styles.input, isAcid && styles.acidInput, multiline && { height: 70, paddingTop: 10 }]}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: NAVY },
   backFab: {
     position: "absolute",
     left: 16,
@@ -1637,7 +1645,7 @@ const styles = StyleSheet.create({
   },
 
   primaryBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingHorizontal: 22,
     paddingVertical: 14,
     borderRadius: 14,
@@ -1647,16 +1655,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    color: NAVY_DEEP,
-    fontFamily: "Gilroy-Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 15,
-    fontWeight: "700",
   },
 
   // Modal
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   sheet: {
@@ -1979,5 +1986,36 @@ const styles = StyleSheet.create({
     color: GOLD,
     fontFamily: "Gilroy-ExtraBold",
     fontSize: 14,
+  },
+  acidPanel: {
+    backgroundColor: "rgba(29,0,43,0.88)",
+    borderColor: "rgba(255,56,232,0.46)",
+    shadowColor: "#C8FF00",
+    shadowOpacity: Platform.OS === "web" ? 0.16 : 0,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  acidEmpty: {
+    backgroundColor: "rgba(29,0,43,0.54)",
+    borderWidth: 1,
+    borderColor: "rgba(255,56,232,0.36)",
+    borderRadius: 16,
+  },
+  acidIcon: {
+    backgroundColor: "rgba(200,255,0,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(200,255,0,0.32)",
+  },
+  acidSelected: {
+    backgroundColor: "rgba(200,255,0,0.13)",
+    borderColor: "#C8FF00",
+  },
+  acidSheet: {
+    backgroundColor: "#1D002B",
+    borderColor: "rgba(255,56,232,0.46)",
+  },
+  acidInput: {
+    backgroundColor: "rgba(7,0,11,0.68)",
+    borderColor: "rgba(255,56,232,0.38)",
   },
 });

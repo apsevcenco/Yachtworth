@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxOn: { backgroundColor: GOLD },
+  checkboxOn: { backgroundColor: "rgba(201,169,97,0.10)" },
   checkLabel: { color: IVORY, fontFamily: "Inter_500Medium", fontSize: 14, flex: 1 },
   footer: {
     paddingHorizontal: 24,
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   empty: {
     flex: 1,
     alignItems: "center",

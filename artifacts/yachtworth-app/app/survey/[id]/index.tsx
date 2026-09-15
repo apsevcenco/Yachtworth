@@ -4,7 +4,7 @@ import {
   useGetSurveyReport,
   useUpdateSurveyReport,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -392,9 +392,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 15,
     borderRadius: 14,
   },
-  pdfBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  pdfBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
 });

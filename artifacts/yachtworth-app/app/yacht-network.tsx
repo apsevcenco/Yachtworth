@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
@@ -255,9 +255,9 @@ export default function YachtNetworkScreen() {
               <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Publish and manage your yachts in the closed Yachtworth marketplace.</Text>
             </View>
           </View>
-          <Pressable style={[styles.marketButton, { backgroundColor: colors.primary }]} onPress={() => router.push("/marketplace" as never)}>
+          <Pressable style={[styles.marketButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]} onPress={() => router.push("/marketplace" as never)}>
             <Feather name="external-link" size={17} color={colors.background} />
-            <Text style={[styles.marketButtonText, { color: colors.background }]}>Go to Marketplace</Text>
+            <Text style={[styles.marketButtonText, { color: colors.primary }]}>Go to Marketplace</Text>
           </Pressable>
         </View>
 
@@ -309,9 +309,9 @@ export default function YachtNetworkScreen() {
                 <Field label="Contact email" value={contactEmail} onChangeText={setContactEmail} />
                 <Field label="Contact phone" value={contactPhone} onChangeText={setContactPhone} />
               </View>
-              <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }, (!canPublish || busy) && styles.disabled]} disabled={!canPublish || busy} onPress={publish}>
+              <Pressable style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }, (!canPublish || busy) && styles.disabled]} disabled={!canPublish || busy} onPress={publish}>
                 <Feather name="upload-cloud" size={18} color={colors.background} />
-                <Text style={[styles.primaryButtonText, { color: colors.background }]}>{busy ? "Publishing..." : "Publish to Network"}</Text>
+                <Text style={[styles.primaryButtonText, { color: colors.primary }]}>{busy ? "Publishing..." : "Publish to Network"}</Text>
               </Pressable>
             </View>
           </View>
@@ -417,8 +417,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   iconButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(247,243,236,0.08)" },
   headerText: { flex: 1 },
-  marketButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
-  marketButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
+  marketButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  marketButtonText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 13 },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },
   title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 30, lineHeight: 36, marginTop: 6 },
   acidTitle: {
@@ -459,14 +459,14 @@ const styles = StyleSheet.create({
   publishFields: { flex: 1, width: "100%" },
   twoCol: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 10 },
   threeCol: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 10 },
-  primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginTop: 4 },
-  primaryButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginTop: 4 },
+  primaryButtonText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   secondaryButton: { minHeight: 42, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
   secondaryButtonText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
   disabled: { opacity: 0.45 },
   switchRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   switchButton: { flex: 1, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: LINE, alignItems: "center", justifyContent: "center", backgroundColor: PANEL },
-  switchActive: { borderColor: GOLD, backgroundColor: GOLD },
+  switchActive: { borderColor: GOLD, backgroundColor: "rgba(201,169,97,0.10)" },
   switchText: { color: MUTED, fontFamily: "Inter_700Bold", fontSize: 13 },
   switchTextActive: { color: NAVY },
   loading: { alignItems: "center", justifyContent: "center", gap: 12, padding: 28 },

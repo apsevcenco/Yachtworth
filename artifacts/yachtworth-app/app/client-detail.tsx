@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingHorizontal: 22,
     paddingVertical: 13,
     borderRadius: 14,
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryBtnText: {
-    color: NAVY_DEEP,
+    color: GOLD,
     fontFamily: "Gilroy-ExtraBold",
     fontSize: 14,
   },

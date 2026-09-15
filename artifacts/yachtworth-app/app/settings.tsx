@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(247,243,236,0.28)",
   },
   classicSwatch: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
   },
   acidSwatch: {
     backgroundColor: "#B6FF00",
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   },
   poweredCtaText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 13,
     letterSpacing: 0.3,
   },

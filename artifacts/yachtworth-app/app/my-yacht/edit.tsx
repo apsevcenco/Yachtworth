@@ -14,7 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import EquipmentSection from "../../components/EquipmentSection";
 import { PhotoSection } from "../../components/PhotoSection";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -748,7 +748,7 @@ export default function MyYachtEditScreen() {
           accessibilityLabel={isEdit ? "Save changes" : "Save yacht"}
           style={({ pressed }) => [
             styles.saveBtn,
-            { backgroundColor: colors.primary },
+            { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary },
             { opacity: pressed ? 0.85 : saving ? 0.6 : 1 },
           ]}
         >
@@ -756,7 +756,7 @@ export default function MyYachtEditScreen() {
             <ActivityIndicator color={colors.background} />
           ) : (
             <>
-              <Text style={[styles.saveText, { color: colors.background }]}>
+              <Text style={[styles.saveText, { color: colors.primary }]}>
                 {isEdit ? "Save changes" : "Save Yacht"}
               </Text>
               <Feather name="check" size={16} color={colors.background} />
@@ -1102,7 +1102,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 20,
     paddingTop: 12,
-    backgroundColor: NAVY_DEEP,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderTopWidth: 1,
     borderTopColor: DIVIDER,
   },
@@ -1124,15 +1124,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     gap: 8,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   saveText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 14,
     letterSpacing: 0.3,
   },

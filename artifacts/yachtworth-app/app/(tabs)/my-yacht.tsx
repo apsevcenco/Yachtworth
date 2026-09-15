@@ -232,7 +232,7 @@ function EmptyBlock({
         accessibilityLabel={cta}
         style={({ pressed }) => [styles.cta, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
       >
-        <Text style={[styles.ctaText, { color: colors.background }]}>{cta}</Text>
+        <Text style={[styles.ctaText, { color: colors.primary }]}>{cta}</Text>
       </Pressable>
     </View>
   );
@@ -286,12 +286,12 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: 24,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 10,
   },
-  ctaText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
+  ctaText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 14 },
   addAnother: {
     flexDirection: "row",
     alignItems: "center",

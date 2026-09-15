@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Asset } from "expo-asset";
 
 const INTRO_MS = 3600;
 const FADE_MS = 520;
@@ -22,7 +22,7 @@ export function LaunchIntro() {
   const opacity = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoTranslate = useRef(new Animated.Value(12)).current;
-  const videoUri = useMemo(() => Image.resolveAssetSource(introVideo)?.uri, []);
+  const videoUri = useMemo(() => Asset.fromModule(introVideo).uri, []);
 
   const close = () => {
     if (closing) return;
@@ -115,7 +115,7 @@ export function LaunchIntro() {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 9999,
     backgroundColor: "#06142C",
   },
@@ -127,11 +127,11 @@ const styles = StyleSheet.create({
     objectFit: "cover",
   },
   fallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#06142C",
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(6,20,44,0.36)",
   },
   content: {

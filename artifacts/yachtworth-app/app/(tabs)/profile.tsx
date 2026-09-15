@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   },
   primaryAuthText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 16,
     letterSpacing: 0.2,
   },

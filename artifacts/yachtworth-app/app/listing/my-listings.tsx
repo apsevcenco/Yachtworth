@@ -6,7 +6,7 @@ import {
   useGetListing,
   useListListings,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {

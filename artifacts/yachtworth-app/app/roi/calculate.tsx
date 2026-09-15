@@ -8,7 +8,7 @@ import {
   useGetRoiCalculation,
   useGetYacht,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useAuth } from "@clerk/expo";
 import { AIRateEstimator } from "../../components/AIRateEstimator";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -31,6 +31,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useColors";
 import { useUnits } from "../../hooks/useUnits";
 import { uploadProposalPhoto } from "../../lib/proposalPhotoUpload";
 import {
@@ -156,6 +157,7 @@ function formatLength(
 }
 
 export default function RoiCalculateScreen() {
+  const { colors, isAcid } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isSignedIn } = useAuth();
@@ -859,9 +861,9 @@ export default function RoiCalculateScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: NAVY }}
+      style={[styles.root, isAcid && { backgroundColor: colors.background }]}
     >
-      <View style={[styles.root, { paddingTop: insets.top + 64 }]}>
+      <View style={[styles.root, isAcid && { backgroundColor: colors.background }, { paddingTop: insets.top + 64 }]}>
         <TopBar onBack={() => router.back()} title="ROI scenario" />
 
         <ScrollView
@@ -870,7 +872,7 @@ export default function RoiCalculateScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {passport ? (
-            <View style={styles.yachtSummary}>
+            <View style={[styles.yachtSummary, isAcid && styles.acidPanel]}>
               <Text style={styles.yachtSummaryName} numberOfLines={1}>
                 {passport.title}
               </Text>
@@ -1578,7 +1580,7 @@ export default function RoiCalculateScreen() {
           {mutError ? <Text style={styles.errorBanner}>{mutError}</Text> : null}
         </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[styles.footer, isAcid && styles.acidFooter, { paddingBottom: insets.bottom + 12 }]}>
           <Pressable
             onPress={onSubmit}
             disabled={mutation.isPending}
@@ -2057,7 +2059,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   switchOn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
   },
   knob: {
     width: 24,
@@ -2387,6 +2389,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     backgroundColor: NAVY,
   },
+  acidPanel: {
+    backgroundColor: "rgba(29,0,43,0.88)",
+    borderColor: "rgba(255,56,232,0.46)",
+  },
+  acidFooter: {
+    backgroundColor: "rgba(29,0,43,0.94)",
+    borderTopColor: "rgba(255,56,232,0.42)",
+  },
   primaryBtn: {
     backgroundColor: "rgba(201,169,97,0.10)",
     borderWidth: 1.5,
@@ -2395,7 +2405,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   footHint: {
     color: MUTED,
     fontFamily: "Inter_400Regular",

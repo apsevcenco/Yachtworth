@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   disclaimer: {
     color: MUTED,
     fontFamily: "Inter_400Regular",

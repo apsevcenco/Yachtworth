@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: NAVY_ELEV,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: DIVIDER,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     flex: 1,
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 12,
   },
   soonChip: {

@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryBtnText: {
-    color: NAVY_DEEP,
+    color: GOLD,
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.3,

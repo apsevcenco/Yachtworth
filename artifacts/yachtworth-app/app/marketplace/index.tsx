@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   topActions: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 10, alignSelf: Platform.OS === "web" ? "flex-start" : "stretch" },
   messagesButton: { minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
   messagesText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
-  publishButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  publishButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
   publishText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
   scroll: { padding: 24, paddingBottom: 58 },
   hero: { flexDirection: Platform.OS === "web" ? "row" : "column", gap: 18, alignItems: "stretch", marginBottom: 20 },
@@ -271,8 +271,8 @@ const styles = StyleSheet.create({
   metricValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 28 },
   metricLabel: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 4 },
   featured: { flex: 0.9, minHeight: 340, borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: LINE, backgroundColor: PANEL },
-  featuredImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  featuredFallback: { ...StyleSheet.absoluteFillObject, backgroundColor: PANEL },
+  featuredImage: { ...StyleSheet.absoluteFill, width: "100%", height: "100%" },
+  featuredFallback: { ...StyleSheet.absoluteFill, backgroundColor: PANEL },
   featuredOverlay: { flex: 1, justifyContent: "flex-end", padding: 18, backgroundColor: "rgba(8,22,51,0.2)" },
   featuredLabel: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 2.2, textTransform: "uppercase" },
   featuredTitle: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 26, marginTop: 8 },
@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
   detailsButton: { flex: 1, minHeight: 42, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10 },
   detailsText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 13 },
-  chatButton: { flex: 1, minHeight: 42, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10 },
-  chatText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
+  chatButton: { flex: 1, minHeight: 42, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10 },
+  chatText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 13 },
   cardFooter: { borderTopWidth: 1, borderTopColor: LINE, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12, paddingTop: 12 },
   memberText: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   disabled: { opacity: 0.55 },

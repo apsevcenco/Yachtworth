@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   importBtn: {
     minHeight: 62,
     borderRadius: 12,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",

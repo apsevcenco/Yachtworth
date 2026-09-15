@@ -508,9 +508,9 @@ function Advice({
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <Pressable onPress={runCompare} disabled={loading} style={[styles.primaryButton, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}>
+        <Pressable onPress={runCompare} disabled={loading} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }, loading && { opacity: 0.7 }]}>
           {loading ? <ActivityIndicator color={colors.background} /> : <Feather name="compass" size={18} color={colors.background} />}
-          <Text style={[styles.primaryText, { color: colors.background }]}>Get advice</Text>
+          <Text style={[styles.primaryText, { color: colors.primary }]}>Get advice</Text>
         </Pressable>
       </View>
 
@@ -1171,8 +1171,8 @@ const styles = StyleSheet.create({
   label: { color: MUTED, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 6 },
   input: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: "rgba(247,243,236,0.12)", backgroundColor: NAVY_ELEV, color: IVORY, fontFamily: "Inter_500Medium", fontSize: 15, paddingHorizontal: 14, paddingVertical: 12 },
   textarea: { minHeight: 82, textAlignVertical: "top" },
-  primaryButton: { marginTop: 16, minHeight: 54, borderRadius: 14, backgroundColor: GOLD, flexDirection: "row", gap: 10, alignItems: "center", justifyContent: "center" },
-  primaryText: { color: NAVY, fontFamily: "Inter_800ExtraBold", fontSize: 16 },
+  primaryButton: { marginTop: 16, minHeight: 54, borderRadius: 14, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", gap: 10, alignItems: "center", justifyContent: "center" },
+  primaryText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 16 },
   errorText: { color: RED, fontFamily: "Inter_500Medium", fontSize: 12, marginTop: 12 },
   emptyState: { alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyTitle: { color: IVORY, fontFamily: "Gilroy-Bold", fontSize: 17 , fontWeight: "700"},

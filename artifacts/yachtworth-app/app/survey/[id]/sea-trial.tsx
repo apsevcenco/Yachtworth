@@ -4,7 +4,7 @@ import {
   useGetSurveyReport,
   useUpsertSurveySeaTrial,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -720,14 +720,14 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   saveBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
   saveBtnText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 15,
     letterSpacing: 0.5,
   },

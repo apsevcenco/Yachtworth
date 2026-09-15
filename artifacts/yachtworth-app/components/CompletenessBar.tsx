@@ -69,10 +69,10 @@ const styles = StyleSheet.create({
   },
   fill: {
     height: "100%",
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderRadius: 3,
   },
-  fillFull: { backgroundColor: GOLD },
+  fillFull: { backgroundColor: "rgba(201,169,97,0.10)" },
   hint: {
     color: IVORY,
     fontFamily: "Inter_400Regular",

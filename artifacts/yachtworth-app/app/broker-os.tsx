@@ -308,9 +308,9 @@ export default function BrokerOsScreen() {
         ) : (
           <>
             <View style={styles.actions}>
-              <Pressable onPress={() => setModalOpen(true)} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+              <Pressable onPress={() => setModalOpen(true)} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]}>
                 <Feather name="plus" size={18} color={colors.background} />
-                <Text style={[styles.primaryText, { color: colors.background }]}>New Case</Text>
+                <Text style={[styles.primaryText, { color: colors.primary }]}>New Case</Text>
               </Pressable>
               <Pressable onPress={() => router.push("/crm" as never)} style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
                 <Feather name="users" size={16} color={colors.primary} />
@@ -624,9 +624,9 @@ function CaseModal(props: { visible: boolean; draft: Draft; setDraft: React.Disp
             </View>
             <ChipRow items={["low", "medium", "high"] as const} active={props.draft.risk_level} onChange={(risk_level) => props.setDraft((d) => ({ ...d, risk_level }))} />
             <Field label="Risk reason" value={props.draft.risk_reason} onChangeText={(v) => props.setDraft((d) => ({ ...d, risk_reason: v }))} />
-            <Pressable onPress={props.onSave} disabled={props.saving} style={[styles.primaryButton, { backgroundColor: colors.primary }, props.saving && { opacity: 0.7 }]}>
+            <Pressable onPress={props.onSave} disabled={props.saving} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }, props.saving && { opacity: 0.7 }]}>
               {props.saving ? <ActivityIndicator color={colors.background} /> : <Feather name="save" size={18} color={colors.background} />}
-              <Text style={[styles.primaryText, { color: colors.background }]}>Save Case</Text>
+              <Text style={[styles.primaryText, { color: colors.primary }]}>Save Case</Text>
             </Pressable>
           </ScrollView>
         </View>
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 19 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, flexGrow: 1 },
-  primaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 15 },
+  primaryText: { fontFamily: "Gilroy-Regular", fontSize: 15 },
   secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16, flexGrow: 1 },
   secondaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 13, textAlign: "center", flexShrink: 1 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
   riskText: { fontFamily: "Inter_800ExtraBold", fontSize: 11, textTransform: "uppercase" },
   caseFacts: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   factPill: { fontFamily: "Inter_800ExtraBold", fontSize: 12, lineHeight: 16, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, overflow: "hidden" },
-  nextAction: { fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 12, lineHeight: 18 },
+  nextAction: { fontFamily: "Gilroy-Regular", fontSize: 13, marginTop: 12, lineHeight: 18 },
   emptySmall: { fontFamily: "Inter_500Medium", fontSize: 13, paddingVertical: 20, textAlign: "center" },
   emptyBlock: { paddingVertical: 20, gap: 5, alignItems: "center" },
   emptyTitle: { fontFamily: "Gilroy-Bold", fontSize: 16, textAlign: "center" , fontWeight: "700"},

@@ -418,9 +418,9 @@ export default function CrmScreen() {
                   style={[styles.searchInput, { color: colors.foreground }]}
                 />
               </View>
-              <Pressable onPress={openCreateForm} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+              <Pressable onPress={openCreateForm} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]}>
                 <Feather name="user-plus" size={17} color={colors.background} />
-                <Text style={[styles.primaryText, { color: colors.background }]}>New client</Text>
+                <Text style={[styles.primaryText, { color: colors.primary }]}>New client</Text>
               </Pressable>
               <Pressable onPress={importClients} disabled={importing} style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
                 {importing ? <ActivityIndicator color={colors.primary} /> : <Feather name="download" size={16} color={colors.primary} />}
@@ -618,9 +618,9 @@ function ContactDetail(props: {
             onChange={(priority) => props.setTaskDraft((d) => ({ ...d, priority }))}
           />
           <Input label="Detail" value={props.taskDraft.detail} onChangeText={(v) => props.setTaskDraft((d) => ({ ...d, detail: v }))} multiline />
-          <Pressable onPress={props.addTask} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+          <Pressable onPress={props.addTask} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }]}>
             <Feather name="plus" size={16} color={colors.background} />
-            <Text style={[styles.primaryText, { color: colors.background }]}>Add task</Text>
+            <Text style={[styles.primaryText, { color: colors.primary }]}>Add task</Text>
           </Pressable>
         </View>
 
@@ -695,9 +695,9 @@ function ContactFormModal(props: {
               <Input label="Source" value={props.draft.source} onChangeText={(v) => props.setDraft((d) => ({ ...d, source: v }))} />
             </View>
             <Input label="Notes" value={props.draft.notes} onChangeText={(v) => props.setDraft((d) => ({ ...d, notes: v }))} multiline />
-            <Pressable onPress={props.onSave} disabled={props.saving} style={[styles.primaryButton, { backgroundColor: colors.primary }, props.saving && { opacity: 0.7 }]}>
+            <Pressable onPress={props.onSave} disabled={props.saving} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }, props.saving && { opacity: 0.7 }]}>
               {props.saving ? <ActivityIndicator color={colors.background} /> : <Feather name="save" size={17} color={colors.background} />}
-              <Text style={[styles.primaryText, { color: colors.background }]}>{props.editing ? "Save changes" : "Create client"}</Text>
+              <Text style={[styles.primaryText, { color: colors.primary }]}>{props.editing ? "Save changes" : "Create client"}</Text>
             </Pressable>
           </ScrollView>
         </View>
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   searchBox: { flex: 1, minWidth: Platform.OS === "web" ? 260 : "100%", minHeight: 52, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
   searchInput: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, minHeight: 46 },
   primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, flexGrow: 1 },
-  primaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 15, textAlign: "center", flexShrink: 1 },
+  primaryText: { fontFamily: "Gilroy-Regular", fontSize: 15, textAlign: "center", flexShrink: 1 },
   secondaryButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16, flexGrow: 1 },
   secondaryText: { fontFamily: "Inter_800ExtraBold", fontSize: 13, textAlign: "center", flexShrink: 1 },
   inlineLoader: { alignSelf: "center", marginHorizontal: 4 },

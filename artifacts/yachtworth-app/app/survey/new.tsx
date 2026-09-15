@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import {
   getListYachtsQueryKey,
   getListSurveyReportsQueryKey,
@@ -948,7 +948,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   signInBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 99,
@@ -1042,7 +1042,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderRadius: 10,
     paddingVertical: 11,
     alignItems: "center",
@@ -1069,19 +1069,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 22,
     paddingTop: 12,
-    backgroundColor: NAVY,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderTopWidth: 1,
     borderTopColor: DIVIDER,
   },
   saveBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 15,
     borderRadius: 14,
     alignItems: "center",
   },
   saveBtnText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 15,
     letterSpacing: 0.3,
   },

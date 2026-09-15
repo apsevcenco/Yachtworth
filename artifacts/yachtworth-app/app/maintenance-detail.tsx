@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import {
@@ -410,6 +410,6 @@ const styles = StyleSheet.create({
   blockText: { color: IVORY, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   pillText: { fontFamily: "Inter_700Bold", fontSize: 11, textTransform: "uppercase" },
-  primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginTop: 16 },
-  primaryButtonText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  primaryButton: { minHeight: 52, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16, marginTop: 16 },
+  primaryButtonText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
 });

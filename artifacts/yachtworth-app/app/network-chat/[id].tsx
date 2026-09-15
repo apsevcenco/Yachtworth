@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
@@ -133,7 +133,7 @@ export default function NetworkChatScreen() {
               <Pressable
                 disabled={!canSend}
                 onPress={submit}
-                style={[styles.sendButton, { backgroundColor: colors.primary }, !canSend && styles.disabled]}
+                style={[styles.sendButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }, !canSend && styles.disabled]}
               >
                 {sendM.isPending ? (
                   <ActivityIndicator color={colors.background} />

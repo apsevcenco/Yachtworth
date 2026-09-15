@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   },
   primaryCtaText: {
     color: GOLD,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 15,
     letterSpacing: 0.2,
   },
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   },
   secondaryCtaText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 14,
   },
 });

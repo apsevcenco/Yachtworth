@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 36,
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: GOLD },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(201,169,97,0.10)" },
   brandLabel: {
     color: IVORY,
     fontFamily: "Inter_600SemiBold",
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 16,
     letterSpacing: 0.2,
   },

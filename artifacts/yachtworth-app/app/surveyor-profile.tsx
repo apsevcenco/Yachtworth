@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderRadius: 10,
     paddingVertical: 11,
     alignItems: "center",
@@ -360,14 +360,14 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   saveBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
   saveBtnText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 15,
     letterSpacing: 0.5,
   },

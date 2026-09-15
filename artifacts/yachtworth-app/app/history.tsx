@@ -37,7 +37,7 @@ import {
   type RoiCalculationListItem,
   type SurveyReportListItem,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -1157,11 +1157,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
   },
-  ctaText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
+  ctaText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 14 },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: NAVY_DEEP,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderColor: DIVIDER,
     borderWidth: 1,
     borderRadius: 14,

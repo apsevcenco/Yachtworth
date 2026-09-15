@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import {
   getListProposalsQueryKey,
   useSaveProposal,
@@ -401,14 +401,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 17,
     borderRadius: 14,
     marginBottom: 10,
   },
   primaryBtnText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 15,
     letterSpacing: 0.3,
   },

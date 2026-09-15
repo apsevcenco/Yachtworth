@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import {
   getListSurveyReportsQueryKey,
   useDeleteSurveyReport,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderRadius: 99,

@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { ClerkProvider, ClerkLoaded, ClerkLoading, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@workspace/api-client-react";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Stack, usePathname, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -63,10 +63,8 @@ function decodeClerkDomain(key: string): string | null {
   try {
     const encoded = match[1].replace(/_/g, "/").replace(/-/g, "+");
     const padded = encoded.padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
-    const decoded =
-      typeof atob === "function"
-        ? atob(padded)
-        : Buffer.from(padded, "base64").toString("utf8");
+    if (typeof atob !== "function") return null;
+    const decoded = atob(padded);
     return decoded.replace(/\$$/, "") || null;
   } catch {
     return null;

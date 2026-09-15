@@ -1537,7 +1537,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 1,
   },
-  progressFill: { height: 2, backgroundColor: GOLD, borderRadius: 1 },
+  progressFill: { height: 2, backgroundColor: "rgba(201,169,97,0.10)", borderRadius: 1 },
   kicker: {
     color: GOLD,
     fontFamily: "Inter_500Medium",
@@ -1584,7 +1584,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: DIVIDER,
-    backgroundColor: NAVY_ELEV,
+    backgroundColor: "rgba(201,169,97,0.10)",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -1595,7 +1595,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: DIVIDER,
-    backgroundColor: NAVY_ELEV,
+    backgroundColor: "rgba(201,169,97,0.10)",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -1616,7 +1616,7 @@ const styles = StyleSheet.create({
   },
   savedYachtName: {
     color: IVORY,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 14,
   },
   savedYachtMeta: {
@@ -1744,7 +1744,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
   },
   choiceText: {
     flex: 1,
@@ -1774,7 +1774,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxChecked: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderColor: GOLD,
   },
   bypassText: {
@@ -1825,7 +1825,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     color: GOLD,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 16,
     letterSpacing: 0.2,
   },

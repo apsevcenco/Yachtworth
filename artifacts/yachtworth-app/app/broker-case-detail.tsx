@@ -275,9 +275,9 @@ export default function BrokerCaseDetailScreen() {
         ) : (
           <>
             <View style={styles.actionRow}>
-              <Pressable onPress={save} disabled={saving} style={[styles.primaryButton, { backgroundColor: colors.primary }, saving && { opacity: 0.7 }]}>
+              <Pressable onPress={save} disabled={saving} style={[styles.primaryButton, { backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: colors.primary }, saving && { opacity: 0.7 }]}>
                 {saving ? <ActivityIndicator color={colors.background} /> : <Feather name="save" size={18} color={colors.background} />}
-                <Text style={[styles.primaryText, { color: colors.background }]}>Save changes</Text>
+                <Text style={[styles.primaryText, { color: colors.primary }]}>Save changes</Text>
               </Pressable>
               <Pressable onPress={() => router.push("/crm" as never)} style={[styles.secondaryButton, { borderColor: colors.primary, backgroundColor: colors.glow ?? "transparent" }]}>
                 <Feather name="users" size={17} color={colors.primary} />
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4, lineHeight: 19, textTransform: "capitalize" },
   actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   primaryButton: { minHeight: 52, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, flexGrow: 1 },
-  primaryText: { fontFamily: "Inter_700Bold", fontSize: 15, textAlign: "center", flexShrink: 1 },
+  primaryText: { fontFamily: "Gilroy-Regular", fontSize: 15, textAlign: "center", flexShrink: 1 },
   secondaryButton: { minHeight: 48, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 16, flexGrow: 1 },
   secondaryText: { fontFamily: "Inter_700Bold", fontSize: 13, textAlign: "center", flexShrink: 1 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },

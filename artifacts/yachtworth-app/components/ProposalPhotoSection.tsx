@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     borderColor: DANGER,
   },
   busyOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(11,30,63,0.55)",
     alignItems: "center",
     justifyContent: "center",

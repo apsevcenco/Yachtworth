@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import {
   getListRoiCalculationsQueryKey,
   getListYachtsQueryKey,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
   },
-  ctaText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
+  ctaText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 14 },
   listHeader: { marginBottom: 12 },
   listHeaderText: {
     color: MUTED,

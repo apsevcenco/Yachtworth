@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   deleteActionText: {
     color: IVORY,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Gilroy-Regular",
     fontSize: 12,
   },
 });

@@ -24,7 +24,7 @@ import {
   EQUIPMENT_DEF_BY_KEY,
   summarizeEquipment,
 } from "../../lib/equipmentConfig";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {

@@ -20,7 +20,7 @@ import {
   type CharterDistributionEntry,
   type Yacht,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -3073,7 +3073,7 @@ const styles = StyleSheet.create({
   },
   modePillActive: {
     borderColor: GOLD,
-    backgroundColor: GOLD + "12",
+    backgroundColor: "rgba(201,169,97,0.10)" + "12",
   },
   modePillText: {
     color: MUTED,
@@ -3313,27 +3313,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingHorizontal: 22,
     paddingVertical: 13,
     borderRadius: 12,
     minWidth: 170,
   },
   saveBtnText: {
-    color: NAVY_DEEP,
+    color: GOLD,
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
     fontWeight: "700",
   },
   primaryBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingHorizontal: 22,
     paddingVertical: 13,
     borderRadius: 12,
     marginTop: 12,
   },
   primaryBtnText: {
-    color: NAVY_DEEP,
+    color: GOLD,
     fontFamily: "Gilroy-Bold",
     fontSize: 15,
     fontWeight: "700",
@@ -3354,7 +3354,7 @@ const styles = StyleSheet.create({
   },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   sheet: {

@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)",
     marginTop: 8,
   },
   readableText: {
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     flexDirection: "row",
     gap: 8,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: "center",
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     minHeight: 50,
   },
-  primaryBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
+  primaryBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 14 },
   secondaryBtn: {
     borderColor: GOLD,
     borderWidth: 1,

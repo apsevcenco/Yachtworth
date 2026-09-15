@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import {
   getGetProposalQueryKey,
   getListProposalsQueryKey,

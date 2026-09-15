@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@workspace/api-client-react";
 import {
   getGetSurveyReportQueryKey,
   getListSurveyReportsQueryKey,
@@ -781,7 +781,7 @@ export default function SurveySectionScreen() {
                   Recording {editable[voiceTarget.idx]?.item_number ?? ""}
                 </Text>
                 <Text style={styles.recordingText}>
-                  {voiceTarget.fieldKey.replace("section_data.", "")} · {recordingSeconds}s · tap the same mic to stop
+                  {voiceTarget.fieldKey.replace("section_data.", "")} ï¿½ {recordingSeconds}s ï¿½ tap the same mic to stop
                 </Text>
               </View>
             </View>
@@ -1227,8 +1227,8 @@ function VoiceNotesPanel({
             <View key={note.id} style={styles.voiceNoteRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.voiceNoteMeta}>
-                  {note.language.toUpperCase()} · {note.field_key.replace("section_data.", "")}
-                  {note.duration_seconds ? ` · ${Math.round(note.duration_seconds)}s` : ""}
+                  {note.language.toUpperCase()} ï¿½ {note.field_key.replace("section_data.", "")}
+                  {note.duration_seconds ? ` ï¿½ ${Math.round(note.duration_seconds)}s` : ""}
                 </Text>
                 <Text style={styles.voiceNoteText} numberOfLines={3}>
                   {note.edited_text || note.raw_transcript || note.error_message || "No transcript"}
@@ -1277,7 +1277,7 @@ function PolishPreviewSheet({
             </Pressable>
           </View>
           <Text style={styles.polishMeta}>
-            {preview.result.mode.toUpperCase()} · confidence {preview.result.confidence ?? "medium"}
+            {preview.result.mode.toUpperCase()} ï¿½ confidence {preview.result.confidence ?? "medium"}
           </Text>
           <ScrollView style={styles.polishTextBox}>
             <Text style={styles.polishText}>{preview.result.polished_text}</Text>
@@ -1890,17 +1890,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 22,
     paddingTop: 12,
-    backgroundColor: NAVY,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderTopWidth: 1,
     borderTopColor: DIVIDER,
   },
   saveBtn: {
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     paddingVertical: 15,
     borderRadius: 14,
     alignItems: "center",
   },
-  saveBtnText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 15 },
+  saveBtnText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 15 },
   sheetBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   sheet: { backgroundColor: NAVY_DEEP, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18 },
   sheetTitle: {
@@ -1977,11 +1977,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
   },
   polishPrimaryText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 13,
   },
   photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },

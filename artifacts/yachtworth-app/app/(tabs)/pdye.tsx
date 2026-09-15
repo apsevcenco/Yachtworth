@@ -80,7 +80,7 @@ export default function PdyeScreen() {
             accessibilityLabel="Open PDYE Platform in browser"
             style={({ pressed }) => [styles.heroCta, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={[styles.heroCtaText, { color: colors.background }]}>Open PDYE Platform</Text>
+            <Text style={[styles.heroCtaText, { color: colors.primary }]}>Open PDYE Platform</Text>
             <Feather name="arrow-up-right" size={18} color={colors.background} />
           </Pressable>
         </View>
@@ -207,13 +207,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: GOLD,
+    backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD,
     borderRadius: 12,
     paddingVertical: 14,
   },
   heroCtaText: {
-    color: NAVY,
-    fontFamily: "Inter_700Bold",
+    color: GOLD,
+    fontFamily: "Gilroy-Regular",
     fontSize: 14,
     letterSpacing: 0.3,
   },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   infoText: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18 },
   bottomCta: {
     marginTop: 24,
-    backgroundColor: NAVY_ELEV,
+    backgroundColor: "rgba(201,169,97,0.10)",
     borderRadius: 14,
     padding: 18,
     alignItems: "center",

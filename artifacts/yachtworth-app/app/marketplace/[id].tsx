@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@workspace/api-client-react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -420,8 +420,8 @@ const styles = StyleSheet.create({
   brandBlock: { flex: 1 },
   scope: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.2, marginTop: 5 },
   pageTitle: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: 30, lineHeight: 36, marginTop: 6 },
-  marketButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
-  marketText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 13 },
+  marketButton: { alignSelf: Platform.OS === "web" ? "flex-start" : "stretch", minHeight: 44, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  marketText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 13 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   muted: { color: MUTED, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
   emptyBox: { alignItems: "center", gap: 8, borderWidth: 1, borderColor: LINE, borderRadius: 8, padding: 28, backgroundColor: NAVY_DEEP },
@@ -431,12 +431,12 @@ const styles = StyleSheet.create({
   galleryBlock: { flex: 1.1, gap: 10 },
   heroImage: { width: "100%", height: Platform.OS === "web" ? 520 : 320, borderRadius: 8, backgroundColor: PANEL },
   heroFallback: { width: "100%", height: Platform.OS === "web" ? 520 : 320, borderRadius: 8, backgroundColor: PANEL, alignItems: "center", justifyContent: "center" },
-  openPhotoBadge: { position: "absolute", right: 12, bottom: 12, minHeight: 34, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10 },
+  openPhotoBadge: { position: "absolute", right: 12, bottom: 12, minHeight: 34, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10 },
   openPhotoText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 12 },
   thumbRow: { gap: 10 },
   thumbWrap: { width: 140, height: 95 },
   thumb: { width: 140, height: 95, borderRadius: 8, backgroundColor: PANEL },
-  thumbCount: { position: "absolute", left: 7, top: 7, color: NAVY, backgroundColor: GOLD, overflow: "hidden", borderRadius: 999, minWidth: 22, height: 22, textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 12, lineHeight: 22 },
+  thumbCount: { position: "absolute", left: 7, top: 7, color: NAVY, backgroundColor: "rgba(201,169,97,0.10)", overflow: "hidden", borderRadius: 999, minWidth: 22, height: 22, textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 12, lineHeight: 22 },
   summary: { flex: 0.9, borderWidth: 1, borderColor: LINE, borderRadius: 8, backgroundColor: NAVY_DEEP, padding: 18, alignSelf: "flex-start", width: Platform.OS === "web" ? undefined : "100%" },
   eyebrow: { color: GOLD, fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 3, textTransform: "uppercase" },
   title: { color: IVORY, fontFamily: "Gilroy-ExtraBold", fontSize: Platform.OS === "web" ? 42 : 32, lineHeight: Platform.OS === "web" ? 50 : 38, marginTop: 10 },
@@ -451,8 +451,8 @@ const styles = StyleSheet.create({
   factValue: { color: IVORY, fontFamily: "Inter_700Bold", fontSize: 15, marginTop: 5 },
   contactText: { color: MUTED, fontFamily: "Inter_500Medium", fontSize: 15, lineHeight: 22, marginTop: 4 },
   contactActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
-  actionButton: { minHeight: 46, borderRadius: 8, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16 },
-  actionText: { color: NAVY, fontFamily: "Inter_700Bold", fontSize: 14 },
+  actionButton: { minHeight: 46, borderRadius: 8, backgroundColor: "rgba(201,169,97,0.10)", borderWidth: 1.5, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16 },
+  actionText: { color: GOLD, fontFamily: "Gilroy-Regular", fontSize: 14 },
   secondaryButton: { minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16 },
   secondaryText: { color: GOLD, fontFamily: "Inter_700Bold", fontSize: 14 },
   removeButton: { minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: RED, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16, marginTop: 18 },
