@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -44,15 +44,15 @@ export default function TeamScreen() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const getTeamAuth = useCallback(async () => {
+  async function getTeamAuth() {
     if (!authLoaded) throw new Error("Sign-in is still loading. Try again in a moment.");
     if (!isSignedIn) throw new Error("Sign in to create or manage a Team workspace.");
     const token = await getToken();
     if (!token) throw new Error("Could not get your sign-in token. Please sign out and sign back in.");
     return { token };
-  }, [authLoaded, getToken, isSignedIn]);
+  }
 
-  const load = useCallback(async () => {
+  async function load({ showAlert = false }: { showAlert?: boolean } = {}) {
     if (!authLoaded) return;
     if (!isSignedIn) {
       setSnapshot(null);
@@ -61,21 +61,27 @@ export default function TeamScreen() {
       return;
     }
     setLoading(true);
+    setErrorText(null);
     try {
-      const auth = await getTeamAuth();
-      setSnapshot(await getTeamWorkspace(auth));
+      const token = await getToken();
+      if (!token) throw new Error("Could not get your sign-in token. Please sign out and sign back in.");
+      setSnapshot(await getTeamWorkspace({ token }));
     } catch (err) {
       const message = errorMessage(err);
       setErrorText(message);
-      Alert.alert("Team", message);
+      if (showAlert) Alert.alert("Team", message);
     } finally {
       setLoading(false);
     }
-  }, [authLoaded, getTeamAuth, isSignedIn]);
+  }
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!authLoaded) return;
+    void load({ showAlert: false });
+    // Run only when Clerk auth state changes. `getToken` can be unstable across
+    // renders in Expo/Clerk, so depending on `load` or `getToken` here can loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoaded, isSignedIn]);
 
   const seatsUsed = useMemo(() => {
     if (!snapshot?.workspace) return 0;
@@ -114,7 +120,7 @@ export default function TeamScreen() {
           <Feather name="chevron-left" size={26} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }, isAcid && styles.acidText]}>Team</Text>
-        <Pressable onPress={load} hitSlop={12} disabled={loading || busy}>
+        <Pressable onPress={() => load({ showAlert: true })} hitSlop={12} disabled={loading || busy}>
           <Feather name="refresh-cw" size={20} color={colors.primary} />
         </Pressable>
       </View>
@@ -229,7 +235,7 @@ export default function TeamScreen() {
                     onPress={() => run(async () => {
                       const invite = await createTeamInvitation(inviteEmail, await getTeamAuth());
                       setInviteEmail("");
-                      await load();
+                      await load({ showAlert: true });
                       Alert.alert("Invite created", `Send this invite code to ${invite.email}:\n\n${invite.id}`);
                     }, "Creating invite code…")}
                     disabled={busy || !inviteEmail.trim()}
@@ -252,7 +258,7 @@ export default function TeamScreen() {
                           <Text selectable style={[styles.rowSub, { color: colors.mutedForeground }]}>Code: {invite.id}</Text>
                         </View>
                         {isOwner ? (
-                          <Pressable onPress={() => run(async () => { await revokeTeamInvitation(invite.id, await getTeamAuth()); await load(); }, "Revoking invite…")} hitSlop={10}>
+                          <Pressable onPress={() => run(async () => { await revokeTeamInvitation(invite.id, await getTeamAuth()); await load({ showAlert: true }); }, "Revoking invite…")} hitSlop={10}>
                             <Feather name="x" size={18} color={colors.destructive} />
                           </Pressable>
                         ) : null}
@@ -303,6 +309,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
 });
+
 
 
 
