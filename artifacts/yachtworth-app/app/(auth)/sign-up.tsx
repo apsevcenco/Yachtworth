@@ -49,23 +49,43 @@ export default function SignUpScreen() {
   const [code, setCode] = useState("");
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [emailCodeStatus, setEmailCodeStatus] = useState<string | null>(null);
+
+  function clerkErrorMessage(err: unknown, fallback: string): string {
+    const e = err as any;
+    return (
+      e?.errors?.[0]?.longMessage ||
+      e?.errors?.[0]?.message ||
+      e?.message ||
+      fallback
+    );
+  }
+
+  const sendEmailCode = async (message = "Verification code sent. Check Inbox and Spam/Junk.") => {
+    setGeneralError(null);
+    setEmailCodeStatus(null);
+    try {
+      await signUp.verifications.sendEmailCode();
+      setEmailCodeStatus(message);
+    } catch (err) {
+      setGeneralError(clerkErrorMessage(err, "Could not send verification code. Check the email address and try again."));
+    }
+  };
 
   const handleSubmit = async () => {
     setGeneralError(null);
-    const { error } = await signUp.password({ emailAddress, password });
-    if (error) {
-      const e = error as any;
-      setGeneralError(
-        e?.errors?.[0]?.longMessage ||
-          e?.errors?.[0]?.message ||
-          e?.message ||
-          "Sign-up failed",
-      );
-      return;
+    setEmailCodeStatus(null);
+    try {
+      const { error } = await signUp.password({ emailAddress: emailAddress.trim(), password });
+      if (error) {
+        setGeneralError(clerkErrorMessage(error, "Sign-up failed"));
+        return;
+      }
+      await sendEmailCode();
+    } catch (err) {
+      setGeneralError(clerkErrorMessage(err, "Sign-up failed"));
     }
-    await signUp.verifications.sendEmailCode();
   };
-
   const handleVerify = async () => {
     setGeneralError(null);
     try {
@@ -150,7 +170,7 @@ export default function SignUpScreen() {
             <Text style={[styles.kicker, { color: colors.primary }, isAcid && styles.acidKicker]}>VERIFY EMAIL</Text>
             <Text style={[styles.title, { color: colors.foreground }, isAcid && styles.acidTitle]}>Check your inbox.</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              We sent a 6-digit code to {emailAddress}.
+              We sent a 6-digit code to {emailAddress}. Check Inbox and Spam/Junk. If it still does not arrive, tap Send a new code.
             </Text>
 
             <Text style={[styles.label, { color: colors.primary }]}>Verification code</Text>
@@ -165,6 +185,7 @@ export default function SignUpScreen() {
             {errors.fields.code && (
               <Text style={styles.error}>{errors.fields.code.message}</Text>
             )}
+            {emailCodeStatus && <Text style={[styles.error, { color: colors.primary }]}>{emailCodeStatus}</Text>}
             {generalError && <Text style={styles.error}>{generalError}</Text>}
 
             <Pressable
@@ -191,7 +212,7 @@ export default function SignUpScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => signUp.verifications.sendEmailCode()}
+              onPress={() => sendEmailCode("New verification code sent. Check Inbox and Spam/Junk.")}
               style={{ marginTop: 16, alignItems: "center" }}
             >
               <Text style={[styles.footerLink, { color: colors.primary }]}>Send a new code</Text>
@@ -279,6 +300,7 @@ export default function SignUpScreen() {
             {errors.fields.password && (
               <Text style={styles.error}>{errors.fields.password.message}</Text>
             )}
+            {emailCodeStatus && <Text style={[styles.error, { color: colors.primary }]}>{emailCodeStatus}</Text>}
             {generalError && <Text style={styles.error}>{generalError}</Text>}
 
             <Pressable
@@ -456,3 +478,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+
