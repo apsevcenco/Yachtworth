@@ -94,4 +94,9 @@ export const INVENTORY_MOVEMENTS_TABLE = "inventory_movements";
 export const MAINTENANCE_DOCUMENTS_TABLE = "maintenance_documents";
 export const MAINTENANCE_AUDIT_EVENTS_TABLE = "maintenance_audit_events";
 export const MAINTENANCE_NOTIFICATIONS_TABLE = "maintenance_notifications";
+export const ORGANIZATIONS_TABLE = "organizations";
+export const ORGANIZATION_MEMBERS_TABLE = "organization_members";
+export const ORGANIZATION_INVITATIONS_TABLE = "organization_invitations";
 export const MAINTENANCE_DOCUMENTS_BUCKET = "maintenance-documents";
+
+

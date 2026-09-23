@@ -22,6 +22,7 @@ import {
   UpdateYachtBody,
 } from "@workspace/api-zod";
 import { forClerkUser } from "../lib/clerkUserFilter";
+import { getDefaultOrganizationId, listActiveOrganizationIds } from "../lib/teamAccess";
 import { isUuid } from "../lib/validators";
 
 const MAX_PHOTOS_PER_YACHT = 10;
@@ -84,7 +85,7 @@ const router: IRouter = Router();
 const MAX_YACHTS_PER_USER = 5;
 
 const YACHT_COLUMNS =
-  "id, clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, home_port, photo_url, photo_urls, cover_photo_url, notes, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown, draft_meters, registration_number, imo_number, hull_id, vat_status, engine_maker, engine_model, engine_count, total_hp, crew_cabins, berths, heads, owner_role, is_archived";
+  "id, clerk_user_id, organization_id, created_by_clerk_user_id, created_at, updated_at, name, brand, model, year_built, yacht_type, configuration, length_meters, beam_meters, cabins, guests, crew, engine_hours, marina_location, flag, home_port, photo_url, photo_urls, cover_photo_url, notes, commercial_registration, purchase_price_eur, purchase_year, financing_type, loan_amount_eur, loan_rate_pct, loan_term_years, monthly_crew_eur, monthly_mooring_eur, monthly_fuel_eur, monthly_provisioning_eur, monthly_communications_eur, monthly_maintenance_eur, monthly_management_fee_eur, monthly_misc_eur, annual_insurance_eur, annual_registration_eur, annual_classification_eur, annual_antifouling_eur, annual_refit_reserve_eur, charter_commission_pct, crew_breakdown, draft_meters, registration_number, imo_number, hull_id, vat_status, engine_maker, engine_model, engine_count, total_hp, crew_cabins, berths, heads, owner_role, is_archived";
 
 function stamp(row: Record<string, unknown>, fallback = ""): string {
   const raw = row["updated_at"] ?? row["created_at"] ?? row["completed_at"] ?? fallback;
@@ -113,6 +114,78 @@ function compactRows(rows: Record<string, unknown>[] | null | undefined, limit =
   return (rows ?? []).slice(0, limit);
 }
 
+type YachtAccessRow = {
+  id: string;
+  clerk_user_id: string | null;
+  organization_id: string | null;
+};
+
+function uniqueRowsById<T extends { id?: unknown }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of rows) {
+    const id = typeof row.id === "string" ? row.id : "";
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(row);
+  }
+  return out;
+}
+
+async function loadAccessibleYachtIds(sb: NonNullable<ReturnType<typeof getSupabase>>, userId: string): Promise<string[]> {
+  const [owned, orgIds] = await Promise.all([
+    forClerkUser(sb.from(YACHTS_TABLE).select("id"), userId),
+    listActiveOrganizationIds(sb, userId),
+  ]);
+
+  const ids = new Set<string>();
+  for (const row of (owned.data ?? []) as Array<{ id?: unknown }>) {
+    if (typeof row.id === "string") ids.add(row.id);
+  }
+
+  if (orgIds.error) return Array.from(ids);
+  if (orgIds.data.length > 0) {
+    const shared = await sb
+      .from(YACHTS_TABLE)
+      .select("id")
+      .in("organization_id", orgIds.data);
+    for (const row of (shared.data ?? []) as Array<{ id?: unknown }>) {
+      if (typeof row.id === "string") ids.add(row.id);
+    }
+  }
+
+  return Array.from(ids);
+}
+
+async function loadAccessibleYacht(
+  sb: NonNullable<ReturnType<typeof getSupabase>>,
+  yachtId: string,
+  userId: string,
+): Promise<{ data: YachtAccessRow | null; error: { message: string } | null }> {
+  const { data: owned, error: ownedError } = await forClerkUser(
+    sb.from(YACHTS_TABLE).select("id, clerk_user_id, organization_id"),
+    userId,
+  )
+    .eq("id", yachtId)
+    .maybeSingle();
+
+  if (ownedError) return { data: null, error: { message: ownedError.message } };
+  if (owned) return { data: owned as YachtAccessRow, error: null };
+
+  const orgIds = await listActiveOrganizationIds(sb, userId);
+  if (orgIds.error) return { data: null, error: orgIds.error };
+  if (orgIds.data.length === 0) return { data: null, error: null };
+
+  const { data, error } = await sb
+    .from(YACHTS_TABLE)
+    .select("id, clerk_user_id, organization_id")
+    .eq("id", yachtId)
+    .in("organization_id", orgIds.data)
+    .maybeSingle();
+
+  return { data: (data as YachtAccessRow | null) ?? null, error: error ? { message: error.message } : null };
+}
+
 router.get(
   "/yachts",
   softClerkAuth(),
@@ -126,19 +199,38 @@ router.get(
     // Default list hides archived yachts. Pass `?include_archived=1` to see all.
     const ia = req.query["include_archived"];
     const includeArchived = ia === "1" || ia === "true";
-    const { data, error } = await forClerkUser(
+    const orgIds = await listActiveOrganizationIds(sb, req.userId!);
+    if (orgIds.error) {
+      req.log.error({ err: orgIds.error.message }, "List yacht organizations failed");
+      res.status(500).json({ error: orgIds.error.message });
+      return;
+    }
+
+    const owned = await forClerkUser(
       sb.from(YACHTS_TABLE).select(YACHT_COLUMNS),
       req.userId!,
     )
       .order("updated_at", { ascending: false })
       .limit(50);
+
+    const shared = orgIds.data.length > 0
+      ? await sb
+          .from(YACHTS_TABLE)
+          .select(YACHT_COLUMNS)
+          .in("organization_id", orgIds.data)
+          .order("updated_at", { ascending: false })
+          .limit(50)
+      : { data: [], error: null };
+
+    const error = owned.error ?? shared.error;
     if (error) {
       req.log.error({ err: error.message }, "List yachts failed");
       res.status(500).json({ error: error.message });
       return;
     }
-    const items = (data ?? [])
+    const items = uniqueRowsById([...(owned.data ?? []), ...(shared.data ?? [])])
       .filter((row) => includeArchived || !row.is_archived)
+      .sort((a, b) => Date.parse(String(b.updated_at ?? b.created_at ?? 0)) - Date.parse(String(a.updated_at ?? a.created_at ?? 0)))
       .slice(0, 50);
     res.json({ items });
   },
@@ -174,9 +266,15 @@ router.post(
       });
       return;
     }
+    const organizationId = await getDefaultOrganizationId(sb, req.userId!);
     const { data, error } = await sb
       .from(YACHTS_TABLE)
-      .insert({ ...parsed.data, clerk_user_id: req.userId! })
+      .insert({
+        ...parsed.data,
+        clerk_user_id: req.userId!,
+        created_by_clerk_user_id: req.userId!,
+        organization_id: organizationId,
+      })
       .select(YACHT_COLUMNS)
       .single();
     if (error) {
@@ -211,19 +309,24 @@ router.get(
       res.status(503).json({ error: "Yacht storage not configured" });
       return;
     }
-    const { data, error } = await forClerkUser(
-      sb.from(YACHTS_TABLE).select(YACHT_COLUMNS),
-      req.userId!,
-    )
+    const access = await loadAccessibleYacht(sb, req.params["id"]!, req.userId!);
+    if (access.error) {
+      req.log.error({ err: access.error.message }, "Get yacht access check failed");
+      res.status(500).json({ error: access.error.message });
+      return;
+    }
+    if (!access.data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(YACHTS_TABLE)
+      .select(YACHT_COLUMNS)
       .eq("id", req.params["id"])
       .maybeSingle();
     if (error) {
       req.log.error({ err: error.message }, "Get yacht failed");
       res.status(500).json({ error: error.message });
-      return;
-    }
-    if (!data) {
-      res.status(404).json({ error: "Not found" });
       return;
     }
     res.json(data);
@@ -246,19 +349,24 @@ router.get(
     }
     const yachtId = req.params["id"]!;
     const userId = req.userId!;
-    const { data: yacht, error: yachtError } = await forClerkUser(
-      sb.from(YACHTS_TABLE).select(YACHT_COLUMNS),
-      userId,
-    )
+    const access = await loadAccessibleYacht(sb, yachtId, userId);
+    if (access.error) {
+      req.log.error({ err: access.error.message }, "Get yacht passport access check failed");
+      res.status(500).json({ error: access.error.message });
+      return;
+    }
+    if (!access.data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data: yacht, error: yachtError } = await sb
+      .from(YACHTS_TABLE)
+      .select(YACHT_COLUMNS)
       .eq("id", yachtId)
       .maybeSingle();
     if (yachtError) {
       req.log.error({ err: yachtError.message }, "Get yacht passport yacht failed");
       res.status(500).json({ error: yachtError.message });
-      return;
-    }
-    if (!yacht) {
-      res.status(404).json({ error: "Not found" });
       return;
     }
 
@@ -440,12 +548,19 @@ router.patch(
     delete safeUpdate["photo_url"];
     delete safeUpdate["photo_urls"];
     delete safeUpdate["cover_photo_url"];
-    const { data, error } = await forClerkUser(
-      sb
-        .from(YACHTS_TABLE)
-        .update({ ...safeUpdate, updated_at: new Date().toISOString() }),
-      req.userId!,
-    )
+    const access = await loadAccessibleYacht(sb, req.params["id"]!, req.userId!);
+    if (access.error) {
+      req.log.error({ err: access.error.message }, "Update yacht access check failed");
+      res.status(500).json({ error: access.error.message });
+      return;
+    }
+    if (!access.data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data, error } = await sb
+      .from(YACHTS_TABLE)
+      .update({ ...safeUpdate, updated_at: new Date().toISOString() })
       .eq("id", req.params["id"])
       .select(YACHT_COLUMNS)
       .maybeSingle();
@@ -875,3 +990,9 @@ router.patch(
 );
 
 export default router;
+
+
+
+
+
+

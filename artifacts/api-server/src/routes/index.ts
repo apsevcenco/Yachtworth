@@ -15,6 +15,7 @@ import flagIntelligenceRouter from "./flagIntelligence";
 import brokerOsRouter from "./brokerOs";
 import maintenanceRouter from "./maintenance";
 import networkRouter from "./network";
+import teamRouter from "./team";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,8 @@ router.use(flagIntelligenceRouter);
 router.use(brokerOsRouter);
 router.use(maintenanceRouter);
 router.use(networkRouter);
+router.use(teamRouter);
 
 export default router;
+
+

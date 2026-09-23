@@ -179,6 +179,22 @@ export default function SettingsScreen() {
           })}
         </View>
 
+        {/* TEAM */}
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Team</Text>
+        <Pressable
+          onPress={() => router.push("/team" as any)}
+          style={({ pressed }) => [
+            styles.card,
+            { backgroundColor: colors.secondary, borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Feather name="users" size={18} color={colors.primary} style={{ width: 26 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Team workspace</Text>
+            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>Create a small-company workspace for up to five people.</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+        </Pressable>
         {/* ABOUT */}
         <Text style={[styles.sectionTitle, { color: colors.primary }]}>About</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
@@ -478,3 +494,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+
