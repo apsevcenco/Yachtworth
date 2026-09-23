@@ -169,6 +169,11 @@ router.post(
       .is("organization_id", null);
 
     const snapshot = await loadTeamSnapshot(sb, req.userId!);
+    if ("error" in snapshot) {
+      req.log.error({ err: snapshot.error }, "Load team workspace after create failed");
+      res.status(500).json({ error: snapshot.error });
+      return;
+    }
     res.status(201).json(snapshot);
   },
 );
@@ -396,3 +401,4 @@ router.delete(
 );
 
 export default router;
+

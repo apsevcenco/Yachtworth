@@ -39,13 +39,17 @@ export default function TeamScreen() {
   const [workspaceName, setWorkspaceName] = useState("My Yacht Team");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setSnapshot(await getTeamWorkspace());
     } catch (err) {
-      Alert.alert("Team", errorMessage(err));
+      const message = errorMessage(err);
+      setErrorText(message);
+      Alert.alert("Team", message);
     } finally {
       setLoading(false);
     }
@@ -60,13 +64,19 @@ export default function TeamScreen() {
     return snapshot.members.length + snapshot.invitations.length;
   }, [snapshot]);
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, pendingMessage = "Working…") {
     if (busy) return;
     setBusy(true);
+    setErrorText(null);
+    setStatusMessage(pendingMessage);
     try {
       await action();
+      setStatusMessage("Done.");
     } catch (err) {
-      Alert.alert("Team", errorMessage(err));
+      const message = errorMessage(err);
+      setErrorText(message);
+      setStatusMessage(null);
+      Alert.alert("Team", message);
     } finally {
       setBusy(false);
     }
@@ -107,6 +117,18 @@ export default function TeamScreen() {
             Team plan keeps one login per person and shares the yacht workspace between up to five people. This avoids shared passwords and keeps ownership traceable.
           </Text>
 
+          {errorText ? (
+            <View style={[styles.messageBox, { borderColor: colors.destructive, backgroundColor: "rgba(232,123,123,0.12)" }]}> 
+              <Feather name="alert-circle" size={18} color={colors.destructive} />
+              <Text selectable style={[styles.messageText, { color: colors.foreground }]}>{errorText}</Text>
+            </View>
+          ) : statusMessage ? (
+            <View style={[styles.messageBox, { borderColor: colors.border, backgroundColor: colors.card }]}> 
+              {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="check-circle" size={18} color={colors.primary} />}
+              <Text style={[styles.messageText, { color: colors.foreground }]}>{statusMessage}</Text>
+            </View>
+          ) : null}
+
           {!workspace ? (
             <View style={[styles.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}> 
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>Create Team workspace</Text>
@@ -121,7 +143,7 @@ export default function TeamScreen() {
                 style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
               />
               <Pressable
-                onPress={() => run(async () => setSnapshot(await createTeamWorkspace(workspaceName)))}
+                onPress={() => run(async () => setSnapshot(await createTeamWorkspace(workspaceName)), "Creating Team workspace…")}
                 disabled={busy}
                 style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: pressed || busy ? 0.75 : 1 }]}
               >
@@ -149,7 +171,7 @@ export default function TeamScreen() {
               style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
             />
             <Pressable
-              onPress={() => run(async () => setSnapshot(await acceptTeamInvitation(inviteCode.trim())))}
+              onPress={() => run(async () => setSnapshot(await acceptTeamInvitation(inviteCode.trim())), "Accepting invite…")}
               disabled={busy || !inviteCode.trim()}
               style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed || busy || !inviteCode.trim() ? 0.65 : 1 }]}
             >
@@ -191,7 +213,7 @@ export default function TeamScreen() {
                       setInviteEmail("");
                       await load();
                       Alert.alert("Invite created", `Send this invite code to ${invite.email}:\n\n${invite.id}`);
-                    })}
+                    }, "Creating invite code…")}
                     disabled={busy || !inviteEmail.trim()}
                     style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: pressed || busy || !inviteEmail.trim() ? 0.65 : 1 }]}
                   >
@@ -212,7 +234,7 @@ export default function TeamScreen() {
                           <Text selectable style={[styles.rowSub, { color: colors.mutedForeground }]}>Code: {invite.id}</Text>
                         </View>
                         {isOwner ? (
-                          <Pressable onPress={() => run(async () => { await revokeTeamInvitation(invite.id); await load(); })} hitSlop={10}>
+                          <Pressable onPress={() => run(async () => { await revokeTeamInvitation(invite.id); await load(); }, "Revoking invite…")} hitSlop={10}>
                             <Feather name="x" size={18} color={colors.destructive} />
                           </Pressable>
                         ) : null}
@@ -247,6 +269,8 @@ const styles = StyleSheet.create({
   body: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, marginTop: 10, marginBottom: 18 },
   muted: { fontFamily: "Inter_400Regular", fontSize: 13 },
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 14 },
+  messageBox: { borderRadius: 14, borderWidth: 1, padding: 12, marginTop: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  messageText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 18 },
   cardGroup: { borderRadius: 16, borderWidth: 1, overflow: "hidden", marginTop: 10 },
   cardTitle: { fontFamily: "Inter_700Bold", fontSize: 16 },
   cardText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 6 },
@@ -261,5 +285,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
 });
+
+
 
 
