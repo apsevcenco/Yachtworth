@@ -174,6 +174,13 @@ export default function ProfileScreen() {
           )}
           {isSignedIn && (
             <Row
+              icon="users"
+              label="Team workspace"
+              onPress={() => router.push("/team" as any)}
+            />
+          )}
+          {isSignedIn && (
+            <Row
               icon="wifi"
               label="Connection check"
               onPress={runConnectionCheck}
@@ -450,3 +457,4 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
 });
+

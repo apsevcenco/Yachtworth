@@ -47,30 +47,49 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  function clerkErrorMessage(err: unknown, fallback: string): string {
+    const e = err as any;
+    return (
+      e?.errors?.[0]?.longMessage ||
+      e?.errors?.[0]?.message ||
+      e?.message ||
+      fallback
+    );
+  }
 
   const handleSubmit = async () => {
     setGeneralError(null);
-    const { error } = await signIn.password({ emailAddress, password });
-    if (error) {
-      const e = error as any;
-      setGeneralError(
-        e?.errors?.[0]?.longMessage ||
-          e?.errors?.[0]?.message ||
-          e?.message ||
-          "Sign-in failed",
-      );
-      return;
-    }
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) return;
-          router.replace(decorateUrl("/") as any);
-        },
+    setStatusMessage("Signing in…");
+    try {
+      const result = await signIn.password({
+        emailAddress: emailAddress.trim(),
+        password,
       });
+      if (result.error) {
+        setStatusMessage(null);
+        setGeneralError(clerkErrorMessage(result.error, "Sign-in failed"));
+        return;
+      }
+      const status = (result as any).status ?? signIn.status;
+      if (status === "complete") {
+        await signIn.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) return;
+            router.replace(decorateUrl("/") as any);
+          },
+        });
+        setStatusMessage("Signed in. Opening your workspace…");
+        return;
+      }
+      setStatusMessage(null);
+      setGeneralError("Sign-in needs one more step. Please try again or use Google/Apple sign-in.");
+    } catch (err) {
+      setStatusMessage(null);
+      setGeneralError(clerkErrorMessage(err, "Sign-in failed"));
     }
   };
-
   const handleOAuth = useCallback(
     async (strategy: "oauth_google" | "oauth_apple") => {
       setGeneralError(null);
@@ -202,6 +221,7 @@ export default function SignInScreen() {
         {errors.fields.password && (
           <Text style={styles.error}>{errors.fields.password.message}</Text>
         )}
+        {statusMessage && <Text style={[styles.error, { color: colors.primary }]}>{statusMessage}</Text>}
         {generalError && <Text style={styles.error}>{generalError}</Text>}
 
         <Pressable
@@ -374,3 +394,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
