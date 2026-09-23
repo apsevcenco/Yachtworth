@@ -43,36 +43,50 @@ export type TeamSnapshot = {
   invitations: TeamInvitation[];
 };
 
-export async function getTeamWorkspace(): Promise<TeamSnapshot> {
-  return customFetch<TeamSnapshot>("/api/team/workspace", { responseType: "json" });
+export type TeamAuth = {
+  token?: string | null;
+};
+
+function authHeaders(auth?: TeamAuth): HeadersInit | undefined {
+  return auth?.token ? { Authorization: `Bearer ${auth.token}` } : undefined;
 }
 
-export async function createTeamWorkspace(name: string): Promise<TeamSnapshot> {
+export async function getTeamWorkspace(auth?: TeamAuth): Promise<TeamSnapshot> {
+  return customFetch<TeamSnapshot>("/api/team/workspace", {
+    headers: authHeaders(auth),
+    responseType: "json",
+  });
+}
+
+export async function createTeamWorkspace(name: string, auth?: TeamAuth): Promise<TeamSnapshot> {
   return customFetch<TeamSnapshot>("/api/team/workspace", {
     method: "POST",
+    headers: authHeaders(auth),
     body: JSON.stringify({ name }),
     responseType: "json",
   });
 }
 
-export async function createTeamInvitation(email: string): Promise<TeamInvitation> {
+export async function createTeamInvitation(email: string, auth?: TeamAuth): Promise<TeamInvitation> {
   return customFetch<TeamInvitation>("/api/team/invitations", {
     method: "POST",
+    headers: authHeaders(auth),
     body: JSON.stringify({ email }),
     responseType: "json",
   });
 }
 
-export async function acceptTeamInvitation(inviteId: string): Promise<TeamSnapshot> {
+export async function acceptTeamInvitation(inviteId: string, auth?: TeamAuth): Promise<TeamSnapshot> {
   return customFetch<TeamSnapshot>(`/api/team/invitations/${encodeURIComponent(inviteId)}/accept`, {
     method: "POST",
+    headers: authHeaders(auth),
     responseType: "json",
   });
 }
 
-export async function revokeTeamInvitation(inviteId: string): Promise<void> {
+export async function revokeTeamInvitation(inviteId: string, auth?: TeamAuth): Promise<void> {
   await customFetch<void>(`/api/team/invitations/${encodeURIComponent(inviteId)}`, {
     method: "DELETE",
+    headers: authHeaders(auth),
   });
 }
-

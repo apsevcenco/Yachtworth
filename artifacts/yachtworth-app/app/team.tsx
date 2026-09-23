@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -31,6 +32,7 @@ function errorMessage(err: unknown): string {
 
 export default function TeamScreen() {
   const router = useRouter();
+  const { getToken, isLoaded: authLoaded, isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const { colors, isAcid } = useTheme();
   const [snapshot, setSnapshot] = useState<TeamSnapshot | null>(null);
@@ -42,10 +44,26 @@ export default function TeamScreen() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
+  const getTeamAuth = useCallback(async () => {
+    if (!authLoaded) throw new Error("Sign-in is still loading. Try again in a moment.");
+    if (!isSignedIn) throw new Error("Sign in to create or manage a Team workspace.");
+    const token = await getToken();
+    if (!token) throw new Error("Could not get your sign-in token. Please sign out and sign back in.");
+    return { token };
+  }, [authLoaded, getToken, isSignedIn]);
+
   const load = useCallback(async () => {
+    if (!authLoaded) return;
+    if (!isSignedIn) {
+      setSnapshot(null);
+      setErrorText("Sign in to create or manage a Team workspace.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      setSnapshot(await getTeamWorkspace());
+      const auth = await getTeamAuth();
+      setSnapshot(await getTeamWorkspace(auth));
     } catch (err) {
       const message = errorMessage(err);
       setErrorText(message);
@@ -53,7 +71,7 @@ export default function TeamScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoaded, getTeamAuth, isSignedIn]);
 
   useEffect(() => {
     load();
@@ -143,7 +161,7 @@ export default function TeamScreen() {
                 style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
               />
               <Pressable
-                onPress={() => run(async () => setSnapshot(await createTeamWorkspace(workspaceName)), "Creating Team workspace…")}
+                onPress={() => run(async () => setSnapshot(await createTeamWorkspace(workspaceName, await getTeamAuth())), "Creating Team workspace…")}
                 disabled={busy}
                 style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: pressed || busy ? 0.75 : 1 }]}
               >
@@ -171,7 +189,7 @@ export default function TeamScreen() {
               style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
             />
             <Pressable
-              onPress={() => run(async () => setSnapshot(await acceptTeamInvitation(inviteCode.trim())), "Accepting invite…")}
+              onPress={() => run(async () => setSnapshot(await acceptTeamInvitation(inviteCode.trim(), await getTeamAuth())), "Accepting invite…")}
               disabled={busy || !inviteCode.trim()}
               style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed || busy || !inviteCode.trim() ? 0.65 : 1 }]}
             >
@@ -209,7 +227,7 @@ export default function TeamScreen() {
                   />
                   <Pressable
                     onPress={() => run(async () => {
-                      const invite = await createTeamInvitation(inviteEmail);
+                      const invite = await createTeamInvitation(inviteEmail, await getTeamAuth());
                       setInviteEmail("");
                       await load();
                       Alert.alert("Invite created", `Send this invite code to ${invite.email}:\n\n${invite.id}`);
@@ -234,7 +252,7 @@ export default function TeamScreen() {
                           <Text selectable style={[styles.rowSub, { color: colors.mutedForeground }]}>Code: {invite.id}</Text>
                         </View>
                         {isOwner ? (
-                          <Pressable onPress={() => run(async () => { await revokeTeamInvitation(invite.id); await load(); }, "Revoking invite…")} hitSlop={10}>
+                          <Pressable onPress={() => run(async () => { await revokeTeamInvitation(invite.id, await getTeamAuth()); await load(); }, "Revoking invite…")} hitSlop={10}>
                             <Feather name="x" size={18} color={colors.destructive} />
                           </Pressable>
                         ) : null}
@@ -285,6 +303,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
 });
+
 
 
 
