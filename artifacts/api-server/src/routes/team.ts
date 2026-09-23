@@ -35,6 +35,19 @@ async function loadOwnedOrganization(sb: ReturnType<typeof getSupabase> extends 
     .maybeSingle();
 }
 
+async function attachOwnerYachtsToWorkspace(
+  sb: ReturnType<typeof getSupabase> extends infer T ? NonNullable<T> : never,
+  organizationId: string,
+  ownerUserId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await sb
+    .from(YACHTS_TABLE)
+    .update({ organization_id: organizationId })
+    .eq("clerk_user_id", ownerUserId)
+    .is("organization_id", null);
+
+  return { error: error?.message ?? null };
+}
 async function loadTeamSnapshot(sb: ReturnType<typeof getSupabase> extends infer T ? NonNullable<T> : never, userId: string) {
   const { data: memberships, error: membershipError } = await sb
     .from(ORGANIZATION_MEMBERS_TABLE)
@@ -53,6 +66,20 @@ async function loadTeamSnapshot(sb: ReturnType<typeof getSupabase> extends infer
   }
 
   const activeOrgId = orgIds[0]!;
+  const currentMembership = membershipRows.find((row) => row.organization_id === activeOrgId);
+  const orgOwnerRes = await sb
+    .from(ORGANIZATIONS_TABLE)
+    .select("owner_clerk_user_id")
+    .eq("id", activeOrgId)
+    .maybeSingle();
+
+  if (orgOwnerRes.error) return { error: orgOwnerRes.error.message };
+  const ownerUserId = (orgOwnerRes.data as { owner_clerk_user_id?: string } | null)?.owner_clerk_user_id;
+  if (currentMembership?.role === "owner" && ownerUserId === userId) {
+    const repair = await attachOwnerYachtsToWorkspace(sb, activeOrgId, userId);
+    if (repair.error) return { error: repair.error };
+  }
+
   const [orgRes, memberRes, invitationRes] = await Promise.all([
     sb
       .from(ORGANIZATIONS_TABLE)
@@ -162,11 +189,12 @@ router.post(
 
     // Safe migration for the owner: their existing personal yachts become visible
     // to the workspace, while clerk_user_id remains unchanged for compatibility.
-    await sb
-      .from(YACHTS_TABLE)
-      .update({ organization_id: organizationId })
-      .eq("clerk_user_id", req.userId!)
-      .is("organization_id", null);
+    const repair = await attachOwnerYachtsToWorkspace(sb, organizationId, req.userId!);
+    if (repair.error) {
+      req.log.error({ err: repair.error }, "Attach owner yachts to workspace failed");
+      res.status(500).json({ error: repair.error });
+      return;
+    }
 
     const snapshot = await loadTeamSnapshot(sb, req.userId!);
     if ("error" in snapshot) {
@@ -401,4 +429,5 @@ router.delete(
 );
 
 export default router;
+
 
