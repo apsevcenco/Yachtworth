@@ -44,6 +44,49 @@ export async function getDefaultOrganizationId(
   return data[0] ?? null;
 }
 
+
+export async function listActiveWorkspaceOwnerIds(
+  sb: SupabaseClient,
+  userId: string,
+): Promise<{ data: string[]; error: { message: string } | null }> {
+  const orgIds = await listActiveOrganizationIds(sb, userId);
+  if (orgIds.error || orgIds.data.length === 0) {
+    return { data: [], error: orgIds.error };
+  }
+
+  const { data, error } = await sb
+    .from("organizations")
+    .select("owner_clerk_user_id")
+    .in("id", orgIds.data);
+
+  if (error) return { data: [], error: { message: error.message } };
+
+  return {
+    data: Array.from(
+      new Set(
+        ((data ?? []) as Array<{ owner_clerk_user_id?: unknown }>)
+          .map((row) => row.owner_clerk_user_id)
+          .filter((value): value is string => typeof value === "string" && value.length > 0),
+      ),
+    ),
+    error: null,
+  };
+}
+
+export async function getOwnedOrganizationId(
+  sb: SupabaseClient,
+  userId: string,
+): Promise<string | null> {
+  const { data, error } = await sb
+    .from("organizations")
+    .select("id")
+    .eq("owner_clerk_user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const id = (data as { id?: unknown }).id;
+  return typeof id === "string" ? id : null;
+}
 export async function hasOrganizationRole(
   sb: SupabaseClient,
   userId: string,
@@ -61,3 +104,4 @@ export async function hasOrganizationRole(
   if (error || !data) return false;
   return allowedRoles.includes((data as { role: OrganizationRole }).role);
 }
+

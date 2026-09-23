@@ -1,4 +1,4 @@
-﻿import { Router, type IRouter } from "express";
+import { Router, type IRouter } from "express";
 import multer from "multer";
 import {
   CreateSurveyReportBody,
@@ -29,7 +29,7 @@ import {
 } from "../lib/survey/textPolish";
 import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
-import { listActiveOrganizationIds } from "../lib/teamAccess";
+import { listActiveOrganizationIds, listActiveWorkspaceOwnerIds } from "../lib/teamAccess";
 
 const router: IRouter = Router();
 
@@ -228,13 +228,18 @@ async function accessibleYachtIds(
     if (typeof row.id === "string") ids.add(row.id);
   }
 
-  const orgIds = await listActiveOrganizationIds(sb, userId);
+  const [orgIds, ownerIds] = await Promise.all([
+    listActiveOrganizationIds(sb, userId),
+    listActiveWorkspaceOwnerIds(sb, userId),
+  ]);
   if (orgIds.error) return { ids: Array.from(ids), error: orgIds.error.message };
-  if (orgIds.data.length > 0) {
+  if (ownerIds.error) return { ids: Array.from(ids), error: ownerIds.error.message };
+  if (orgIds.data.length > 0 && ownerIds.data.length > 0) {
     const shared = await sb
       .from(YACHTS_TABLE)
       .select("id")
-      .in("organization_id", orgIds.data);
+      .in("organization_id", orgIds.data)
+      .in("clerk_user_id", ownerIds.data);
     if (shared.error) return { ids: Array.from(ids), error: shared.error.message };
     for (const row of (shared.data ?? []) as Array<{ id?: unknown }>) {
       if (typeof row.id === "string") ids.add(row.id);
@@ -1297,3 +1302,4 @@ router.delete(
 );
 
 export default router;
+

@@ -22,7 +22,7 @@ import {
   UpdateYachtBody,
 } from "@workspace/api-zod";
 import { forClerkUser } from "../lib/clerkUserFilter";
-import { getDefaultOrganizationId, listActiveOrganizationIds } from "../lib/teamAccess";
+import { getOwnedOrganizationId, listActiveOrganizationIds, listActiveWorkspaceOwnerIds } from "../lib/teamAccess";
 import { isUuid } from "../lib/validators";
 
 const MAX_PHOTOS_PER_YACHT = 10;
@@ -133,9 +133,10 @@ function uniqueRowsById<T extends { id?: unknown }>(rows: T[]): T[] {
 }
 
 async function loadAccessibleYachtIds(sb: NonNullable<ReturnType<typeof getSupabase>>, userId: string): Promise<string[]> {
-  const [owned, orgIds] = await Promise.all([
+  const [owned, orgIds, ownerIds] = await Promise.all([
     forClerkUser(sb.from(YACHTS_TABLE).select("id"), userId),
     listActiveOrganizationIds(sb, userId),
+    listActiveWorkspaceOwnerIds(sb, userId),
   ]);
 
   const ids = new Set<string>();
@@ -143,12 +144,13 @@ async function loadAccessibleYachtIds(sb: NonNullable<ReturnType<typeof getSupab
     if (typeof row.id === "string") ids.add(row.id);
   }
 
-  if (orgIds.error) return Array.from(ids);
-  if (orgIds.data.length > 0) {
+  if (orgIds.error || ownerIds.error) return Array.from(ids);
+  if (orgIds.data.length > 0 && ownerIds.data.length > 0) {
     const shared = await sb
       .from(YACHTS_TABLE)
       .select("id")
-      .in("organization_id", orgIds.data);
+      .in("organization_id", orgIds.data)
+      .in("clerk_user_id", ownerIds.data);
     for (const row of (shared.data ?? []) as Array<{ id?: unknown }>) {
       if (typeof row.id === "string") ids.add(row.id);
     }
@@ -156,7 +158,6 @@ async function loadAccessibleYachtIds(sb: NonNullable<ReturnType<typeof getSupab
 
   return Array.from(ids);
 }
-
 async function loadAccessibleYacht(
   sb: NonNullable<ReturnType<typeof getSupabase>>,
   yachtId: string,
@@ -172,15 +173,20 @@ async function loadAccessibleYacht(
   if (ownedError) return { data: null, error: { message: ownedError.message } };
   if (owned) return { data: owned as YachtAccessRow, error: null };
 
-  const orgIds = await listActiveOrganizationIds(sb, userId);
+  const [orgIds, ownerIds] = await Promise.all([
+    listActiveOrganizationIds(sb, userId),
+    listActiveWorkspaceOwnerIds(sb, userId),
+  ]);
   if (orgIds.error) return { data: null, error: orgIds.error };
-  if (orgIds.data.length === 0) return { data: null, error: null };
+  if (ownerIds.error) return { data: null, error: ownerIds.error };
+  if (orgIds.data.length === 0 || ownerIds.data.length === 0) return { data: null, error: null };
 
   const { data, error } = await sb
     .from(YACHTS_TABLE)
     .select("id, clerk_user_id, organization_id")
     .eq("id", yachtId)
     .in("organization_id", orgIds.data)
+    .in("clerk_user_id", ownerIds.data)
     .maybeSingle();
 
   return { data: (data as YachtAccessRow | null) ?? null, error: error ? { message: error.message } : null };
@@ -199,10 +205,14 @@ router.get(
     // Default list hides archived yachts. Pass `?include_archived=1` to see all.
     const ia = req.query["include_archived"];
     const includeArchived = ia === "1" || ia === "true";
-    const orgIds = await listActiveOrganizationIds(sb, req.userId!);
-    if (orgIds.error) {
-      req.log.error({ err: orgIds.error.message }, "List yacht organizations failed");
-      res.status(500).json({ error: orgIds.error.message });
+    const [orgIds, ownerIds] = await Promise.all([
+      listActiveOrganizationIds(sb, req.userId!),
+      listActiveWorkspaceOwnerIds(sb, req.userId!),
+    ]);
+    const accessError = orgIds.error ?? ownerIds.error;
+    if (accessError) {
+      req.log.error({ err: accessError.message }, "List yacht organizations failed");
+      res.status(500).json({ error: accessError.message });
       return;
     }
 
@@ -213,11 +223,12 @@ router.get(
       .order("updated_at", { ascending: false })
       .limit(50);
 
-    const shared = orgIds.data.length > 0
+    const shared = orgIds.data.length > 0 && ownerIds.data.length > 0
       ? await sb
           .from(YACHTS_TABLE)
           .select(YACHT_COLUMNS)
           .in("organization_id", orgIds.data)
+          .in("clerk_user_id", ownerIds.data)
           .order("updated_at", { ascending: false })
           .limit(50)
       : { data: [], error: null };
@@ -266,7 +277,7 @@ router.post(
       });
       return;
     }
-    const organizationId = await getDefaultOrganizationId(sb, req.userId!);
+    const organizationId = await getOwnedOrganizationId(sb, req.userId!);
     const { data, error } = await sb
       .from(YACHTS_TABLE)
       .insert({
@@ -990,6 +1001,8 @@ router.patch(
 );
 
 export default router;
+
+
 
 
 
