@@ -72,19 +72,17 @@ export default function SignInScreen() {
         setGeneralError(clerkErrorMessage(result.error, "Sign-in failed"));
         return;
       }
-      const status = (result as any).status ?? signIn.status;
-      if (status === "complete") {
-        await signIn.finalize({
-          navigate: ({ session, decorateUrl }) => {
-            if (session?.currentTask) return;
-            router.replace(decorateUrl("/") as any);
-          },
-        });
-        setStatusMessage("Signed in. Opening your workspace…");
-        return;
-      }
-      setStatusMessage(null);
-      setGeneralError("Sign-in needs one more step. Please try again or use Google/Apple sign-in.");
+
+      // On native, Clerk may return the new session before `signIn.status`
+      // updates in React state. Finalize after a successful password attempt
+      // and let Clerk attach the session/navigate if the attempt is complete.
+      await signIn.finalize({
+        navigate: ({ session, decorateUrl }: { session?: { currentTask?: unknown } | null; decorateUrl: (url: string) => string }) => {
+          if (session?.currentTask) return;
+          router.replace(decorateUrl("/") as any);
+        },
+      });
+      setStatusMessage("Signed in. Opening your workspace…");
     } catch (err) {
       setStatusMessage(null);
       setGeneralError(clerkErrorMessage(err, "Sign-in failed"));
@@ -394,4 +392,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+
 
