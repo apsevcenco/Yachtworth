@@ -9,6 +9,7 @@ import {
 import { requireAuth, softClerkAuth } from "../middlewares/clerkAuth";
 import {
   getSupabase,
+  YACHTS_TABLE,
   SURVEY_REPORTS_TABLE,
   SURVEY_ITEMS_TABLE,
   SURVEY_SEA_TRIAL_TABLE,
@@ -28,6 +29,7 @@ import {
 } from "../lib/survey/textPolish";
 import { forClerkUser } from "../lib/clerkUserFilter";
 import { isUuid } from "../lib/validators";
+import { listActiveOrganizationIds } from "../lib/teamAccess";
 
 const router: IRouter = Router();
 
@@ -183,7 +185,7 @@ async function loadOwnedItem(
     .maybeSingle();
   if (error) return { status: 503, error: error.message };
   if (!item) return { status: 404, error: "Not found" };
-  const owned = await verifyOwnership(sb, item.report_id as string, userId);
+  const owned = await verifySurveyAccess(sb, item.report_id as string, userId);
   if (!owned) return { status: 404, error: "Not found" };
   const raw = (item as { photo_urls?: unknown }).photo_urls;
   const photo_urls = Array.isArray(raw)
@@ -215,6 +217,58 @@ async function loadOwnedItem(
 const REPORT_LIST_COLUMNS =
   "id,yacht_id,report_type,vessel_name,manufacturer,model,lying,survey_date,survey_purpose,status,total_recommendations_a,total_recommendations_b,total_recommendations_c,total_recommendations_d,created_at,updated_at";
 
+async function accessibleYachtIds(
+  sb: NonNullable<ReturnType<typeof getSupabase>>,
+  userId: string,
+): Promise<{ ids: string[]; error: string | null }> {
+  const ids = new Set<string>();
+  const owned = await forClerkUser(sb.from(YACHTS_TABLE).select("id"), userId);
+  if (owned.error) return { ids: [], error: owned.error.message };
+  for (const row of (owned.data ?? []) as Array<{ id?: unknown }>) {
+    if (typeof row.id === "string") ids.add(row.id);
+  }
+
+  const orgIds = await listActiveOrganizationIds(sb, userId);
+  if (orgIds.error) return { ids: Array.from(ids), error: orgIds.error.message };
+  if (orgIds.data.length > 0) {
+    const shared = await sb
+      .from(YACHTS_TABLE)
+      .select("id")
+      .in("organization_id", orgIds.data);
+    if (shared.error) return { ids: Array.from(ids), error: shared.error.message };
+    for (const row of (shared.data ?? []) as Array<{ id?: unknown }>) {
+      if (typeof row.id === "string") ids.add(row.id);
+    }
+  }
+
+  return { ids: Array.from(ids), error: null };
+}
+
+async function verifySurveyAccess(
+  sb: ReturnType<typeof getSupabase>,
+  id: string,
+  userId: string,
+): Promise<boolean> {
+  if (!sb) return false;
+  const { data: owned } = await forClerkUser(
+    sb.from(SURVEY_REPORTS_TABLE).select("id"),
+    userId,
+  )
+    .eq("id", id)
+    .maybeSingle();
+  if (owned) return true;
+
+  const yachts = await accessibleYachtIds(sb, userId);
+  if (yachts.error || yachts.ids.length === 0) return false;
+  const { data } = await sb
+    .from(SURVEY_REPORTS_TABLE)
+    .select("id")
+    .eq("id", id)
+    .in("yacht_id", yachts.ids)
+    .maybeSingle();
+  return !!data;
+}
+
 async function verifyOwnership(
   sb: ReturnType<typeof getSupabase>,
   id: string,
@@ -241,18 +295,48 @@ router.get(
       res.json({ items: [] });
       return;
     }
-    const { data, error } = await forClerkUser(
+    const yachts = await accessibleYachtIds(sb, req.userId!);
+    if (yachts.error) {
+      req.log.warn({ err: yachts.error }, "list survey report yacht access failed");
+      res.json({ items: [] });
+      return;
+    }
+
+    const owned = await forClerkUser(
       sb.from(SURVEY_REPORTS_TABLE).select(REPORT_LIST_COLUMNS),
       req.userId!,
     )
       .order("created_at", { ascending: false })
       .limit(200);
+
+    const shared = yachts.ids.length > 0
+      ? await sb
+          .from(SURVEY_REPORTS_TABLE)
+          .select(REPORT_LIST_COLUMNS)
+          .in("yacht_id", yachts.ids)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      : { data: [], error: null };
+
+    const error = owned.error ?? shared.error;
     if (error) {
       req.log.warn({ err: error.message }, "list survey reports failed");
       res.json({ items: [] });
       return;
     }
-    res.json({ items: data ?? [] });
+
+    const seen = new Set<string>();
+    const items = [...(owned.data ?? []), ...(shared.data ?? [])]
+      .filter((row) => {
+        const id = typeof row.id === "string" ? row.id : "";
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .sort((a, b) => Date.parse(String(b.created_at ?? 0)) - Date.parse(String(a.created_at ?? 0)))
+      .slice(0, 200);
+
+    res.json({ items });
   },
 );
 
@@ -372,10 +456,14 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const { data: report } = await forClerkUser(
-      sb.from(SURVEY_REPORTS_TABLE).select("*"),
-      req.userId!,
-    )
+    const access = await verifySurveyAccess(sb, id, req.userId!);
+    if (!access) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const { data: report } = await sb
+      .from(SURVEY_REPORTS_TABLE)
+      .select("*")
       .eq("id", id)
       .maybeSingle();
     if (!report) {
@@ -415,8 +503,8 @@ router.patch(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const owned = await verifyOwnership(sb, id, req.userId!);
-    if (!owned) {
+    const access = await verifySurveyAccess(sb, id, req.userId!);
+    if (!access) {
       res.status(404).json({ error: "Not found" });
       return;
     }
@@ -497,8 +585,8 @@ router.put(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const owned = await verifyOwnership(sb, id, req.userId!);
-    if (!owned) {
+    const access = await verifySurveyAccess(sb, id, req.userId!);
+    if (!access) {
       res.status(404).json({ error: "Not found" });
       return;
     }
@@ -658,8 +746,8 @@ router.put(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const owned = await verifyOwnership(sb, id, req.userId!);
-    if (!owned) {
+    const access = await verifySurveyAccess(sb, id, req.userId!);
+    if (!access) {
       res.status(404).json({ error: "Not found" });
       return;
     }
