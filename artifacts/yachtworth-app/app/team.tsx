@@ -108,6 +108,18 @@ export default function TeamScreen() {
     }
   }
 
+  async function acceptInvite() {
+    if (!authLoaded || !isSignedIn) {
+      setErrorText("Sign in first, then paste the invite code again. Team invites must be attached to your own account.");
+      router.push("/(tabs)/profile" as any);
+      return;
+    }
+    const accepted = await acceptTeamInvitation(inviteCode.trim(), await getTeamAuth());
+    setSnapshot(accepted);
+    setInviteCode("");
+    setStatusMessage("Invite accepted. You are now in the Team workspace.");
+  }
+
   const workspace = snapshot?.workspace ?? null;
   const isOwner = Boolean(
     workspace && snapshot?.memberships.some(
@@ -187,22 +199,33 @@ export default function TeamScreen() {
 
           <View style={[styles.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}> 
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Accept invite</Text>
-            <Text style={[styles.cardText, { color: colors.mutedForeground }]}>Paste the invite code from the workspace owner. Each person must use their own Yachtworth login.</Text>
-            <TextInput
-              value={inviteCode}
-              onChangeText={setInviteCode}
-              autoCapitalize="none"
-              placeholder="Invite code"
-              placeholderTextColor={colors.mutedForeground}
-              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
-            />
-            <Pressable
-              onPress={() => run(async () => setSnapshot(await acceptTeamInvitation(inviteCode.trim(), await getTeamAuth())), "Accepting invite…")}
-              disabled={busy || !inviteCode.trim()}
-              style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed || busy || !inviteCode.trim() ? 0.65 : 1 }]}
-            >
-              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Accept invite</Text>
-            </Pressable>
+            <Text style={[styles.cardText, { color: colors.mutedForeground }]}>Team invites must be accepted from your own signed-in Yachtworth account. Paste the invite code after signing in.</Text>
+            {!isSignedIn ? (
+              <Pressable
+                onPress={() => router.push("/(tabs)/profile" as any)}
+                style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 }]}
+              >
+                <Text style={[styles.primaryButtonText, { color: colors.background }]}>Sign in first</Text>
+              </Pressable>
+            ) : (
+              <>
+                <TextInput
+                  value={inviteCode}
+                  onChangeText={setInviteCode}
+                  autoCapitalize="none"
+                  placeholder="Invite code"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+                />
+                <Pressable
+                  onPress={() => run(acceptInvite, "Accepting invite…")}
+                  disabled={busy || !inviteCode.trim()}
+                  style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed || busy || !inviteCode.trim() ? 0.65 : 1 }]}
+                >
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Accept invite</Text>
+                </Pressable>
+              </>
+            )}
           </View>
 
           {workspace ? (
@@ -330,6 +353,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
 });
+
 
 
 
