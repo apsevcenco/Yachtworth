@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -43,6 +44,7 @@ export default function TeamScreen() {
   const [inviteCode, setInviteCode] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [lastInviteCode, setLastInviteCode] = useState<string | null>(null);
 
   async function getTeamAuth() {
     if (!authLoaded) throw new Error("Sign-in is still loading. Try again in a moment.");
@@ -221,7 +223,7 @@ export default function TeamScreen() {
               {isOwner ? (
                 <View style={[styles.card, { backgroundColor: colors.secondary, borderColor: colors.border }]}> 
                   <Text style={[styles.cardTitle, { color: colors.foreground }]}>Invite member</Text>
-                  <Text style={[styles.cardText, { color: colors.mutedForeground }]}>Team plan includes up to five seats, including pending invites.</Text>
+                  <Text style={[styles.cardText, { color: colors.mutedForeground }]}>Team plan includes up to five seats, including pending invites. Yachtworth creates an invite code now; automatic email delivery will be connected later.</Text>
                   <TextInput
                     value={inviteEmail}
                     onChangeText={setInviteEmail}
@@ -235,14 +237,30 @@ export default function TeamScreen() {
                     onPress={() => run(async () => {
                       const invite = await createTeamInvitation(inviteEmail, await getTeamAuth());
                       setInviteEmail("");
+                      setLastInviteCode(invite.id);
                       await load({ showAlert: true });
-                      Alert.alert("Invite created", `Send this invite code to ${invite.email}:\n\n${invite.id}`);
+                      Alert.alert("Invite code created", `Email is not sent automatically yet. Send this code to ${invite.email}:\n\n${invite.id}`);
                     }, "Creating invite code…")}
                     disabled={busy || !inviteEmail.trim()}
                     style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: pressed || busy || !inviteEmail.trim() ? 0.65 : 1 }]}
                   >
                     <Text style={[styles.primaryButtonText, { color: colors.background }]}>Create invite code</Text>
                   </Pressable>
+                  {lastInviteCode ? (
+                    <View style={[styles.inviteCodeBox, { borderColor: colors.border, backgroundColor: colors.card }]}> 
+                      <Text style={[styles.inviteCodeLabel, { color: colors.mutedForeground }]}>Last invite code</Text>
+                      <Text selectable style={[styles.inviteCode, { color: colors.foreground }]}>{lastInviteCode}</Text>
+                      <Pressable
+                        onPress={async () => {
+                          await Clipboard.setStringAsync(lastInviteCode);
+                          setStatusMessage("Invite code copied.");
+                        }}
+                        style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.primary, opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Copy code</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -299,6 +317,9 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: "Inter_700Bold", fontSize: 16 },
   cardText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 6 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 14, fontFamily: "Inter_400Regular", fontSize: 14 },
+  inviteCodeBox: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 12 },
+  inviteCodeLabel: { fontFamily: "Inter_500Medium", fontSize: 11, textTransform: "uppercase", letterSpacing: 1.2 },
+  inviteCode: { fontFamily: "Inter_600SemiBold", fontSize: 13, lineHeight: 18, marginTop: 6 },
   primaryButton: { borderRadius: 12, alignItems: "center", paddingVertical: 13, marginTop: 12 },
   primaryButtonText: { fontFamily: "Inter_700Bold", fontSize: 14 },
   secondaryButton: { borderRadius: 12, borderWidth: 1, alignItems: "center", paddingVertical: 13, marginTop: 12 },
@@ -309,6 +330,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 3 },
 });
+
 
 
 
